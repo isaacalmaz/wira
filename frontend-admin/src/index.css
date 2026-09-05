@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Komponen kartu untuk dashboard */
+  .card {
+    @apply bg-light-card dark:bg-dark-card rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6;
+  }
+  
+  /* Input form kustom */
+  .input-field {
+    @apply w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary shadow-sm;
+  }
+
+  /* Tombol utama */
+  .btn-primary {
+    @apply bg-primary hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-dark-bg;
+  }
+}
+
+/* Scrollbar kustom untuk tema gelap/terang */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-600 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-500;
+}
