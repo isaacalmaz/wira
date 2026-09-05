@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   
   const login = (userData, userRole) => {
     setUser(userData);
-    setRole(userRole);
+    setRole(userRole || userData?.role || 'driver');
   };
   
   const logout = () => {
