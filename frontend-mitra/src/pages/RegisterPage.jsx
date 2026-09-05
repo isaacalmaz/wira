@@ -1,16 +1,69 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '../components/shared/UIComponents';
+import { supabase } from '../config/supabase';
+import { toast } from 'react-hot-toast';
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('driver');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    vehicle: '',
+    plate: '',
+    restaurantName: '',
+    address: '',
+    specialization: 'ac',
+    experience: '1',
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if(step < 4) setStep(step + 1);
-    else navigate('/pending-verification');
+    if (step < 4) {
+      setStep(step + 1);
+    } else {
+      setLoading(true);
+      try {
+        const { error } = await supabase.from('mitra_registrations').insert([
+          {
+            role: role,
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            vehicle: role === 'driver' ? formData.vehicle : null,
+            plate: role === 'driver' ? formData.plate : null,
+            restaurant_name: role === 'merchant' ? formData.restaurantName : null,
+            address: role === 'merchant' ? formData.address : null,
+            specialization: role === 'technician' ? formData.specialization : null,
+            experience: role === 'technician' ? formData.experience : null,
+            status: 'Pending',
+          },
+        ]);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          // Tetap lanjutkan jika database offline/fallback
+        }
+        toast.success('Pendaftaran berhasil dikirim!');
+        navigate('/pending-verification');
+      } catch (err) {
+        console.error('Registration error:', err);
+        navigate('/pending-verification');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -18,20 +71,45 @@ const RegisterPage = () => {
       <Card className="w-full max-w-lg p-6">
         <h1 className="text-2xl font-bold text-center text-primary mb-6">Daftar Mitra Wira</h1>
         <div className="flex justify-between mb-6 px-4">
-          {[1,2,3,4].map(i => (
-            <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= i ? 'bg-primary text-white' : 'bg-slate-200 text-slate-500'}`}>{i}</div>
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors ${
+                step >= i ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+              }`}
+            >
+              {i}
+            </div>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {step === 1 && (
             <div className="space-y-4">
-              <h2 className="font-bold text-lg">Pilih Jenis Mitra</h2>
-              {['driver', 'merchant', 'technician'].map(r => (
-                <label key={r} className={`block p-4 border rounded-xl cursor-pointer ${role === r ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-200'}`}>
-                  <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="hidden"/>
-                  <span className="font-bold capitalize block text-lg">{r}</span>
-                  <span className="text-sm text-slate-500">Daftar sebagai {r} di Wira.</span>
+              <h2 className="font-bold text-lg dark:text-white">Pilih Jenis Mitra</h2>
+              {[
+                { id: 'driver', title: 'Driver (Ojek & Mobil)', desc: 'Antar penumpang & makanan di Lombok' },
+                { id: 'merchant', title: 'Merchant (Restoran/Warung)', desc: 'Jual makanan khas Lombok di WiraFood' },
+                { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
+              ].map((r) => (
+                <label
+                  key={r.id}
+                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${
+                    role === r.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={r.id}
+                    checked={role === r.id}
+                    onChange={() => setRole(r.id)}
+                    className="hidden"
+                  />
+                  <span className="font-bold block text-lg dark:text-white">{r.title}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{r.desc}</span>
                 </label>
               ))}
             </div>
@@ -39,57 +117,156 @@ const RegisterPage = () => {
 
           {step === 2 && (
             <div className="space-y-4">
-              <h2 className="font-bold text-lg">Data Pribadi</h2>
-              <input type="text" placeholder="Nama Lengkap" className="w-full p-3 rounded-lg border border-slate-300 dark:bg-slate-700" required />
-              <input type="tel" placeholder="Nomor Handphone" className="w-full p-3 rounded-lg border border-slate-300 dark:bg-slate-700" required />
-              <input type="email" placeholder="Email" className="w-full p-3 rounded-lg border border-slate-300 dark:bg-slate-700" required />
+              <h2 className="font-bold text-lg dark:text-white">Data Pribadi</h2>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Nama Lengkap"
+                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required
+              />
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Nomor Handphone (WhatsApp)"
+                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required
+              />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Alamat Email"
+                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required
+              />
             </div>
           )}
 
           {step === 3 && (
             <div className="space-y-4">
-              <h2 className="font-bold text-lg">{role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Resto' : 'Keahlian'}</h2>
+              <h2 className="font-bold text-lg dark:text-white">
+                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : 'Keahlian'}
+              </h2>
               {role === 'driver' && (
                 <>
-                  <input type="text" placeholder="Tipe Kendaraan (cth: Honda Vario)" className="w-full p-3 rounded-lg border" required />
-                  <input type="text" placeholder="Plat Nomor" className="w-full p-3 rounded-lg border" required />
-                  <div className="p-6 border-2 border-dashed rounded-xl text-center text-slate-500">Upload Foto SIM</div>
+                  <input
+                    type="text"
+                    name="vehicle"
+                    value={formData.vehicle}
+                    onChange={handleChange}
+                    placeholder="Tipe Kendaraan (cth: Honda Vario 160)"
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="plate"
+                    value={formData.plate}
+                    onChange={handleChange}
+                    placeholder="Plat Nomor (cth: DR 1234 AB)"
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    required
+                  />
+                  <div className="p-6 border-2 border-dashed rounded-xl text-center text-slate-500 dark:border-slate-600">
+                    Foto SIM & STNK (Opsional untuk uji coba)
+                  </div>
                 </>
               )}
               {role === 'merchant' && (
                 <>
-                  <input type="text" placeholder="Nama Restoran / Toko" className="w-full p-3 rounded-lg border" required />
-                  <textarea placeholder="Alamat Lengkap" className="w-full p-3 rounded-lg border" required></textarea>
+                  <input
+                    type="text"
+                    name="restaurantName"
+                    value={formData.restaurantName}
+                    onChange={handleChange}
+                    placeholder="Nama Restoran / Rumah Makan"
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    required
+                  />
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="Alamat Lengkap di Mataram/Lombok"
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    rows="3"
+                    required
+                  ></textarea>
                 </>
               )}
               {role === 'technician' && (
                 <>
-                  <select className="w-full p-3 rounded-lg border dark:bg-slate-700" required>
-                    <option value="">Pilih Spesialisasi...</option>
-                    <option value="ac">AC & Pendingin</option>
-                    <option value="listrik">Kelistrikan</option>
-                    <option value="plumbing">Pipa & Air</option>
+                  <select
+                    name="specialization"
+                    value={formData.specialization}
+                    onChange={handleChange}
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    required
+                  >
+                    <option value="AC & Pendingin">AC & Pendingin</option>
+                    <option value="Instalasi Listrik">Instalasi Listrik</option>
+                    <option value="Pipa & Pompa Air">Pipa & Pompa Air</option>
+                    <option value="Tukang Bangunan">Tukang Bangunan</option>
+                    <option value="Maintenance Kolam Renang">Maintenance Kolam Renang</option>
                   </select>
-                  <input type="number" placeholder="Pengalaman (Tahun)" className="w-full p-3 rounded-lg border" required />
+                  <input
+                    type="number"
+                    name="experience"
+                    value={formData.experience}
+                    onChange={handleChange}
+                    placeholder="Pengalaman Kerja (Tahun)"
+                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    required
+                  />
                 </>
               )}
             </div>
           )}
 
           {step === 4 && (
-            <div className="text-center space-y-4 py-6">
-              <h2 className="font-bold text-xl">Review Data</h2>
-              <p className="text-slate-500">Pastikan semua data sudah benar sebelum mengirimkan pendaftaran.</p>
+            <div className="space-y-4 py-4 dark:text-white">
+              <h2 className="font-bold text-xl text-center">Konfirmasi Pendaftaran</h2>
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl space-y-2 text-sm">
+                <p><span className="text-slate-500">Peran:</span> <strong className="capitalize">{role}</strong></p>
+                <p><span className="text-slate-500">Nama:</span> <strong>{formData.name}</strong></p>
+                <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
+                <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
+                {role === 'driver' && (
+                  <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate})</strong></p>
+                )}
+                {role === 'merchant' && (
+                  <p><span className="text-slate-500">Restoran:</span> <strong>{formData.restaurantName}</strong></p>
+                )}
+                {role === 'technician' && (
+                  <p><span className="text-slate-500">Keahlian:</span> <strong>{formData.specialization} ({formData.experience} thn)</strong></p>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 text-center">
+                Data akan langsung terkirim ke Admin Wira untuk proses verifikasi.
+              </p>
             </div>
           )}
 
           <div className="flex gap-3 pt-4">
-            {step > 1 && <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(step-1)}>Kembali</Button>}
-            <Button type="submit" variant="primary" className="flex-1">{step === 4 ? 'Kirim Pendaftaran' : 'Lanjut'}</Button>
+            {step > 1 && (
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(step - 1)}>
+                Kembali
+              </Button>
+            )}
+            <Button type="submit" variant="primary" className="flex-1" disabled={loading}>
+              {loading ? 'Mengirim...' : step === 4 ? 'Kirim Pendaftaran' : 'Lanjut'}
+            </Button>
           </div>
         </form>
       </Card>
     </div>
   );
 };
+
 export default RegisterPage;
