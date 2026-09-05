@@ -173,8 +173,62 @@ const RegisterPage = () => {
                     className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     required
                   />
-                  <div className="p-6 border-2 border-dashed rounded-xl text-center text-slate-500 dark:border-slate-600">
-                    Foto SIM & STNK (Opsional untuk uji coba)
+                  {/* Upload Foto SIM & STNK */}
+                  <div>
+                    <input
+                      type="file"
+                      id="sim-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFormData((prev) => ({ ...prev, simPhoto: reader.result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    {formData.simPhoto ? (
+                      <div className="relative p-3 border-2 border-green-500 bg-green-50 dark:bg-green-950/20 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={formData.simPhoto}
+                            alt="Preview SIM"
+                            className="w-14 h-14 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                              Foto SIM Berhasil Dipilih ✓
+                            </p>
+                            <p className="text-xs text-slate-500">Klik tombol di samping untuk mengganti</p>
+                          </div>
+                        </div>
+                        <label
+                          htmlFor="sim-upload"
+                          className="cursor-pointer text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded-lg font-medium hover:bg-slate-50 text-slate-700 dark:text-slate-200"
+                        >
+                          Ganti
+                        </label>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="sim-upload"
+                        className="cursor-pointer block p-6 border-2 border-dashed border-cyan-400 hover:border-cyan-600 dark:border-cyan-800 dark:hover:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-950/10 rounded-xl text-center transition-all group"
+                      >
+                        <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          📸
+                        </div>
+                        <p className="font-semibold text-sm text-cyan-900 dark:text-cyan-300">
+                          Klik untuk Upload Foto SIM & STNK
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Mendukung format JPG, PNG, atau ambil langsung dari kamera HP
+                        </p>
+                      </label>
+                    )}
                   </div>
                 </>
               )}
@@ -238,7 +292,15 @@ const RegisterPage = () => {
                 <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
                 <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
                 {role === 'driver' && (
-                  <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate})</strong></p>
+                  <>
+                    <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate})</strong></p>
+                    {formData.simPhoto && (
+                      <div className="pt-2 flex items-center gap-3">
+                        <span className="text-slate-500">Foto Dokumen:</span>
+                        <img src={formData.simPhoto} alt="SIM Preview" className="w-12 h-12 object-cover rounded-md border" />
+                      </div>
+                    )}
+                  </>
                 )}
                 {role === 'merchant' && (
                   <p><span className="text-slate-500">Restoran:</span> <strong>{formData.restaurantName}</strong></p>
