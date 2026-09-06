@@ -12,27 +12,31 @@ import toast from 'react-hot-toast';
 
 const COLORS = ['#0891B2', '#D97706', '#F97316', '#64748B', '#10B981', '#6366F1'];
 
-const StatCard = ({ title, value, icon: Icon, trend, subtext, highlight }) => (
-  <div className={`card flex items-center gap-4 transition-all duration-200 ${
-    highlight ? 'border-amber-400/50 bg-amber-50/20 dark:bg-amber-950/20 dark:border-amber-500/30' : ''
-  }`}>
-    <div className={`p-4 rounded-full ${
-      highlight ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-primary/10 text-primary'
+const StatCard = ({ title, value, icon: Icon, trend, subtext, highlight, linkTo }) => {
+  const CardContent = (
+    <div className={`card flex items-center gap-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] cursor-pointer ${
+      highlight ? 'border-amber-400/50 bg-amber-50/20 dark:bg-amber-950/20 dark:border-amber-500/30' : ''
     }`}>
-      <Icon size={24} />
+      <div className={`p-4 rounded-full ${
+        highlight ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-primary/10 text-primary'
+      }`}>
+        <Icon size={24} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
+        {trend && (
+          <span className="text-xs font-medium text-green-500">+{trend}% bulan ini</span>
+        )}
+        {subtext && (
+          <span className="text-xs font-medium text-slate-400 dark:text-slate-500 block truncate">{subtext}</span>
+        )}
+      </div>
     </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
-      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
-      {trend && (
-        <span className="text-xs font-medium text-green-500">+{trend}% bulan ini</span>
-      )}
-      {subtext && (
-        <span className="text-xs font-medium text-slate-400 dark:text-slate-500 block truncate">{subtext}</span>
-      )}
-    </div>
-  </div>
-);
+  );
+
+  return linkTo ? <Link to={linkTo} className="block">{CardContent}</Link> : CardContent;
+};
 
 const DashboardPage = () => {
   const [mitraList, setMitraList] = useState([]);
@@ -229,18 +233,21 @@ const DashboardPage = () => {
           value={totalUsers.toLocaleString('id-ID')} 
           icon={Users} 
           subtext="Terdaftar di platform" 
+          linkTo="/users"
         />
         <StatCard 
           title="Pesanan Hari Ini" 
           value={ordersToday} 
           icon={ShoppingBag} 
           subtext={ordersToday === 0 ? 'Belum ada transaksi hari ini' : 'Transaksi aktif'} 
+          linkTo="/orders"
         />
         <StatCard 
           title="Pendapatan (Hari Ini)" 
           value={`Rp ${revenueToday.toLocaleString('id-ID')}`} 
           icon={Wallet} 
           subtext="Hasil transaksi selesai" 
+          linkTo="/finance"
         />
         <StatCard 
           title="Driver Aktif" 
@@ -248,6 +255,7 @@ const DashboardPage = () => {
           icon={Car} 
           highlight={pendingMitra.filter(m => m.role === 'driver').length > 0}
           subtext={pendingMitra.filter(m => m.role === 'driver').length > 0 ? `${pendingMitra.filter(m => m.role === 'driver').length} pendaftar menunggu` : 'Semua diverifikasi'}
+          linkTo="/drivers"
         />
       </div>
 
@@ -389,33 +397,33 @@ const DashboardPage = () => {
             <span className="text-xs text-primary font-medium">Real-time</span>
           </h2>
           <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <Link to="/drivers" className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
               <div className="flex items-center gap-2.5">
-                <span className="text-xl">🛵</span>
+                <span className="text-xl group-hover:scale-110 transition-transform">🛵</span>
                 <span className="font-medium text-slate-800 dark:text-slate-200">Driver WiraRide & WiraSend</span>
               </div>
               <span className="font-bold text-primary">
                 {mitraList.filter(m => m.role === 'driver' && m.status === 'Active').length} Driver Aktif
               </span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            </Link>
+            <Link to="/merchants" className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
               <div className="flex items-center gap-2.5">
-                <span className="text-xl">🍔</span>
+                <span className="text-xl group-hover:scale-110 transition-transform">🍔</span>
                 <span className="font-medium text-slate-800 dark:text-slate-200">Merchant Restoran WiraFood</span>
               </div>
               <span className="font-bold text-amber-600">
                 {mitraList.filter(m => m.role === 'merchant' && m.status === 'Active').length} Mitra Aktif
               </span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            </Link>
+            <Link to="/technicians" className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
               <div className="flex items-center gap-2.5">
-                <span className="text-xl">🔧</span>
+                <span className="text-xl group-hover:scale-110 transition-transform">🔧</span>
                 <span className="font-medium text-slate-800 dark:text-slate-200">Teknisi Servis & Kolam Renang</span>
               </div>
               <span className="font-bold text-green-600">
                 {mitraList.filter(m => m.role === 'technician' && m.status === 'Active').length} Teknisi Aktif
               </span>
-            </div>
+            </Link>
           </div>
         </div>
 
@@ -429,14 +437,14 @@ const DashboardPage = () => {
               Semua transaksi WiraPay dan pesanan super-app terhubung langsung ke database cloud.
             </p>
             <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+              <Link to="/orders" className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
                 <p className="text-xs text-slate-500">Total Transaksi Selesai</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{ordersToday}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1 group-hover:scale-110 transition-transform">{ordersToday}</p>
+              </Link>
+              <Link to="/drivers" className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 hover:bg-amber-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
                 <p className="text-xs text-slate-500">Pendaftar Tertunda</p>
-                <p className="text-xl font-bold text-amber-600 mt-1">{pendingMitra.length}</p>
-              </div>
+                <p className="text-xl font-bold text-amber-600 mt-1 group-hover:scale-110 transition-transform">{pendingMitra.length}</p>
+              </Link>
             </div>
           </div>
           <div className="pt-4 border-t border-slate-100 dark:border-slate-700 mt-4 flex justify-between items-center text-xs text-slate-500">
