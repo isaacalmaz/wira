@@ -68,8 +68,41 @@ const AdminLayout = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Notifikasi Real-time saat ada pendaftaran mitra baru dari cloud
+  // Ambil notifikasi awal dari Supabase Cloud & dengarkan Real-time
   useEffect(() => {
+    const fetchInitialNotifs = async () => {
+      try {
+        const { data } = await supabase
+          .from('feature_flags')
+          .select('features')
+          .eq('region', 'mitra_registrations')
+          .maybeSingle();
+
+        if (data && Array.isArray(data.features)) {
+          const pendings = data.features.filter((m) => m.status === 'Pending');
+          if (pendings.length > 0) {
+            const dynamicNotifs = pendings.map((m) => ({
+              id: m.id,
+              title: `Pendaftaran ${m.role === 'driver' ? 'Driver' : m.role === 'merchant' ? 'Restoran' : 'Teknisi'} Baru`,
+              desc: `${m.name} (${m.phone}) menunggu verifikasi Anda.`,
+              time: 'Menunggu Verifikasi',
+              unread: true,
+              link: m.role === 'driver' ? '/drivers' : m.role === 'merchant' ? '/merchants' : '/technicians',
+              type: m.role,
+            }));
+
+            setNotifications((prev) => {
+              const existingIds = new Set(prev.map((p) => p.id));
+              const fresh = dynamicNotifs.filter((d) => !existingIds.has(d.id));
+              return [...fresh, ...prev];
+            });
+          }
+        }
+      } catch (err) {}
+    };
+
+    fetchInitialNotifs();
+
     const channel = supabase
       .channel('realtime-header-notifs')
       .on(
@@ -79,10 +112,10 @@ const AdminLayout = () => {
           if (payload.new && payload.new.region === 'mitra_registrations') {
             const list = payload.new.features || [];
             const latest = list[0];
-            if (latest) {
+            if (latest && latest.status === 'Pending') {
               setNotifications((prev) => [
                 {
-                  id: Date.now(),
+                  id: latest.id || Date.now(),
                   title: `Pendaftaran ${latest.role === 'driver' ? 'Driver' : latest.role === 'merchant' ? 'Restoran' : 'Teknisi'} Baru`,
                   desc: `${latest.name} (${latest.phone}) baru saja mendaftar.`,
                   time: 'Baru saja',

@@ -54,19 +54,23 @@ const RegisterPage = () => {
       try {
         const { data } = await supabase
           .from('feature_flags')
-          .select('features')
+          .select('id, features')
           .eq('region', 'mitra_registrations')
           .maybeSingle();
 
         const currentList = Array.isArray(data?.features) ? data.features : [];
         const updatedList = [newMitra, ...currentList.filter((m) => m.id !== newMitra.id)];
 
-        await supabase
-          .from('feature_flags')
-          .upsert(
-            { region: 'mitra_registrations', features: updatedList, updated_at: new Date().toISOString() },
-            { onConflict: 'region' }
-          );
+        if (data) {
+          await supabase
+            .from('feature_flags')
+            .update({ features: updatedList, updated_at: new Date().toISOString() })
+            .eq('region', 'mitra_registrations');
+        } else {
+          await supabase
+            .from('feature_flags')
+            .insert([{ region: 'mitra_registrations', features: updatedList, updated_at: new Date().toISOString() }]);
+        }
       } catch (cloudErr) {
         console.warn('Cloud sync warn:', cloudErr);
       }
