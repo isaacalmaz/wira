@@ -101,6 +101,11 @@ const RegisterPage = () => {
           }
         });
         if (authError) throw authError;
+        
+        if (!data?.user?.id) {
+          throw new Error("Email ini sudah terdaftar. Silakan gunakan email lain atau langsung Masuk (Login).");
+        }
+        
         authData = data;
       } catch (err) {
         toast.error(`Gagal mendaftar: ${err.message}`);
