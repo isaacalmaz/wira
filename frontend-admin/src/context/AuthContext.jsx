@@ -1,30 +1,72 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../config/supabase';
+import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Simulasi state autentikasi untuk MVP
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('admin_user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (email, password) => {
-    // Mock login logic
-    const mockUser = {
-      id: 1,
-      name: 'Admin Utama',
-      email: email,
-      role: email.includes('super') ? 'Superadmin' : 'Admin Ops'
+  useEffect(() => {
+    // Cek session saat ini saat memuat aplikasi
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          email: session.user.email,
+          role: session.user.user_metadata?.role || 'Superadmin' // Default untuk versi awal
+        });
+      }
+      setLoading(false);
     };
-    setUser(mockUser);
-    localStorage.setItem('admin_user', JSON.stringify(mockUser));
-    return true;
+
+    checkSession();
+
+    // Dengarkan perubahan status auth (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          email: session.user.email,
+          role: session.user.user_metadata?.role || 'Superadmin'
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Login error:', error.message);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error('Unexpected login error:', err);
+      return { success: false, error: 'Terjadi kesalahan sistem' };
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('admin_user');
   };
 
   return (
@@ -32,9 +74,10 @@ export const AuthProvider = ({ children }) => {
       user, 
       login, 
       logout,
-      isAuthenticated: !!user 
+      isAuthenticated: !!user,
+      loading
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
