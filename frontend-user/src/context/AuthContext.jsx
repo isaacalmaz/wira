@@ -41,7 +41,17 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       if (err.message.includes('rate limit') || err.message.includes('Invalid login')) {
         // Fallback untuk Demo / MVP Bypass
-        const fakeUser = { id: 'demo-' + Date.now(), email, name: 'Pengguna Demo', phone: '08123456789' };
+        let fakeName = 'Pengguna Demo';
+        let fakePhone = '08123456789';
+        
+        // Coba cari data asli di tabel users
+        const { data: existingUser } = await supabase.from('users').select('name, phone').eq('email', email).single();
+        if (existingUser) {
+          fakeName = existingUser.name;
+          fakePhone = existingUser.phone;
+        }
+
+        const fakeUser = { id: 'demo-' + Date.now(), email, name: fakeName, phone: fakePhone };
         setUser(fakeUser);
         setIsAuthenticated(true);
         localStorage.setItem('wira_fake_session', JSON.stringify(fakeUser));
