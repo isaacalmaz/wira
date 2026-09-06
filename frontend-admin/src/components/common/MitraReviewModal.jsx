@@ -16,10 +16,16 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   const RoleIconComponent = roleIcon;
 
   const cleanPhone = (mitra.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
-  const greetingText = encodeURIComponent(
-    `Halo ${mitra.name}, salam dari Tim Admin Wira Lombok! Terkait pendaftaran Anda sebagai mitra ${roleTitle}, kami telah meninjau data dan berkas Anda.`
+  
+  const approveText = encodeURIComponent(
+    `Halo ${mitra.name}, selamat! Pendaftaran Anda sebagai mitra ${roleTitle} Wira Lombok telah KAMI SETUJUI. Anda sekarang dapat mulai menerima pesanan. Silakan login ke aplikasi Mitra.`
   );
-  const waUrl = `https://wa.me/${cleanPhone}?text=${greetingText}`;
+  const waApproveUrl = `https://wa.me/${cleanPhone}?text=${approveText}`;
+
+  const rejectText = encodeURIComponent(
+    `Halo ${mitra.name}, mohon maaf, pendaftaran Anda sebagai mitra ${roleTitle} Wira Lombok belum dapat kami setujui saat ini. Pastikan dokumen (SIM/KTP) jelas dan sesuai.`
+  );
+  const waRejectUrl = `https://wa.me/${cleanPhone}?text=${rejectText}`;
 
   const handleApprove = () => {
     onVerify(mitra.id, true, adminNotes);
@@ -193,30 +199,42 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
 
         {/* Footer Aksi Modal */}
         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Tombol WhatsApp */}
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold shadow-sm transition"
-          >
-            <MessageSquare size={16} /> Hubungi via WhatsApp
-          </a>
-
-          {/* Tombol Keputusan */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <a
+              href={waRejectUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleReject}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 dark:bg-slate-800 dark:hover:bg-red-950/30 dark:border-red-800/50 text-xs font-semibold transition shadow-sm"
+              title="Tolak Pendaftaran dan beri tahu mitra via WA"
+            >
+              <MessageSquare size={14} /> Tolak & WA
+            </a>
             <button
               onClick={handleReject}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 dark:bg-slate-800 dark:hover:bg-red-950/30 dark:border-red-800/50 text-xs font-semibold transition"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 text-xs font-semibold transition"
             >
-              <XCircle size={16} /> Tolak Pendaftaran
+              <XCircle size={14} /> Tolak Saja
             </button>
-            <button
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+             <button
               onClick={handleApprove}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary hover:bg-cyan-700 text-white text-xs font-bold shadow-md shadow-primary/20 transition active:scale-95"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-slate-500 hover:text-primary hover:bg-primary/10 dark:hover:bg-slate-800 text-xs font-semibold transition"
             >
-              <CheckCircle size={16} /> Setujui & Aktifkan
+              <CheckCircle size={14} /> Setuju Saja
             </button>
+            <a
+              href={waApproveUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleApprove}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:bg-cyan-700 text-white text-xs font-bold shadow-md shadow-primary/20 transition active:scale-95"
+              title="Setujui pendaftaran dan kirim ucapan selamat via WA"
+            >
+              <MessageSquare size={14} /> Setuju & WA
+            </a>
           </div>
         </div>
 

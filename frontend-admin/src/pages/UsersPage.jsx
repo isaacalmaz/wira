@@ -67,17 +67,51 @@ const UsersPage = () => {
     fetchUsers();
   }, []);
 
-  const toggleUserStatus = (userId) => {
+  const toggleUserStatus = async (userId, currentRole) => {
+    const userToUpdate = users.find(u => u.id === userId);
+    if (!userToUpdate) return;
+    
+    const newStatus = userToUpdate.status === 'Aktif' ? 'Diblokir' : 'Aktif';
+
+    // Optimistic UI update
     setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === userId) {
-          const newStatus = u.status === 'Aktif' ? 'Diblokir' : 'Aktif';
-          toast.success(`Status pengguna diubah menjadi ${newStatus}`);
-          return { ...u, status: newStatus };
-        }
-        return u;
-      })
+      prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u))
     );
+    toast.success(`Mengubah status pengguna...`);
+
+    try {
+      if (currentRole === 'mitra') {
+        const { data } = await supabase
+          .from('feature_flags')
+          .select('features')
+          .eq('region', 'mitra_registrations')
+          .maybeSingle();
+
+        if (data && Array.isArray(data.features)) {
+          const updated = data.features.map((m) =>
+            m.id === userId ? { ...m, status: newStatus === 'Aktif' ? 'Active' : 'Blocked' } : m
+          );
+          await supabase
+            .from('feature_flags')
+            .update({ features: updated })
+            .eq('region', 'mitra_registrations');
+        }
+      } else {
+        // Try updating real users table
+        await supabase
+          .from('users')
+          .update({ status: newStatus })
+          .eq('id', userId);
+      }
+      toast.success(`Status pengguna berhasil diperbarui menjadi ${newStatus}`);
+    } catch (err) {
+      console.error('Error updating user status:', err);
+      toast.error('Gagal memperbarui status di cloud');
+      // Revert status
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, status: userToUpdate.status } : u))
+      );
+    }
   };
 
   const filtered = users.filter(
@@ -168,8 +202,12 @@ const UsersPage = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        onClick={() => toggleUserStatus(user.id)}
-                        className="text-xs font-semibold px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                        onClick={() => toggleUserStatus(user.id, user.role)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded border transition ${
+                          user.status === 'Aktif' 
+                            ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800/50 dark:hover:bg-red-900/30' 
+                            : 'border-green-200 text-green-600 hover:bg-green-50 dark:border-green-800/50 dark:hover:bg-green-900/30'
+                        }`}
                       >
                         {user.status === 'Aktif' ? 'Blokir' : 'Aktifkan'}
                       </button>

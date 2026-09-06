@@ -62,8 +62,13 @@ const AdminLayout = () => {
               link: m.role === 'driver' ? '/drivers' : m.role === 'merchant' ? '/merchants' : '/technicians',
               type: m.role,
             }));
-
-            setNotifications(dynamicNotifs);
+            setNotifications((prev) => {
+              const prevNotifs = new Map(prev.map(p => [p.id, p]));
+              return dynamicNotifs.map(newNotif => {
+                const existing = prevNotifs.get(newNotif.id);
+                return existing ? { ...newNotif, unread: existing.unread } : newNotif;
+              });
+            });
           } else {
             setNotifications([]);
           }

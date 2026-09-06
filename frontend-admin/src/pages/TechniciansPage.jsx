@@ -346,13 +346,25 @@ const TechniciansPage = () => {
                       <StatusBadge status={tech.status} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => openReviewModal(tech)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition"
-                        title="Review data teknisi"
-                      >
-                        <Eye size={15} /> Review Data
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openReviewModal(tech)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition"
+                          title="Buka detail berkas pendaftaran"
+                        >
+                          <Eye size={15} /> Review
+                        </button>
+                        <button
+                          onClick={() => handleVerify(tech.id, tech.status !== 'Active', 'Diubah secara manual dari tabel')}
+                          className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition border ${
+                            tech.status === 'Active'
+                              ? 'text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800/50 dark:hover:bg-red-900/30'
+                              : 'text-green-600 border-green-200 hover:bg-green-50 dark:border-green-800/50 dark:hover:bg-green-900/30'
+                          }`}
+                        >
+                          {tech.status === 'Active' ? 'Blokir' : 'Aktifkan'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
