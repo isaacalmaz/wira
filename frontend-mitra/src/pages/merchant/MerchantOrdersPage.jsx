@@ -59,8 +59,8 @@ const MerchantOrdersPage = () => {
             </div>
             
             <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg mb-4 text-sm">
-               {/* Untuk realita, kita harus menyimpan detail item di orders. Tapi karena MVP kita belum, kita tulis dummy atau biarkan kosong */}
-               <p className="text-slate-600 dark:text-slate-300 font-medium italic">Pesanan WiraFood</p>
+               <p className="text-slate-800 dark:text-slate-200 font-bold mb-1">{order.title || 'Pesanan WiraFood'}</p>
+               <p className="text-slate-600 dark:text-slate-400">{order.details || 'Tidak ada detail menu'}</p>
             </div>
 
             {tab === 'active' && (

@@ -56,6 +56,8 @@ export const OrderProvider = ({ children }) => {
           service_type: orderData.serviceType || 'ride',
           status: 'pending',
           total_price: orderData.price,
+          title: orderData.title || null,
+          details: orderData.details || null,
           payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
           payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
         },

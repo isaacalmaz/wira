@@ -137,6 +137,12 @@ const MerchantHomePage = () => {
               <p className="text-sm text-slate-500">Order ID: {activeOrder.id.slice(0,8)}</p>
             </div>
           </div>
+          
+          <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-sm mb-2 border border-slate-100 dark:border-slate-700">
+             <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">{activeOrder.title || 'Pesanan WiraFood'}</p>
+             <p className="text-slate-600 dark:text-slate-400">{activeOrder.details || 'Tidak ada detail menu'}</p>
+          </div>
+
           <div className="flex justify-between items-center text-xl font-bold pt-2">
             <span>Total Tagihan:</span>
             <span className="text-primary">Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
@@ -156,9 +162,9 @@ const MerchantHomePage = () => {
               <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
                 <BellRing size={32} className="animate-bounce" />
               </div>
-              <Badge variant="primary" className="mb-2">Wira Food</Badge>
+              <Badge variant="primary" className="mb-2">{incomingOrder.title || 'Wira Food'}</Badge>
               <h2 className="text-2xl font-bold">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</h2>
-              <p className="text-slate-500 mt-2">Pesanan baru masuk!</p>
+              <p className="text-slate-500 mt-2 text-sm">{incomingOrder.details || 'Pesanan baru masuk!'}</p>
             </div>
             
             <div className="flex gap-3">
