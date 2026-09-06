@@ -101,29 +101,34 @@ const RegisterPage = () => {
         created_at: new Date().toISOString(),
       };
 
-      // 1. Simpan ke Supabase Cloud (Menggunakan tabel feature_flags yang 100% aktif & terbuka di Supabase)
+      // 1. Simpan ke Supabase Cloud
       try {
-        const { data } = await supabase
+        const { data, error: fetchErr } = await supabase
           .from('feature_flags')
           .select('id, features')
           .eq('region', 'mitra_registrations')
           .maybeSingle();
 
+        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
+
         const currentList = Array.isArray(data?.features) ? data.features : [];
         const updatedList = [newMitra, ...currentList.filter((m) => m.id !== newMitra.id)];
 
         if (data) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from('feature_flags')
             .update({ features: updatedList, updated_at: new Date().toISOString() })
             .eq('region', 'mitra_registrations');
+          if (updateErr) throw updateErr;
         } else {
-          await supabase
+          const { error: insertErr } = await supabase
             .from('feature_flags')
             .insert([{ region: 'mitra_registrations', features: updatedList, updated_at: new Date().toISOString() }]);
+          if (insertErr) throw insertErr;
         }
       } catch (cloudErr) {
-        console.warn('Cloud sync warn:', cloudErr);
+        console.error('Cloud sync error:', cloudErr);
+        toast.error(`Gagal sinkronisasi cloud: ${cloudErr.message || 'Error tidak diketahui'}`);
       }
 
       // 2. Simpan juga ke mitra_registrations jika tabel sudah dibuat
