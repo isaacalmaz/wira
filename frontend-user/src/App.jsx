@@ -5,6 +5,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { WalletProvider } from './context/WalletContext';
+import { OrderProvider } from './context/OrderContext';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import RidePage from './pages/RidePage';
@@ -31,30 +33,34 @@ export default function Root() {
         <AuthProvider>
           <CartProvider>
             <NotificationProvider>
-              <BrowserRouter>
-                <Toaster position="top-center" />
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/otp" element={<OTPPage />} />
-                  <Route element={<Layout />}>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/ride" element={<RidePage />} />
-                    <Route path="/wallet" element={<WalletPage />} />
-                    <Route path="/food" element={<FoodPage />} />
-                    <Route path="/restaurant/:id" element={<RestaurantPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
-                    <Route path="/activity" element={<ActivityPage />} />
-                    <Route path="/chat" element={<ChatPage />} />
-                    <Route path="/send" element={<SendPage />} />
-                    <Route path="/pulsa" element={<PulsaPage />} />
-                    <Route path="/villa" element={<VillaPage />} />
-                    <Route path="/service" element={<ServicePage />} />
-                    <Route path="/pool" element={<PoolPage />} />
-                  </Route>
-                </Routes>
-              </BrowserRouter>
+              <WalletProvider>
+                <OrderProvider>
+                  <BrowserRouter>
+                    <Toaster position="top-center" />
+                    <Routes>
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/otp" element={<OTPPage />} />
+                      <Route element={<Layout />}>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/ride" element={<RidePage />} />
+                        <Route path="/wallet" element={<WalletPage />} />
+                        <Route path="/food" element={<FoodPage />} />
+                        <Route path="/restaurant/:id" element={<RestaurantPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
+                        <Route path="/activity" element={<ActivityPage />} />
+                        <Route path="/chat" element={<ChatPage />} />
+                        <Route path="/send" element={<SendPage />} />
+                        <Route path="/pulsa" element={<PulsaPage />} />
+                        <Route path="/villa" element={<VillaPage />} />
+                        <Route path="/service" element={<ServicePage />} />
+                        <Route path="/pool" element={<PoolPage />} />
+                      </Route>
+                    </Routes>
+                  </BrowserRouter>
+                </OrderProvider>
+              </WalletProvider>
             </NotificationProvider>
           </CartProvider>
         </AuthProvider>

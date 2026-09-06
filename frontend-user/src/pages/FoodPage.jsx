@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Star, Clock } from 'lucide-react';
 import Card from '../components/common/Card';
 import { RESTAURANTS } from '../data/restaurants';
@@ -41,17 +42,19 @@ export default function FoodPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map(rest => (
-          <Card key={rest.id} className="flex gap-4 p-4 cursor-pointer hover:border-primary">
-            <img src={rest.image} alt={rest.name} className="w-24 h-24 rounded-lg object-cover bg-slate-200" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg dark:text-white">{rest.name}</h3>
-              <p className="text-sm text-slate-500 mb-2">{rest.category}</p>
-              <div className="flex items-center gap-4 text-xs font-medium text-slate-600 dark:text-slate-400">
-                <span className="flex items-center gap-1 text-orange-500"><Star size={14} fill="currentColor" /> {rest.rating}</span>
-                <span className="flex items-center gap-1"><Clock size={14} /> {rest.deliveryTime}</span>
+          <Link key={rest.id} to={`/restaurant/${rest.id}`} className="block group">
+            <Card className="flex gap-4 p-4 cursor-pointer group-hover:border-primary transition-all group-hover:shadow-md">
+              <img src={rest.image} alt={rest.name} className="w-24 h-24 rounded-2xl object-cover bg-slate-200 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-base dark:text-white group-hover:text-primary transition-colors truncate">{rest.name}</h3>
+                <p className="text-xs text-slate-500 mb-2">{rest.category} • {rest.address}</p>
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  <span className="flex items-center gap-1 text-amber-500"><Star size={14} fill="currentColor" /> {rest.rating}</span>
+                  <span className="flex items-center gap-1"><Clock size={14} /> {rest.deliveryTime}</span>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>
