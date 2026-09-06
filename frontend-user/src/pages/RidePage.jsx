@@ -103,7 +103,7 @@ export default function RidePage() {
       setStep('searching');
       toast.success('Mencari driver di sekitar Anda...');
     } catch (err) {
-      toast.error('Gagal membuat pesanan');
+      toast.error(`Gagal: ${err.message}`);
     }
   };
 

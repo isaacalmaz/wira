@@ -80,7 +80,7 @@ export const OrderProvider = ({ children }) => {
       return newOrder;
     } catch (err) {
       console.error('Gagal membuat pesanan:', err);
-      throw err;
+      throw new Error(err.message || 'Gagal membuat pesanan');
     }
   };
 
