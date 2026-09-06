@@ -62,14 +62,15 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data.user) {
-        await supabase.from('users').insert([{
+        const { error: insertError } = await supabase.from('users').insert([{
           id: data.user.id,
           name: userData.name,
           email: email,
           phone: userData.phone,
           role: 'user',
           status: 'Aktif'
-        }]).select().single().catch(e => console.log(e));
+        }]);
+        if (insertError) console.error('Insert user error:', insertError);
       }
       return data;
     } catch (err) {
@@ -82,14 +83,15 @@ export const AuthProvider = ({ children }) => {
         toast.success('Pendaftaran Mode Demo Aktif (Bypass Limit Supabase)');
         
         // Tetap coba masukkan ke tabel public.users agar terlihat di Admin (menggunakan ID fake)
-        await supabase.from('users').insert([{
+        const { error: fakeInsertError } = await supabase.from('users').insert([{
           id: fakeUser.id,
           name: userData.name,
           email: email,
           phone: userData.phone,
           role: 'user',
           status: 'Aktif'
-        }]).catch(e => console.log(e));
+        }]);
+        if (fakeInsertError) console.error('Insert fake user error:', fakeInsertError);
         
         return { user: fakeUser };
       }
