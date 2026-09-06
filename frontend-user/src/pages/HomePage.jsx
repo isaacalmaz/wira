@@ -19,14 +19,15 @@ export default function HomePage() {
   useEffect(() => {
     // Ambil konfigurasi awal
     const fetchFlags = async () => {
-      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
+      const { data, error } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
+      console.log("FEATURE FLAGS FETCH:", { data, error });
       if (data && data.features) applyFlags(data.features);
     };
     fetchFlags();
 
-    // Dengarkan perubahan konfigurasi secara Real-Time dari Admin!
     const channel = supabase.channel('feature_flags_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_flags', filter: "region=eq.features_config" }, (payload) => {
+        console.log("REALTIME PAYLOAD:", payload);
         if (payload.new && payload.new.features) applyFlags(payload.new.features);
       })
       .subscribe();
@@ -40,6 +41,7 @@ export default function HomePage() {
       const flag = flags.find(f => f.id === srv.id);
       return { ...srv, enabled: flag ? flag.status : srv.enabled };
     });
+    console.log("UPDATED SERVICES:", updatedServices.filter(s => s.enabled).map(s => s.id));
     setActiveServices(updatedServices);
   };
 
@@ -105,7 +107,6 @@ export default function HomePage() {
             );
           })}
         </div>
-      </div>
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       <div>
