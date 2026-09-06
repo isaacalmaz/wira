@@ -15,7 +15,8 @@ const DriversPage = () => {
     setLoading(true);
     
     // 1. Ambil driver aktif
-    const { data: activeData } = await supabase.from('users').select('*').contains('mitra_access', '["driver"]').order('created_at', { ascending: false });
+    const { data: activeData, error: activeErr } = await supabase.from('users').select('*').contains('mitra_access', ['driver']).order('created_at', { ascending: false });
+    if (activeErr) console.error("Error fetching drivers:", activeErr);
     if (activeData) setDrivers(activeData);
 
     // 2. Ambil driver pending dari feature_flags
@@ -50,10 +51,16 @@ const DriversPage = () => {
           if (!currentAccess.includes('driver')) {
             currentAccess.push('driver');
           }
-          await supabase.from('users').update({ 
+          const { error: updateErr } = await supabase.from('users').update({ 
             mitra_access: currentAccess,
             status: 'Aktif'
           }).eq('id', pending.auth_id);
+          
+          if (updateErr) {
+            console.error("Update users error:", updateErr);
+            toast.error("Gagal mengupdate database profil driver.");
+            return;
+          }
         }
       }
       toast.success(`Driver berhasil disetujui!`);

@@ -15,7 +15,8 @@ const TechniciansPage = () => {
     setLoading(true);
     
     // 1. Ambil teknisi aktif
-    const { data: activeData } = await supabase.from('users').select('*').contains('mitra_access', '["technician"]').order('created_at', { ascending: false });
+    const { data: activeData, error: activeErr } = await supabase.from('users').select('*').contains('mitra_access', ['technician']).order('created_at', { ascending: false });
+    if (activeErr) console.error("Error fetching techs:", activeErr);
     if (activeData) setTechs(activeData);
 
     // 2. Ambil teknisi pending dari feature_flags
@@ -50,10 +51,16 @@ const TechniciansPage = () => {
           if (!currentAccess.includes('technician')) {
             currentAccess.push('technician');
           }
-          await supabase.from('users').update({ 
+          const { error: updateErr } = await supabase.from('users').update({ 
             mitra_access: currentAccess,
             status: 'Aktif'
           }).eq('id', pending.auth_id);
+          
+          if (updateErr) {
+             console.error("Update users error:", updateErr);
+             toast.error("Gagal mengupdate database profil teknisi.");
+             return;
+          }
         }
       }
       toast.success(`Teknisi berhasil disetujui!`);

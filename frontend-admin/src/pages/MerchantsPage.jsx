@@ -89,10 +89,15 @@ const MerchantsPage = () => {
             if (!currentAccess.includes('merchant')) {
               currentAccess.push('merchant');
             }
-            await supabase.from('users').update({ 
+            const { error: updateErr } = await supabase.from('users').update({ 
               mitra_access: currentAccess,
               status: 'Aktif'
             }).eq('id', pending.auth_id);
+            
+            if (updateErr) {
+               console.error("Update users error:", updateErr);
+               toast.error("Gagal mengupdate database profil pemilik.");
+            }
           }
         }
         
