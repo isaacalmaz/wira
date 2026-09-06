@@ -66,7 +66,7 @@ const DriverHomePage = () => {
       setIncomingOrder(null);
       toast.success('Berhasil mengambil pesanan!');
     } catch (err) {
-      toast.error('Gagal mengambil pesanan. Mungkin sudah diambil driver lain.');
+      toast.error(`Gagal: ${err.message}`);
       setIncomingOrder(null);
     }
   };

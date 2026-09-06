@@ -29,7 +29,7 @@ export default function LoginPage() {
     // Simulasi login
     await new Promise((r) => setTimeout(r, 1000));
     login({
-      id: 'mitra-1',
+      id: '00000000-0000-0000-0000-000000000001',
       name: demoAccounts[selectedRole].name,
       phone: phone || demoAccounts[selectedRole].phone,
       role: selectedRole,
