@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage';
 import PendingVerificationPage from './pages/PendingVerificationPage';
 import ChatPage from './pages/ChatPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
+import SelectRolePage from './pages/SelectRolePage';
 
 import DriverHomePage from './pages/driver/DriverHomePage';
 import DriverOrdersPage from './pages/driver/DriverOrdersPage';
@@ -29,19 +30,26 @@ import TechEarningsPage from './pages/technician/TechEarningsPage';
 import TechProfilePage from './pages/technician/TechProfilePage';
 
 const ProtectedRoute = ({ children, allowedRole }) => {
-  const { user, role } = useAuth();
+  const { user, activeRole, mitraAccess } = useAuth();
+  
   if (!user) return <Navigate to="/login" replace />;
-  if (role !== allowedRole) {
-    if (role === 'driver') return <Navigate to="/driver" replace />;
-    if (role === 'merchant') return <Navigate to="/merchant" replace />;
-    if (role === 'technician') return <Navigate to="/technician" replace />;
+  if (!mitraAccess || mitraAccess.length === 0) return <Navigate to="/unauthorized" replace />;
+  if (!activeRole) return <Navigate to="/select-role" replace />;
+  
+  if (activeRole !== allowedRole) {
+    if (activeRole === 'driver') return <Navigate to="/driver" replace />;
+    if (activeRole === 'merchant') return <Navigate to="/merchant" replace />;
+    if (activeRole === 'technician') return <Navigate to="/technician" replace />;
     return <Navigate to="/unauthorized" replace />;
   }
+  
   return <MitraLayout>{children}</MitraLayout>;
 };
 
 function App() {
-  const { user, role } = useAuth();
+  const { user, activeRole, loading } = useAuth();
+
+  if (loading) return null;
 
   return (
     <BrowserRouter>
@@ -49,9 +57,10 @@ function App() {
       <Routes>
         <Route path="/" element={
           user ? (
-            role === 'driver' ? <Navigate to="/driver" /> :
-            role === 'merchant' ? <Navigate to="/merchant" /> :
-            role === 'technician' ? <Navigate to="/technician" /> :
+            !activeRole ? <Navigate to="/select-role" /> :
+            activeRole === 'driver' ? <Navigate to="/driver" /> :
+            activeRole === 'merchant' ? <Navigate to="/merchant" /> :
+            activeRole === 'technician' ? <Navigate to="/technician" /> :
             <Navigate to="/unauthorized" />
           ) : <Navigate to="/login" />
         } />
@@ -60,6 +69,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pending-verification" element={<PendingVerificationPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/select-role" element={user ? <SelectRolePage /> : <Navigate to="/login" />} />
         
         <Route path="/driver/*" element={
           <ProtectedRoute allowedRole="driver">

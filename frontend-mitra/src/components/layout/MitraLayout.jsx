@@ -6,26 +6,32 @@ import { Home, ListOrdered, MessageSquare, Wallet, User, Bell, Menu as MenuIcon 
 // import OnlineToggle from '../shared/OnlineToggle';
 
 const MitraLayout = ({ children }) => {
-  const { role, logout } = useAuth();
+  const { activeRole, logout, setActiveRole, mitraAccess } = useAuth();
   const navigate = useNavigate();
 
   // Menu dinamis berdasarkan role
   const getNavItems = () => {
     const base = [
-      { to: `/${role}`, icon: Home, label: 'Beranda' },
-      { to: `/${role}/orders`, icon: ListOrdered, label: 'Pesanan' },
+      { to: `/${activeRole}`, icon: Home, label: 'Beranda' },
+      { to: `/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
     ];
     
-    if (role === 'merchant') {
+    if (activeRole === 'merchant') {
       base.push({ to: '/merchant/menu', icon: MenuIcon, label: 'Menu' });
     }
     
-    return [
-      ...base,
-      { to: `/${role}/chat`, icon: MessageSquare, label: 'Chat' },
-      { to: `/${role}/earnings`, icon: Wallet, label: 'Dompet' },
-      { to: `/${role}/profile`, icon: User, label: 'Profil' }
-    ];
+    if (activeRole === 'technician') {
+      // Tech schedule / services
+      base.push({ to: '/technician/schedule', icon: MenuIcon, label: 'Jadwal' });
+    }
+    
+    base.push(
+      { to: `/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
+      { to: `/${activeRole}/chat`, icon: MessageSquare, label: 'Pesan' },
+      { to: `/${activeRole}/profile`, icon: User, label: 'Profil' }
+    );
+    
+    return base;
   };
 
   const navItems = getNavItems();
@@ -45,14 +51,14 @@ const MitraLayout = ({ children }) => {
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 shadow-lg h-screen sticky top-0">
         <div className="p-6">
           <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
-          <p className="text-sm text-slate-500 capitalize">{role}</p>
+          <p className="text-sm text-slate-500 capitalize">{activeRole}</p>
         </div>
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === `/${role}`}
+              end={item.to === `/${activeRole}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700'
@@ -64,7 +70,12 @@ const MitraLayout = ({ children }) => {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
+          {mitraAccess && mitraAccess.length > 1 && (
+            <button onClick={() => { setActiveRole(null); navigate('/select-role'); }} className="w-full py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors">
+              Ganti Peran
+            </button>
+          )}
           <button onClick={() => { logout(); navigate('/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
             Keluar
           </button>
@@ -82,7 +93,7 @@ const MitraLayout = ({ children }) => {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === `/${role}`}
+            end={item.to === `/${activeRole}`}
             className={({ isActive }) =>
               `flex flex-col items-center justify-center w-full h-full space-y-1 ${
                 isActive ? 'text-primary' : 'text-slate-500 dark:text-slate-400'

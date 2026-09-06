@@ -9,7 +9,7 @@ const DriversPage = () => {
 
   const fetchDrivers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('users').select('*').eq('role', 'driver').order('created_at', { ascending: false });
+    const { data } = await supabase.from('users').select('*').contains('mitra_access', '["driver"]').order('created_at', { ascending: false });
     if (data) setDrivers(data);
     setLoading(false);
   };
