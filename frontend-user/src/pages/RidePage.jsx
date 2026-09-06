@@ -84,56 +84,76 @@ export default function RidePage() {
     setStep('vehicle');
   };
 
-  const handleStartBooking = () => {
+  const [activeOrderId, setActiveOrderId] = useState(null);
+
+  const handleStartBooking = async () => {
     if (paymentMethod === 'WiraPay' && balance < selectedVehicle.price) {
       toast.error('Saldo WiraPay tidak cukup, silakan gunakan Tunai atau Top Up dulu');
       return;
     }
-    setStep('searching');
+
+    try {
+      const order = await addOrder({
+        serviceType: 'ride',
+        title: `Perjalanan ke ${dropoff}`,
+        price: selectedVehicle.price,
+        paymentMethod: paymentMethod,
+      });
+      setActiveOrderId(order.id);
+      setStep('searching');
+      toast.success('Mencari driver di sekitar Anda...');
+    } catch (err) {
+      toast.error('Gagal membuat pesanan');
+    }
   };
 
-  // Efek simulasi pencarian & penugasan driver
+  // Efek Real-time untuk mendengarkan perubahan status dari Admin / Driver
   useEffect(() => {
-    if (step === 'searching') {
-      const timer = setTimeout(() => {
-        setStep('tracking');
-        setTripStage(0);
-        toast.success(`Driver Ditemukan: ${assignedDriver.name}!`, { icon: '🛵', duration: 4000 });
-      }, 3500);
-      return () => clearTimeout(timer);
-    }
-  }, [step]);
+    if (!activeOrderId) return;
 
-  // Efek simulasi tahapan perjalanan
+    const channel = supabase
+      .channel(`order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        (payload) => {
+          const newStatus = payload.new.status;
+          
+          if (newStatus === 'accepted') {
+            setStep('tracking');
+            setTripStage(0);
+            toast.success(`Driver Ditemukan!`, { icon: '🛵', duration: 4000 });
+          } 
+          else if (newStatus === 'completed') {
+            handleCompleteTrip();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId]);
+
+  // Simulasi Tahapan Perjalanan jika sudah accepted (bisa dikontrol realtime juga nanti, untuk sekarang kita simulasikan)
   useEffect(() => {
     if (step === 'tracking') {
       if (tripStage === 0) {
-        const t1 = setTimeout(() => setTripStage(1), 4000);
+        const t1 = setTimeout(() => setTripStage(1), 5000);
         return () => clearTimeout(t1);
       } else if (tripStage === 1) {
-        const t2 = setTimeout(() => setTripStage(2), 4000);
+        const t2 = setTimeout(() => setTripStage(2), 5000);
         return () => clearTimeout(t2);
       }
     }
   }, [step, tripStage]);
 
-  // Selesaikan perjalanan
-  const handleFinishTrip = async () => {
+  const handleCompleteTrip = async () => {
     try {
       if (paymentMethod === 'WiraPay') {
         await pay(selectedVehicle.price, `WiraRide ke ${dropoff}`);
       }
-
-      await addOrder({
-        service: 'WiraRide',
-        serviceType: 'ride',
-        title: `Perjalanan ke ${dropoff}`,
-        details: `${selectedVehicle.name} • ${assignedDriver.plate} (${assignedDriver.name})`,
-        price: selectedVehicle.price,
-        status: 'Selesai',
-        paymentMethod: paymentMethod,
-      });
-
       setStep('completed');
       toast.success('Perjalanan Anda telah selesai!');
     } catch (err) {
@@ -413,7 +433,7 @@ export default function RidePage() {
             {/* Tombol Selesaikan Perjalanan (Untuk Uji Coba) */}
             <Button
               className="w-full py-3 font-bold bg-green-600 hover:bg-green-700 text-white shadow-md"
-              onClick={handleFinishTrip}
+              onClick={handleCompleteTrip}
             >
               Simulasikan Tiba di Tujuan (Selesaikan)
             </Button>

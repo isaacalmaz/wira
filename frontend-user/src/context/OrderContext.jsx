@@ -46,19 +46,10 @@ export const OrderProvider = ({ children }) => {
   }, [user]);
 
   const addOrder = async (orderData) => {
-    const newOrder = {
-      id: `ORD-${Date.now().toString().slice(-4)}`,
-      date: 'Hari ini, ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      status: orderData.status || 'Berjalan',
-      ...orderData,
-    };
-
-    setOrders((prev) => [newOrder, ...prev]);
-
-    // Kirim ke database Supabase
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      await supabase.from('orders').insert([
+      
+      const { data, error } = await supabase.from('orders').insert([
         {
           user_id: session?.user?.id || null,
           service_type: orderData.serviceType || 'ride',
@@ -67,12 +58,30 @@ export const OrderProvider = ({ children }) => {
           payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
           payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
         },
-      ]);
-    } catch (err) {
-      console.log('Saved to local storage:', err);
-    }
+      ]).select().single();
 
-    return newOrder;
+      if (error) throw error;
+
+      // Tambahkan ke UI state sementara
+      let uiService = 'WiraRide';
+      if (data.service_type === 'food') uiService = 'WiraFood';
+      
+      const newOrder = {
+        id: data.id,
+        service: uiService,
+        title: orderData.title || `Pesanan ${uiService}`,
+        date: new Date(data.created_at).toLocaleDateString('id-ID'),
+        status: 'Berjalan',
+        price: data.total_price || 0,
+        ...orderData
+      };
+
+      setOrders((prev) => [newOrder, ...prev]);
+      return newOrder;
+    } catch (err) {
+      console.error('Gagal membuat pesanan:', err);
+      throw err;
+    }
   };
 
   const updateOrderStatus = (id, newStatus) => {
