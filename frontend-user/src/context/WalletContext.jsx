@@ -1,23 +1,48 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getStorage, setStorage } from '../utils/localStorage';
 import { supabase } from '../config/supabase';
+import { useAuth } from './AuthContext';
 
 const WalletContext = createContext();
 
-const DEFAULT_TRANSACTIONS = [];
-
 export const WalletProvider = ({ children }) => {
-  const [balance, setBalance] = useState(() => getStorage('wira_wallet_balance', 0));
-  const [transactions, setTransactions] = useState(() => getStorage('wira_wallet_transactions', DEFAULT_TRANSACTIONS));
-
-  // Simpan ke localStorage setiap kali saldo atau transaksi berubah
-  useEffect(() => {
-    setStorage('wira_wallet_balance', balance);
-  }, [balance]);
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
-    setStorage('wira_wallet_transactions', transactions);
-  }, [transactions]);
+    if (!user) {
+      setBalance(0);
+      setTransactions([]);
+      return;
+    }
+
+    const fetchWallet = async () => {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        // Mapping tipe DB ke UI
+        const mappedTrx = data.map(t => ({
+          id: t.id,
+          type: t.type === 'topup' ? 'income' : 'expense',
+          desc: t.description,
+          date: new Date(t.created_at).toLocaleDateString('id-ID'),
+          amount: t.amount,
+        }));
+        setTransactions(mappedTrx);
+
+        // Kalkulasi saldo
+        const totalIncome = data.filter(t => t.type === 'topup').reduce((sum, t) => sum + Number(t.amount), 0);
+        const totalExpense = data.filter(t => t.type !== 'topup').reduce((sum, t) => sum + Number(t.amount), 0);
+        setBalance(totalIncome - totalExpense);
+      }
+    };
+
+    fetchWallet();
+  }, [user]);
 
   // Fungsi Top Up
   const topUp = async (amount, method = 'BCA Virtual Account') => {

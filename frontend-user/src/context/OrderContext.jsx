@@ -1,17 +1,49 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getStorage, setStorage } from '../utils/localStorage';
 import { supabase } from '../config/supabase';
+import { useAuth } from './AuthContext';
 
 const OrderContext = createContext();
 
-const INITIAL_ORDERS = [];
-
 export const OrderProvider = ({ children }) => {
-  const [orders, setOrders] = useState(() => getStorage('wira_user_orders', INITIAL_ORDERS));
+  const [orders, setOrders] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
-    setStorage('wira_user_orders', orders);
-  }, [orders]);
+    if (!user) {
+      setOrders([]);
+      return;
+    }
+
+    const fetchOrders = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        // Mapping tipe DB ke UI
+        const mappedOrders = data.map(o => {
+          let uiService = 'WiraRide';
+          if (o.service_type === 'food') uiService = 'WiraFood';
+          else if (o.service_type === 'send') uiService = 'WiraSend';
+          else if (o.service_type === 'villa') uiService = 'WiraVilla';
+          
+          return {
+            id: o.id,
+            service: uiService,
+            title: `Pesanan ${uiService}`,
+            date: new Date(o.created_at).toLocaleDateString('id-ID'),
+            status: o.status === 'pending' ? 'Berjalan' : (o.status === 'completed' ? 'Selesai' : o.status),
+            price: o.total_price || 0,
+          };
+        });
+        setOrders(mappedOrders);
+      }
+    };
+
+    fetchOrders();
+  }, [user]);
 
   const addOrder = async (orderData) => {
     const newOrder = {
