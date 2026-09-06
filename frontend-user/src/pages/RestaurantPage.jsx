@@ -64,57 +64,8 @@ export default function RestaurantPage() {
     if (id) fetchRest();
   }, [id]);
 
-  if (!rest) {
-    return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
-  }
-
-  const deliveryFee = 8000;
-  const grandTotal = Math.max(0, total + deliveryFee - discount);
-
-  const handleApplyPromo = () => {
-    if (promoCode.toUpperCase() === 'WIRALOMBOK' || promoCode.toUpperCase() === 'DISKON10') {
-      setDiscount(10000);
-      toast.success('Voucher WIRALOMBOK Berhasil Digunakan! Diskon Rp 10.000', { icon: '🎉' });
-    } else {
-      toast.error('Kode promo tidak valid');
-    }
-  };
 
   const [activeOrderId, setActiveOrderId] = useState(null);
-
-  const handleConfirmOrder = async () => {
-    if (cart.items.length === 0) {
-      toast.error('Keranjang Anda masih kosong');
-      return;
-    }
-    if (paymentMethod === 'WiraPay' && balance < grandTotal) {
-      toast.error('Saldo WiraPay Anda tidak mencukupi untuk pembayaran ini');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const itemsSummary = cart.items.map((i) => `${i.qty}x ${i.name}`).join(', ');
-
-      const order = await addOrder({
-        serviceType: 'food',
-        merchantId: rest.id, // ID Restoran!
-        title: rest.name,
-        details: itemsSummary,
-        price: grandTotal,
-        paymentMethod: paymentMethod,
-      });
-
-      setActiveOrderId(order.id);
-      clearCart();
-      setStep('tracking'); 
-      setTrackingStage(0); // 0 = Menunggu Konfirmasi Restoran
-      toast.success('Menunggu konfirmasi dari restoran...');
-    } catch (err) {
-      toast.error(err.message || 'Pemesanan gagal');
-    }
-    setLoading(false);
-  };
 
   useEffect(() => {
     if (!activeOrderId) return;
@@ -156,6 +107,59 @@ export default function RestaurantPage() {
     }
   }, [step, trackingStage]);
 
+  if (!rest) {
+    return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
+  }
+
+  const deliveryFee = 8000;
+  const grandTotal = Math.max(0, total + deliveryFee - discount);
+
+  const handleApplyPromo = () => {
+    if (promoCode.toUpperCase() === 'WIRALOMBOK' || promoCode.toUpperCase() === 'DISKON10') {
+      setDiscount(10000);
+      toast.success('Voucher WIRALOMBOK Berhasil Digunakan! Diskon Rp 10.000', { icon: '🎉' });
+    } else {
+      toast.error('Kode promo tidak valid');
+    }
+  };
+
+  
+  const handleConfirmOrder = async () => {
+    if (cart.items.length === 0) {
+      toast.error('Keranjang Anda masih kosong');
+      return;
+    }
+    if (paymentMethod === 'WiraPay' && balance < grandTotal) {
+      toast.error('Saldo WiraPay Anda tidak mencukupi untuk pembayaran ini');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const itemsSummary = cart.items.map((i) => `${i.qty}x ${i.name}`).join(', ');
+
+      const order = await addOrder({
+        serviceType: 'food',
+        merchantId: rest.id, // ID Restoran!
+        title: rest.name,
+        details: itemsSummary,
+        price: grandTotal,
+        paymentMethod: paymentMethod,
+      });
+
+      setActiveOrderId(order.id);
+      clearCart();
+      setStep('tracking'); 
+      setTrackingStage(0); // 0 = Menunggu Konfirmasi Restoran
+      toast.success('Menunggu konfirmasi dari restoran...');
+    } catch (err) {
+      toast.error(err.message || 'Pemesanan gagal');
+    }
+    setLoading(false);
+  };
+
+  
+  
   const handleCompleteFood = async () => {
     try {
       if (paymentMethod === 'WiraPay') {
