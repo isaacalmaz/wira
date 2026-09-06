@@ -74,12 +74,11 @@ const MerchantsPage = () => {
       const pending = pendingMerchants.find(m => m.id === id);
       if (pending) {
         await supabase.from('merchants').insert([{
-          name: pending.name,
-          category: 'Umum',
+          owner_id: pending.auth_id || null,
+          name: pending.restaurant_name || pending.name,
           service_type: 'food',
           address: pending.address,
           image: 'https://via.placeholder.com/150',
-          is_open: true
         }]);
         toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
       }

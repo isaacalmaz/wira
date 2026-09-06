@@ -108,6 +108,7 @@ const RegisterPage = () => {
 
       const newMitra = {
         id: `MTR-${Date.now().toString().slice(-6)}`,
+        auth_id: authData?.user?.id,
         role: role,
         name: formData.name,
         phone: formData.phone,
