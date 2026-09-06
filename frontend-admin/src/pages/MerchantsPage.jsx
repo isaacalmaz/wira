@@ -10,9 +10,32 @@ const MerchantsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Ambil data pendaftaran merchant dari Supabase
+  // Ambil data pendaftaran merchant dari LocalStorage & Supabase
   const fetchSupabaseMerchants = async () => {
     setLoading(true);
+    let allReal = [];
+
+    // 1. Ambil dari LocalStorage untuk pembaruan instan
+    try {
+      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
+      const localMerchants = localData
+        .filter((m) => m.role === 'merchant')
+        .map((m) => ({
+          id: m.id,
+          name: m.restaurant_name || m.name,
+          owner: m.name,
+          phone: m.phone,
+          restaurants: 1,
+          status: m.status || 'Pending',
+          joinDate: 'Hari ini',
+          isReal: true,
+        }));
+      allReal = [...localMerchants];
+    } catch (e) {
+      console.warn('Local storage merchant read notice:', e);
+    }
+
+    // 2. Ambil dari Supabase
     try {
       const { data, error } = await supabase
         .from('mitra_registrations')
@@ -32,15 +55,21 @@ const MerchantsPage = () => {
           isReal: true,
         }));
 
-        setMerchants((prev) => {
-          const existingRealIds = new Set(formatted.map((f) => f.id));
-          const onlyMock = prev.filter((p) => !existingRealIds.has(p.id) && !p.isReal);
-          return [...formatted, ...onlyMock];
-        });
+        const existingIds = new Set(allReal.map((r) => r.id));
+        for (const item of formatted) {
+          if (!existingIds.has(item.id)) {
+            allReal.push(item);
+          }
+        }
       }
     } catch (err) {
-      console.log('Using local merchants fallback', err);
+      console.log('Supabase merchants notice:', err);
     } finally {
+      setMerchants((prev) => {
+        const realIds = new Set(allReal.map((r) => r.id));
+        const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
+        return [...allReal, ...onlyMock];
+      });
       setLoading(false);
     }
   };
@@ -48,7 +77,29 @@ const MerchantsPage = () => {
   useEffect(() => {
     fetchSupabaseMerchants();
 
-    // Notifikasi Real-time: Ketika ada restoran/merchant baru mendaftar
+    // 1. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
+    const handleStorageChange = (e) => {
+      if (e.key === 'wira_mitra_registrations') {
+        fetchSupabaseMerchants();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    let bc;
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('wira_mitra_channel');
+      bc.onmessage = (msg) => {
+        if (msg.data && msg.data.type === 'NEW_MITRA' && msg.data.data.role === 'merchant') {
+          toast.success(`Merchant Restoran baru mendaftar: ${msg.data.data.restaurant_name || msg.data.data.name}!`, {
+            icon: '🍔',
+            duration: 8000,
+          });
+          fetchSupabaseMerchants();
+        }
+      };
+    }
+
+    // 2. Notifikasi Real-time Supabase
     const channel = supabase
       .channel('realtime-admin-merchants')
       .on(
@@ -60,23 +111,15 @@ const MerchantsPage = () => {
               icon: '🍔',
               duration: 8000,
             });
-            const newMerchant = {
-              id: payload.new.id,
-              name: payload.new.restaurant_name || payload.new.name,
-              owner: payload.new.name,
-              phone: payload.new.phone,
-              restaurants: 1,
-              status: payload.new.status || 'Pending',
-              joinDate: 'Hari ini',
-              isReal: true,
-            };
-            setMerchants((prev) => [newMerchant, ...prev]);
+            fetchSupabaseMerchants();
           }
         }
       )
       .subscribe();
 
     return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (bc) bc.close();
       supabase.removeChannel(channel);
     };
   }, []);
@@ -90,10 +133,22 @@ const MerchantsPage = () => {
 
   const handleVerify = async (id, accept) => {
     const newStatus = accept ? 'Active' : 'Inactive';
+    
+    // Update local state
     setMerchants((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+      prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
     );
 
+    // Update di localStorage
+    try {
+      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
+      const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus } : d));
+      localStorage.setItem('wira_mitra_registrations', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Storage update warn:', e);
+    }
+
+    // Update di Supabase jika tersedia
     try {
       await supabase
         .from('mitra_registrations')

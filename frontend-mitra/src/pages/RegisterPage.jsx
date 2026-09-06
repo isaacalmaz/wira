@@ -34,34 +34,48 @@ const RegisterPage = () => {
       setStep(step + 1);
     } else {
       setLoading(true);
-      try {
-        const { error } = await supabase.from('mitra_registrations').insert([
-          {
-            role: role,
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            vehicle: role === 'driver' ? formData.vehicle : null,
-            plate: role === 'driver' ? formData.plate : null,
-            restaurant_name: role === 'merchant' ? formData.restaurantName : null,
-            address: role === 'merchant' ? formData.address : null,
-            specialization: role === 'technician' ? formData.specialization : null,
-            experience: role === 'technician' ? formData.experience : null,
-            status: 'Pending',
-          },
-        ]);
+      const newMitra = {
+        id: `MTR-${Date.now().toString().slice(-6)}`,
+        role: role,
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        vehicle: role === 'driver' ? formData.vehicle : null,
+        plate: role === 'driver' ? formData.plate : null,
+        restaurant_name: role === 'merchant' ? formData.restaurantName : null,
+        address: role === 'merchant' ? formData.address : null,
+        specialization: role === 'technician' ? formData.specialization : null,
+        experience: role === 'technician' ? formData.experience : null,
+        status: 'Pending',
+        created_at: new Date().toISOString(),
+      };
 
-        if (error) {
-          console.error('Supabase error:', error);
-          // Tetap lanjutkan jika database offline/fallback
+      // 1. Simpan ke LocalStorage & broadcast untuk sinkronisasi seketika antar-tab
+      try {
+        const existing = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
+        localStorage.setItem('wira_mitra_registrations', JSON.stringify([newMitra, ...existing]));
+        
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('wira_mitra_channel');
+          bc.postMessage({ type: 'NEW_MITRA', data: newMitra });
+          bc.close();
         }
-        toast.success('Pendaftaran berhasil dikirim!');
-        navigate('/pending-verification');
+      } catch (storageErr) {
+        console.warn('Storage sync warn:', storageErr);
+      }
+
+      // 2. Simpan ke Supabase Cloud
+      try {
+        const { error } = await supabase.from('mitra_registrations').insert([newMitra]);
+        if (error) {
+          console.warn('Supabase insert notice:', error);
+        }
       } catch (err) {
-        console.error('Registration error:', err);
-        navigate('/pending-verification');
+        console.warn('Supabase network notice:', err);
       } finally {
         setLoading(false);
+        toast.success('Pendaftaran berhasil dikirim!');
+        navigate('/pending-verification');
       }
     }
   };
