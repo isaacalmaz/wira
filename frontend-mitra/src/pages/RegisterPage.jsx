@@ -86,9 +86,10 @@ const RegisterPage = () => {
     } else {
       setLoading(true);
 
+      let authData = null;
       // 0. Buat akun di Supabase Auth
       try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
@@ -100,6 +101,7 @@ const RegisterPage = () => {
           }
         });
         if (authError) throw authError;
+        authData = data;
       } catch (err) {
         toast.error(`Gagal mendaftar: ${err.message}`);
         setLoading(false);
