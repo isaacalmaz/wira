@@ -28,8 +28,12 @@ export default function LoginPage() {
     setLoading(true);
     // Simulasi login
     await new Promise((r) => setTimeout(r, 1000));
+    const mockId = selectedRole === 'merchant' 
+      ? '11111111-1111-1111-1111-111111111111' 
+      : '00000000-0000-0000-0000-000000000001';
+
     login({
-      id: '00000000-0000-0000-0000-000000000001',
+      id: mockId,
       name: demoAccounts[selectedRole].name,
       phone: phone || demoAccounts[selectedRole].phone,
       role: selectedRole,

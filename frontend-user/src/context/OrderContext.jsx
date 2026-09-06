@@ -52,6 +52,7 @@ export const OrderProvider = ({ children }) => {
       const { data, error } = await supabase.from('orders').insert([
         {
           user_id: session?.user?.id || null,
+          merchant_id: orderData.merchantId || null,
           service_type: orderData.serviceType || 'ride',
           status: 'pending',
           total_price: orderData.price,

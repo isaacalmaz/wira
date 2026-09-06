@@ -80,6 +80,8 @@ export default function RestaurantPage() {
     }
   };
 
+  const [activeOrderId, setActiveOrderId] = useState(null);
+
   const handleConfirmOrder = async () => {
     if (cart.items.length === 0) {
       toast.error('Keranjang Anda masih kosong');
@@ -92,32 +94,77 @@ export default function RestaurantPage() {
 
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 900));
-
       const itemsSummary = cart.items.map((i) => `${i.qty}x ${i.name}`).join(', ');
 
-      if (paymentMethod === 'WiraPay') {
-        await pay(grandTotal, `WiraFood - ${rest.name}`);
-      }
-
-      await addOrder({
-        service: 'WiraFood',
+      const order = await addOrder({
         serviceType: 'food',
+        merchantId: rest.id, // ID Restoran!
         title: rest.name,
         details: itemsSummary,
         price: grandTotal,
-        status: 'Sedang Disiapkan',
         paymentMethod: paymentMethod,
       });
 
+      setActiveOrderId(order.id);
       clearCart();
-      setStep('tracking');
-      setTrackingStage(1);
-      toast.success('Pesanan Makanan Berhasil Diteruskan ke Restoran!');
+      setStep('tracking'); 
+      setTrackingStage(0); // 0 = Menunggu Konfirmasi Restoran
+      toast.success('Menunggu konfirmasi dari restoran...');
     } catch (err) {
       toast.error(err.message || 'Pemesanan gagal');
-    } finally {
-      setLoading(false);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    const channel = supabase
+      .channel(`order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        (payload) => {
+          const newStatus = payload.new.status;
+          
+          if (newStatus === 'accepted') {
+            setTrackingStage(1);
+            toast.success(`Pesanan Anda diterima oleh restoran!`, { icon: '🍲' });
+          } 
+          else if (newStatus === 'completed') {
+            handleCompleteFood();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId]);
+
+  // Simulasi Masak & Antar HANYA JIKA SUDAH ACCEPTED (stage 1+)
+  useEffect(() => {
+    if (step === 'tracking' && trackingStage >= 1) {
+      if (trackingStage === 1) {
+        const t = setTimeout(() => setTrackingStage(2), 5000);
+        return () => clearTimeout(t);
+      } else if (trackingStage === 2) {
+        const t = setTimeout(() => setTrackingStage(3), 5000);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [step, trackingStage]);
+
+  const handleCompleteFood = async () => {
+    try {
+      if (paymentMethod === 'WiraPay') {
+        await pay(grandTotal, `WiraFood - ${rest.name}`);
+      }
+      setStep('menu');
+      toast.success('Makanan telah diterima. Selamat menikmati!');
+    } catch (err) {
+      toast.error('Gagal menyelesaikan pembayaran WiraPay');
     }
   };
 

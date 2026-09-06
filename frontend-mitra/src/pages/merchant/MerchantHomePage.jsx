@@ -1,73 +1,171 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
-import { merchantOrders } from '../../data/orders';
-import { Store, TrendingUp, ShoppingBag, BellRing } from 'lucide-react';
+import { Store, TrendingUp, ShoppingBag, BellRing, MapPin } from 'lucide-react';
 import OnlineToggle from '../../components/shared/OnlineToggle';
+import { supabase } from '../../config/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const MerchantHomePage = () => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
-  const incoming = merchantOrders.filter(o => o.status === 'Incoming');
+  const [incomingOrder, setIncomingOrder] = useState(null);
+  const [activeOrder, setActiveOrder] = useState(null);
+  const [todayOrders, setTodayOrders] = useState(0);
+  const [todayEarnings, setTodayEarnings] = useState(0);
+
+  useEffect(() => {
+    // 1. Ambil data hari ini (hitungan)
+    const fetchTodayStats = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('orders')
+        .select('total_price, status')
+        .eq('merchant_id', user.id)
+        .gte('created_at', new Date().toISOString().split('T')[0]); // Mulai dari hari ini
+      
+      if (data) {
+        setTodayOrders(data.length);
+        const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + (d.total_price || 0), 0);
+        setTodayEarnings(earnings);
+      }
+    };
+    fetchTodayStats();
+
+    // 2. Dengarkan pesanan baru secara real-time
+    if (!isOpen || !user) {
+      setIncomingOrder(null);
+      return;
+    }
+
+    const channel = supabase
+      .channel('merchant-orders')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          // Hanya tangkap jika orderan pending, untuk food, dan ke merchant ini!
+          if (payload.new.status === 'pending' && payload.new.service_type === 'food' && payload.new.merchant_id === user.id && !activeOrder) {
+            setIncomingOrder(payload.new);
+            toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, activeOrder, user]);
+
+  const handleAcceptOrder = async () => {
+    if (!incomingOrder) return;
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'accepted' })
+        .eq('id', incomingOrder.id);
+        
+      if (error) throw error;
+
+      setActiveOrder(incomingOrder);
+      setIncomingOrder(null);
+      toast.success('Pesanan Diterima! Silakan siapkan makanan.');
+    } catch (err) {
+      toast.error(`Gagal: ${err.message}`);
+      setIncomingOrder(null);
+    }
+  };
+
+  const handleCompleteOrder = async () => {
+    if (!activeOrder) return;
+    try {
+      await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', activeOrder.id);
+      
+      setActiveOrder(null);
+      toast.success('Pesanan Selesai / Diserahkan ke Driver!');
+      setTodayOrders(prev => prev + 1);
+      setTodayEarnings(prev => prev + (activeOrder.total_price || 0));
+    } catch (err) {
+      toast.error('Gagal menyelesaikan pesanan');
+    }
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg"><Store className="text-primary" /></div>
           <div>
-            <h1 className="text-lg font-bold">Warung Sasak</h1>
-            <p className="text-sm text-slate-500">{isOpen ? 'Toko Buka' : 'Toko Tutup'}</p>
+            <h1 className="text-lg font-bold">{user?.name || 'Warung Anda'}</h1>
+            <p className="text-sm text-slate-500">{activeOrder ? 'Sedang Memasak...' : (isOpen ? 'Toko Buka' : 'Toko Tutup')}</p>
           </div>
         </div>
-        <OnlineToggle isOnline={isOpen} onChange={setIsOpen} />
+        {!activeOrder && (
+          <OnlineToggle isOnline={isOpen} onChange={setIsOpen} />
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 bg-gradient-to-br from-blue-500 to-primary text-white border-none">
-          <p className="text-blue-100 text-sm">Pesanan Hari Ini</p>
-          <div className="flex items-center gap-2 mt-1 mb-2">
-            <ShoppingBag size={20} />
-            <h2 className="text-3xl font-bold">24</h2>
+      {!activeOrder ? (
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 bg-gradient-to-br from-blue-500 to-primary text-white border-none">
+            <p className="text-blue-100 text-sm">Pesanan Hari Ini</p>
+            <div className="flex items-center gap-2 mt-1 mb-2">
+              <ShoppingBag size={20} />
+              <h2 className="text-3xl font-bold">{todayOrders}</h2>
+            </div>
+          </Card>
+          <Card className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white border-none">
+            <p className="text-green-100 text-sm">Pendapatan</p>
+            <div className="flex items-center gap-2 mt-1 mb-2">
+              <TrendingUp size={20} />
+              <h2 className="text-lg sm:text-2xl font-bold">Rp {todayEarnings.toLocaleString('id-ID')}</h2>
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <Card className="p-5 border-2 border-primary space-y-4 shadow-lg animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 pb-4">
+            <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+              <Store size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Pesanan Harus Disiapkan</h3>
+              <p className="text-sm text-slate-500">Order ID: {activeOrder.id.slice(0,8)}</p>
+            </div>
           </div>
-        </Card>
-        <Card className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white border-none">
-          <p className="text-green-100 text-sm">Pendapatan</p>
-          <div className="flex items-center gap-2 mt-1 mb-2">
-            <TrendingUp size={20} />
-            <h2 className="text-2xl font-bold">Rp 1.2M</h2>
+          <div className="flex justify-between items-center text-xl font-bold pt-2">
+            <span>Total Tagihan:</span>
+            <span className="text-primary">Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
           </div>
+          <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
+            Tandai Siap / Selesai
+          </Button>
         </Card>
-      </div>
+      )}
 
-      {isOpen && incoming.length > 0 && (
-        <div>
-          <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-            Pesanan Baru <Badge variant="danger" className="animate-pulse">{incoming.length}</Badge>
-          </h2>
-          <div className="space-y-3">
-            {incoming.map(order => (
-              <Card key={order.id} className="p-4 border-2 border-accent shadow-md bg-accent/5 dark:bg-accent/10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-2 text-accent"><BellRing size={20} className="animate-bounce" /></div>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg">{order.id}</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{order.customer} • {order.time}</p>
-                  </div>
-                  <span className="font-bold text-primary">Rp {order.total.toLocaleString()}</span>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-lg mb-4 text-sm">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between py-1 border-b border-slate-100 last:border-0">
-                      <span>{item.qty}x {item.name}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1">Tolak</Button>
-                  <Button variant="primary" className="flex-1">Terima Pesanan</Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+      {/* Incoming Order Popup */}
+      {isOpen && incomingOrder && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <Card className="w-full max-w-sm p-6 bg-white dark:bg-slate-800 border-2 border-primary shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-primary animate-pulse"></div>
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
+                <BellRing size={32} className="animate-bounce" />
+              </div>
+              <Badge variant="primary" className="mb-2">Wira Food</Badge>
+              <h2 className="text-2xl font-bold">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</h2>
+              <p className="text-slate-500 mt-2">Pesanan baru masuk!</p>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
+              <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>Terima Pesanan</Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>
