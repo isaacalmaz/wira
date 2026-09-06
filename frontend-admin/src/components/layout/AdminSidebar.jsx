@@ -90,9 +90,9 @@ const AdminSidebar = ({ isCollapsed }) => {
   const filteredMenu = menuItems.filter(item => item.roles.includes(user?.role));
 
   return (
-    <aside className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} flex flex-col h-full`}>
+    <aside className={`fixed top-0 left-0 z-50 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} flex flex-col h-screen shadow-sm`}>
       {/* Logo Area */}
-      <div className="h-16 flex items-center justify-center border-b border-slate-200 dark:border-slate-800">
+      <div className="h-16 flex items-center justify-center border-b border-slate-200 dark:border-slate-800 shrink-0">
         <div className="flex items-center gap-2 text-primary font-bold text-2xl">
           <span className="bg-primary text-white p-1 rounded-lg">W</span>
           {!isCollapsed && <span>Wira Admin</span>}

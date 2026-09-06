@@ -100,7 +100,7 @@ const AdminLayout = () => {
       <AdminSidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       {/* Main Content Area */}
-      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
+      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
         
         {/* Top Header */}
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
