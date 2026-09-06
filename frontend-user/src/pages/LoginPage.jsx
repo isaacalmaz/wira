@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    login({ name: 'Pengguna Wira', phone });
-    navigate('/');
+    setLoading(true);
+    try {
+      await login(email, password);
+      toast.success('Berhasil masuk!');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.message || 'Gagal login. Periksa kembali email & password Anda.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,13 +37,13 @@ export default function LoginPage() {
         
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nomor HP</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
             <input 
-              type="tel" 
+              type="email" 
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="081234567890"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
+              placeholder="nama@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               required
             />
           </div>
@@ -48,11 +58,13 @@ export default function LoginPage() {
               required
             />
           </div>
-          <Button type="submit" className="w-full mt-6" size="lg">Masuk</Button>
+          <Button type="submit" className="w-full mt-6" size="lg" disabled={loading}>
+            {loading ? 'Memproses...' : 'Masuk'}
+          </Button>
         </form>
         
         <p className="text-center text-sm text-slate-500 mt-6">
-          Belum punya akun? <span className="text-primary font-semibold cursor-pointer hover:underline">Daftar Sekarang</span>
+          Belum punya akun? <Link to="/register" className="text-primary font-semibold cursor-pointer hover:underline">Daftar Sekarang</Link>
         </p>
       </Card>
     </div>

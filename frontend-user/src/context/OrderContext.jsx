@@ -4,30 +4,7 @@ import { supabase } from '../config/supabase';
 
 const OrderContext = createContext();
 
-const INITIAL_ORDERS = [
-  {
-    id: 'ORD-9821',
-    service: 'WiraFood',
-    serviceType: 'food',
-    title: 'Warung Ayam Taliwang Mas Bos',
-    details: '1x Ayam Taliwang Bakar, 1x Plecing Kangkung',
-    price: 60000,
-    status: 'Selesai',
-    date: 'Kemarin, 19:30',
-    paymentMethod: 'WiraPay',
-  },
-  {
-    id: 'ORD-9820',
-    service: 'WiraRide',
-    serviceType: 'ride',
-    title: 'Perjalanan ke Lombok Epicentrum Mall',
-    details: 'WiraMotor • DR 1234 AB (Ahmad Supardi)',
-    price: 15000,
-    status: 'Selesai',
-    date: '2 hari lalu, 14:15',
-    paymentMethod: 'Tunai',
-  },
-];
+const INITIAL_ORDERS = [];
 
 export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState(() => getStorage('wira_user_orders', INITIAL_ORDERS));
@@ -48,8 +25,10 @@ export const OrderProvider = ({ children }) => {
 
     // Kirim ke database Supabase
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       await supabase.from('orders').insert([
         {
+          user_id: session?.user?.id || null,
           service_type: orderData.serviceType || 'ride',
           status: 'pending',
           total_price: orderData.price,

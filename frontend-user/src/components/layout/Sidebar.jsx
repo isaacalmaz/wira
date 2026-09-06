@@ -1,11 +1,19 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Activity, Wallet, User, Settings, LogOut } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { SERVICES } from '../../config/services';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
   const location = useLocation();
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
@@ -15,8 +23,12 @@ export default function Sidebar() {
             <User className="text-slate-500" />
           </div>
           <div>
-            <p className="font-semibold text-slate-800 dark:text-slate-200">Pengguna Wira</p>
-            <p className="text-xs text-slate-500">+62 812-3456-7890</p>
+            <p className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
+              {user?.user_metadata?.name || user?.name || 'Pengguna Wira'}
+            </p>
+            <p className="text-xs text-slate-500 truncate max-w-[150px]">
+              {user?.user_metadata?.phone || user?.phone || '+62 812-3456-7890'}
+            </p>
           </div>
         </div>
 
@@ -53,7 +65,7 @@ export default function Sidebar() {
           <Settings size={20} />
           <span>Pengaturan</span>
         </Link>
-        <button className="w-full flex items-center gap-3 p-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+        <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
           <LogOut size={20} />
           <span>Keluar</span>
         </button>

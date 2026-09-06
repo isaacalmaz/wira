@@ -4,13 +4,10 @@ import { supabase } from '../config/supabase';
 
 const WalletContext = createContext();
 
-const DEFAULT_TRANSACTIONS = [
-  { id: 'TRX-101', type: 'income', desc: 'Bonus Pengguna Baru Wira', date: 'Hari ini, 08:00', amount: 50000, status: 'Berhasil' },
-  { id: 'TRX-102', type: 'income', desc: 'Top Up Bank BCA', date: 'Kemarin, 14:30', amount: 100000, status: 'Berhasil' },
-];
+const DEFAULT_TRANSACTIONS = [];
 
 export const WalletProvider = ({ children }) => {
-  const [balance, setBalance] = useState(() => getStorage('wira_wallet_balance', 150000));
+  const [balance, setBalance] = useState(() => getStorage('wira_wallet_balance', 0));
   const [transactions, setTransactions] = useState(() => getStorage('wira_wallet_transactions', DEFAULT_TRANSACTIONS));
 
   // Simpan ke localStorage setiap kali saldo atau transaksi berubah
@@ -41,6 +38,7 @@ export const WalletProvider = ({ children }) => {
     try {
       await supabase.from('transactions').insert([
         {
+          user_id: (await supabase.auth.getSession()).data.session?.user?.id || null,
           amount: numAmount,
           type: 'topup',
           status: 'success',
@@ -76,6 +74,7 @@ export const WalletProvider = ({ children }) => {
     try {
       await supabase.from('transactions').insert([
         {
+          user_id: (await supabase.auth.getSession()).data.session?.user?.id || null,
           amount: numAmount,
           type: 'transfer',
           status: 'success',
@@ -111,6 +110,7 @@ export const WalletProvider = ({ children }) => {
     try {
       await supabase.from('transactions').insert([
         {
+          user_id: (await supabase.auth.getSession()).data.session?.user?.id || null,
           amount: numAmount,
           type: 'payment',
           status: 'success',

@@ -16,8 +16,8 @@ export default function ProfilePage() {
         <div className="w-24 h-24 bg-primary/10 text-primary rounded-full mx-auto flex items-center justify-center mb-4">
           <User size={48} />
         </div>
-        <h2 className="text-xl font-bold dark:text-white">{user?.name || 'Pengguna Wira'}</h2>
-        <p className="text-slate-500">{user?.phone || '+62 812 3456 7890'}</p>
+        <h2 className="text-xl font-bold dark:text-white">{user?.user_metadata?.name || user?.name || 'Pengguna Wira'}</h2>
+        <p className="text-slate-500">{user?.user_metadata?.phone || user?.phone || '+62 812 3456 7890'}</p>
         <Button variant="outline" size="sm" className="mt-4">Edit Profil</Button>
       </Card>
 
@@ -52,7 +52,7 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        <Button variant="danger" className="w-full" onClick={logout}>
+        <Button variant="outline" className="w-full text-red-500 border-red-200 hover:bg-red-50" onClick={logout}>
           <LogOut size={18} className="mr-2" /> Keluar
         </Button>
       </div>
