@@ -15,9 +15,12 @@ const TechniciansPage = () => {
     setLoading(true);
     
     // 1. Ambil teknisi aktif
-    const { data: activeData, error: activeErr } = await supabase.from('users').select('*').contains('mitra_access', ['technician']).order('created_at', { ascending: false });
+    const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
     if (activeErr) console.error("Error fetching techs:", activeErr);
-    if (activeData) setTechs(activeData);
+    if (allUsers) {
+      const activeTechs = allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('technician'));
+      setTechs(activeTechs);
+    }
 
     // 2. Ambil teknisi pending dari feature_flags
     const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();

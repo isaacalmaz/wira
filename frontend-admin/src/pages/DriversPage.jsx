@@ -15,9 +15,12 @@ const DriversPage = () => {
     setLoading(true);
     
     // 1. Ambil driver aktif
-    const { data: activeData, error: activeErr } = await supabase.from('users').select('*').contains('mitra_access', ['driver']).order('created_at', { ascending: false });
+    const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
     if (activeErr) console.error("Error fetching drivers:", activeErr);
-    if (activeData) setDrivers(activeData);
+    if (allUsers) {
+      const activeDrivers = allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('driver'));
+      setDrivers(activeDrivers);
+    }
 
     // 2. Ambil driver pending dari feature_flags
     const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();

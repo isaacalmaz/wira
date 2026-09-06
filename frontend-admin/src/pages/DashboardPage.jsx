@@ -16,12 +16,14 @@ const DashboardPage = () => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [{ count: users }, { count: drivers }, { count: merchants }, { data: orders }] = await Promise.all([
+        const [{ count: users }, { data: allUsers }, { count: merchants }, { data: orders }] = await Promise.all([
           supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
-          supabase.from('users').select('*', { count: 'exact', head: true }).contains('mitra_access', ['driver']),
+          supabase.from('users').select('*'),
           supabase.from('merchants').select('*', { count: 'exact', head: true }),
           supabase.from('orders').select('total_price, status').eq('status', 'completed')
         ]);
+
+        const drivers = allUsers ? allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('driver')).length : 0;
 
         const totalRev = orders ? orders.reduce((sum, o) => sum + (o.total_price || 0), 0) : 0;
         
