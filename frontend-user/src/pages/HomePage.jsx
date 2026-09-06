@@ -7,11 +7,41 @@ import Card from '../components/common/Card';
 import { Wallet, Navigation, Clock, Package, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
+import { supabase } from '../config/supabase';
+import { useState, useEffect } from 'react';
 
 export default function HomePage() {
   const { t, lang } = useTranslation();
   const { balance } = useWallet();
   const { orders } = useOrders();
+  const [activeServices, setActiveServices] = useState(SERVICES);
+
+  useEffect(() => {
+    // Ambil konfigurasi awal
+    const fetchFlags = async () => {
+      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
+      if (data && data.features) applyFlags(data.features);
+    };
+    fetchFlags();
+
+    // Dengarkan perubahan konfigurasi secara Real-Time dari Admin!
+    const channel = supabase.channel('feature_flags_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_flags', filter: "region=eq.features_config" }, (payload) => {
+        if (payload.new && payload.new.features) applyFlags(payload.new.features);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const applyFlags = (flags) => {
+    // Update SERVICES array based on flags status
+    const updatedServices = SERVICES.map(srv => {
+      const flag = flags.find(f => f.id === srv.id);
+      return { ...srv, enabled: flag ? flag.status : srv.enabled };
+    });
+    setActiveServices(updatedServices);
+  };
 
   const recentOrders = orders.slice(0, 3);
 
@@ -44,14 +74,10 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Grid Menu Layanan Wira */}
-      <div>
-        <h2 className="font-bold text-lg mb-3 text-slate-900 dark:text-white">
-          Layanan Wira di Lombok
-        </h2>
-        <div className="grid grid-cols-4 gap-3.5">
-          {SERVICES.map((service) => {
-            const IconComponent = service.icon;
+      {/* Grid Layanan Utama */}
+      <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 mt-6 relative z-10 px-2 sm:px-0">
+        {activeServices.filter((s) => s.enabled).map((service) => {
+          const IconComponent = service.icon;
             return (
               <Link
                 key={service.id}
