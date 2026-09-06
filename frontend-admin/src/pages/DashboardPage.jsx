@@ -23,7 +23,12 @@ const DashboardPage = () => {
           supabase.from('orders').select('total_price, status').eq('status', 'completed')
         ]);
 
-        const drivers = allUsers ? allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('driver')).length : 0;
+        const drivers = allUsers ? allUsers.filter(u => {
+          if (!u.mitra_access) return false;
+          if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
+          if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
+          return false;
+        }).length : 0;
 
         const totalRev = orders ? orders.reduce((sum, o) => sum + (o.total_price || 0), 0) : 0;
         

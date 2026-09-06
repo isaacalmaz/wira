@@ -18,7 +18,12 @@ const TechniciansPage = () => {
     const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
     if (activeErr) console.error("Error fetching techs:", activeErr);
     if (allUsers) {
-      const activeTechs = allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('technician'));
+      const activeTechs = allUsers.filter(u => {
+        if (!u.mitra_access) return false;
+        if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('technician');
+        if (typeof u.mitra_access === 'string') return u.mitra_access.includes('technician');
+        return false;
+      });
       setTechs(activeTechs);
     }
 

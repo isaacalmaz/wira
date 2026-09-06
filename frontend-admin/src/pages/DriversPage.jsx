@@ -18,7 +18,12 @@ const DriversPage = () => {
     const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
     if (activeErr) console.error("Error fetching drivers:", activeErr);
     if (allUsers) {
-      const activeDrivers = allUsers.filter(u => Array.isArray(u.mitra_access) && u.mitra_access.includes('driver'));
+      const activeDrivers = allUsers.filter(u => {
+        if (!u.mitra_access) return false;
+        if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
+        if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
+        return false;
+      });
       setDrivers(activeDrivers);
     }
 
