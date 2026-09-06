@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
         setMitraAccess(profile.mitra_access || []);
       } else {
         const roleFromMeta = session.user.user_metadata?.role || 'driver';
-        const { data: newProfile } = await supabase.from('users').insert([{
+        const { data: newProfile, error: insertErr } = await supabase.from('users').insert([{
           id: session.user.id,
           name: session.user.user_metadata?.name || 'Mitra Baru',
           email: session.user.email,
@@ -38,6 +38,11 @@ export const AuthProvider = ({ children }) => {
           mitra_access: [], // Jangan beri akses sampai Admin menyetujui
           status: 'Pending'
         }]).select().single();
+        
+        if (insertErr) {
+          console.error("Gagal insert profile:", insertErr);
+          alert("Sistem Gagal Membuat Profil: " + insertErr.message); // Gunakan alert keras agar terlihat jelas
+        }
         
         setUser({ ...session.user, ...newProfile });
         setMitraAccess([]);
