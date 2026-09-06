@@ -1,23 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, Eye, RefreshCw } from 'lucide-react';
-import { mockDrivers } from '../data/mockData2';
+import { Search, CheckCircle, XCircle, Eye, RefreshCw, FileSearch, Filter, ShieldCheck, Phone } from 'lucide-react';
 import { StatusBadge, Pagination } from '../components/common/UIComponents';
 import { supabase } from '../config/supabase';
+import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
 
 const DriversPage = () => {
-  const [drivers, setDrivers] = useState(mockDrivers);
+  const [drivers, setDrivers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Semua');
   const [loading, setLoading] = useState(false);
 
-  // Ambil data pendaftaran driver dari Supabase Cloud & Fallback
+  // State untuk modal review calon driver
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+  // Ambil data pendaftaran driver murni dari Supabase Cloud & Fallback
   const fetchSupabaseDrivers = async () => {
     setLoading(true);
     let allReal = [];
 
-    // 1. Ambil dari Supabase feature_flags (Cloud sync yang 100% aktif & terbuka)
+    // 1. Ambil dari Supabase feature_flags (Cloud sync yang 100% aktif)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('feature_flags')
         .select('features')
         .eq('region', 'mitra_registrations')
@@ -30,9 +35,12 @@ const DriversPage = () => {
             id: d.id,
             name: d.name,
             phone: d.phone,
+            email: d.email,
             vehicle: d.vehicle || 'Motor',
             plate: d.plate || '-',
+            sim_photo: d.sim_photo || null,
             status: d.status || 'Pending',
+            created_at: d.created_at,
             rating: 0,
             trips: 0,
             isReal: true,
@@ -40,10 +48,10 @@ const DriversPage = () => {
         allReal = [...cloudDrivers];
       }
     } catch (err) {
-      console.warn('Cloud sync read notice:', err);
+      console.warn('Cloud sync notice:', err);
     }
 
-    // 2. Ambil juga dari tabel mitra_registrations jika tabel sudah dibuat
+    // 2. Ambil dari tabel mitra_registrations jika ada
     try {
       const { data } = await supabase
         .from('mitra_registrations')
@@ -59,9 +67,12 @@ const DriversPage = () => {
               id: item.id,
               name: item.name,
               phone: item.phone,
+              email: item.email,
               vehicle: item.vehicle || 'Motor',
               plate: item.plate || '-',
+              sim_photo: item.sim_photo || null,
               status: item.status || 'Pending',
+              created_at: item.created_at,
               rating: 0,
               trips: 0,
               isReal: true,
@@ -71,7 +82,7 @@ const DriversPage = () => {
       }
     } catch (e) {}
 
-    // 3. Fallback LocalStorage jika dalam satu browser/tab
+    // 3. Fallback LocalStorage
     try {
       const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
       const localDrivers = localData.filter((d) => d.role === 'driver');
@@ -82,9 +93,12 @@ const DriversPage = () => {
             id: d.id,
             name: d.name,
             phone: d.phone,
+            email: d.email,
             vehicle: d.vehicle || 'Motor',
             plate: d.plate || '-',
+            sim_photo: d.sim_photo || null,
             status: d.status || 'Pending',
+            created_at: d.created_at,
             rating: 0,
             trips: 0,
             isReal: true,
@@ -93,18 +107,13 @@ const DriversPage = () => {
       }
     } catch (e) {}
 
-    setDrivers((prev) => {
-      const realIds = new Set(allReal.map((r) => r.id));
-      const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
-      return [...allReal, ...onlyMock];
-    });
+    setDrivers(allReal);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchSupabaseDrivers();
 
-    // 1. Sinkronisasi Real-time Supabase Cloud (feature_flags)
     const channelCloud = supabase
       .channel('realtime-cloud-drivers')
       .on(
@@ -119,111 +128,100 @@ const DriversPage = () => {
       )
       .subscribe();
 
-    // 2. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
-    const handleStorageChange = (e) => {
-      if (e.key === 'wira_mitra_registrations') {
-        fetchSupabaseDrivers();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
-    let bc;
-    if (typeof BroadcastChannel !== 'undefined') {
-      bc = new BroadcastChannel('wira_mitra_channel');
-      bc.onmessage = (msg) => {
-        if (msg.data && msg.data.type === 'NEW_MITRA' && msg.data.data.role === 'driver') {
-          toast.success(`Driver baru mendaftar: ${msg.data.data.name}!`, {
-            icon: '🛵',
-            duration: 8000,
-          });
-          fetchSupabaseDrivers();
-        }
-      };
-    }
-
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      if (bc) bc.close();
       supabase.removeChannel(channelCloud);
     };
   }, []);
 
-  const pendingDrivers = drivers.filter((d) => d.status === 'Pending');
-  const filteredDrivers = drivers.filter(
-    (d) =>
-      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.phone.includes(searchTerm)
-  );
-
-  const handleVerify = async (id, accept) => {
+  const handleVerify = async (id, accept, notes = '') => {
     const newStatus = accept ? 'Active' : 'Inactive';
     
-    // Update local state instan
     setDrivers((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
+      prev.map((d) => (d.id === id ? { ...d, status: newStatus, notes } : d))
     );
 
     // Update di Cloud Supabase feature_flags
     try {
       const { data } = await supabase
         .from('feature_flags')
-        .select('features')
+        .select('id, features')
         .eq('region', 'mitra_registrations')
         .maybeSingle();
 
       if (data && Array.isArray(data.features)) {
         const updated = data.features.map((m) =>
-          m.id === id ? { ...m, status: newStatus } : m
+          m.id === id ? { ...m, status: newStatus, notes } : m
         );
         await supabase
           .from('feature_flags')
-          .upsert({ region: 'mitra_registrations', features: updated }, { onConflict: 'region' });
+          .update({ features: updated, updated_at: new Date().toISOString() })
+          .eq('region', 'mitra_registrations');
       }
-    } catch (e) {
-      console.warn('Update cloud notice:', e);
-    }
+    } catch (e) {}
 
     // Update di localStorage
     try {
       const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-      const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus } : d));
+      const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus, notes } : d));
       localStorage.setItem('wira_mitra_registrations', JSON.stringify(updated));
     } catch (e) {}
 
-    // Update di mitra_registrations jika tabel ada
-    try {
-      await supabase.from('mitra_registrations').update({ status: newStatus }).eq('id', id);
-    } catch (e) {}
-
-    toast.success(accept ? 'Pengemudi berhasil diverifikasi!' : 'Pengemudi ditolak');
+    toast.success(accept ? 'Pengemudi berhasil diverifikasi dan aktif!' : 'Pendaftaran pengemudi ditolak');
   };
+
+  const openReviewModal = (driver) => {
+    setSelectedDriver(driver);
+    setIsReviewOpen(true);
+  };
+
+  const pendingDrivers = drivers.filter((d) => d.status === 'Pending');
+
+  const filteredDrivers = drivers.filter((d) => {
+    const matchSearch =
+      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.phone.includes(searchTerm) ||
+      d.plate.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchFilter =
+      filterStatus === 'Semua' ||
+      (filterStatus === 'Menunggu' && d.status === 'Pending') ||
+      (filterStatus === 'Aktif' && d.status === 'Active') ||
+      (filterStatus === 'Nonaktif' && d.status === 'Inactive');
+
+    return matchSearch && matchFilter;
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Manajemen Pengemudi (Drivers)
-        </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Manajemen Pengemudi (Drivers)
+          </h1>
+          <p className="text-sm text-slate-500">
+            Daftar pengemudi riil yang mendaftar melalui aplikasi Mitra Wira
+          </p>
+        </div>
         <button
           onClick={fetchSupabaseDrivers}
-          className="flex items-center gap-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
+          className="flex items-center gap-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm w-fit font-medium transition"
           title="Segarkan Data"
         >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={loading ? 'animate-spin text-primary' : ''} />
           <span>Muat Ulang</span>
         </button>
       </div>
 
       {/* Bagian Driver Menunggu Verifikasi */}
       {pendingDrivers.length > 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg">
-          <div className="flex">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Menunggu Verifikasi ({pendingDrivers.length})
+        <div className="bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-600/40 p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-amber-200 dark:border-slate-700">
+            <div>
+              <h3 className="text-base font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                Menunggu Verifikasi Berkas ({pendingDrivers.length})
               </h3>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                Ada pengemudi yang baru mendaftar dan membutuhkan persetujuan Anda.
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Ada pengemudi yang baru mendaftar. Klik <strong>Review Berkas</strong> untuk memeriksa foto SIM & menyetujui.
               </p>
             </div>
           </div>
@@ -231,33 +229,39 @@ const DriversPage = () => {
             {pendingDrivers.map((driver) => (
               <div
                 key={driver.id}
-                className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded shadow-sm"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700"
               >
                 <div>
-                  <p className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                  <p className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     {driver.name}
-                    {driver.isReal && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
-                        Pendaftar Baru (Live)
+                    {driver.sim_photo && (
+                      <span className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-full font-bold">
+                        📸 Ada Foto SIM
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    {driver.phone} • {driver.vehicle} ({driver.plate})
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    WA: {driver.phone} • Kendaraan: {driver.vehicle} ({driver.plate})
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => openReviewModal(driver)}
+                    className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl transition shadow-sm"
+                  >
+                    <FileSearch size={14} /> Review Berkas
+                  </button>
                   <button
                     onClick={() => handleVerify(driver.id, true)}
-                    className="flex items-center gap-1 text-sm bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-3 py-1.5 rounded hover:bg-green-200 transition"
+                    className="flex items-center gap-1 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl transition shadow-sm"
                   >
-                    <CheckCircle size={16} /> Verifikasi
+                    <CheckCircle size={14} /> Setujui
                   </button>
                   <button
                     onClick={() => handleVerify(driver.id, false)}
-                    className="flex items-center gap-1 text-sm bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-3 py-1.5 rounded hover:bg-red-200 transition"
+                    className="flex items-center gap-1 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 dark:bg-slate-700 dark:hover:bg-red-900/30 dark:text-slate-300 dark:hover:text-red-400 px-3 py-2 rounded-xl transition border border-slate-200 dark:border-slate-600"
                   >
-                    <XCircle size={16} /> Tolak
+                    <XCircle size={14} /> Tolak
                   </button>
                 </div>
               </div>
@@ -268,7 +272,7 @@ const DriversPage = () => {
 
       {/* Tabel Keseluruhan Driver */}
       <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between gap-4">
           <div className="relative w-full max-w-md">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -276,77 +280,113 @@ const DriversPage = () => {
             />
             <input
               type="text"
-              placeholder="Cari nama atau nomor HP..."
+              placeholder="Cari nama, nomor WA, atau plat nomor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10 py-2 w-full"
+              className="input-field pl-10 py-2 w-full text-sm"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter size={18} className="text-slate-400" />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="input-field py-2 text-sm"
+            >
+              <option value="Semua">Semua Status</option>
+              <option value="Menunggu">Menunggu Verifikasi</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Nonaktif">Nonaktif / Ditolak</option>
+            </select>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                  Nama / Kontak
-                </th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                  Kendaraan
-                </th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                  Rating
-                </th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                  Total Trip
-                </th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                  Status
-                </th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {filteredDrivers.map((driver) => (
-                <tr
-                  key={driver.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
-                >
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-900 dark:text-white flex items-center gap-1.5">
-                      {driver.name}
-                      {driver.isReal && (
-                        <span className="w-2 h-2 rounded-full bg-green-500" title="Live Database"></span>
-                      )}
-                    </div>
-                    <div className="text-slate-500">{driver.phone}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="dark:text-white">{driver.vehicle}</div>
-                    <div className="text-slate-500 text-xs">{driver.plate}</div>
-                  </td>
-                  <td className="px-6 py-4 dark:text-white">
-                    {driver.rating > 0 ? `⭐ ${driver.rating}` : '-'}
-                  </td>
-                  <td className="px-6 py-4 dark:text-white">{driver.trips}</td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={driver.status} />
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      className="text-primary hover:text-cyan-700 p-2"
-                      title="Detail"
-                    >
-                      <Eye size={18} />
-                    </button>
-                  </td>
+        {filteredDrivers.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+              <ShieldCheck size={24} />
+            </div>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Belum Ada Data Pengemudi
+            </p>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Calon driver yang mendaftar melalui aplikasi Mitra Wira akan langsung muncul di sini secara otomatis tanpa perlu refresh.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
+                    Nama / Kontak
+                  </th>
+                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
+                    Kendaraan
+                  </th>
+                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
+                    Dokumen SIM
+                  </th>
+                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right">Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                {filteredDrivers.map((driver) => (
+                  <tr
+                    key={driver.id}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        {driver.name}
+                      </div>
+                      <div className="text-slate-500 text-xs mt-0.5">{driver.phone}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-900 dark:text-white">{driver.vehicle}</div>
+                      <div className="text-slate-500 text-xs font-mono">{driver.plate}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {driver.sim_photo ? (
+                        <span className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
+                          ✓ Foto Terlampir
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Belum ada foto</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={driver.status} />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => openReviewModal(driver)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition"
+                        title="Buka detail berkas pendaftaran"
+                      >
+                        <Eye size={15} /> Review Berkas
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <Pagination currentPage={1} totalPages={1} onPageChange={() => {}} />
       </div>
+
+      {/* Modal Review Berkas Driver */}
+      <MitraReviewModal
+        isOpen={isReviewOpen}
+        mitra={selectedDriver}
+        onClose={() => setIsReviewOpen(false)}
+        onVerify={handleVerify}
+      />
     </div>
   );
 };

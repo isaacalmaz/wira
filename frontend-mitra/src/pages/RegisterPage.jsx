@@ -4,6 +4,42 @@ import { Button, Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 
+// Kompres gambar otomatis agar ringan di cloud Supabase
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600;
+        const MAX_HEIGHT = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = Math.round(width);
+        canvas.height = Math.round(height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('driver');
@@ -21,11 +57,25 @@ const RegisterPage = () => {
     address: '',
     specialization: 'ac',
     experience: '1',
+    simPhoto: null,
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        setFormData((prev) => ({ ...prev, simPhoto: compressed }));
+        toast.success('Foto dokumen berhasil dipilih & dikompres!', { icon: '📸' });
+      } catch (err) {
+        toast.error('Gagal memproses foto');
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -42,6 +92,7 @@ const RegisterPage = () => {
         email: formData.email,
         vehicle: role === 'driver' ? formData.vehicle : null,
         plate: role === 'driver' ? formData.plate : null,
+        sim_photo: formData.simPhoto || null,
         restaurant_name: role === 'merchant' ? formData.restaurantName : null,
         address: role === 'merchant' ? formData.address : null,
         specialization: role === 'technician' ? formData.specialization : null,
@@ -214,16 +265,7 @@ const RegisterPage = () => {
                       id="sim-upload"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setFormData((prev) => ({ ...prev, simPhoto: reader.result }));
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
+                      onChange={handleFileUpload}
                     />
                     {formData.simPhoto ? (
                       <div className="relative p-3 border-2 border-green-500 bg-green-50 dark:bg-green-950/20 rounded-xl flex items-center justify-between">
