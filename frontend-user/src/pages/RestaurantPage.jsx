@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
-import { RESTAURANTS } from '../data/restaurants';
+import { supabase } from '../config/supabase';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import {
@@ -24,9 +24,8 @@ import { toast } from 'react-hot-toast';
 
 export default function RestaurantPage() {
   const { id } = useParams();
-  const restId = Number(id) || 1;
-  const rest = RESTAURANTS.find((r) => r.id === restId) || RESTAURANTS[0];
-
+  const [rest, setRest] = useState(null);
+  
   const { cart, addItem, removeItem, total, clearCart } = useCart();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
@@ -38,6 +37,36 @@ export default function RestaurantPage() {
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [trackingStage, setTrackingStage] = useState(1);
+
+  useEffect(() => {
+    const fetchRest = async () => {
+      // Ambil data restoran
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (merchantData) {
+        // Ambil data menu (products)
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('*')
+          .eq('merchant_id', id);
+          
+        setRest({
+          ...merchantData,
+          deliveryTime: merchantData.delivery_time,
+          menuItems: productsData || []
+        });
+      }
+    };
+    if (id) fetchRest();
+  }, [id]);
+
+  if (!rest) {
+    return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
+  }
 
   const deliveryFee = 8000;
   const grandTotal = Math.max(0, total + deliveryFee - discount);

@@ -20,6 +20,7 @@ import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../config/supabase';
 
 export default function RidePage() {
   const { balance, pay } = useWallet();
@@ -39,11 +40,30 @@ export default function RidePage() {
   // 2: Dalam perjalanan menuju tujuan
   // 3: Selesai perjalanan
 
-  const vehicles = [
-    { id: 'bike', name: 'WiraMotor', price: 15000, time: '2-4 min', icon: '🛵', desc: 'Cepat & selap-selip di jalan Mataram' },
-    { id: 'car', name: 'WiraMobil', price: 35000, time: '4-7 min', icon: '🚗', desc: 'Nyaman ber-AC muat hingga 4 orang' },
-    { id: 'xl', name: 'WiraMobil XL', price: 50000, time: '6-10 min', icon: '🚙', desc: 'Keluarga besar / bawa koper wisata' },
-  ];
+  const [vehicles, setVehicles] = useState([]);
+  
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      const { data } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('service_type', 'ride')
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+        
+      if (data) {
+        setVehicles(data.map(v => ({
+          id: v.type,
+          name: v.name,
+          price: v.price,
+          time: v.duration,
+          icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
+          desc: `Kapasitas: ${v.capacity} orang`
+        })));
+      }
+    };
+    fetchVehicles();
+  }, []);
 
   // Simulasi Driver yang ditugaskan
   const assignedDriver = {

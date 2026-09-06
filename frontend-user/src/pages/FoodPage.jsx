@@ -1,16 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Star, Clock } from 'lucide-react';
 import Card from '../components/common/Card';
-import { RESTAURANTS } from '../data/restaurants';
 import { formatRupiah } from '../utils/formatRupiah';
+import { supabase } from '../config/supabase';
 
 export default function FoodPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Semua');
+  const [restaurants, setRestaurants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   const categories = ['Semua', 'Ayam', 'Daging', 'Seafood', 'Minuman'];
 
-  const filtered = RESTAURANTS.filter(r => 
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('merchants')
+        .select('*')
+        .eq('service_type', 'food')
+        .order('created_at', { ascending: false });
+        
+      if (data) {
+        setRestaurants(data);
+      }
+      setLoading(false);
+    };
+
+    fetchRestaurants();
+  }, []);
+
+  const filtered = restaurants.filter(r => 
     (category === 'Semua' || r.category === category) &&
     r.name.toLowerCase().includes(search.toLowerCase())
   );
