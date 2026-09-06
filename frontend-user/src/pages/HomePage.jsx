@@ -50,27 +50,34 @@ export default function HomePage() {
           Layanan Wira di Lombok
         </h2>
         <div className="grid grid-cols-4 gap-3.5">
-          {SERVICES.map((service) => (
-            <Link
-              key={service.id}
-              to={service.path}
-              className="flex flex-col items-center gap-1.5 group"
-            >
-              <div
-                style={{ backgroundColor: service.color }}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200"
+          {SERVICES.map((service) => {
+            const IconComponent = service.icon;
+            return (
+              <Link
+                key={service.id}
+                to={service.path}
+                className="flex flex-col items-center gap-1.5 group"
               >
-                <span className="text-2xl font-black">
-                  {service.icon || service.name_id.charAt(4)}
+                <div
+                  style={{ backgroundColor: service.color }}
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200"
+                >
+                  {IconComponent ? (
+                    <IconComponent size={24} className="text-white" />
+                  ) : (
+                    <span className="text-xl font-bold">
+                      {service.name_id.charAt(4)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] sm:text-xs text-center font-bold text-slate-700 dark:text-slate-200 leading-tight">
+                  {lang === 'id'
+                    ? service.name_id.replace('Wira', '')
+                    : service.name_en.replace('Wira', '')}
                 </span>
-              </div>
-              <span className="text-[11px] sm:text-xs text-center font-bold text-slate-700 dark:text-slate-200 leading-tight">
-                {lang === 'id'
-                  ? service.name_id.replace('Wira', '')
-                  : service.name_en.replace('Wira', '')}
-              </span>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
