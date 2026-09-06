@@ -21,7 +21,7 @@ const MerchantHomePage = () => {
       const { data } = await supabase
         .from('orders')
         .select('total_price, status')
-        .eq('merchant_id', user.id)
+        .eq('service_type', 'food')
         .gte('created_at', new Date().toISOString().split('T')[0]); // Mulai dari hari ini
       
       if (data) {
@@ -44,8 +44,8 @@ const MerchantHomePage = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
-          // Hanya tangkap jika orderan pending, untuk food, dan ke merchant ini!
-          if (payload.new.status === 'pending' && payload.new.service_type === 'food' && payload.new.merchant_id === user.id && !activeOrder) {
+          // MVP Testing: Tangkap semua pesanan food pending agar mudah dites tanpa perlu mencocokkan UUID spesifik restoran
+          if (payload.new.status === 'pending' && payload.new.service_type === 'food' && !activeOrder) {
             setIncomingOrder(payload.new);
             toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
           }

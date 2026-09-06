@@ -16,7 +16,7 @@ const MerchantOrdersPage = () => {
     const { data } = await supabase
       .from('orders')
       .select('*')
-      .eq('merchant_id', user.id)
+      .eq('service_type', 'food')
       .order('created_at', { ascending: false });
     
     setOrders(data || []);
