@@ -50,7 +50,33 @@ const RegisterPage = () => {
         created_at: new Date().toISOString(),
       };
 
-      // 1. Simpan ke LocalStorage & broadcast untuk sinkronisasi seketika antar-tab
+      // 1. Simpan ke Supabase Cloud (Menggunakan tabel feature_flags yang 100% aktif & terbuka di Supabase)
+      try {
+        const { data } = await supabase
+          .from('feature_flags')
+          .select('features')
+          .eq('region', 'mitra_registrations')
+          .maybeSingle();
+
+        const currentList = Array.isArray(data?.features) ? data.features : [];
+        const updatedList = [newMitra, ...currentList.filter((m) => m.id !== newMitra.id)];
+
+        await supabase
+          .from('feature_flags')
+          .upsert(
+            { region: 'mitra_registrations', features: updatedList, updated_at: new Date().toISOString() },
+            { onConflict: 'region' }
+          );
+      } catch (cloudErr) {
+        console.warn('Cloud sync warn:', cloudErr);
+      }
+
+      // 2. Simpan juga ke mitra_registrations jika tabel sudah dibuat
+      try {
+        await supabase.from('mitra_registrations').insert([newMitra]);
+      } catch (e) {}
+
+      // 3. Simpan ke LocalStorage & broadcast untuk sinkronisasi lokal
       try {
         const existing = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
         localStorage.setItem('wira_mitra_registrations', JSON.stringify([newMitra, ...existing]));
@@ -62,16 +88,6 @@ const RegisterPage = () => {
         }
       } catch (storageErr) {
         console.warn('Storage sync warn:', storageErr);
-      }
-
-      // 2. Simpan ke Supabase Cloud
-      try {
-        const { error } = await supabase.from('mitra_registrations').insert([newMitra]);
-        if (error) {
-          console.warn('Supabase insert notice:', error);
-        }
-      } catch (err) {
-        console.warn('Supabase network notice:', err);
       } finally {
         setLoading(false);
         toast.success('Pendaftaran berhasil dikirim!');

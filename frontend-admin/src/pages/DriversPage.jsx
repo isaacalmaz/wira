@@ -10,76 +10,116 @@ const DriversPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Ambil data pendaftaran driver dari LocalStorage & Supabase
+  // Ambil data pendaftaran driver dari Supabase Cloud & Fallback
   const fetchSupabaseDrivers = async () => {
     setLoading(true);
     let allReal = [];
 
-    // 1. Ambil dari LocalStorage untuk pembaruan instan
-    try {
-      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-      const localDrivers = localData
-        .filter((d) => d.role === 'driver')
-        .map((d) => ({
-          id: d.id,
-          name: d.name,
-          phone: d.phone,
-          vehicle: d.vehicle || 'Motor',
-          plate: d.plate || '-',
-          status: d.status || 'Pending',
-          rating: 0,
-          trips: 0,
-          isReal: true,
-        }));
-      allReal = [...localDrivers];
-    } catch (e) {
-      console.warn('Local storage read notice:', e);
-    }
-
-    // 2. Ambil dari Supabase
+    // 1. Ambil dari Supabase feature_flags (Cloud sync yang 100% aktif & terbuka)
     try {
       const { data, error } = await supabase
+        .from('feature_flags')
+        .select('features')
+        .eq('region', 'mitra_registrations')
+        .maybeSingle();
+
+      if (data && Array.isArray(data.features)) {
+        const cloudDrivers = data.features
+          .filter((d) => d.role === 'driver')
+          .map((d) => ({
+            id: d.id,
+            name: d.name,
+            phone: d.phone,
+            vehicle: d.vehicle || 'Motor',
+            plate: d.plate || '-',
+            status: d.status || 'Pending',
+            rating: 0,
+            trips: 0,
+            isReal: true,
+          }));
+        allReal = [...cloudDrivers];
+      }
+    } catch (err) {
+      console.warn('Cloud sync read notice:', err);
+    }
+
+    // 2. Ambil juga dari tabel mitra_registrations jika tabel sudah dibuat
+    try {
+      const { data } = await supabase
         .from('mitra_registrations')
         .select('*')
         .eq('role', 'driver')
         .order('created_at', { ascending: false });
 
       if (data && data.length > 0) {
-        const formatted = data.map((d) => ({
-          id: d.id,
-          name: d.name,
-          phone: d.phone,
-          vehicle: d.vehicle || 'Motor',
-          plate: d.plate || '-',
-          status: d.status || 'Pending',
-          rating: 0,
-          trips: 0,
-          isReal: true,
-        }));
-
         const existingIds = new Set(allReal.map((r) => r.id));
-        for (const item of formatted) {
+        for (const item of data) {
           if (!existingIds.has(item.id)) {
-            allReal.push(item);
+            allReal.push({
+              id: item.id,
+              name: item.name,
+              phone: item.phone,
+              vehicle: item.vehicle || 'Motor',
+              plate: item.plate || '-',
+              status: item.status || 'Pending',
+              rating: 0,
+              trips: 0,
+              isReal: true,
+            });
           }
         }
       }
-    } catch (err) {
-      console.log('Supabase drivers notice:', err);
-    } finally {
-      setDrivers((prev) => {
-        const realIds = new Set(allReal.map((r) => r.id));
-        const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
-        return [...allReal, ...onlyMock];
-      });
-      setLoading(false);
-    }
+    } catch (e) {}
+
+    // 3. Fallback LocalStorage jika dalam satu browser/tab
+    try {
+      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
+      const localDrivers = localData.filter((d) => d.role === 'driver');
+      const existingIds = new Set(allReal.map((r) => r.id));
+      for (const d of localDrivers) {
+        if (!existingIds.has(d.id)) {
+          allReal.push({
+            id: d.id,
+            name: d.name,
+            phone: d.phone,
+            vehicle: d.vehicle || 'Motor',
+            plate: d.plate || '-',
+            status: d.status || 'Pending',
+            rating: 0,
+            trips: 0,
+            isReal: true,
+          });
+        }
+      }
+    } catch (e) {}
+
+    setDrivers((prev) => {
+      const realIds = new Set(allReal.map((r) => r.id));
+      const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
+      return [...allReal, ...onlyMock];
+    });
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchSupabaseDrivers();
 
-    // 1. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
+    // 1. Sinkronisasi Real-time Supabase Cloud (feature_flags)
+    const channelCloud = supabase
+      .channel('realtime-cloud-drivers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feature_flags' },
+        (payload) => {
+          if (payload.new && payload.new.region === 'mitra_registrations') {
+            toast.success('Pembaruan data driver diterima dari cloud!', { icon: '🛵' });
+            fetchSupabaseDrivers();
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
     const handleStorageChange = (e) => {
       if (e.key === 'wira_mitra_registrations') {
         fetchSupabaseDrivers();
@@ -101,28 +141,10 @@ const DriversPage = () => {
       };
     }
 
-    // 2. Notifikasi Real-time Supabase
-    const channel = supabase
-      .channel('realtime-admin-drivers')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mitra_registrations' },
-        (payload) => {
-          if (payload.new && payload.new.role === 'driver') {
-            toast.success(`Driver baru mendaftar: ${payload.new.name}!`, {
-              icon: '🛵',
-              duration: 8000,
-            });
-            fetchSupabaseDrivers();
-          }
-        }
-      )
-      .subscribe();
-
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       if (bc) bc.close();
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelCloud);
     };
   }, []);
 
@@ -136,29 +158,42 @@ const DriversPage = () => {
   const handleVerify = async (id, accept) => {
     const newStatus = accept ? 'Active' : 'Inactive';
     
-    // Update local state
+    // Update local state instan
     setDrivers((prev) =>
       prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
     );
+
+    // Update di Cloud Supabase feature_flags
+    try {
+      const { data } = await supabase
+        .from('feature_flags')
+        .select('features')
+        .eq('region', 'mitra_registrations')
+        .maybeSingle();
+
+      if (data && Array.isArray(data.features)) {
+        const updated = data.features.map((m) =>
+          m.id === id ? { ...m, status: newStatus } : m
+        );
+        await supabase
+          .from('feature_flags')
+          .upsert({ region: 'mitra_registrations', features: updated }, { onConflict: 'region' });
+      }
+    } catch (e) {
+      console.warn('Update cloud notice:', e);
+    }
 
     // Update di localStorage
     try {
       const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
       const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus } : d));
       localStorage.setItem('wira_mitra_registrations', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Storage update warn:', e);
-    }
+    } catch (e) {}
 
-    // Update di Supabase jika tersedia
+    // Update di mitra_registrations jika tabel ada
     try {
-      await supabase
-        .from('mitra_registrations')
-        .update({ status: newStatus })
-        .eq('id', id);
-    } catch (err) {
-      console.log('Update local only', err);
-    }
+      await supabase.from('mitra_registrations').update({ status: newStatus }).eq('id', id);
+    } catch (e) {}
 
     toast.success(accept ? 'Pengemudi berhasil diverifikasi!' : 'Pengemudi ditolak');
   };

@@ -4,6 +4,7 @@ import AdminSidebar from './AdminSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Menu, Bell, Sun, Moon, LogOut, Check, ExternalLink, Clock } from 'lucide-react';
+import { supabase } from '../../config/supabase';
 
 const AdminLayout = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -65,6 +66,41 @@ const AdminLayout = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Notifikasi Real-time saat ada pendaftaran mitra baru dari cloud
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-header-notifs')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feature_flags' },
+        (payload) => {
+          if (payload.new && payload.new.region === 'mitra_registrations') {
+            const list = payload.new.features || [];
+            const latest = list[0];
+            if (latest) {
+              setNotifications((prev) => [
+                {
+                  id: Date.now(),
+                  title: `Pendaftaran ${latest.role === 'driver' ? 'Driver' : latest.role === 'merchant' ? 'Restoran' : 'Teknisi'} Baru`,
+                  desc: `${latest.name} (${latest.phone}) baru saja mendaftar.`,
+                  time: 'Baru saja',
+                  unread: true,
+                  link: latest.role === 'driver' ? '/drivers' : latest.role === 'merchant' ? '/merchants' : '/technicians',
+                  type: latest.role,
+                },
+                ...prev,
+              ]);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLogout = () => {

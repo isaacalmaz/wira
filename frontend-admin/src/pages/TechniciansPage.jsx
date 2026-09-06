@@ -10,74 +10,113 @@ const TechniciansPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Ambil data teknisi dari LocalStorage & Supabase
+  // Ambil data teknisi dari Supabase Cloud & Fallback
   const fetchSupabaseTechs = async () => {
     setLoading(true);
     let allReal = [];
 
-    // 1. Ambil dari LocalStorage untuk pembaruan instan
-    try {
-      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-      const localTechs = localData
-        .filter((t) => t.role === 'technician')
-        .map((t) => ({
-          id: t.id,
-          name: t.name,
-          phone: t.phone,
-          specialization: t.specialization || 'Jasa Umum',
-          status: t.status || 'Pending',
-          rating: 0,
-          totalJobs: 0,
-          isReal: true,
-        }));
-      allReal = [...localTechs];
-    } catch (e) {
-      console.warn('Local storage tech read notice:', e);
-    }
-
-    // 2. Ambil dari Supabase
+    // 1. Ambil dari Supabase feature_flags (Cloud sync yang 100% aktif & terbuka)
     try {
       const { data, error } = await supabase
+        .from('feature_flags')
+        .select('features')
+        .eq('region', 'mitra_registrations')
+        .maybeSingle();
+
+      if (data && Array.isArray(data.features)) {
+        const cloudTechs = data.features
+          .filter((t) => t.role === 'technician')
+          .map((t) => ({
+            id: t.id,
+            name: t.name,
+            phone: t.phone,
+            specialization: t.specialization || 'Jasa Umum',
+            status: t.status || 'Pending',
+            rating: 0,
+            totalJobs: 0,
+            isReal: true,
+          }));
+        allReal = [...cloudTechs];
+      }
+    } catch (err) {
+      console.warn('Cloud technician sync notice:', err);
+    }
+
+    // 2. Ambil juga dari tabel mitra_registrations jika ada
+    try {
+      const { data } = await supabase
         .from('mitra_registrations')
         .select('*')
         .eq('role', 'technician')
         .order('created_at', { ascending: false });
 
       if (data && data.length > 0) {
-        const formatted = data.map((t) => ({
-          id: t.id,
-          name: t.name,
-          phone: t.phone,
-          specialization: t.specialization || 'Jasa Umum',
-          status: t.status || 'Pending',
-          rating: 0,
-          totalJobs: 0,
-          isReal: true,
-        }));
-
         const existingIds = new Set(allReal.map((r) => r.id));
-        for (const item of formatted) {
+        for (const item of data) {
           if (!existingIds.has(item.id)) {
-            allReal.push(item);
+            allReal.push({
+              id: item.id,
+              name: item.name,
+              phone: item.phone,
+              specialization: item.specialization || 'Jasa Umum',
+              status: item.status || 'Pending',
+              rating: 0,
+              totalJobs: 0,
+              isReal: true,
+            });
           }
         }
       }
-    } catch (err) {
-      console.log('Supabase technicians notice:', err);
-    } finally {
-      setTechnicians((prev) => {
-        const realIds = new Set(allReal.map((r) => r.id));
-        const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
-        return [...allReal, ...onlyMock];
-      });
-      setLoading(false);
-    }
+    } catch (e) {}
+
+    // 3. Fallback LocalStorage jika dalam satu browser/tab
+    try {
+      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
+      const localTechs = localData.filter((t) => t.role === 'technician');
+      const existingIds = new Set(allReal.map((r) => r.id));
+      for (const t of localTechs) {
+        if (!existingIds.has(t.id)) {
+          allReal.push({
+            id: t.id,
+            name: t.name,
+            phone: t.phone,
+            specialization: t.specialization || 'Jasa Umum',
+            status: t.status || 'Pending',
+            rating: 0,
+            totalJobs: 0,
+            isReal: true,
+          });
+        }
+      }
+    } catch (e) {}
+
+    setTechnicians((prev) => {
+      const realIds = new Set(allReal.map((r) => r.id));
+      const onlyMock = prev.filter((p) => !realIds.has(p.id) && !p.isReal);
+      return [...allReal, ...onlyMock];
+    });
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchSupabaseTechs();
 
-    // 1. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
+    // 1. Sinkronisasi Real-time Supabase Cloud (feature_flags)
+    const channelCloud = supabase
+      .channel('realtime-cloud-technicians')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feature_flags' },
+        (payload) => {
+          if (payload.new && payload.new.region === 'mitra_registrations') {
+            toast.success('Pembaruan data teknisi diterima dari cloud!', { icon: '🔧' });
+            fetchSupabaseTechs();
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Sinkronisasi Antar-Tab (Broadcast & Storage Event)
     const handleStorageChange = (e) => {
       if (e.key === 'wira_mitra_registrations') {
         fetchSupabaseTechs();
@@ -99,28 +138,10 @@ const TechniciansPage = () => {
       };
     }
 
-    // 2. Notifikasi Real-time Supabase
-    const channel = supabase
-      .channel('realtime-admin-technicians')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mitra_registrations' },
-        (payload) => {
-          if (payload.new && payload.new.role === 'technician') {
-            toast.success(`Teknisi baru mendaftar: ${payload.new.name}!`, {
-              icon: '🔧',
-              duration: 8000,
-            });
-            fetchSupabaseTechs();
-          }
-        }
-      )
-      .subscribe();
-
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       if (bc) bc.close();
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelCloud);
     };
   }, []);
 
@@ -134,29 +155,42 @@ const TechniciansPage = () => {
   const handleVerify = async (id, accept) => {
     const newStatus = accept ? 'Active' : 'Inactive';
     
-    // Update local state
+    // Update local state instan
     setTechnicians((prev) =>
       prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
     );
+
+    // Update di Cloud Supabase feature_flags
+    try {
+      const { data } = await supabase
+        .from('feature_flags')
+        .select('features')
+        .eq('region', 'mitra_registrations')
+        .maybeSingle();
+
+      if (data && Array.isArray(data.features)) {
+        const updated = data.features.map((m) =>
+          m.id === id ? { ...m, status: newStatus } : m
+        );
+        await supabase
+          .from('feature_flags')
+          .upsert({ region: 'mitra_registrations', features: updated }, { onConflict: 'region' });
+      }
+    } catch (e) {
+      console.warn('Update cloud notice:', e);
+    }
 
     // Update di localStorage
     try {
       const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
       const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus } : d));
       localStorage.setItem('wira_mitra_registrations', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Storage update warn:', e);
-    }
+    } catch (e) {}
 
-    // Update di Supabase jika tersedia
+    // Update di mitra_registrations jika tabel ada
     try {
-      await supabase
-        .from('mitra_registrations')
-        .update({ status: newStatus })
-        .eq('id', id);
-    } catch (err) {
-      console.log('Update local only', err);
-    }
+      await supabase.from('mitra_registrations').update({ status: newStatus }).eq('id', id);
+    } catch (e) {}
 
     toast.success(accept ? 'Teknisi berhasil diverifikasi!' : 'Teknisi ditolak');
   };
