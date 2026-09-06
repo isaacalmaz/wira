@@ -21,7 +21,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form.email, form.password, { name: form.name, phone: form.phone });
-      toast.success('Pendaftaran berhasil! Silakan login.');
+      toast.success('Pendaftaran berhasil! Silakan periksa kotak masuk/Spam Email Anda untuk verifikasi sebelum login.', { duration: 6000 });
       navigate('/login');
     } catch (err) {
       toast.error(err.message || 'Gagal mendaftar. Pastikan email belum terdaftar dan password minimal 6 karakter.');
