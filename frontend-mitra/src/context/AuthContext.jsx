@@ -5,8 +5,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [mitraAccess, setMitraAccess] = useState([]); // ex: ['driver', 'merchant']
-  const [activeRole, setActiveRole] = useState(null); // The role they selected for this session
+  const [mitraAccess, setMitraAccess] = useState([]); 
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -27,51 +26,46 @@ export const AuthProvider = ({ children }) => {
       
       if (profile) {
         setUser({ ...session.user, ...profile });
-        const access = profile.mitra_access || [];
-        setMitraAccess(access);
-        
-        // Auto-select if they only have 1 access
-        if (access.length === 1 && !activeRole) {
-          setActiveRole(access[0]);
-        }
+        setMitraAccess(profile.mitra_access || []);
       } else {
-        // Fallback for new users
         const roleFromMeta = session.user.user_metadata?.role || 'driver';
         const { data: newProfile } = await supabase.from('users').insert([{
           id: session.user.id,
           name: session.user.user_metadata?.name || 'Mitra Baru',
           email: session.user.email,
           phone: session.user.user_metadata?.phone || '',
-          role: 'user', // Default to user
+          role: 'user', 
           mitra_access: [roleFromMeta],
           status: 'Aktif'
         }]).select().single();
         
         setUser({ ...session.user, ...newProfile });
         setMitraAccess([roleFromMeta]);
-        if (!activeRole) setActiveRole(roleFromMeta);
       }
     } else {
       setUser(null);
       setMitraAccess([]);
-      setActiveRole(null);
     }
     setLoading(false);
   };
 
   const login = async (email, password) => {
+    setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+    await handleSession(data.session);
     return data;
   };
   
   const logout = async () => {
-    setActiveRole(null);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, mitraAccess, activeRole, setActiveRole, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, mitraAccess, login, logout, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );
