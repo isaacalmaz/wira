@@ -1,26 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Wrench, Ban, CheckCircle } from 'lucide-react';
+import { Wrench, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import MitraReviewModal from '../components/common/MitraReviewModal';
 
 const TechniciansPage = () => {
   const [techs, setTechs] = useState([]);
+  const [pendingTechs, setPendingTechs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTech, setSelectedTech] = useState(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-  const fetchTechs = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const { data } = await supabase.from('users').select('*').contains('mitra_access', '["technician"]').order('created_at', { ascending: false });
-    if (data) setTechs(data);
+    
+    // 1. Ambil teknisi aktif
+    const { data: activeData } = await supabase.from('users').select('*').contains('mitra_access', '["technician"]').order('created_at', { ascending: false });
+    if (activeData) setTechs(activeData);
+
+    // 2. Ambil teknisi pending dari feature_flags
+    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+    if (flagsData && Array.isArray(flagsData.features)) {
+      const p = flagsData.features.filter(m => m.role === 'technician' && m.status === 'Pending');
+      setPendingTechs(p);
+    }
+    
     setLoading(false);
   };
 
-  useEffect(() => { fetchTechs(); }, []);
+  useEffect(() => { fetchData(); }, []);
+
+  const handleVerify = async (id, accept, notes = '') => {
+    // 1. Update status di feature_flags
+    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+    let updatedFeatures = [];
+    if (flagsData && Array.isArray(flagsData.features)) {
+      updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
+      await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
+    }
+
+    if (accept) {
+      // 2. Berikan akses technician ke public.users
+      const pending = pendingTechs.find(m => m.id === id);
+      if (pending && pending.auth_id) {
+        // Ambil data user saat ini
+        const { data: userProfile } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
+        if (userProfile) {
+          const currentAccess = userProfile.mitra_access || [];
+          if (!currentAccess.includes('technician')) {
+            currentAccess.push('technician');
+          }
+          await supabase.from('users').update({ 
+            mitra_access: currentAccess,
+            status: 'Aktif'
+          }).eq('id', pending.auth_id);
+        }
+      }
+      toast.success(`Teknisi berhasil disetujui!`);
+    } else {
+      toast.error(`Pendaftaran ditolak.`);
+    }
+    setIsReviewOpen(false);
+    fetchData();
+  };
 
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     await supabase.from('users').update({ status: newStatus }).eq('id', id);
     toast.success(`Status diubah menjadi ${newStatus}`);
-    fetchTechs();
+    fetchData();
   };
 
   return (
@@ -31,6 +79,29 @@ const TechniciansPage = () => {
           <p className="text-sm text-slate-500">Daftar Mitra Jasa Servis</p>
         </div>
       </div>
+      
+      {/* Antrean Persetujuan (Hanya muncul jika ada) */}
+      {pendingTechs.length > 0 && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-lg shadow-sm">
+          <h2 className="text-lg font-bold text-amber-800 mb-2">Perlu Persetujuan ({pendingTechs.length})</h2>
+          <div className="space-y-3">
+            {pendingTechs.map(pending => (
+              <div key={pending.id} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-amber-100">
+                <div>
+                  <p className="font-bold text-slate-800">{pending.name}</p>
+                  <p className="text-xs text-slate-500">{pending.specialization} - {pending.experience}</p>
+                </div>
+                <button 
+                  onClick={() => { setSelectedTech(pending); setIsReviewOpen(true); }}
+                  className="px-3 py-1.5 bg-amber-100 text-amber-700 text-sm font-semibold rounded-lg hover:bg-amber-200 flex items-center gap-1"
+                >
+                  <Eye size={16}/> Tinjau
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card p-0 overflow-hidden">
         {loading ? <div className="p-10 text-center">Memuat...</div> : (
@@ -62,10 +133,24 @@ const TechniciansPage = () => {
                   </td>
                 </tr>
               ))}
+              {techs.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Tidak ada teknisi aktif</td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
       </div>
+
+      {selectedTech && (
+        <MitraReviewModal
+          isOpen={isReviewOpen}
+          onClose={() => setIsReviewOpen(false)}
+          mitra={selectedTech}
+          onVerify={handleVerify}
+        />
+      )}
     </div>
   );
 };

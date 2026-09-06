@@ -80,6 +80,22 @@ const MerchantsPage = () => {
           address: pending.address,
           image: 'https://via.placeholder.com/150',
         }]);
+        
+        // 3. Berikan akses merchant ke public.users
+        if (pending.auth_id) {
+          const { data: userProfile } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
+          if (userProfile) {
+            const currentAccess = userProfile.mitra_access || [];
+            if (!currentAccess.includes('merchant')) {
+              currentAccess.push('merchant');
+            }
+            await supabase.from('users').update({ 
+              mitra_access: currentAccess,
+              status: 'Aktif'
+            }).eq('id', pending.auth_id);
+          }
+        }
+        
         toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
       }
     } else {

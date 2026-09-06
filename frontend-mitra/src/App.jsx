@@ -32,7 +32,10 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
   
   if (!user) return <Navigate to="/login" replace />;
-  if (!mitraAccess || mitraAccess.length === 0) return <Navigate to="/unauthorized" replace />;
+  if (!mitraAccess || mitraAccess.length === 0) {
+    if (user.status === 'Pending') return <Navigate to="/pending-verification" replace />;
+    return <Navigate to="/unauthorized" replace />;
+  }
   
   // Periksa apakah pengguna memiliki hak akses untuk role URL ini
   if (!mitraAccess.includes(allowedRole)) {
@@ -55,6 +58,7 @@ function App() {
         <Route path="/" element={
           user ? (
             mitraAccess && mitraAccess.length > 0 ? <Navigate to={`/${mitraAccess[0]}`} /> :
+            user.status === 'Pending' ? <Navigate to="/pending-verification" /> :
             <Navigate to="/unauthorized" />
           ) : <Navigate to="/login" />
         } />

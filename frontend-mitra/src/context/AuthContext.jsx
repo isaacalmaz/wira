@@ -35,12 +35,12 @@ export const AuthProvider = ({ children }) => {
           email: session.user.email,
           phone: session.user.user_metadata?.phone || '',
           role: 'user', 
-          mitra_access: [roleFromMeta],
-          status: 'Aktif'
+          mitra_access: [], // Jangan beri akses sampai Admin menyetujui
+          status: 'Pending'
         }]).select().single();
         
         setUser({ ...session.user, ...newProfile });
-        setMitraAccess([roleFromMeta]);
+        setMitraAccess([]);
       }
     } else {
       setUser(null);
