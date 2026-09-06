@@ -1,390 +1,208 @@
 import { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, Eye, RefreshCw, FileSearch, Filter, ShieldCheck } from 'lucide-react';
-import { StatusBadge, Pagination } from '../components/common/UIComponents';
+import { Search, CheckCircle, XCircle, Eye, RefreshCw, FileSearch, Trash2, Plus, Edit } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
 
 const MerchantsPage = () => {
-  const [merchants, setMerchants] = useState([]);
+  const [liveMerchants, setLiveMerchants] = useState([]);
+  const [pendingMerchants, setPendingMerchants] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('Semua');
   const [loading, setLoading] = useState(false);
 
-  // State untuk modal review calon merchant
   const [selectedMerchant, setSelectedMerchant] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('live'); // 'live' or 'pending'
 
-  const fetchSupabaseMerchants = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    let allReal = [];
+    
+    // 1. Ambil Merchant Live (dari tabel merchants)
+    const { data: merchantsData } = await supabase
+      .from('merchants')
+      .select('*')
+      .eq('service_type', 'food')
+      .order('created_at', { ascending: false });
+    
+    setLiveMerchants(merchantsData || []);
 
-    // 1. Ambil dari Supabase feature_flags
-    try {
-      const { data } = await supabase
-        .from('feature_flags')
-        .select('features')
-        .eq('region', 'mitra_registrations')
-        .maybeSingle();
+    // 2. Ambil Pending Registrations (dari feature_flags)
+    const { data: flagsData } = await supabase
+      .from('feature_flags')
+      .select('features')
+      .eq('region', 'mitra_registrations')
+      .maybeSingle();
 
-      if (data && Array.isArray(data.features)) {
-        const cloudMerchants = data.features
-          .filter((m) => m.role === 'merchant')
-          .map((m) => ({
-            id: m.id,
-            name: m.restaurant_name || m.name,
-            owner: m.name,
-            phone: m.phone,
-            email: m.email,
-            address: m.address || 'Mataram, Lombok',
-            sim_photo: m.sim_photo || null,
-            restaurants: 1,
-            status: m.status || 'Pending',
-            created_at: m.created_at,
-            joinDate: 'Hari ini',
-            isReal: true,
-          }));
-        allReal = [...cloudMerchants];
-      }
-    } catch (err) {
-      console.warn('Cloud merchant sync notice:', err);
+    if (flagsData && Array.isArray(flagsData.features)) {
+      const p = flagsData.features
+        .filter(m => m.role === 'merchant' && m.status === 'Pending')
+        .map(m => ({
+          id: m.id,
+          name: m.restaurant_name || m.name,
+          owner: m.name,
+          phone: m.phone,
+          email: m.email,
+          address: m.address || 'Mataram, Lombok',
+          sim_photo: m.sim_photo,
+          ktp_photo: m.ktp_photo,
+          selfie_photo: m.selfie_photo,
+          vehicle_plate: m.vehicle_plate,
+          vehicle_type: m.vehicle_type,
+          status: m.status,
+          date: m.date
+        }));
+      setPendingMerchants(p);
     }
-
-    // 2. Ambil dari tabel mitra_registrations jika ada
-    try {
-      const { data } = await supabase
-        .from('mitra_registrations')
-        .select('*')
-        .eq('role', 'merchant')
-        .order('created_at', { ascending: false });
-
-      if (data && data.length > 0) {
-        const existingIds = new Set(allReal.map((r) => r.id));
-        for (const item of data) {
-          if (!existingIds.has(item.id)) {
-            allReal.push({
-              id: item.id,
-              name: item.restaurant_name || item.name,
-              owner: item.name,
-              phone: item.phone,
-              email: item.email,
-              address: item.address || 'Mataram, Lombok',
-              sim_photo: item.sim_photo || null,
-              restaurants: 1,
-              status: item.status || 'Pending',
-              created_at: item.created_at,
-              joinDate: 'Hari ini',
-              isReal: true,
-            });
-          }
-        }
-      }
-    } catch (e) {}
-
-    // 3. Fallback LocalStorage
-    try {
-      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-      const localMerchants = localData.filter((m) => m.role === 'merchant');
-      const existingIds = new Set(allReal.map((r) => r.id));
-      for (const m of localMerchants) {
-        if (!existingIds.has(m.id)) {
-          allReal.push({
-            id: m.id,
-            name: m.restaurant_name || m.name,
-            owner: m.name,
-            phone: m.phone,
-            email: m.email,
-            address: m.address || 'Mataram, Lombok',
-            sim_photo: m.sim_photo || null,
-            restaurants: 1,
-            status: m.status || 'Pending',
-            created_at: m.created_at,
-            joinDate: 'Hari ini',
-            isReal: true,
-          });
-        }
-      }
-    } catch (e) {}
-
-    setMerchants(allReal);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchSupabaseMerchants();
-
-    const channelCloud = supabase
-      .channel('realtime-cloud-merchants')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'feature_flags' },
-        (payload) => {
-          if (payload.new && payload.new.region === 'mitra_registrations') {
-            toast.success('Pembaruan data merchant diterima dari cloud!', { icon: '🍔' });
-            fetchSupabaseMerchants();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channelCloud);
-    };
+    fetchData();
   }, []);
 
   const handleVerify = async (id, accept, notes = '') => {
-    const newStatus = accept ? 'Active' : 'Inactive';
-    
-    setMerchants((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: newStatus, notes } : d))
-    );
+    // 1. Update status di feature_flags
+    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+    let updatedFeatures = [];
+    if (flagsData && Array.isArray(flagsData.features)) {
+      updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
+      await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
+    }
 
-    try {
-      const { data } = await supabase
-        .from('feature_flags')
-        .select('id, features')
-        .eq('region', 'mitra_registrations')
-        .maybeSingle();
-
-      if (data && Array.isArray(data.features)) {
-        const updated = data.features.map((m) =>
-          m.id === id ? { ...m, status: newStatus, notes } : m
-        );
-        await supabase
-          .from('feature_flags')
-          .update({ features: updated, updated_at: new Date().toISOString() })
-          .eq('region', 'mitra_registrations');
+    if (accept) {
+      // 2. Jika diterima, masukkan ke tabel merchants live!
+      const pending = pendingMerchants.find(m => m.id === id);
+      if (pending) {
+        await supabase.from('merchants').insert([{
+          name: pending.name,
+          category: 'Umum',
+          service_type: 'food',
+          address: pending.address,
+          image: 'https://via.placeholder.com/150',
+          is_open: true
+        }]);
+        toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
       }
-    } catch (e) {}
-
-    try {
-      const localData = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-      const updated = localData.map((d) => (d.id === id ? { ...d, status: newStatus, notes } : d));
-      localStorage.setItem('wira_mitra_registrations', JSON.stringify(updated));
-    } catch (e) {}
-
-    toast.success(accept ? 'Merchant restoran diverifikasi & aktif!' : 'Merchant ditolak');
+    } else {
+      toast.success('Pendaftaran ditolak.');
+    }
+    
+    setIsReviewOpen(false);
+    fetchData();
   };
 
-  const openReviewModal = (merchant) => {
-    setSelectedMerchant({
-      ...merchant,
-      role: 'merchant',
-      restaurant_name: merchant.name,
-      name: merchant.owner || merchant.name,
-    });
-    setIsReviewOpen(true);
+  const handleDeleteLive = async (id) => {
+    if (!window.confirm('Hapus restoran ini dari aplikasi?')) return;
+    await supabase.from('merchants').delete().eq('id', id);
+    toast.success('Restoran dihapus dari Live Database');
+    fetchData();
   };
 
-  const pendingMerchants = merchants.filter((m) => m.status === 'Pending');
-
-  const filteredMerchants = merchants.filter((m) => {
-    const matchSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.phone.includes(searchTerm);
-
-    const matchFilter =
-      filterStatus === 'Semua' ||
-      (filterStatus === 'Menunggu' && m.status === 'Pending') ||
-      (filterStatus === 'Aktif' && m.status === 'Active') ||
-      (filterStatus === 'Nonaktif' && m.status === 'Inactive');
-
-    return matchSearch && matchFilter;
-  });
+  const filteredLive = liveMerchants.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Manajemen Merchant (WiraFood)
-          </h1>
-          <p className="text-sm text-slate-500">
-            Daftar restoran, warung kuliner Lombok, dan mitra F&B terdaftar
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Manajemen Restoran</h1>
+          <p className="text-sm text-slate-500">Kelola WiraFood dan persetujuan pendaftaran merchant baru.</p>
         </div>
-        <button
-          onClick={fetchSupabaseMerchants}
-          className="flex items-center gap-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm w-fit font-medium transition"
-          title="Segarkan Data"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin text-primary' : ''} />
-          <span>Muat Ulang</span>
+        <button onClick={fetchData} className="p-2 border rounded-xl hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 transition">
+          <RefreshCw size={20} className={`text-slate-600 dark:text-slate-300 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
-      {pendingMerchants.length > 0 && (
-        <div className="bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-600/40 p-5 rounded-2xl shadow-sm">
-          <h3 className="text-base font-bold text-amber-900 dark:text-amber-200 mb-1">
-            Merchant Menunggu Verifikasi ({pendingMerchants.length})
-          </h3>
-          <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
-            Klik tombol <strong>Review Berkas</strong> untuk memeriksa rincian warung kuliner dan menyetujui.
-          </p>
-          <div className="flex flex-col gap-3">
-            {pendingMerchants.map((merchant) => (
-              <div
-                key={merchant.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700"
-              >
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white text-base">
-                    {merchant.name}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Pemilik: {merchant.owner} • WA: {merchant.phone} • Lokasi: {merchant.address}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => openReviewModal(merchant)}
-                    className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl transition shadow-sm"
-                  >
-                    <FileSearch size={14} /> Review Berkas
-                  </button>
-                  <button
-                    onClick={() => handleVerify(merchant.id, true)}
-                    className="flex items-center gap-1 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl transition shadow-sm"
-                  >
-                    <CheckCircle size={14} /> Terima
-                  </button>
-                  <button
-                    onClick={() => handleVerify(merchant.id, false)}
-                    className="flex items-center gap-1 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 dark:bg-slate-700 dark:hover:bg-red-900/30 dark:text-slate-300 dark:hover:text-red-400 px-3 py-2 rounded-xl transition border border-slate-200 dark:border-slate-600"
-                  >
-                    <XCircle size={14} /> Tolak
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-slate-200 dark:border-slate-700">
+        <button onClick={() => setActiveTab('live')} className={`pb-3 font-medium transition ${activeTab === 'live' ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'}`}>
+          Restoran Aktif ({liveMerchants.length})
+        </button>
+        <button onClick={() => setActiveTab('pending')} className={`pb-3 font-medium transition flex items-center gap-2 ${activeTab === 'pending' ? 'text-amber-600 border-b-2 border-amber-600' : 'text-slate-500 hover:text-slate-700'}`}>
+          Menunggu Verifikasi 
+          {pendingMerchants.length > 0 && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">{pendingMerchants.length}</span>}
+        </button>
+      </div>
 
-      <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between gap-4">
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Cari nama restoran, pemilik, atau kontak..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10 py-2 w-full text-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter size={18} className="text-slate-400" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="input-field py-2 text-sm"
-            >
-              <option value="Semua">Semua Status</option>
-              <option value="Menunggu">Menunggu Verifikasi</option>
-              <option value="Aktif">Aktif</option>
-              <option value="Nonaktif">Nonaktif / Ditolak</option>
-            </select>
-          </div>
-        </div>
-
-        {filteredMerchants.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
-              <ShieldCheck size={24} />
+      {activeTab === 'live' ? (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={20} />
+              <input type="text" placeholder="Cari nama restoran..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-primary dark:text-white" />
             </div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Belum Ada Data Merchant
-            </p>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              Mitra kuliner yang mendaftar melalui aplikasi Mitra Wira akan langsung muncul di sini secara otomatis.
-            </p>
+            <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl font-medium" onClick={() => toast('Fitur tambah manual dalam pengembangan')}>
+              <Plus size={20} /> Tambah
+            </button>
           </div>
-        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400">
                 <tr>
-                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                    Bisnis / Restoran
-                  </th>
-                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                    Pemilik & Kontak
-                  </th>
-                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                    Alamat
-                  </th>
-                  <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right">Aksi</th>
+                  <th className="p-4 font-semibold">Nama Restoran</th>
+                  <th className="p-4 font-semibold">Alamat</th>
+                  <th className="p-4 font-semibold">Rating</th>
+                  <th className="p-4 font-semibold">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {filteredMerchants.map((merchant) => (
-                  <tr
-                    key={merchant.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        {merchant.name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-slate-800 dark:text-slate-200 font-medium">{merchant.owner}</div>
-                      <div className="text-slate-500 text-xs">{merchant.phone}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 text-xs">
-                      {merchant.address}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={merchant.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openReviewModal(merchant)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition"
-                          title="Buka detail berkas pendaftaran"
-                        >
-                          <Eye size={15} /> Review
-                        </button>
-                        <button
-                          onClick={() => handleVerify(merchant.id, merchant.status !== 'Active', 'Diubah secara manual dari tabel')}
-                          className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition border ${
-                            merchant.status === 'Active'
-                              ? 'text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800/50 dark:hover:bg-red-900/30'
-                              : 'text-green-600 border-green-200 hover:bg-green-50 dark:border-green-800/50 dark:hover:bg-green-900/30'
-                          }`}
-                        >
-                          {merchant.status === 'Active' ? 'Blokir' : 'Aktifkan'}
-                        </button>
-                      </div>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {filteredLive.map(m => (
+                  <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <td className="p-4 font-bold text-slate-900 dark:text-white">{m.name}</td>
+                    <td className="p-4 text-slate-500 truncate max-w-[200px]">{m.address}</td>
+                    <td className="p-4 text-amber-500 font-bold">★ {m.rating}</td>
+                    <td className="p-4 flex gap-2">
+                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" onClick={() => handleDeleteLive(m.id)}>
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-        <Pagination currentPage={1} totalPages={1} onPageChange={() => {}} />
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {pendingMerchants.map(merchant => (
+            <div key={merchant.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:border-primary transition flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{merchant.name}</h3>
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      Menunggu Verifikasi
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1 mb-5">
+                  <p className="text-sm text-slate-600 dark:text-slate-300"><strong>Pemilik:</strong> {merchant.owner}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300"><strong>HP:</strong> {merchant.phone}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 truncate"><strong>Lokasi:</strong> {merchant.address}</p>
+                </div>
+              </div>
+              <button onClick={() => { setSelectedMerchant(merchant); setIsReviewOpen(true); }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white py-2.5 rounded-xl text-sm font-bold transition">
+                <FileSearch size={16} /> Review Berkas
+              </button>
+            </div>
+          ))}
+          {pendingMerchants.length === 0 && (
+            <div className="col-span-full p-10 text-center text-slate-500 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+              Tidak ada pendaftaran merchant baru saat ini.
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Modal Review Merchant */}
-      <MitraReviewModal
-        isOpen={isReviewOpen}
-        mitra={selectedMerchant}
-        onClose={() => setIsReviewOpen(false)}
-        onVerify={handleVerify}
-      />
+      {selectedMerchant && (
+        <MitraReviewModal
+          isOpen={isReviewOpen}
+          onClose={() => setIsReviewOpen(false)}
+          mitra={selectedMerchant}
+          onVerify={handleVerify}
+        />
+      )}
     </div>
   );
 };
-
 export default MerchantsPage;
