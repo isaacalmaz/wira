@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import PendingVerificationPage from './pages/PendingVerificationPage';
 import ChatPage from './pages/ChatPage';
+import UnauthorizedPage from './pages/UnauthorizedPage';
 
 import DriverHomePage from './pages/driver/DriverHomePage';
 import DriverOrdersPage from './pages/driver/DriverOrdersPage';
@@ -34,6 +35,7 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     if (role === 'driver') return <Navigate to="/driver" replace />;
     if (role === 'merchant') return <Navigate to="/merchant" replace />;
     if (role === 'technician') return <Navigate to="/technician" replace />;
+    return <Navigate to="/unauthorized" replace />;
   }
   return <MitraLayout>{children}</MitraLayout>;
 };
@@ -49,13 +51,15 @@ function App() {
           user ? (
             role === 'driver' ? <Navigate to="/driver" /> :
             role === 'merchant' ? <Navigate to="/merchant" /> :
-            <Navigate to="/technician" />
+            role === 'technician' ? <Navigate to="/technician" /> :
+            <Navigate to="/unauthorized" />
           ) : <Navigate to="/login" />
         } />
         
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pending-verification" element={<PendingVerificationPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
         <Route path="/driver/*" element={
           <ProtectedRoute allowedRole="driver">

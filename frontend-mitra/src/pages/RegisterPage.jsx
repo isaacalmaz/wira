@@ -51,6 +51,7 @@ const RegisterPage = () => {
     name: '',
     phone: '',
     email: '',
+    password: '',
     vehicle: '',
     plate: '',
     restaurantName: '',
@@ -84,6 +85,27 @@ const RegisterPage = () => {
       setStep(step + 1);
     } else {
       setLoading(true);
+
+      // 0. Buat akun di Supabase Auth
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name,
+              phone: formData.phone,
+              role: role
+            }
+          }
+        });
+        if (authError) throw authError;
+      } catch (err) {
+        toast.error(`Gagal mendaftar: ${err.message}`);
+        setLoading(false);
+        return;
+      }
+
       const newMitra = {
         id: `MTR-${Date.now().toString().slice(-6)}`,
         role: role,
@@ -234,6 +256,16 @@ const RegisterPage = () => {
                 placeholder="Alamat Email"
                 className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 required
+              />
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Kata Sandi (Minimal 6 karakter)"
+                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required
+                minLength={6}
               />
             </div>
           )}

@@ -1,144 +1,104 @@
-// =========================================
-// 🔐 HALAMAN LOGIN MITRA WIRA
-// Login untuk driver, merchant, dan teknisi
-// =========================================
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Bike, Store, Wrench } from 'lucide-react';
+import { LogIn } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('driver');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Demo accounts untuk testing
-  const demoAccounts = {
-    driver: { phone: '081234567890', password: 'demo123', name: 'Ahmad Supardi' },
-    merchant: { phone: '081234567891', password: 'demo123', name: 'Warung Taliwang' },
-    technician: { phone: '081234567892', password: 'demo123', name: 'Budi Teknisi' },
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.error('Harap isi email dan kata sandi');
+      return;
+    }
+
     setLoading(true);
-    // Simulasi login
-    await new Promise((r) => setTimeout(r, 1000));
-    const mockId = selectedRole === 'merchant' 
-      ? '11111111-1111-1111-1111-111111111111' 
-      : '00000000-0000-0000-0000-000000000001';
-
-    login({
-      id: mockId,
-      name: demoAccounts[selectedRole].name,
-      phone: phone || demoAccounts[selectedRole].phone,
-      role: selectedRole,
-    });
-    setLoading(false);
-    navigate(`/${selectedRole}`);
+    try {
+      await login(email, password);
+      toast.success('Berhasil masuk!');
+      // Routing akan diurus otomatis oleh App.jsx berdasarkan 'role' dari AuthContext
+      navigate('/');
+    } catch (error) {
+      toast.error(error.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const handleDemoLogin = (role) => {
-    setSelectedRole(role);
-    setPhone(demoAccounts[role].phone);
-    setPassword(demoAccounts[role].password);
-  };
-
-  const roles = [
-    { key: 'driver', label: 'Driver', icon: Bike, color: 'bg-cyan-500' },
-    { key: 'merchant', label: 'Merchant', icon: Store, color: 'bg-amber-500' },
-    { key: 'technician', label: 'Teknisi', icon: Wrench, color: 'bg-orange-500' },
-  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-600 via-teal-600 to-cyan-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Wira Mitra</h1>
-          <p className="text-cyan-100">Dashboard untuk mitra Wira</p>
-        </div>
-
-        {/* Login Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6">
-          {/* Pilih Role */}
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3 text-center">Masuk sebagai:</p>
-          <div className="flex gap-2 mb-6">
-            {roles.map(({ key, label, icon: Icon, color }) => (
-              <button
-                key={key}
-                onClick={() => handleDemoLogin(key)}
-                className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
-                  selectedRole === key
-                    ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30'
-                    : 'border-slate-200 dark:border-slate-600'
-                }`}
-              >
-                <div className={`w-10 h-10 ${color} rounded-full flex items-center justify-center`}>
-                  <Icon size={20} className="text-white" />
-                </div>
-                <span className="text-xs font-medium dark:text-slate-200">{label}</span>
-              </button>
-            ))}
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 font-sans">
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-24">
+        <div className="w-full max-w-md mx-auto">
+          
+          <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <span className="text-3xl font-black text-primary tracking-tighter">W</span>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight mb-2">
+              Wira Mitra
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              Masuk untuk mengelola pesanan & layanan Anda
+            </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Nomor Telepon
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="08xxxxxxxxxx"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Kata Sandi
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan kata sandi"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <LogIn size={20} />
-                  Masuk
-                </>
-              )}
-            </button>
-          </form>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 fill-mode-both border border-slate-100 dark:border-slate-700">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@contoh.com"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Kata Sandi
+                  </label>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
 
-          {/* Register Link */}
-          <div className="mt-4 text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Belum punya akun?{' '}
               <button
-                onClick={() => navigate('/register')}
-                className="text-cyan-600 hover:underline font-medium"
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white py-3.5 px-4 rounded-xl font-bold transition-all disabled:opacity-50 mt-6"
               >
-                Daftar Mitra
+                {loading ? (
+                  <span className="animate-spin border-2 border-white/20 border-t-white rounded-full w-5 h-5"></span>
+                ) : (
+                  <>
+                    <LogIn size={20} />
+                    Masuk Sekarang
+                  </>
+                )}
               </button>
-            </p>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-slate-500">
+              Belum menjadi mitra?{' '}
+              <Link to="/register" className="text-primary font-bold hover:underline">
+                Daftar Sekarang
+              </Link>
+            </div>
           </div>
         </div>
       </div>
