@@ -1,20 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wrench, Star, Calendar, Clock, MapPin, CheckCircle2, X, Shield } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { TECHNICIANS } from '../data/technicians';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../config/supabase';
 
 export default function ServicePage() {
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 
+  const [technicians, setTechnicians] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedTech, setSelectedTech] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      const { data: users } = await supabase.from('users').select('*');
+      const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      
+      const regs = Array.isArray(flagsData?.features) ? flagsData.features : [];
+      if (users) {
+        const activeTechs = users
+          .filter(u => {
+            if (!u.mitra_access) return false;
+            if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('technician');
+            if (typeof u.mitra_access === 'string') return u.mitra_access.includes('technician');
+            return false;
+          })
+          .map(u => {
+            const reg = regs.find(r => r.auth_id === u.id || r.email === u.email);
+            return {
+              id: u.id,
+              name: u.name,
+              category: reg?.specialization || 'Umum',
+              specialty: reg?.specialization ? `Spesialis ${reg.specialization}` : 'Teknisi Handal Wira',
+              rating: 5.0,
+              reviews: 1,
+              experience: reg?.experience ? `${reg.experience} tahun` : '1+ tahun',
+              avatar: u.avatar_url || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=200',
+              phone: u.phone,
+              available: true,
+            };
+          });
+        setTechnicians(activeTechs);
+      }
+    };
+    fetchTechnicians();
+  }, []);
 
   // Form State
   const [address, setAddress] = useState('Jl. Pejanggik No. 20, Mataram');
@@ -37,7 +73,7 @@ export default function ServicePage() {
 
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
-    setSelectedTech(tech || TECHNICIANS.find((t) => t.category === cat.id) || TECHNICIANS[0]);
+    setSelectedTech(tech || technicians.find((t) => t.category.includes(cat.id)) || technicians[0] || { name: 'Mitra Teknisi Wira', rating: 5.0 });
     setOrderSuccess(false);
     setIsModalOpen(true);
   };
@@ -114,14 +150,19 @@ export default function ServicePage() {
           <Wrench size={20} className="text-primary" /> Teknisi Rekomendasi di Lombok
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          {TECHNICIANS.map((tech) => {
-            const matchedCategory =
-              categories.find((c) => c.id === tech.category) || categories[0];
-            return (
-              <Card
-                key={tech.id}
-                className="p-4 flex items-center justify-between gap-4 border border-slate-200 dark:border-slate-700 hover:shadow-sm"
-              >
+          {technicians.length === 0 ? (
+            <div className="col-span-2 p-6 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+              Belum ada teknisi terdaftar saat ini. Pendaftaran teknisi dapat dilakukan melalui portal mitra.
+            </div>
+          ) : (
+            technicians.map((tech) => {
+              const matchedCategory =
+                categories.find((c) => tech.category.includes(c.id)) || categories[0];
+              return (
+                <Card
+                  key={tech.id}
+                  className="p-4 flex items-center justify-between gap-4 border border-slate-200 dark:border-slate-700 hover:shadow-sm"
+                >
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-bold flex items-center justify-center text-xl shrink-0">
                     👨‍🔧
@@ -147,7 +188,7 @@ export default function ServicePage() {
                 </Button>
               </Card>
             );
-          })}
+          }))}
         </div>
       </div>
 

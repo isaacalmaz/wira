@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {
@@ -17,6 +17,7 @@ import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../config/supabase';
 
 export default function SendPage() {
   const { balance, pay } = useWallet();
@@ -26,6 +27,7 @@ export default function SendPage() {
   const [selectedPackage, setSelectedPackage] = useState('kecil');
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState(null);
 
   // Form State
   const [senderName, setSenderName] = useState('');
@@ -50,6 +52,46 @@ export default function SendPage() {
 
   const currentPkg = packages.find((p) => p.id === selectedPackage) || packages[1];
 
+  // Efek Real-time untuk mendengarkan perubahan status kurir
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    const channel = supabase
+      .channel(`send_order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        async (payload) => {
+          const newStatus = payload.new.status;
+          if (newStatus === 'accepted') {
+            let courierName = 'Kurir Mitra Wira';
+            let courierPhone = '-';
+            if (payload.new.driver_id) {
+              const { data: driverUser } = await supabase.from('users').select('*').eq('id', payload.new.driver_id).maybeSingle();
+              const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+              let regInfo = null;
+              if (flagsData && Array.isArray(flagsData.features)) {
+                regInfo = flagsData.features.find(f => f.auth_id === payload.new.driver_id || f.email === driverUser?.email);
+              }
+              courierName = `${driverUser?.name || 'Kurir Wira'} (${regInfo?.vehicle || 'Sepeda Motor'} - ${regInfo?.plate || 'DR WIRA'})`;
+              courierPhone = driverUser?.phone || '-';
+            }
+            setTrackingData(prev => prev ? { ...prev, courier: courierName, courierPhone } : prev);
+            setDeliveryStage(2);
+            toast.success('Kurir telah menerima pengiriman paket!', { icon: '📦' });
+          } else if (newStatus === 'completed') {
+            setDeliveryStage(3);
+            toast.success('Paket telah berhasil diantar ke penerima!');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId]);
+
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
     if (!senderName || !senderPhone || !senderAddress || !receiverName || !receiverPhone || !receiverAddress) {
@@ -64,28 +106,28 @@ export default function SendPage() {
 
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-
       const resi = 'WRS-' + Math.floor(100000 + Math.random() * 900000);
 
       if (paymentMethod === 'WiraPay') {
         await pay(currentPkg.price, `WiraSend Paket ke ${receiverName}`);
       }
 
-      await addOrder({
+      const order = await addOrder({
         service: 'WiraSend',
         serviceType: 'send',
         title: `Kirim Paket ke ${receiverName}`,
         details: `No. Resi: ${resi} • ${currentPkg.name} (${senderAddress} ➔ ${receiverAddress})`,
         price: currentPkg.price,
-        status: 'Sedang Diantar',
+        status: 'pending',
         paymentMethod: paymentMethod,
       });
 
+      if (order?.id) setActiveOrderId(order.id);
+
       setTrackingData({
         resi: resi,
-        courier: 'Pak Wayan Artawa (Honda Beat DR 5544 KL)',
-        courierPhone: '0819-8765-4321',
+        courier: 'Mencari Kurir WiraSend terdekat...',
+        courierPhone: '-',
         sender: senderName,
         receiver: receiverName,
         from: senderAddress,
@@ -96,7 +138,7 @@ export default function SendPage() {
 
       setStep('tracking');
       setDeliveryStage(1);
-      toast.success('Kurir WiraSend Berhasil Dipesan!');
+      toast.success('Pesanan WiraSend Berhasil Dibuat!');
     } catch (err) {
       toast.error(err.message || 'Pemesanan kurir gagal');
     } finally {

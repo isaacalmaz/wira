@@ -65,15 +65,8 @@ export default function RidePage() {
     fetchVehicles();
   }, []);
 
-  // Simulasi Driver yang ditugaskan
-  const assignedDriver = {
-    name: 'Ahmad Supardi',
-    phone: '0812-3456-7890',
-    vehicle: selectedVehicle?.id === 'bike' ? 'Honda Vario 160 (Hitam)' : 'Toyota Avanza (Silver)',
-    plate: 'DR 1234 AB',
-    rating: 4.9,
-    trips: 428,
-  };
+  // Data Driver riil yang menerima pesanan
+  const [driverInfo, setDriverInfo] = useState(null);
 
   const handleSearch = () => {
     if (!pickup || !dropoff) {
@@ -116,10 +109,27 @@ export default function RidePage() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        (payload) => {
+        async (payload) => {
           const newStatus = payload.new.status;
           
           if (newStatus === 'accepted') {
+            // Ambil data asli Driver dari database
+            if (payload.new.driver_id) {
+              const { data: driverUser } = await supabase.from('users').select('*').eq('id', payload.new.driver_id).maybeSingle();
+              const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+              let regInfo = null;
+              if (flagsData && Array.isArray(flagsData.features)) {
+                regInfo = flagsData.features.find(f => f.auth_id === payload.new.driver_id || f.email === driverUser?.email);
+              }
+              setDriverInfo({
+                name: driverUser?.name || 'Mitra Driver Wira',
+                phone: driverUser?.phone || '-',
+                vehicle: regInfo?.vehicle || 'Sepeda Motor Wira',
+                plate: regInfo?.plate || 'DR WIRA',
+                rating: 5.0,
+              });
+            }
+
             setStep('tracking');
             setTripStage(0);
             toast.success(`Driver Ditemukan!`, { icon: '🛵', duration: 4000 });
@@ -400,21 +410,21 @@ export default function RidePage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1">
-                    {assignedDriver.name}
+                    {driverInfo?.name || 'Mitra Driver Wira'}
                     <span className="text-[10px] text-amber-500 flex items-center font-bold">
-                      ⭐ {assignedDriver.rating}
+                      ⭐ {driverInfo?.rating || '5.0'}
                     </span>
                   </h4>
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {assignedDriver.plate}
+                    {driverInfo?.plate || 'DR WIRA'}
                   </p>
-                  <p className="text-[11px] text-slate-500">{assignedDriver.vehicle}</p>
+                  <p className="text-[11px] text-slate-500">{driverInfo?.vehicle || 'Sepeda Motor'}</p>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <a
-                  href={`tel:${assignedDriver.phone}`}
+                  href={`tel:${driverInfo?.phone || ''}`}
                   className="p-2.5 bg-white dark:bg-slate-800 rounded-full text-green-600 shadow-sm border border-slate-200 dark:border-slate-700 hover:scale-105 transition"
                   title="Telepon Driver"
                 >
@@ -465,7 +475,7 @@ export default function RidePage() {
               <div className="flex justify-between">
                 <span className="text-slate-400">Driver:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {assignedDriver.name} ({assignedDriver.plate})
+                  {driverInfo?.name || 'Driver Wira'} ({driverInfo?.plate || 'DR WIRA'})
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">

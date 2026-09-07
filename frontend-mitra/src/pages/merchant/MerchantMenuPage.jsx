@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
-import { initialMenuItems, categories } from '../../data/menuItems';
-import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../../config/supabase';
+import { useAuth } from '../../context/AuthContext';
+
+const categories = [
+  { id: 'all', name: 'Semua Menu' },
+  { id: 'makanan', name: 'Makanan Utama' },
+  { id: 'minuman', name: 'Minuman' },
+  { id: 'snack', name: 'Camilan / Penutup' }
+];
 
 const MerchantMenuPage = () => {
-  const [menuItems, setMenuItems] = useState(initialMenuItems);
-  const [activeCategory, setActiveCategory] = useState(categories[0].id);
+  const { user } = useAuth();
+  const [menuItems, setMenuItems] = useState([]);
+  const [merchantId, setMerchantId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal State
@@ -15,16 +26,64 @@ const MerchantMenuPage = () => {
   // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState(categories[0].id);
+  const [category, setCategory] = useState('makanan');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+
+  const fetchMenu = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // 1. Dapatkan ID Merchant dari owner_id
+      const { data: mData } = await supabase
+        .from('merchants')
+        .select('id')
+        .eq('owner_id', user.id)
+        .maybeSingle();
+
+      let targetMerchantId = mData?.id;
+      if (!targetMerchantId) {
+        // Fallback jika belum terikat owner_id, ambil merchant pertama
+        const { data: firstM } = await supabase.from('merchants').select('id').limit(1).maybeSingle();
+        targetMerchantId = firstM?.id;
+      }
+
+      setMerchantId(targetMerchantId);
+
+      if (targetMerchantId) {
+        const { data: products } = await supabase
+          .from('products')
+          .select('*')
+          .eq('merchant_id', targetMerchantId)
+          .order('created_at', { ascending: false });
+
+        if (products) {
+          setMenuItems(products.map(p => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            description: p.description,
+            image: p.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+            isAvailable: p.is_available ?? true
+          })));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenu();
+  }, [user]);
 
   // Buka Modal Tambah
   const handleOpenAdd = () => {
     setEditingItem(null);
     setName('');
     setPrice('');
-    setCategory(activeCategory);
     setDescription('');
     setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400');
     setIsModalOpen(true);
@@ -35,83 +94,96 @@ const MerchantMenuPage = () => {
     setEditingItem(item);
     setName(item.name);
     setPrice(item.price);
-    setCategory(item.categoryId);
-    setDescription(item.description);
+    setDescription(item.description || '');
     setImage(item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400');
     setIsModalOpen(true);
   };
 
-  // Simpan Menu (Tambah / Update)
-  const handleSaveMenu = (e) => {
+  // Simpan Menu (Tambah / Update) ke Supabase
+  const handleSaveMenu = async (e) => {
     e.preventDefault();
     if (!name || !price) {
       toast.error('Nama dan harga menu wajib diisi');
       return;
     }
 
-    if (editingItem) {
-      // Edit mode
-      setMenuItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                name,
-                price: Number(price),
-                categoryId: category,
-                description,
-                image: image || item.image,
-              }
-            : item
-        )
-      );
-      toast.success(`Menu "${name}" berhasil diperbarui!`);
-    } else {
-      // Add mode
-      const newItem = {
-        id: `M-${Date.now().toString().slice(-4)}`,
-        name,
-        price: Number(price),
-        categoryId: category,
-        description,
-        image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-        isAvailable: true,
-      };
-      setMenuItems((prev) => [newItem, ...prev]);
-      toast.success(`Menu baru "${name}" berhasil ditambahkan!`);
-    }
+    try {
+      if (editingItem) {
+        // Edit mode di Supabase
+        const { error } = await supabase
+          .from('products')
+          .update({
+            name,
+            price: Number(price),
+            description,
+            image: image || editingItem.image,
+          })
+          .eq('id', editingItem.id);
 
-    setIsModalOpen(false);
-  };
-
-  // Hapus Menu
-  const handleDelete = (id, itemName) => {
-    if (window.confirm(`Hapus menu "${itemName}" dari daftar restoran Anda?`)) {
-      setMenuItems((prev) => prev.filter((item) => item.id !== id));
-      toast.success(`Menu "${itemName}" telah dihapus`);
-    }
-  };
-
-  // Toggle status habis / tersedia
-  const toggleStatus = (id) => {
-    setMenuItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const newStatus = !item.isAvailable;
-          toast(newStatus ? `Menu sekarang Tersedia` : `Menu ditandai Habis`, {
-            icon: newStatus ? '✅' : '⏸️',
-          });
-          return { ...item, isAvailable: newStatus };
+        if (error) throw error;
+        toast.success(`Menu "${name}" berhasil diperbarui!`);
+      } else {
+        // Add mode di Supabase
+        if (!merchantId) {
+          toast.error('Restoran belum terdaftar di database.');
+          return;
         }
-        return item;
-      })
-    );
+
+        const { error } = await supabase
+          .from('products')
+          .insert([{
+            merchant_id: merchantId,
+            name,
+            price: Number(price),
+            description,
+            image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+            is_available: true
+          }]);
+
+        if (error) throw error;
+        toast.success(`Menu baru "${name}" berhasil ditambahkan!`);
+      }
+
+      setIsModalOpen(false);
+      fetchMenu();
+    } catch (err) {
+      toast.error('Gagal menyimpan menu: ' + err.message);
+    }
+  };
+
+  // Hapus Menu dari Supabase
+  const handleDelete = async (id, itemName) => {
+    if (window.confirm(`Hapus menu "${itemName}" dari daftar restoran Anda?`)) {
+      try {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) throw error;
+        toast.success(`Menu "${itemName}" telah dihapus`);
+        fetchMenu();
+      } catch (err) {
+        toast.error('Gagal menghapus: ' + err.message);
+      }
+    }
+  };
+
+  // Toggle status habis / tersedia di Supabase
+  const toggleStatus = async (id) => {
+    const target = menuItems.find(m => m.id === id);
+    if (!target) return;
+    const newStatus = !target.isAvailable;
+
+    try {
+      await supabase.from('products').update({ is_available: newStatus }).eq('id', id);
+      setMenuItems(prev => prev.map(m => m.id === id ? { ...m, isAvailable: newStatus } : m));
+      toast(newStatus ? `Menu sekarang Tersedia` : `Menu ditandai Habis`, {
+        icon: newStatus ? '✅' : '⏸️',
+      });
+    } catch (err) {
+      toast.error('Gagal mengubah status');
+    }
   };
 
   const filteredItems = menuItems.filter(
-    (item) =>
-      (activeCategory === 'all' || item.categoryId === activeCategory) &&
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

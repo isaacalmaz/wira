@@ -10,6 +10,7 @@ const DriverEarningsPage = () => {
   const [tab, setTab] = useState('daily');
   const [earningsData, setEarningsData] = useState([]);
   const [todayTotal, setTodayTotal] = useState(0);
+  const [weekTotal, setWeekTotal] = useState(0);
   
   useEffect(() => {
     const fetchEarnings = async () => {
@@ -21,27 +22,43 @@ const DriverEarningsPage = () => {
         .eq('status', 'completed');
         
       if (data) {
-        let total = 0;
-        const todayStr = new Date().toLocaleDateString('id-ID');
+        let totalToday = 0;
+        let totalWeek = 0;
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('id-ID');
         
-        // Buat dummy chart untuk demo, tapi hitung total hari ini dengan benar
+        // Buat rentang 7 hari terakhir secara riil
+        const daysMap = { 0: 'Min', 1: 'Sen', 2: 'Sel', 3: 'Rab', 4: 'Kam', 5: 'Jum', 6: 'Sab' };
+        const weekDays = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(now.getDate() - i);
+          weekDays.push({
+            dateStr: d.toLocaleDateString('id-ID'),
+            day: daysMap[d.getDay()],
+            amount: 0
+          });
+        }
+
         data.forEach(order => {
-          if (new Date(order.created_at).toLocaleDateString('id-ID') === todayStr) {
-            total += (order.total_price || 0);
+          const orderDate = new Date(order.created_at);
+          const orderDateStr = orderDate.toLocaleDateString('id-ID');
+          const price = order.total_price || 0;
+          
+          if (orderDateStr === todayStr) {
+            totalToday += price;
+          }
+          totalWeek += price;
+
+          const foundDay = weekDays.find(w => w.dateStr === orderDateStr);
+          if (foundDay) {
+            foundDay.amount += price;
           }
         });
-        setTodayTotal(total);
-        
-        // Mock chart data yang mencerminkan realita sedikit
-        setEarningsData([
-          { day: 'Sen', amount: 50000 },
-          { day: 'Sel', amount: 120000 },
-          { day: 'Rab', amount: total > 0 ? total : 80000 },
-          { day: 'Kam', amount: 150000 },
-          { day: 'Jum', amount: 90000 },
-          { day: 'Sab', amount: 200000 },
-          { day: 'Min', amount: 250000 },
-        ]);
+
+        setTodayTotal(totalToday);
+        setWeekTotal(totalWeek);
+        setEarningsData(weekDays);
       }
     };
     fetchEarnings();
@@ -51,7 +68,7 @@ const DriverEarningsPage = () => {
     <div className="space-y-6 pb-20">
       <h1 className="text-2xl font-bold">Pendapatan</h1>
       
-      <EarningsCard today={todayTotal} week={todayTotal + 800000} progress={todayTotal > 0 ? 100 : 30} />
+      <EarningsCard today={todayTotal} week={weekTotal} progress={weekTotal > 0 ? 100 : 0} />
 
       <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
         <button className="flex-1 py-2 text-sm font-medium rounded-md capitalize bg-white dark:bg-slate-800 shadow text-primary">Harian</button>

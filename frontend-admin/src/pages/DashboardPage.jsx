@@ -60,10 +60,10 @@ const DashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Pengguna" value={stats.users} icon={<Users size={20} />} trend="+12% bulan ini" color="blue" />
-        <StatCard title="Total Driver" value={stats.drivers} icon={<Car size={20} />} trend="+5% bulan ini" color="indigo" />
-        <StatCard title="Total Merchant" value={stats.merchants} icon={<Store size={20} />} trend="+18% bulan ini" color="amber" />
-        <StatCard title="Transaksi Berhasil" value={stats.transactions} icon={<Activity size={20} />} trend="+24% bulan ini" color="emerald" />
+        <StatCard title="Total Pengguna" value={stats.users} icon={<Users size={20} />} trend="Aktif" color="blue" />
+        <StatCard title="Total Driver" value={stats.drivers} icon={<Car size={20} />} trend="Aktif" color="indigo" />
+        <StatCard title="Total Merchant" value={stats.merchants} icon={<Store size={20} />} trend="Aktif" color="amber" />
+        <StatCard title="Transaksi Berhasil" value={stats.transactions} icon={<Activity size={20} />} trend="Selesai" color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">

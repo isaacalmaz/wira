@@ -1,19 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { VILLAS } from '../data/villas';
 import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../config/supabase';
 
 export default function VillaPage() {
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 
+  const [villas, setVillas] = useState([]);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [area, setArea] = useState('Semua');
   const areas = ['Semua', 'Senggigi', 'Kuta', 'Sembalun', 'Tetebatu'];
+
+  useEffect(() => {
+    const fetchVillas = async () => {
+      setFetchLoading(true);
+      const { data } = await supabase
+        .from('merchants')
+        .select('*')
+        .eq('service_type', 'villa')
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setVillas(data.map(v => ({
+          id: v.id,
+          name: v.name,
+          area: v.address || 'Lombok',
+          rating: v.rating || 5.0,
+          pricePerNight: v.price_per_night || 750000,
+          image: v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600',
+          desc: v.description || 'Villa eksklusif di Pulau Lombok dengan pemandangan asri.',
+          features: ['WiFi Cepat', 'Kolam Renang', 'Sarapan Gratis']
+        })));
+      }
+      setFetchLoading(false);
+    };
+    fetchVillas();
+  }, []);
 
   // Modal State
   const [selectedVilla, setSelectedVilla] = useState(null);
@@ -28,7 +56,7 @@ export default function VillaPage() {
   const [loading, setLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
 
-  const filtered = area === 'Semua' ? VILLAS : VILLAS.filter((v) => v.area === area);
+  const filtered = area === 'Semua' ? villas : villas.filter((v) => v.area.toLowerCase().includes(area.toLowerCase()));
 
   const totalPrice = selectedVilla ? selectedVilla.pricePerNight * nights : 0;
 

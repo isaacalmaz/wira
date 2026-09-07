@@ -1,16 +1,43 @@
-import React, { useState } from 'react';
-import { techOrders } from '../../data/orders';
+import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import NavigationButton from '../../components/shared/NavigationButton';
-import { MapPin, Clock, Camera } from 'lucide-react';
+import { MapPin, Clock, Camera, RefreshCw } from 'lucide-react';
+import { supabase } from '../../config/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const TechOrdersPage = () => {
-  const [orders, setOrders] = useState(techOrders);
-  const activeOrder = orders.find(o => o.status !== 'Completed' && o.status !== 'Incoming');
+  const { user } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const updateStatus = (newStatus) => {
-    if(activeOrder) setOrders(orders.map(o => o.id === activeOrder.id ? { ...o, status: newStatus } : o));
+  const fetchOrders = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('driver_id', user.id)
+      .eq('service_type', 'service')
+      .order('created_at', { ascending: false });
+
+    setOrders(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [user]);
+
+  const activeOrder = orders.find(o => o.status === 'accepted' || o.status === 'working');
+
+  const updateStatus = async (newStatus) => {
+    if (activeOrder) {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', activeOrder.id);
+      toast.success(`Status pekerjaan diubah ke: ${newStatus}`);
+      fetchOrders();
+    }
   };
 
   return (
