@@ -1,0 +1,10 @@
+{
+  "name": "Wira - Super App Lombok",
+  "description": "Super-app for Mataram & Lombok providing on-demand rides, food delivery, courier services, digital wallet, villa rental, and repair services.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

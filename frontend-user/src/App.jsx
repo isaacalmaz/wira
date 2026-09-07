@@ -9,6 +9,10 @@ import { WalletProvider } from './context/WalletContext';
 import { OrderProvider } from './context/OrderContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Layout from './components/layout/Layout';
+import EcosystemNavigator from './components/layout/EcosystemNavigator';
+import SchematicsPage from './pages/SchematicsPage';
+import AdminPortal from './portals/AdminPortal';
+import MitraPortal from './portals/MitraPortal';
 import HomePage from './pages/HomePage';
 import RidePage from './pages/RidePage';
 import WalletPage from './pages/WalletPage';
@@ -39,10 +43,23 @@ export default function Root() {
                   <OrderProvider>
                     <BrowserRouter>
                       <Toaster position="top-center" />
+                      <EcosystemNavigator />
                       <Routes>
+                        {/* Admin Command Center Portal */}
+                        <Route path="/admin/*" element={<AdminPortal />} />
+
+                        {/* Mitra Multi-Role Portal (Driver, Merchant, Technician) */}
+                        <Route path="/mitra/*" element={<MitraPortal />} />
+
+                        {/* Interactive System Schematics & Live Bus Simulator */}
+                        <Route path="/schematics" element={<SchematicsPage />} />
+
+                        {/* Pelanggan (User) Authentication */}
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         <Route path="/otp" element={<OTPPage />} />
+
+                        {/* Pelanggan (User) Main Layout & Services */}
                         <Route element={<Layout />}>
                           <Route path="/" element={<HomePage />} />
                           <Route path="/ride" element={<RidePage />} />

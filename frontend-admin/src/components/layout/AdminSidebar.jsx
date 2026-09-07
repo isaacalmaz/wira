@@ -103,16 +103,20 @@ const AdminSidebar = ({ isCollapsed }) => {
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {filteredMenu.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname.startsWith(item.path);
+          const isNestedInAdmin = location.pathname.startsWith('/admin');
+          const fullPath = isNestedInAdmin ? `/admin${item.path}` : item.path;
+          const isActive = isNestedInAdmin 
+            ? location.pathname === fullPath || (item.path !== '/' && location.pathname.startsWith(fullPath))
+            : location.pathname.startsWith(item.path);
           const badgeCount = item.countKey ? pendingCounts[item.countKey] : 0;
 
           return (
             <Link
               key={item.name}
-              to={item.path}
+              to={fullPath}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative ${
                 isActive 
-                  ? 'bg-primary/10 text-primary dark:bg-primary/20' 
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 font-semibold' 
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
               title={isCollapsed ? `${item.name}${badgeCount > 0 ? ` (${badgeCount} menunggu)` : ''}` : ''}

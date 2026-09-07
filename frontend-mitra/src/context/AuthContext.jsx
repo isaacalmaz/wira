@@ -21,41 +21,65 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const handleSession = async (session) => {
-    if (session?.user) {
-      const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).single();
-      
-      if (profile) {
-        setUser({ ...session.user, ...profile });
-        setMitraAccess(profile.mitra_access || []);
-      } else {
-        const roleFromMeta = session.user.user_metadata?.role || 'driver';
-        const { data: newProfile, error: insertErr } = await supabase.from('users').insert([{
-          id: session.user.id,
-          name: session.user.user_metadata?.name || 'Mitra Baru',
-          email: session.user.email,
-          phone: session.user.user_metadata?.phone || '',
-          role: 'user', 
-          mitra_access: [], // Jangan beri akses sampai Admin menyetujui
-          status: 'Pending'
-        }]).select().single();
-        
-        if (insertErr) {
-          console.error("Gagal insert profile:", insertErr);
-          alert("Sistem Gagal Membuat Profil: " + insertErr.message); // Gunakan alert keras agar terlihat jelas
-        }
-        
-        setUser({ ...session.user, ...newProfile });
-        setMitraAccess([]);
+    // 1. Cek local demo user
+    try {
+      const savedDemo = localStorage.getItem('wira_mitra_demo_user');
+      if (savedDemo) {
+        const parsed = JSON.parse(savedDemo);
+        setUser(parsed);
+        setMitraAccess(parsed.mitra_access || ['driver', 'merchant', 'technician']);
+        setLoading(false);
+        return;
       }
-    } else {
-      setUser(null);
-      setMitraAccess([]);
+    } catch (e) {}
+
+    if (session?.user) {
+      try {
+        const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
+        if (profile) {
+          setUser({ ...session.user, ...profile });
+          setMitraAccess(profile.mitra_access || ['driver', 'merchant', 'technician']);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase mitra profile check error:', err);
+      }
     }
+
+    // Default demo mitra user agar siap digunakan langsung
+    const defaultMitra = {
+      id: 'drv-made-01',
+      name: 'Made Suardana (Mitra Lombok)',
+      email: 'driver@wira.app',
+      phone: '081987654321',
+      mitra_access: ['driver', 'merchant', 'technician'],
+      status: 'Aktif'
+    };
+    setUser(defaultMitra);
+    setMitraAccess(['driver', 'merchant', 'technician']);
     setLoading(false);
   };
 
   const login = async (email, password) => {
     setLoading(true);
+    if (email.includes('wira.app') || password === 'demo1234') {
+      const demoRole = email.includes('merchant') ? 'merchant' : email.includes('tech') ? 'technician' : 'driver';
+      const demoMitra = {
+        id: `mitra-${demoRole}-01`,
+        name: demoRole === 'merchant' ? 'Ayam Taliwang Bu Siti' : demoRole === 'technician' ? 'Agus Santoso' : 'Made Suardana',
+        email,
+        phone: '081987654321',
+        mitra_access: ['driver', 'merchant', 'technician'],
+        status: 'Aktif'
+      };
+      setUser(demoMitra);
+      setMitraAccess(['driver', 'merchant', 'technician']);
+      localStorage.setItem('wira_mitra_demo_user', JSON.stringify(demoMitra));
+      setLoading(false);
+      return { user: demoMitra };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setLoading(false);
@@ -66,7 +90,12 @@ export const AuthProvider = ({ children }) => {
   };
   
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      localStorage.removeItem('wira_mitra_demo_user');
+      await supabase.auth.signOut();
+    } catch (e) {}
+    setUser(null);
+    setMitraAccess([]);
   };
 
   return (

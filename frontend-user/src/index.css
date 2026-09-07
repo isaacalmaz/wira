@@ -8,6 +8,23 @@
   }
 }
 
+@layer components {
+  /* Komponen kartu untuk dashboard admin & mitra */
+  .card {
+    @apply bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6;
+  }
+  
+  /* Input form kustom */
+  .input-field {
+    @apply w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary shadow-sm;
+  }
+
+  /* Tombol utama */
+  .btn-primary {
+    @apply bg-primary hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-slate-900;
+  }
+}
+
 /* Mengesampingkan style leaflet untuk dark mode */
 .dark .leaflet-layer,
 .dark .leaflet-control-zoom-in,
@@ -15,3 +32,9 @@
 .dark .leaflet-control-attribution {
   filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
+
+.leaflet-container {
+  @apply rounded-xl;
+  z-index: 0;
+}
+

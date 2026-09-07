@@ -8,27 +8,32 @@ const MitraLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Ekstrak role aktif saat ini dari URL (contoh: /driver/orders -> driver)
-  const activeRole = location.pathname.split('/')[1] || mitraAccess?.[0] || 'driver';
+  // Ekstrak role aktif saat ini dari URL (contoh: /mitra/driver/orders -> driver)
+  const pathParts = location.pathname.split('/').filter(Boolean);
+  const isMitraPrefixed = pathParts[0] === 'mitra';
+  const activeRole = isMitraPrefixed 
+    ? (pathParts[1] || mitraAccess?.[0] || 'driver')
+    : (pathParts[0] || mitraAccess?.[0] || 'driver');
+  const basePrefix = isMitraPrefixed ? '/mitra' : '';
 
   const getNavItems = () => {
     const base = [
-      { to: `/${activeRole}`, icon: Home, label: 'Beranda' },
-      { to: `/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
+      { to: `${basePrefix}/${activeRole}`, icon: Home, label: 'Beranda' },
+      { to: `${basePrefix}/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
     ];
     
     if (activeRole === 'merchant') {
-      base.push({ to: '/merchant/menu', icon: MenuIcon, label: 'Menu' });
+      base.push({ to: `${basePrefix}/merchant/menu`, icon: MenuIcon, label: 'Menu' });
     }
     
     if (activeRole === 'technician') {
-      base.push({ to: '/technician/schedule', icon: MenuIcon, label: 'Jadwal' });
+      base.push({ to: `${basePrefix}/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
     }
     
     base.push(
-      { to: `/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
-      { to: `/${activeRole}/chat`, icon: MessageSquare, label: 'Pesan' },
-      { to: `/${activeRole}/profile`, icon: User, label: 'Profil' }
+      { to: `${basePrefix}/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
+      { to: `${basePrefix}/${activeRole}/chat`, icon: MessageSquare, label: 'Pesan' },
+      { to: `${basePrefix}/${activeRole}/profile`, icon: User, label: 'Profil' }
     );
     
     return base;
@@ -69,7 +74,7 @@ const MitraLayout = ({ children }) => {
               {mitraAccess.filter(r => r !== activeRole).map(role => (
                 <button 
                   key={role}
-                  onClick={() => navigate(`/${role}`)} 
+                  onClick={() => navigate(`${basePrefix}/${role}`)} 
                   className="w-full mb-1 flex items-center gap-2 py-2 px-3 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm hover:border-primary hover:text-primary transition-colors capitalize"
                 >
                   <ArrowLeftRight size={14} /> Ke {role}
@@ -77,7 +82,7 @@ const MitraLayout = ({ children }) => {
               ))}
             </div>
           )}
-          <button onClick={() => { logout(); navigate('/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
+          <button onClick={() => { logout(); navigate(isMitraPrefixed ? '/mitra/login' : '/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
             Keluar
           </button>
         </div>

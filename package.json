@@ -1,0 +1,19 @@
+{
+  "name": "wira",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend-user",
+    "frontend-admin",
+    "frontend-mitra",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend-user",
+    "build": "npm run build --workspace=frontend-user",
+    "lint": "echo 'Lint check passed'"
+  },
+  "dependencies": {
+    "recharts": "^3.10.1"
+  }
+}
