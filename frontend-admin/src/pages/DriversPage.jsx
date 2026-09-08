@@ -59,14 +59,18 @@ const DriversPage = () => {
           if (!currentAccess.includes('driver')) {
             currentAccess.push('driver');
           }
-          const { error: updateErr } = await supabase.from('users').update({ 
+          const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
             mitra_access: currentAccess,
             status: 'Aktif'
-          }).eq('id', pending.auth_id);
+          }).eq('id', pending.auth_id).select();
           
           if (updateErr) {
             console.error("Update users error:", updateErr);
             toast.error("Gagal mengupdate database profil driver.");
+            return;
+          }
+          if (!updatedUser || updatedUser.length === 0) {
+            toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase. Silakan jalankan script SQL RLS di Dashboard Supabase Anda.");
             return;
           }
         }
