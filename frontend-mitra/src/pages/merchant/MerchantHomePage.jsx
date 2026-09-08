@@ -14,26 +14,38 @@ const MerchantHomePage = () => {
   const [todayOrders, setTodayOrders] = useState(0);
   const [todayEarnings, setTodayEarnings] = useState(0);
 
+  const [merchantId, setMerchantId] = useState(null);
+
   useEffect(() => {
-    // 1. Ambil data hari ini (hitungan)
-    const fetchTodayStats = async () => {
+    const fetchMerchantAndStats = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('orders')
-        .select('total_price, status')
-        .eq('service_type', 'food')
-        .gte('created_at', new Date().toISOString().split('T')[0]); // Mulai dari hari ini
       
-      if (data) {
-        setTodayOrders(data.length);
-        const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + (d.total_price || 0), 0);
-        setTodayEarnings(earnings);
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('id')
+        .eq('owner_id', user.id)
+        .single();
+
+      if (merchantData) {
+        setMerchantId(merchantData.id);
+        const { data } = await supabase
+          .from('orders')
+          .select('total_price, status')
+          .eq('merchant_id', merchantData.id)
+          .gte('created_at', new Date().toISOString().split('T')[0]); 
+        
+        if (data) {
+          setTodayOrders(data.length);
+          const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + (d.total_price || 0), 0);
+          setTodayEarnings(earnings);
+        }
       }
     };
-    fetchTodayStats();
+    fetchMerchantAndStats();
+  }, [user]);
 
-    // 2. Dengarkan pesanan baru secara real-time
-    if (!isOpen || !user) {
+  useEffect(() => {
+    if (!isOpen || !merchantId) {
       setIncomingOrder(null);
       return;
     }
@@ -42,10 +54,9 @@ const MerchantHomePage = () => {
       .channel('merchant-orders')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
+        { event: 'INSERT', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}` },
         (payload) => {
-          // MVP Testing: Tangkap semua pesanan food pending agar mudah dites tanpa perlu mencocokkan UUID spesifik restoran
-          if (payload.new.status === 'pending' && payload.new.service_type === 'food' && !activeOrder) {
+          if (payload.new.status === 'pending' && !activeOrder) {
             setIncomingOrder(payload.new);
             toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
           }
@@ -56,7 +67,7 @@ const MerchantHomePage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, activeOrder, user]);
+  }, [isOpen, activeOrder, merchantId]);
 
   const handleAcceptOrder = async () => {
     if (!incomingOrder) return;
