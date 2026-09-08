@@ -22,8 +22,49 @@ const DriverHomePage = () => {
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null); // Jika sedang menjalankan order
+  
+  // Real stats state
+  const [todayEarnings, setTodayEarnings] = useState(0);
+  const [weekEarnings, setWeekEarnings] = useState(0);
+  const [completedTrips, setCompletedTrips] = useState(0);
 
   const mataramPos = [-8.5833, 116.1167];
+
+  // Fetch real stats
+  useEffect(() => {
+    const fetchDriverStats = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('driver_id', user.id);
+
+      if (data) {
+        const completed = data.filter(d => d.status === 'completed');
+        setCompletedTrips(completed.length);
+
+        const todayStr = new Date().toLocaleDateString('id-ID');
+        let tEarn = 0;
+        let wEarn = 0;
+
+        completed.forEach(c => {
+          const price = c.total_price || 0;
+          if (new Date(c.created_at).toLocaleDateString('id-ID') === todayStr) {
+            tEarn += price;
+          }
+          wEarn += price;
+        });
+
+        setTodayEarnings(tEarn);
+        setWeekEarnings(wEarn);
+
+        // Check active job on load
+        const activeJob = data.find(d => d.status === 'accepted' || d.status === 'working');
+        if (activeJob && !activeOrder) setActiveOrder(activeJob);
+      }
+    };
+    fetchDriverStats();
+  }, [user, activeOrder]);
 
   useEffect(() => {
     if (!isOnline) {
@@ -79,8 +120,8 @@ const DriverHomePage = () => {
         .update({ status: 'completed' })
         .eq('id', activeOrder.id);
       
-      setActiveOrder(null);
       toast.success('Perjalanan diselesaikan!');
+      setActiveOrder(null);
     } catch (err) {
       toast.error('Gagal menyelesaikan pesanan');
     }
@@ -108,16 +149,16 @@ const DriverHomePage = () => {
 
       {!activeOrder ? (
         <>
-          <EarningsCard today={150000} week={850000} progress={60} />
+          <EarningsCard today={todayEarnings} week={weekEarnings} progress={completedTrips > 0 ? 100 : 0} />
           <div className="grid grid-cols-2 gap-4">
             <Card className="p-4 flex flex-col items-center justify-center text-center">
               <Target className="text-primary mb-2" size={28} />
-              <span className="text-2xl font-bold">12</span>
+              <span className="text-2xl font-bold">{completedTrips}</span>
               <span className="text-xs text-slate-500">Trip Selesai</span>
             </Card>
             <Card className="p-4 flex flex-col items-center justify-center text-center">
               <Activity className="text-green-500 mb-2" size={28} />
-              <span className="text-2xl font-bold">95%</span>
+              <span className="text-2xl font-bold">{completedTrips > 0 ? '100%' : '0%'}</span>
               <span className="text-xs text-slate-500">Tingkat Penerimaan</span>
             </Card>
           </div>
