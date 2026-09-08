@@ -1,6 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
-import { MapPin, AlertCircle } from 'lucide-react';
+import React from 'react';
+import { GoogleMap, useJsApiLoader, Marker as GoogleMarker, DirectionsRenderer } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker as LeafletMarker, Popup } from 'react-leaflet';
+import { AlertCircle } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix Leaflet icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const libraries = ['places'];
 const mapContainerStyle = { width: '100%', height: '100%' };
@@ -13,13 +24,18 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null 
     libraries,
   });
 
+  // FALLBACK: 100% GRATIS (OPENSTREETMAP) JIKA API KEY TIDAK ADA
   if (!apiKey) {
+    const leafletCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
     return (
-      <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center text-slate-500 p-4 text-center border border-dashed border-slate-300 dark:border-slate-700">
-        <MapPin size={40} className="text-slate-400 mb-2" />
-        <p className="font-semibold text-slate-700 dark:text-slate-300">Menunggu Integrasi Google Maps</p>
-        <p className="text-xs mt-1">Tambahkan <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> di file .env</p>
-      </div>
+      <MapContainer center={leafletCenter} zoom={zoom} style={{ height: '100%', width: '100%', zIndex: 0 }} zoomControl={false}>
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {markers.map((m, idx) => (
+          <LeafletMarker key={idx} position={[m.lat, m.lng]}>
+            <Popup>Lokasi</Popup>
+          </LeafletMarker>
+        ))}
+      </MapContainer>
     );
   }
 
@@ -42,12 +58,10 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null 
       zoom={zoom}
       options={{ disableDefaultUI: true, zoomControl: false }}
     >
-      {/* Jika tidak ada rute, tampilkan marker individual */}
       {!route && markers.map((m, idx) => (
-        <Marker key={idx} position={m} />
+        <GoogleMarker key={idx} position={m} />
       ))}
       
-      {/* Jika ada DirectionsResult, tampilkan rutenya */}
       {route && (
         <DirectionsRenderer directions={route} options={{ suppressMarkers: false }} />
       )}
