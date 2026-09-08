@@ -32,7 +32,6 @@ const MitraLayout = ({ children }) => {
     
     base.push(
       { to: `${basePrefix}/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
-      { to: `${basePrefix}/${activeRole}/chat`, icon: MessageSquare, label: 'Pesan' },
       { to: `${basePrefix}/${activeRole}/profile`, icon: User, label: 'Profil' }
     );
     

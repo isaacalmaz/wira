@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import ChatModal from '../components/common/ChatModal';
 import {
   MapPin,
   Navigation,
@@ -70,6 +71,7 @@ export default function RidePage() {
 
   // Data Driver riil yang menerima pesanan
   const [driverInfo, setDriverInfo] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const [mapState, setMapState] = useState({
     center: { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng },
@@ -554,7 +556,7 @@ export default function RidePage() {
                   <Phone size={16} />
                 </a>
                 <button
-                  onClick={() => toast.success('Membuka obrolan chat dengan driver...')}
+                  onClick={() => setIsChatOpen(true)}
                   className="p-2.5 bg-white dark:bg-slate-800 rounded-full text-primary shadow-sm border border-slate-200 dark:border-slate-700 hover:scale-105 transition"
                   title="Kirim Pesan"
                 >
@@ -648,6 +650,14 @@ export default function RidePage() {
           </div>
         )}
       </div>
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName={driverInfo?.name || 'Driver'}
+        />
+      )}
     </div>
   );
 }

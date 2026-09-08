@@ -4,6 +4,7 @@ import { Card, Button, Badge } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import EarningsCard from '../../components/shared/EarningsCard';
 import WiraMap from '../../components/common/WiraMap';
+import ChatModal from '../../components/common/ChatModal';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -12,7 +13,8 @@ const DriverHomePage = () => {
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
-  const [activeOrder, setActiveOrder] = useState(null); // Jika sedang menjalankan order
+  const [activeOrder, setActiveOrder] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false); // Jika sedang menjalankan order
   
   // Real stats state
   const [todayEarnings, setTodayEarnings] = useState(0);
@@ -188,9 +190,12 @@ const DriverHomePage = () => {
                 className="w-full font-bold border-primary text-primary" 
                 onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${orderDetails.pickup.lat},${orderDetails.pickup.lng}&destination=${orderDetails.dropoff.lat},${orderDetails.dropoff.lng}`, '_blank')}
               >
-                Navigasi ke Tujuan
+                Navigasi
               </Button>
             )}
+            <Button variant="outline" className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300" onClick={() => setIsChatOpen(true)}>
+              Chat
+            </Button>
             <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
               Selesai
             </Button>
@@ -242,6 +247,14 @@ const DriverHomePage = () => {
             </div>
           </Card>
         </div>
+      )}
+
+      {isChatOpen && activeOrder && (
+        <ChatModal
+          orderId={activeOrder.id}
+          onClose={() => setIsChatOpen(false)}
+          receiverName="Penumpang"
+        />
       )}
     </div>
   );

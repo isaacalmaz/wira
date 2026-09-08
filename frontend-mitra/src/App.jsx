@@ -8,7 +8,6 @@ import MitraLayout from './components/layout/MitraLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import PendingVerificationPage from './pages/PendingVerificationPage';
-import ChatPage from './pages/ChatPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 
 import DriverHomePage from './pages/driver/DriverHomePage';
@@ -76,7 +75,6 @@ function App() {
               <Route path="/" element={<DriverHomePage />} />
               <Route path="orders" element={<DriverOrdersPage />} />
               <Route path="earnings" element={<DriverEarningsPage />} />
-              <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<DriverProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Routes>
@@ -90,7 +88,6 @@ function App() {
               <Route path="orders" element={<MerchantOrdersPage />} />
               <Route path="menu" element={<MerchantMenuPage />} />
               <Route path="earnings" element={<MerchantEarningsPage />} />
-              <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Routes>
@@ -104,7 +101,6 @@ function App() {
               <Route path="orders" element={<TechOrdersPage />} />
               <Route path="schedule" element={<TechSchedulePage />} />
               <Route path="earnings" element={<TechEarningsPage />} />
-              <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<TechProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Routes>
