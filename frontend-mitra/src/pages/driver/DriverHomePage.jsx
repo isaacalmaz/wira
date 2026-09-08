@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import { MapPin, BellRing, Target, Activity } from 'lucide-react';
 import { Card, Button, Badge } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import EarningsCard from '../../components/shared/EarningsCard';
-import L from 'leaflet';
+import WiraMap from '../../components/common/WiraMap';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 const DriverHomePage = () => {
   const { user } = useAuth();
@@ -187,12 +178,11 @@ const DriverHomePage = () => {
       {/* Map */}
       <Card className="p-0 h-64 relative z-0">
         {isOnline || activeOrder ? (
-          <MapContainer center={mataramPos} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Marker position={mataramPos}>
-              <Popup>Posisi Anda</Popup>
-            </Marker>
-          </MapContainer>
+          <WiraMap 
+            center={{ lat: mataramPos[0], lng: mataramPos[1] }} 
+            zoom={14} 
+            markers={[{ lat: mataramPos[0], lng: mataramPos[1] }]}
+          />
         ) : (
           <div className="h-full w-full bg-slate-200 dark:bg-slate-700 flex flex-col items-center justify-center text-slate-400">
             <MapPin size={40} className="mb-2" />

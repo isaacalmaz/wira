@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import WiraMap from '../components/common/WiraMap';
 import {
   MapPin,
   Navigation,
@@ -175,17 +175,11 @@ export default function RidePage() {
     <div className="flex flex-col h-[calc(100vh-7.5rem)] max-w-4xl mx-auto">
       {/* Area Peta Interaktif */}
       <div className="flex-1 bg-slate-200 relative rounded-2xl overflow-hidden mb-3 shadow-inner min-h-[220px]">
-        <MapContainer
-          center={[APP_CONFIG.defaultLocation.lat, APP_CONFIG.defaultLocation.lng]}
-          zoom={14}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Marker position={[APP_CONFIG.defaultLocation.lat, APP_CONFIG.defaultLocation.lng]}>
-            <Popup>Lokasi Anda (Mataram)</Popup>
-          </Marker>
-        </MapContainer>
+        <WiraMap 
+          center={{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }} 
+          zoom={14} 
+          markers={[{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]}
+        />
 
         {/* Input Terapung jika langkah awal */}
         {step === 'input' && (
