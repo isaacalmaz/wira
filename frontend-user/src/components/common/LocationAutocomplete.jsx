@@ -20,8 +20,8 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
     
     setIsLoading(true);
     try {
-      // Menambahkan 'Lombok' atau 'Mataram' agar pencarian lebih terarah ke lokal NTB
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchText + ', Lombok')}&limit=5`);
+      // Menggunakan viewbox untuk membatasi pencarian area Lombok/Mataram
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchText)}&viewbox=115.8,-8.2,116.6,-9.0&countrycodes=id&limit=5`);
       const data = await res.json();
       setSuggestions(data || []);
     } catch (e) {

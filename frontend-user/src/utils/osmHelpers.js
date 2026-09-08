@@ -1,6 +1,6 @@
 export const fetchCoordinates = async (address) => {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Lombok')}&limit=1`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&viewbox=115.8,-8.2,116.6,-9.0&countrycodes=id&limit=1`);
     const data = await res.json();
     if (data && data.length > 0) {
       return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
