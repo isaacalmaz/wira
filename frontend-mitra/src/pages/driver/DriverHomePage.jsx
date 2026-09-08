@@ -118,6 +118,18 @@ const DriverHomePage = () => {
     }
   };
 
+  let orderDetails = null;
+  if (activeOrder && activeOrder.details) {
+    try {
+      orderDetails = JSON.parse(activeOrder.details);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const mapCenter = orderDetails?.pickup ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng } : { lat: mataramPos[0], lng: mataramPos[1] };
+  const mapMarkers = orderDetails ? [{ lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng }, { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng }] : [{ lat: mataramPos[0], lng: mataramPos[1] }];
+
   return (
     <div className="space-y-6 relative pb-20">
       {/* Header & Status */}
@@ -169,9 +181,20 @@ const DriverHomePage = () => {
             <span>Total Tagihan:</span>
             <span className="text-primary">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
           </div>
-          <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
-            Selesaikan Perjalanan
-          </Button>
+          <div className="flex gap-2">
+            {orderDetails?.dropoff && (
+              <Button 
+                variant="outline" 
+                className="w-full font-bold border-primary text-primary" 
+                onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${orderDetails.pickup.lat},${orderDetails.pickup.lng}&destination=${orderDetails.dropoff.lat},${orderDetails.dropoff.lng}`, '_blank')}
+              >
+                Navigasi ke Tujuan
+              </Button>
+            )}
+            <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
+              Selesai
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -179,9 +202,10 @@ const DriverHomePage = () => {
       <Card className="p-0 h-64 relative z-0">
         {isOnline || activeOrder ? (
           <WiraMap 
-            center={{ lat: mataramPos[0], lng: mataramPos[1] }} 
-            zoom={14} 
-            markers={[{ lat: mataramPos[0], lng: mataramPos[1] }]}
+            center={mapCenter} 
+            zoom={orderDetails ? 14 : 14} 
+            markers={mapMarkers}
+            route={orderDetails?.route}
           />
         ) : (
           <div className="h-full w-full bg-slate-200 dark:bg-slate-700 flex flex-col items-center justify-center text-slate-400">
@@ -202,7 +226,14 @@ const DriverHomePage = () => {
               </div>
               <Badge variant="primary" className="mb-2 capitalize">{incomingOrder.service_type}</Badge>
               <h2 className="text-2xl font-bold">Rp {incomingOrder.total_price.toLocaleString('id-ID')}</h2>
-              <p className="text-slate-500">Estimasi Jemput: 5 mnt</p>
+              {incomingOrder.details && (
+                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                  <p className="font-semibold text-primary">{JSON.parse(incomingOrder.details).pickup?.name || 'Lokasi Jemput'}</p>
+                  <p className="text-xs">menuju</p>
+                  <p className="font-semibold text-red-500">{JSON.parse(incomingOrder.details).dropoff?.name || 'Tujuan'}</p>
+                </div>
+              )}
+              <p className="text-slate-500 text-xs mt-3">Ketuk 'Terima' untuk melihat peta lengkap</p>
             </div>
             
             <div className="flex gap-3">

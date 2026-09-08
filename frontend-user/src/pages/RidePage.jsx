@@ -180,11 +180,18 @@ export default function RidePage() {
     }
 
     try {
+      const orderDetails = JSON.stringify({
+        pickup: { name: pickup, lat: mapState.markers[0]?.lat, lng: mapState.markers[0]?.lng },
+        dropoff: { name: dropoff, lat: mapState.markers[1]?.lat, lng: mapState.markers[1]?.lng },
+        route: mapState.route
+      });
+
       const order = await addOrder({
         serviceType: 'ride',
         title: `Perjalanan ke ${dropoff}`,
         price: selectedVehicle.price,
         paymentMethod: paymentMethod,
+        details: orderDetails,
       });
       setActiveOrderId(order.id);
       setStep('searching');
