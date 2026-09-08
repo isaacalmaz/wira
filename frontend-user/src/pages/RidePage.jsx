@@ -97,7 +97,7 @@ export default function RidePage() {
           const newMarkers = [...prev.markers];
           if (idx === 1 && newMarkers.length < 2) newMarkers.push(latLng);
           else newMarkers[idx] = latLng;
-          return { ...prev, center: latLng, zoom: 18, markers: newMarkers };
+          return { ...prev, center: latLng, zoom: 19, markers: newMarkers };
         });
 
         // Reverse geocode
@@ -136,18 +136,6 @@ export default function RidePage() {
             distance: routeData.distance, // in meters
             duration: routeData.duration  // in seconds
           });
-          
-          // Kalkulasi harga dinamis berdasarkan jarak
-          const distKm = routeData.distance / 1000;
-          setVehicles(prev => prev.map(v => {
-            const extraKm = Math.max(0, distKm - 2); // 2km pertama pakai base price
-            const perKmRate = v.id === 'motor' ? 3000 : 5000;
-            const dynamicPrice = (v.basePrice || 15000) + Math.ceil(extraKm * perKmRate);
-            
-            // Tambahkan estimasi waktu ke deskripsi
-            const estMins = Math.ceil(routeData.duration / 60);
-            return { ...v, price: dynamicPrice, time: `~${estMins} mnt` };
-          }));
         }
         setIsSearching(false);
       };
@@ -155,12 +143,24 @@ export default function RidePage() {
     }
   }, [mapState.markers, pickup, dropoff, step]);
 
+  const dynamicVehicles = vehicles.map(v => {
+    if (!routeInfo) return v;
+    const distKm = routeInfo.distance / 1000;
+    const extraKm = Math.max(0, distKm - 2);
+    const perKmRate = v.id === 'motor' ? 3000 : 5000;
+    const dynamicPrice = (v.basePrice || v.price || 15000) + Math.ceil(extraKm * perKmRate);
+    const estMins = Math.ceil(routeInfo.duration / 60);
+    return { ...v, price: dynamicPrice, time: `~${estMins} mnt` };
+  });
+
   const handleLanjut = () => {
     if (!pickup || !dropoff) {
       toast.error('Mohon isi titik jemput dan tujuan Anda');
       return;
     }
-    setSelectedVehicle(vehicles[0]);
+    if (dynamicVehicles.length > 0) {
+      setSelectedVehicle(dynamicVehicles[0]);
+    }
     setStep('vehicle');
   };
 
@@ -306,7 +306,7 @@ export default function RidePage() {
                 value={pickup}
                 onChange={setPickup}
                 onSelect={(loc) => {
-                  setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 17 }));
+                  setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19 }));
                 }}
               />
               <button
@@ -326,7 +326,7 @@ export default function RidePage() {
                   setMapState(prev => {
                     const newMarkers = [...prev.markers];
                     newMarkers[1] = { lat: loc.lat, lng: loc.lng };
-                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 17, markers: newMarkers };
+                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19, markers: newMarkers };
                   });
                 }}
               />
@@ -379,12 +379,12 @@ export default function RidePage() {
                 </p>
               </div>
               <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 font-medium">
-                Jarak ± 4.2 km
+                Jarak {routeInfo ? `± ${(routeInfo.distance / 1000).toFixed(1)} km` : ''}
               </span>
             </div>
 
             <div className="space-y-2">
-              {vehicles.map((v) => {
+              {dynamicVehicles.map((v) => {
                 const isSelected = selectedVehicle?.id === v.id;
                 return (
                   <div
