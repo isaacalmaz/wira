@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "cd .. && npm install --legacy-peer-deps --no-audit --no-fund && cd frontend-user && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

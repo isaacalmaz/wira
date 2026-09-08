@@ -18,8 +18,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@admin': path.resolve(__dirname, '../frontend-admin/src'),
-      '@mitra': path.resolve(__dirname, '../frontend-mitra/src'),
       '@user': path.resolve(__dirname, './src'),
     }
   },
