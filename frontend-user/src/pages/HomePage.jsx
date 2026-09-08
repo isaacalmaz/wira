@@ -53,7 +53,7 @@ export default function HomePage() {
       <div className="bg-gradient-to-r from-primary via-cyan-600 to-primary-light text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
         <div className="flex justify-between items-center mb-3">
           <p className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-            {t('home.wallet_balance')} WiraPay
+            {t('home.wallet_balance')}
           </p>
           <Wallet size={20} className="text-cyan-200" />
         </div>
@@ -65,7 +65,7 @@ export default function HomePage() {
             to="/wallet"
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center justify-center text-white"
           >
-            + {t('wallet.top_up')} Saldo
+            + {t('wallet.top_up')}
           </Link>
           <Link
             to="/wallet"

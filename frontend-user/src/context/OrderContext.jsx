@@ -48,18 +48,21 @@ export const OrderProvider = ({ children }) => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
-          if (data && data.length > 0) {
+          // Selalu update order sesuai DB meskipun kosong (agar tidak fallback ke local dummy)
+          if (data) {
             setOrders(data.map(mapDbOrderToUi));
             return;
           }
         } catch (e) {
-          console.warn('Supabase fetch orders error, using local ecosystem store:', e);
+          console.warn('Supabase fetch orders error:', e);
         }
       }
 
-      // 2. Load from ecosystem store
-      const local = getStoredOrders();
-      setOrders(local.map(mapDbOrderToUi));
+      // 2. Load from ecosystem store HANYA untuk guest (belum login)
+      if (!user) {
+        const local = getStoredOrders();
+        setOrders(local.map(mapDbOrderToUi));
+      }
     };
 
     fetchOrders();
