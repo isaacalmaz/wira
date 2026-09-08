@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import WiraMap from '../components/common/WiraMap';
+import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import {
   MapPin,
   Navigation,
@@ -212,36 +213,49 @@ export default function RidePage() {
           zoom={14} 
           markers={mapState.markers}
           route={mapState.route}
+          onMarkerDragEnd={async (idx, latLng) => {
+            if (idx === 0) {
+              setMapState(prev => {
+                const newMarkers = [...prev.markers];
+                newMarkers[0] = latLng;
+                return { ...prev, center: latLng, markers: newMarkers };
+              });
+              // Reverse geocode
+              try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+                const data = await res.json();
+                if (data && data.display_name) {
+                  setPickup(data.display_name.split(',')[0]);
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }
+          }}
         />
 
         {/* Input Terapung jika langkah awal */}
         {step === 'input' && (
           <div className="absolute top-3 left-3 right-3 z-[400] max-w-md mx-auto">
             <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 flex justify-center text-green-500">
-                  <Navigation size={18} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Lokasi Penjemputan Anda (cth: Ampenan / Rumah)"
-                  className="flex-1 bg-slate-50 dark:bg-slate-800 border-0 rounded-xl p-2 text-xs sm:text-sm focus:ring-2 focus:ring-primary dark:text-white"
-                  value={pickup}
-                  onChange={(e) => setPickup(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 flex justify-center text-red-500">
-                  <MapPin size={18} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Mau ke mana? (cth: Epicentrum Mall / Senggigi)"
-                  className="flex-1 bg-slate-50 dark:bg-slate-800 border-0 rounded-xl p-2 text-xs sm:text-sm focus:ring-2 focus:ring-primary dark:text-white"
-                  value={dropoff}
-                  onChange={(e) => setDropoff(e.target.value)}
-                />
-              </div>
+              <LocationAutocomplete
+                placeholder="Lokasi Penjemputan Anda (cth: Ampenan / Rumah)"
+                icon={Navigation}
+                iconColor="text-blue-500"
+                value={pickup}
+                onChange={setPickup}
+                onSelect={(loc) => {
+                  setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng } }));
+                }}
+              />
+              
+              <LocationAutocomplete
+                placeholder="Mau ke mana? (cth: Epicentrum Mall / Senggigi)"
+                icon={MapPin}
+                iconColor="text-red-500"
+                value={dropoff}
+                onChange={setDropoff}
+              />
             </Card>
           </div>
         )}

@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({
 const libraries = ['places'];
 const mapContainerStyle = { width: '100%', height: '100%' };
 
-export default function WiraMap({ center, zoom = 14, markers = [], route = null }) {
+export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   
   const { isLoaded, loadError } = useJsApiLoader({
@@ -35,8 +35,20 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null 
       <MapContainer center={leafletCenter} zoom={zoom} style={{ height: '100%', width: '100%', zIndex: 0 }} zoomControl={false}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {markers.map((m, idx) => (
-          <LeafletMarker key={idx} position={[m.lat, m.lng]}>
-            <Popup>Lokasi</Popup>
+          <LeafletMarker 
+            key={idx} 
+            position={[m.lat, m.lng]} 
+            draggable={!!onMarkerDragEnd}
+            eventHandlers={{
+              dragend: (e) => {
+                if (onMarkerDragEnd) {
+                  const latLng = e.target.getLatLng();
+                  onMarkerDragEnd(idx, { lat: latLng.lat, lng: latLng.lng });
+                }
+              }
+            }}
+          >
+            <Popup>{idx === 0 ? 'Lokasi Penjemputan (Bisa digeser)' : 'Tujuan'}</Popup>
           </LeafletMarker>
         ))}
         {leafletRoute && (
