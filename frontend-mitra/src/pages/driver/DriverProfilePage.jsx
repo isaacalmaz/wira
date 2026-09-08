@@ -4,20 +4,24 @@ import { User, ShieldCheck, Car, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const DriverProfilePage = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
-          <User size={40} className="text-slate-400" />
+        <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center overflow-hidden">
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+          ) : (
+            <User size={40} className="text-slate-400" />
+          )}
         </div>
         <div>
-          <h1 className="text-2xl font-bold">{user?.name || 'Budi Driver'}</h1>
-          <p className="text-slate-500">+62 812-3456-7890</p>
+          <h1 className="text-2xl font-bold capitalize">{user?.name || 'Driver Wira'}</h1>
+          <p className="text-slate-500">{user?.phone || 'Belum mengatur nomor HP'}</p>
           <div className="flex items-center gap-2 mt-1">
-            <StarRating rating={4.8} />
-            <span className="text-sm font-medium">4.8</span>
+            <StarRating rating={5.0} />
+            <span className="text-sm font-medium">5.0</span>
           </div>
         </div>
       </div>
@@ -26,8 +30,8 @@ const DriverProfilePage = () => {
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
           <Car className="text-primary" />
           <div>
-            <p className="font-semibold">Honda Vario 150</p>
-            <p className="text-sm text-slate-500">Hitam • DR 1234 AB</p>
+            <p className="font-semibold">Kendaraan Mitra</p>
+            <p className="text-sm text-slate-500">Data kendaraan diverifikasi admin</p>
           </div>
         </div>
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
@@ -43,7 +47,7 @@ const DriverProfilePage = () => {
         </div>
       </Card>
       
-      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white">Keluar Akun</Button>
+      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>
     </div>
   );
 };

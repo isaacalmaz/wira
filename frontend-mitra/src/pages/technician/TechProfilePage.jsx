@@ -4,18 +4,22 @@ import { User, Wrench, ShieldCheck, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const TechProfilePage = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
-          <User size={40} className="text-slate-400" />
+        <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center overflow-hidden">
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+          ) : (
+            <User size={40} className="text-slate-400" />
+          )}
         </div>
         <div>
-          <h1 className="text-2xl font-bold">{user?.name || 'Pak Joko'}</h1>
-          <p className="text-slate-500">Teknisi Wira</p>
+          <h1 className="text-2xl font-bold capitalize">{user?.name || 'Teknisi Wira'}</h1>
+          <p className="text-slate-500">{user?.phone || 'Belum mengatur nomor HP'}</p>
           <div className="flex items-center gap-2 mt-1">
-            <StarRating rating={4.9} /> <span className="font-medium">4.9</span>
+            <StarRating rating={5.0} /> <span className="font-medium">5.0</span>
           </div>
         </div>
       </div>
@@ -38,7 +42,7 @@ const TechProfilePage = () => {
         </div>
       </Card>
       
-      <Button variant="outline" className="w-full text-red-500 border-red-500">Keluar Akun</Button>
+      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>
     </div>
   );
 };
