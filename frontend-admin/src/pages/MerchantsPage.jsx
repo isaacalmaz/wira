@@ -84,11 +84,20 @@ const MerchantsPage = () => {
         // 3. Berikan akses merchant ke public.users
         if (pending.auth_id) {
           const { data: userProfile } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
+          
+          let currentAccess = [];
+          let isExisting = false;
+
           if (userProfile) {
-            const currentAccess = userProfile.mitra_access || [];
-            if (!currentAccess.includes('merchant')) {
-              currentAccess.push('merchant');
-            }
+            currentAccess = userProfile.mitra_access || [];
+            isExisting = true;
+          }
+
+          if (!currentAccess.includes('merchant')) {
+            currentAccess.push('merchant');
+          }
+
+          if (isExisting) {
             const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
               mitra_access: currentAccess,
               status: 'Aktif'
@@ -102,6 +111,22 @@ const MerchantsPage = () => {
             if (!updatedUser || updatedUser.length === 0) {
               toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase. Silakan jalankan script SQL RLS.");
               return;
+            }
+          } else {
+            // INSERT INTO public.users
+            const { error: insertErr } = await supabase.from('users').insert([{
+              id: pending.auth_id,
+              name: pending.name,
+              email: pending.email,
+              phone: pending.phone,
+              role: 'mitra',
+              status: 'Aktif',
+              mitra_access: currentAccess
+            }]);
+            if (insertErr) {
+               console.error("Insert users error:", insertErr);
+               toast.error("Gagal membuat profil merchant di database.");
+               return;
             }
           }
         }
