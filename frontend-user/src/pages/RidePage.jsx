@@ -254,22 +254,29 @@ export default function RidePage() {
           markers={mapState.markers}
           route={mapState.route}
           onMarkerDragEnd={async (idx, latLng) => {
-            if (idx === 0) {
-              setMapState(prev => {
-                const newMarkers = [...prev.markers];
-                newMarkers[0] = latLng;
-                return { ...prev, center: latLng, markers: newMarkers };
-              });
-              // Reverse geocode
-              try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
-                const data = await res.json();
-                if (data && data.display_name) {
-                  setPickup(data.display_name.split(',')[0]);
-                }
-              } catch (e) {
-                console.error(e);
+            setMapState(prev => {
+              const newMarkers = [...prev.markers];
+              // Ensure we have two markers if we are dragging the second one
+              if (idx === 1 && newMarkers.length < 2) {
+                newMarkers[1] = latLng;
+              } else {
+                newMarkers[idx] = latLng;
               }
+              // Center on the moved marker
+              return { ...prev, center: latLng, markers: newMarkers };
+            });
+
+            // Reverse geocode
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+              const data = await res.json();
+              if (data && data.display_name) {
+                const shortName = data.display_name.split(',')[0];
+                if (idx === 0) setPickup(shortName);
+                if (idx === 1) setDropoff(shortName);
+              }
+            } catch (e) {
+              console.error(e);
             }
           }}
         />
@@ -301,6 +308,13 @@ export default function RidePage() {
                 iconColor="text-red-500"
                 value={dropoff}
                 onChange={setDropoff}
+                onSelect={(loc) => {
+                  setMapState(prev => {
+                    const newMarkers = [...prev.markers];
+                    newMarkers[1] = { lat: loc.lat, lng: loc.lng };
+                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, markers: newMarkers };
+                  });
+                }}
               />
             </Card>
           </div>
@@ -312,28 +326,7 @@ export default function RidePage() {
         {/* LANGKAH 1: PILIH TUJUAN CEPAT */}
         {step === 'input' && (
           <div className="p-5 space-y-3">
-            <h3 className="font-bold text-sm text-slate-800 dark:text-white">
-              Tujuan Populer di Mataram & Lombok:
-            </h3>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {[
-                { name: 'Epicentrum Mall', pickupLoc: 'Pusat Kota Mataram' },
-                { name: 'Pantai Senggigi', pickupLoc: 'Mataram' },
-                { name: 'Bandara Internasional Lombok (BIL)', pickupLoc: 'Kota Mataram' },
-                { name: 'Pelabuhan Lembar', pickupLoc: 'Cakranegara' },
-              ].map((loc) => (
-                <button
-                  key={loc.name}
-                  onClick={() => {
-                    setPickup(loc.pickupLoc);
-                    setDropoff(loc.name);
-                  }}
-                  className="whitespace-nowrap px-3.5 py-2 bg-slate-100 dark:bg-slate-700 rounded-xl text-xs font-semibold hover:bg-primary/10 hover:text-primary dark:text-white transition"
-                >
-                  📍 {loc.name}
-                </button>
-              ))}
-            </div>
+
             <Button
               className="w-full py-3 font-bold text-sm shadow-md"
               onClick={handleSearch}
