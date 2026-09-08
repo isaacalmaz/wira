@@ -73,6 +73,7 @@ export default function RidePage() {
 
   const [mapState, setMapState] = useState({
     center: { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng },
+    zoom: 14,
     markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }],
     route: null
   });
@@ -96,7 +97,7 @@ export default function RidePage() {
           const newMarkers = [...prev.markers];
           if (idx === 1 && newMarkers.length < 2) newMarkers.push(latLng);
           else newMarkers[idx] = latLng;
-          return { ...prev, center: latLng, markers: newMarkers };
+          return { ...prev, center: latLng, zoom: 18, markers: newMarkers };
         });
 
         // Reverse geocode
@@ -130,7 +131,7 @@ export default function RidePage() {
         const { fetchRoute } = await import('../utils/osmHelpers');
         const routeData = await fetchRoute(mapState.markers[0], mapState.markers[1]);
         if (routeData) {
-          setMapState(prev => ({ ...prev, route: routeData.coordinates }));
+          setMapState(prev => ({ ...prev, route: routeData.coordinates, zoom: 14 }));
           setRouteInfo({
             distance: routeData.distance, // in meters
             duration: routeData.duration  // in seconds
@@ -305,11 +306,11 @@ export default function RidePage() {
                 value={pickup}
                 onChange={setPickup}
                 onSelect={(loc) => {
-                  setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng } }));
+                  setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 17 }));
                 }}
               />
               <button
-                onClick={handleLocateMe}
+                onClick={() => handleLocateMe(0)}
                 className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark w-full justify-end pr-1 mt-[-4px] mb-2"
               >
                 <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
@@ -325,7 +326,7 @@ export default function RidePage() {
                   setMapState(prev => {
                     const newMarkers = [...prev.markers];
                     newMarkers[1] = { lat: loc.lat, lng: loc.lng };
-                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, markers: newMarkers };
+                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 17, markers: newMarkers };
                   });
                 }}
               />

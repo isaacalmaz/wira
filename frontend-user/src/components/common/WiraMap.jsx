@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker as GoogleMarker, DirectionsRenderer } from '@react-google-maps/api';
-import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline, useMap } from 'react-leaflet';
 import { AlertCircle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -15,6 +15,15 @@ L.Icon.Default.mergeOptions({
 
 const libraries = ['places'];
 const mapContainerStyle = { width: '100%', height: '100%' };
+
+// Komponen internal untuk mengupdate Leaflet saat props berubah
+const MapUpdater = ({ center, zoom }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center) map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+};
 
 export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -33,6 +42,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
 
     return (
       <MapContainer center={leafletCenter} zoom={zoom} style={{ height: '100%', width: '100%', zIndex: 0 }} zoomControl={false}>
+        <MapUpdater center={leafletCenter} zoom={zoom} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {markers.map((m, idx) => (
           <LeafletMarker 
