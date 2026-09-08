@@ -16,8 +16,12 @@ export const fetchRoute = async (start, end) => {
     const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
     const data = await res.json();
     if (data.routes && data.routes.length > 0) {
-      // Leaflet needs [lat, lng]
-      return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      const route = data.routes[0];
+      return {
+        coordinates: route.geometry.coordinates.map(c => [c[1], c[0]]), // Leaflet needs [lat, lng]
+        distance: route.distance, // in meters
+        duration: route.duration  // in seconds
+      };
     }
   } catch (e) {
     console.error('OSRM error', e);

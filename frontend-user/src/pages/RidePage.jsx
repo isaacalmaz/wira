@@ -57,6 +57,7 @@ export default function RidePage() {
         setVehicles(data.map(v => ({
           id: v.type,
           name: v.name,
+          basePrice: v.price, // Store original for calculation
           price: v.price,
           time: v.duration,
           icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
@@ -77,7 +78,9 @@ export default function RidePage() {
   });
   const [isSearching, setIsSearching] = useState(false);
 
-  const handleLocateMe = () => {
+  const [routeInfo, setRouteInfo] = useState(null);
+
+  const handleLocateMe = (idx = 0) => {
     if (!navigator.geolocation) {
       toast.error('Browser Anda tidak mendukung fitur lokasi');
       return;
@@ -91,7 +94,8 @@ export default function RidePage() {
         // Update map
         setMapState(prev => {
           const newMarkers = [...prev.markers];
-          newMarkers[0] = latLng;
+          if (idx === 1 && newMarkers.length < 2) newMarkers.push(latLng);
+          else newMarkers[idx] = latLng;
           return { ...prev, center: latLng, markers: newMarkers };
         });
 
@@ -100,7 +104,9 @@ export default function RidePage() {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
           const data = await res.json();
           if (data && data.display_name) {
-            setPickup(data.display_name.split(',')[0]);
+            const name = data.display_name.split(',')[0];
+            if (idx === 0) setPickup(name);
+            else setDropoff(name);
           }
         } catch (e) {
           console.error(e);
@@ -116,36 +122,43 @@ export default function RidePage() {
     );
   };
 
-  const handleSearch = async () => {
+  // Otomatis mencari rute jika marker 0 dan 1 sudah ada (pickup & dropoff valid)
+  useEffect(() => {
+    if (mapState.markers.length === 2 && pickup && dropoff && step === 'input') {
+      const getRoute = async () => {
+        setIsSearching(true);
+        const { fetchRoute } = await import('../utils/osmHelpers');
+        const routeData = await fetchRoute(mapState.markers[0], mapState.markers[1]);
+        if (routeData) {
+          setMapState(prev => ({ ...prev, route: routeData.coordinates }));
+          setRouteInfo({
+            distance: routeData.distance, // in meters
+            duration: routeData.duration  // in seconds
+          });
+          
+          // Kalkulasi harga dinamis berdasarkan jarak
+          const distKm = routeData.distance / 1000;
+          setVehicles(prev => prev.map(v => {
+            const extraKm = Math.max(0, distKm - 2); // 2km pertama pakai base price
+            const perKmRate = v.id === 'motor' ? 3000 : 5000;
+            const dynamicPrice = (v.basePrice || 15000) + Math.ceil(extraKm * perKmRate);
+            
+            // Tambahkan estimasi waktu ke deskripsi
+            const estMins = Math.ceil(routeData.duration / 60);
+            return { ...v, price: dynamicPrice, time: `~${estMins} mnt` };
+          }));
+        }
+        setIsSearching(false);
+      };
+      getRoute();
+    }
+  }, [mapState.markers, pickup, dropoff, step]);
+
+  const handleLanjut = () => {
     if (!pickup || !dropoff) {
       toast.error('Mohon isi titik jemput dan tujuan Anda');
       return;
     }
-    
-    setIsSearching(true);
-    const toastId = toast.loading('Mencari koordinat & rute (OpenStreetMap)...');
-    
-    try {
-      const { fetchCoordinates, fetchRoute } = await import('../utils/osmHelpers');
-      const startCoord = await fetchCoordinates(pickup);
-      const endCoord = await fetchCoordinates(dropoff);
-      
-      if (startCoord && endCoord) {
-        const route = await fetchRoute(startCoord, endCoord);
-        setMapState({
-          center: startCoord,
-          markers: [startCoord, endCoord],
-          route: route
-        });
-        toast.success('Rute ditemukan!', { id: toastId });
-      } else {
-        toast.error('Gagal menemukan lokasi pasti, menggunakan estimasi.', { id: toastId });
-      }
-    } catch (e) {
-      toast.dismiss(toastId);
-    }
-    
-    setIsSearching(false);
     setSelectedVehicle(vehicles[0]);
     setStep('vehicle');
   };
@@ -316,6 +329,12 @@ export default function RidePage() {
                   });
                 }}
               />
+              <button
+                onClick={() => handleLocateMe(1)}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600 w-full justify-end pr-1 mt-[-4px]"
+              >
+                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+              </button>
             </Card>
           </div>
         )}
@@ -326,13 +345,22 @@ export default function RidePage() {
         {/* LANGKAH 1: PILIH TUJUAN CEPAT */}
         {step === 'input' && (
           <div className="p-5 space-y-3">
-
+            {routeInfo && (
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Navigation size={14} className="text-primary" /> Jarak Tempuh
+                </span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white">
+                  {(routeInfo.distance / 1000).toFixed(1)} km
+                </span>
+              </div>
+            )}
             <Button
               className="w-full py-3 font-bold text-sm shadow-md"
-              onClick={handleSearch}
-              disabled={!pickup || !dropoff || isSearching}
+              onClick={handleLanjut}
+              disabled={!pickup || !dropoff || isSearching || !routeInfo}
             >
-              {isSearching ? 'Mencari Rute...' : 'Lanjut Pilih Kendaraan'} <ArrowRight size={16} className="ml-1 inline" />
+              {isSearching ? 'Menghitung Rute...' : 'Lanjut Pilih Kendaraan'} <ArrowRight size={16} className="ml-1 inline" />
             </Button>
           </div>
         )}
