@@ -143,7 +143,14 @@ export default function RidePage() {
     }
   }, [mapState.markers, pickup, dropoff, step]);
 
-  const dynamicVehicles = vehicles.map(v => {
+  const defaultVehicles = [
+    { id: 'motor', name: 'WiraRide Motor', basePrice: 12000, price: 12000, icon: '🛵', desc: 'Kapasitas: 1 orang' },
+    { id: 'mobil', name: 'WiraRide Mobil', basePrice: 25000, price: 25000, icon: '🚗', desc: 'Kapasitas: 4 orang' }
+  ];
+
+  const sourceVehicles = vehicles.length > 0 ? vehicles : defaultVehicles;
+
+  const dynamicVehicles = sourceVehicles.map(v => {
     if (!routeInfo) return v;
     const distKm = routeInfo.distance / 1000;
     const extraKm = Math.max(0, distKm - 2);
