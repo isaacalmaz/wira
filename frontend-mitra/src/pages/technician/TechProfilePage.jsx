@@ -1,11 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Badge, StarRating, Button } from '../../components/shared/UIComponents';
 import { User, Wrench, ShieldCheck, Image as ImageIcon, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../config/supabase';
 
 const TechProfilePage = () => {
   const { user, signOut } = useAuth();
+  const [specialization, setSpecialization] = useState('Memuat...');
+  const [experience, setExperience] = useState('');
+
+  useEffect(() => {
+    const fetchRegData = async () => {
+      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
+      if (data && data.features) {
+        const myReg = data.features.find(f => f.auth_id === user?.id && f.role === 'technician');
+        if (myReg) {
+          setSpecialization(myReg.specialization || 'Jasa Servis Umum');
+          setExperience(myReg.experience ? `${myReg.experience} Tahun` : '');
+        } else {
+          setSpecialization('Jasa Servis Umum');
+        }
+      }
+    };
+    if (user) fetchRegData();
+  }, [user]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -27,10 +47,9 @@ const TechProfilePage = () => {
 
       <Card className="p-4">
         <h3 className="font-bold mb-3 flex items-center gap-2"><Wrench size={18}/> Spesialisasi</h3>
-        <div className="flex gap-2 flex-wrap">
-          <Badge variant="primary">AC & Pendingin</Badge>
-          <Badge variant="primary">Instalasi Listrik</Badge>
-          <Badge variant="primary">Elektronik</Badge>
+        <div className="flex gap-2 flex-wrap items-center">
+          <Badge variant="primary">{specialization}</Badge>
+          {experience && <span className="text-sm font-semibold text-slate-500">Pengalaman: {experience}</span>}
         </div>
       </Card>
 

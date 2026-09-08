@@ -1,11 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Badge, Button, StarRating } from '../../components/shared/UIComponents';
 import { User, ShieldCheck, Car, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../config/supabase';
 
 const DriverProfilePage = () => {
   const { user, signOut } = useAuth();
+  const [vehicle, setVehicle] = useState('Memuat data...');
+  const [plate, setPlate] = useState('');
+
+  useEffect(() => {
+    const fetchRegData = async () => {
+      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
+      if (data && data.features) {
+        // Ambil data pendaftaran terbaru untuk driver ini
+        const myReg = data.features.find(f => f.auth_id === user?.id && f.role === 'driver');
+        if (myReg) {
+          setVehicle(myReg.vehicle || 'Kendaraan Mitra');
+          setPlate(myReg.plate || '');
+        } else {
+          setVehicle('Data kendaraan tidak ditemukan');
+        }
+      }
+    };
+    if (user) fetchRegData();
+  }, [user]);
   
   return (
     <div className="space-y-6">
@@ -31,8 +51,8 @@ const DriverProfilePage = () => {
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
           <Car className="text-primary" />
           <div>
-            <p className="font-semibold">Kendaraan Mitra</p>
-            <p className="text-sm text-slate-500">Data kendaraan diverifikasi admin</p>
+            <p className="font-semibold capitalize">{vehicle}</p>
+            <p className="text-sm text-slate-500 uppercase">{plate || 'Menunggu verifikasi admin'}</p>
           </div>
         </div>
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
