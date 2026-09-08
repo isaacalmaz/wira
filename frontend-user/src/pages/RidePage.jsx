@@ -563,12 +563,12 @@ export default function RidePage() {
               </div>
             </div>
 
-            {/* Tombol Selesaikan Perjalanan (Untuk Uji Coba) */}
+            {/* Tombol Konfirmasi Tiba */}
             <Button
-              className="w-full py-3 font-bold bg-green-600 hover:bg-green-700 text-white shadow-md"
+              className="w-full py-3 font-bold bg-primary hover:bg-primary-dark text-white shadow-md"
               onClick={handleCompleteTrip}
             >
-              Simulasikan Tiba di Tujuan (Selesaikan)
+              Konfirmasi Tiba di Tujuan
             </Button>
           </div>
         )}

@@ -473,13 +473,14 @@ export default function RestaurantPage() {
           <div className="flex gap-2">
             {trackingStage < 3 ? (
               <Button
-                className="flex-1 text-xs"
+                variant="outline"
+                className="flex-1 border-primary text-primary font-bold text-xs"
                 onClick={() => {
                   setTrackingStage((prev) => prev + 1);
                   toast.success('Status pesanan makanan diperbarui!');
                 }}
               >
-                Simulasikan Status Makanan ➔
+                Perbarui Status Pesanan ➔
               </Button>
             ) : (
               <Button

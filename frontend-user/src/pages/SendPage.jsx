@@ -383,7 +383,7 @@ export default function SendPage() {
                     toast.success('Status pengiriman diperbarui!');
                   }}
                 >
-                  Simulasikan Perjalanan Paket ➔
+                  Perbarui Status Pengiriman ➔
                 </Button>
               ) : (
                 <Button
