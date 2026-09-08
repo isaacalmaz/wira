@@ -1,6 +1,6 @@
 import React from 'react';
 import { GoogleMap, useJsApiLoader, Marker as GoogleMarker, DirectionsRenderer } from '@react-google-maps/api';
-import { MapContainer, TileLayer, Marker as LeafletMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline } from 'react-leaflet';
 import { AlertCircle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -27,6 +27,10 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null 
   // FALLBACK: 100% GRATIS (OPENSTREETMAP) JIKA API KEY TIDAK ADA
   if (!apiKey) {
     const leafletCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
+    
+    // Konversi rute jika ada (asumsi format array of [lat, lng] untuk leaflet route)
+    const leafletRoute = route && Array.isArray(route) ? route : null;
+
     return (
       <MapContainer center={leafletCenter} zoom={zoom} style={{ height: '100%', width: '100%', zIndex: 0 }} zoomControl={false}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -35,6 +39,9 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null 
             <Popup>Lokasi</Popup>
           </LeafletMarker>
         ))}
+        {leafletRoute && (
+          <Polyline positions={leafletRoute} color="#0ea5e9" weight={4} opacity={0.8} />
+        )}
       </MapContainer>
     );
   }

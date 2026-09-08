@@ -68,11 +68,43 @@ export default function RidePage() {
   // Data Driver riil yang menerima pesanan
   const [driverInfo, setDriverInfo] = useState(null);
 
-  const handleSearch = () => {
+  const [mapState, setMapState] = useState({
+    center: { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng },
+    markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }],
+    route: null
+  });
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async () => {
     if (!pickup || !dropoff) {
       toast.error('Mohon isi titik jemput dan tujuan Anda');
       return;
     }
+    
+    setIsSearching(true);
+    const toastId = toast.loading('Mencari koordinat & rute (OpenStreetMap)...');
+    
+    try {
+      const { fetchCoordinates, fetchRoute } = await import('../utils/osmHelpers');
+      const startCoord = await fetchCoordinates(pickup);
+      const endCoord = await fetchCoordinates(dropoff);
+      
+      if (startCoord && endCoord) {
+        const route = await fetchRoute(startCoord, endCoord);
+        setMapState({
+          center: startCoord,
+          markers: [startCoord, endCoord],
+          route: route
+        });
+        toast.success('Rute ditemukan!', { id: toastId });
+      } else {
+        toast.error('Gagal menemukan lokasi pasti, menggunakan estimasi.', { id: toastId });
+      }
+    } catch (e) {
+      toast.dismiss(toastId);
+    }
+    
+    setIsSearching(false);
     setSelectedVehicle(vehicles[0]);
     setStep('vehicle');
   };
@@ -176,9 +208,10 @@ export default function RidePage() {
       {/* Area Peta Interaktif */}
       <div className="flex-1 bg-slate-200 relative rounded-2xl overflow-hidden mb-3 shadow-inner min-h-[220px]">
         <WiraMap 
-          center={{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }} 
+          center={mapState.center} 
           zoom={14} 
-          markers={[{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]}
+          markers={mapState.markers}
+          route={mapState.route}
         />
 
         {/* Input Terapung jika langkah awal */}
@@ -244,9 +277,9 @@ export default function RidePage() {
             <Button
               className="w-full py-3 font-bold text-sm shadow-md"
               onClick={handleSearch}
-              disabled={!pickup || !dropoff}
+              disabled={!pickup || !dropoff || isSearching}
             >
-              Lanjut Pilih Kendaraan <ArrowRight size={16} className="ml-1 inline" />
+              {isSearching ? 'Mencari Rute...' : 'Lanjut Pilih Kendaraan'} <ArrowRight size={16} className="ml-1 inline" />
             </Button>
           </div>
         )}
