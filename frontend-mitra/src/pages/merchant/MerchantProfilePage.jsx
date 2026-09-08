@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Button, StarRating } from '../../components/shared/UIComponents';
-import { Store, MapPin, Clock, CreditCard } from 'lucide-react';
+import { Store, MapPin, Clock, CreditCard, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 
@@ -60,6 +61,10 @@ const MerchantProfilePage = () => {
             <p className="text-sm text-slate-500">Saldo WiraPay</p>
           </div>
         </div>
+        <Link to="/merchant/settings" className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+          <Settings className="text-slate-400" />
+          <span className="font-medium">Pengaturan Akun</span>
+        </Link>
       </Card>
 
       <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>

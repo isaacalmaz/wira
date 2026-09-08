@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Badge, Button, StarRating } from '../../components/shared/UIComponents';
 import { User, ShieldCheck, Car, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -41,10 +42,10 @@ const DriverProfilePage = () => {
           </div>
           <Badge variant="success">Terverifikasi</Badge>
         </div>
-        <div className="p-4 flex items-center gap-3 text-slate-700 dark:text-slate-300">
+        <Link to="/driver/settings" className="p-4 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
           <Settings className="text-slate-400" />
           <span className="font-medium">Pengaturan Akun</span>
-        </div>
+        </Link>
       </Card>
       
       <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>

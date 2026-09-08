@@ -28,6 +28,8 @@ import TechSchedulePage from './pages/technician/TechSchedulePage';
 import TechEarningsPage from './pages/technician/TechEarningsPage';
 import TechProfilePage from './pages/technician/TechProfilePage';
 
+import SettingsPage from './pages/shared/SettingsPage';
+
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
   
@@ -76,6 +78,7 @@ function App() {
               <Route path="earnings" element={<DriverEarningsPage />} />
               <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<DriverProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -89,6 +92,7 @@ function App() {
               <Route path="earnings" element={<MerchantEarningsPage />} />
               <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<MerchantProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -102,6 +106,7 @@ function App() {
               <Route path="earnings" element={<TechEarningsPage />} />
               <Route path="chat" element={<ChatPage />} />
               <Route path="profile" element={<TechProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Routes>
           </ProtectedRoute>
         } />
