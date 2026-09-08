@@ -13,6 +13,7 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  LocateFixed,
 } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -75,6 +76,45 @@ export default function RidePage() {
     route: null
   });
   const [isSearching, setIsSearching] = useState(false);
+
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      return;
+    }
+    
+    const toastId = toast.loading('Mencari lokasi Anda...');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+        
+        // Update map
+        setMapState(prev => {
+          const newMarkers = [...prev.markers];
+          newMarkers[0] = latLng;
+          return { ...prev, center: latLng, markers: newMarkers };
+        });
+
+        // Reverse geocode
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            setPickup(data.display_name.split(',')[0]);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        
+        toast.success('Lokasi ditemukan!', { id: toastId });
+      },
+      (error) => {
+        console.error(error);
+        toast.error('Gagal mendapatkan lokasi. Pastikan izin lokasi aktif.', { id: toastId });
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   const handleSearch = async () => {
     if (!pickup || !dropoff) {
@@ -248,6 +288,12 @@ export default function RidePage() {
                   setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng } }));
                 }}
               />
+              <button
+                onClick={handleLocateMe}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark w-full justify-end pr-1 mt-[-4px] mb-2"
+              >
+                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+              </button>
               
               <LocationAutocomplete
                 placeholder="Mau ke mana? (cth: Epicentrum Mall / Senggigi)"
