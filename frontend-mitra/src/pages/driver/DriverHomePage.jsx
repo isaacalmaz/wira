@@ -65,7 +65,38 @@ const DriverHomePage = () => {
       return;
     }
 
-    // Dengarkan orderan baru dari tabel 'orders'
+    // Fungsi untuk mencari orderan yang menggantung (pending)
+    const checkPendingOrders = async () => {
+      if (activeOrder) return; // Jangan cari jika sedang sibuk
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('status', 'pending')
+        .is('driver_id', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        // Jika ada orderan pending dan belum masuk ke state
+        setIncomingOrder(prev => {
+          if (!prev || prev.id !== data[0].id) {
+            toast.success('Ada pesanan menunggu!', { icon: '🔔' });
+            return data[0];
+          }
+          return prev;
+        });
+      }
+    };
+
+    // Cek langsung saat online/pertama kali buka
+    checkPendingOrders();
+
+    // Polling setiap 10 detik sebagai pelapis pengaman (fallback) dari WebSocket
+    const interval = setInterval(() => {
+      checkPendingOrders();
+    }, 10000);
+
+    // Dengarkan orderan baru dari tabel 'orders' via Realtime
     const channel = supabase
       .channel('driver-orders')
       .on(
@@ -82,6 +113,7 @@ const DriverHomePage = () => {
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [isOnline, activeOrder]);

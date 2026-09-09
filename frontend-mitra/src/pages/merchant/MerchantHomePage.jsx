@@ -50,6 +50,33 @@ const MerchantHomePage = () => {
       return;
     }
 
+    const checkPendingOrders = async () => {
+      if (activeOrder) return;
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('merchant_id', merchantId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setIncomingOrder(prev => {
+          if (!prev || prev.id !== data[0].id) {
+            toast.success('Ada pesanan menunggu!', { icon: '🍲' });
+            return data[0];
+          }
+          return prev;
+        });
+      }
+    };
+
+    checkPendingOrders();
+
+    const interval = setInterval(() => {
+      checkPendingOrders();
+    }, 10000);
+
     const channel = supabase
       .channel('merchant-orders')
       .on(
@@ -65,6 +92,7 @@ const MerchantHomePage = () => {
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [isOpen, activeOrder, merchantId]);
