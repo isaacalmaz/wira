@@ -23,12 +23,19 @@ export const OrderProvider = ({ children }) => {
     else if (o.service_type === 'pool') uiService = 'WiraPool';
     else if (o.service_type === 'pulsa') uiService = 'WiraPulsa';
 
+    let formattedStatus = o.status;
+    if (o.status === 'pending') formattedStatus = 'Sedang Mencari';
+    else if (o.status === 'accepted') formattedStatus = 'Dikonfirmasi';
+    else if (o.status === 'working' || o.status === 'picking_up') formattedStatus = 'Berjalan';
+    else if (o.status === 'completed') formattedStatus = 'Selesai';
+    else if (o.status === 'cancelled') formattedStatus = 'Dibatalkan';
+
     return {
       id: o.id,
       service: uiService,
       title: o.title || `Pesanan ${uiService}`,
       date: new Date(o.created_at || Date.now()).toLocaleDateString('id-ID'),
-      status: o.status === 'pending' ? 'Berjalan' : (o.status === 'completed' ? 'Selesai' : o.status),
+      status: formattedStatus,
       price: o.total_price || 0,
       rawStatus: o.status,
       details: o.details,

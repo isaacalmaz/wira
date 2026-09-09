@@ -23,6 +23,22 @@ export default function ActivityPage() {
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Helper untuk memformat details yang mungkin berisi JSON kordinat map
+  const formatOrderDetails = (detailsStr) => {
+    if (!detailsStr) return '';
+    try {
+      const parsed = JSON.parse(detailsStr);
+      // Jika ini format order dari WiraRide (ada pickup dan dropoff)
+      if (parsed.pickup && parsed.dropoff) {
+        return `${parsed.pickup.name || 'Lokasi Jemput'} ➔ ${parsed.dropoff.name || 'Tujuan'}`;
+      }
+      return detailsStr; // fallback jika json lain
+    } catch (e) {
+      // Bukan JSON, berarti plain text
+      return detailsStr;
+    }
+  };
+
   const tabs = [
     'Semua',
     'WiraRide',
@@ -119,7 +135,7 @@ export default function ActivityPage() {
                   className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
                     act.status === 'Selesai' || act.status === 'Terkonfirmasi'
                       ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : act.status === 'Sedang Diantar' || act.status === 'Sedang Disiapkan' || act.status === 'Berjalan'
+                      : act.status === 'Sedang Diantar' || act.status === 'Sedang Disiapkan' || act.status === 'Berjalan' || act.status === 'Dikonfirmasi' || act.status === 'Sedang Mencari'
                       ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 animate-pulse'
                       : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                   }`}
@@ -130,7 +146,7 @@ export default function ActivityPage() {
 
               {act.details && (
                 <p className="text-xs text-slate-500 line-clamp-1 mb-2.5 pl-12">
-                  {act.details}
+                  {formatOrderDetails(act.details)}
                 </p>
               )}
 
@@ -185,7 +201,7 @@ export default function ActivityPage() {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Rincian:</span>
                   <span className="font-medium text-slate-700 dark:text-slate-300 text-right max-w-[200px]">
-                    {selectedOrder.details}
+                    {formatOrderDetails(selectedOrder.details)}
                   </span>
                 </div>
               )}
