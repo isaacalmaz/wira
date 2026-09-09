@@ -280,7 +280,7 @@ export default function RidePage() {
       <div className="flex-1 bg-slate-200 relative rounded-2xl overflow-hidden mb-3 shadow-inner min-h-[220px]">
         <WiraMap 
           center={mapState.center} 
-          zoom={14} 
+          zoom={mapState.zoom} 
           markers={mapState.markers}
           route={mapState.route}
           onMarkerDragEnd={async (idx, latLng) => {
