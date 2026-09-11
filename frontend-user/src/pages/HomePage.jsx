@@ -190,16 +190,16 @@ export default function HomePage() {
 
       {/* Grid Layanan Utama */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 mt-6 relative z-10 px-2 sm:px-0">
-        {activeServices.filter((s) => s.enabled).map((service) => {
+        {activeServices.map((service) => {
           const IconComponent = service.icon;
             return (
               <Link
                 key={service.id}
-                to={service.path}
-                className="flex flex-col items-center gap-1.5 group"
+                to={service.enabled ? service.path : '#'}
+                className={`flex flex-col items-center gap-1.5 group ${service.enabled ? "" : "opacity-40 grayscale cursor-not-allowed"}`} onClick={(e) => { if(!service.enabled) e.preventDefault(); }}
               >
                 <div
-                  style={{ backgroundColor: service.color }}
+                  style={{ backgroundColor: service.enabled ? service.color : "#94a3b8" }}
                   className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200"
                 >
                   {IconComponent ? (
