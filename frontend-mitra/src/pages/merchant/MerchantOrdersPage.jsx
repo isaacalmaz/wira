@@ -60,7 +60,7 @@ const MerchantOrdersPage = () => {
             
             <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg mb-4 text-sm">
                <p className="text-slate-800 dark:text-slate-200 font-bold mb-1">{order.title || 'Pesanan WiraFood'}</p>
-               <p className="text-slate-600 dark:text-slate-400">{order.details || 'Tidak ada detail menu'}</p>
+               <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(order.details) || 'Tidak ada detail menu'}</p>
             </div>
 
             {tab === 'active' && (

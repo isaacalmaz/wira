@@ -5,6 +5,7 @@ import OnlineToggle from '../../components/shared/OnlineToggle';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { parseOrderDetails } from '../../utils/formatters';
 
 const MerchantHomePage = () => {
   const { user } = useAuth();
@@ -179,7 +180,7 @@ const MerchantHomePage = () => {
           
           <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-sm mb-2 border border-slate-100 dark:border-slate-700">
              <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">{activeOrder.title || 'Pesanan WiraFood'}</p>
-             <p className="text-slate-600 dark:text-slate-400">{activeOrder.details || 'Tidak ada detail menu'}</p>
+             <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(activeOrder.details) || 'Tidak ada detail menu'}</p>
           </div>
 
           <div className="flex justify-between items-center text-xl font-bold pt-2">
@@ -203,7 +204,7 @@ const MerchantHomePage = () => {
               </div>
               <Badge variant="primary" className="mb-2">{incomingOrder.title || 'Wira Food'}</Badge>
               <h2 className="text-2xl font-bold">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</h2>
-              <p className="text-slate-500 mt-2 text-sm">{incomingOrder.details || 'Pesanan baru masuk!'}</p>
+              <p className="text-slate-500 mt-2 text-sm">{parseOrderDetails(incomingOrder.details) || 'Pesanan baru masuk!'}</p>
             </div>
             
             <div className="flex gap-3">

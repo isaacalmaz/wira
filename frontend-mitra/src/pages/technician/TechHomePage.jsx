@@ -6,6 +6,7 @@ import { Calendar, Wrench, BellRing, MapPin } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { parseOrderDetails } from '../../utils/formatters';
 
 const TechHomePage = () => {
   const { user } = useAuth();
@@ -110,7 +111,7 @@ const TechHomePage = () => {
               <Badge variant="warning">{incomingOrder.title || 'Servis Panggilan'}</Badge>
               <span className="font-bold text-primary">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</span>
             </div>
-            <h3 className="font-bold mt-2">{incomingOrder.details || 'Permintaan perbaikan'}</h3>
+            <h3 className="font-bold mt-2">{parseOrderDetails(incomingOrder.details) || 'Permintaan perbaikan'}</h3>
             <p className="text-sm text-slate-500 my-1 flex items-center gap-1"><MapPin size={14}/> Mataram dan sekitarnya</p>
             <div className="flex gap-2 mt-3">
               <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
@@ -131,7 +132,7 @@ const TechHomePage = () => {
                 </div>
                 <div className="flex-1 border-l-2 border-slate-100 pl-3">
                   <p className="font-semibold">{s.title || 'Servis'}</p>
-                  <p className="text-sm text-slate-500">{s.details || '-'}</p>
+                  <p className="text-sm text-slate-500">{parseOrderDetails(s.details) || '-'}</p>
                 </div>
                 <Badge variant={s.status === 'working' ? 'primary' : 'warning'}>{s.status}</Badge>
               </div>

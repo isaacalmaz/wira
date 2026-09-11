@@ -3,6 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import { toast } from "react-hot-toast";
 import { User, Settings, LogOut, Heart, MapPin, Moon, Sun } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -18,7 +19,7 @@ export default function ProfilePage() {
         </div>
         <h2 className="text-xl font-bold dark:text-white">{user?.user_metadata?.name || user?.name || 'Pengguna Wira'}</h2>
         <p className="text-slate-500">{user?.user_metadata?.phone || user?.phone || '+62 812 3456 7890'}</p>
-        <Button variant="outline" size="sm" className="mt-4">Edit Profil</Button>
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => toast.success("Fitur edit profil segera hadir")}>Edit Profil</Button>
       </Card>
 
       <div className="space-y-2">

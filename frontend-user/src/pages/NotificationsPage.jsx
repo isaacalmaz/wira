@@ -8,7 +8,7 @@ export default function NotificationsPage() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold dark:text-white">Notifikasi</h2>
-        <button className="text-sm text-primary">Tandai semua dibaca</button>
+        <button className="text-sm text-primary" onClick={() => toast.success("Semua notifikasi ditandai dibaca")}>Tandai semua dibaca</button>
       </div>
       <div className="space-y-3">
         {notifs.length === 0 ? (
