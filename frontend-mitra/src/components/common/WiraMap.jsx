@@ -1,99 +1,135 @@
-import React, { useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker as GoogleMarker, DirectionsRenderer } from '@react-google-maps/api';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline, useMap } from 'react-leaflet';
-import { AlertCircle } from 'lucide-react';
+import { LocateFixed, MapPin, Navigation } from 'lucide-react';
+import { renderToString } from 'react-dom/server';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix Leaflet icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Custom Icons
+const createIcon = (iconComponent) => {
+  const iconHtml = renderToString(
+    <div className="flex items-center justify-center w-10 h-10 drop-shadow-md">
+      {iconComponent}
+    </div>
+  );
+  return L.divIcon({
+    html: iconHtml,
+    className: 'custom-leaflet-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40], // center bottom
+    popupAnchor: [0, -40],
+  });
+};
 
-const libraries = ['places'];
-const mapContainerStyle = { width: '100%', height: '100%' };
+const pickupIcon = createIcon(<MapPin className="text-emerald-500 fill-emerald-100 w-8 h-8" />);
+const dropoffIcon = createIcon(<MapPin className="text-red-500 fill-red-100 w-8 h-8" />);
+const driverIcon = createIcon(<Navigation className="text-slate-800 fill-yellow-400 w-8 h-8 transform rotate-45" />);
 
-// Komponen internal untuk mengupdate Leaflet saat props berubah
-const MapUpdater = ({ center, zoom }) => {
+// AutoFitter
+const MapAutoFitter = ({ markers, route }) => {
   const map = useMap();
+  
   useEffect(() => {
-    if (center) map.setView(center, zoom);
-  }, [center, zoom, map]);
+    let bounds = L.latLngBounds([]);
+    let hasPoints = false;
+    
+    if (markers && markers.length > 0) {
+      markers.forEach(m => {
+        if (m && m.lat && m.lng) {
+          bounds.extend([m.lat, m.lng]);
+          hasPoints = true;
+        }
+      });
+    }
+    
+    if (route && route.length > 0) {
+      route.forEach(coord => {
+        if (coord && coord.length >= 2) {
+          bounds.extend([coord[0], coord[1]]);
+          hasPoints = true;
+        }
+      });
+    }
+    
+    if (hasPoints && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50], animate: true, maxZoom: 18 });
+    }
+  }, [markers, route, map]);
+  
   return null;
 };
 
+// Main Map Component
 export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd }) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || '',
-    libraries,
-  });
+  const mapCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
+  const [mapInstance, setMapInstance] = useState(null);
 
-  // FALLBACK: 100% GRATIS (OPENSTREETMAP) JIKA API KEY TIDAK ADA
-  if (!apiKey) {
-    const leafletCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
-    
-    // Konversi rute jika ada (asumsi format array of [lat, lng] untuk leaflet route)
-    const leafletRoute = route && Array.isArray(route) ? route : null;
-
-    return (
-      <MapContainer center={leafletCenter} zoom={zoom} style={{ height: '100%', width: '100%', zIndex: 0 }} zoomControl={false}>
-        <MapUpdater center={leafletCenter} zoom={zoom} />
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {markers.map((m, idx) => (
-          <LeafletMarker 
-            key={idx} 
-            position={[m.lat, m.lng]} 
-            draggable={!!onMarkerDragEnd}
-            eventHandlers={{
-              dragend: (e) => {
-                if (onMarkerDragEnd) {
-                  const latLng = e.target.getLatLng();
-                  onMarkerDragEnd(idx, { lat: latLng.lat, lng: latLng.lng });
-                }
-              }
-            }}
-          >
-            <Popup>{idx === 0 ? 'Lokasi Penjemputan (Bisa digeser)' : 'Tujuan'}</Popup>
-          </LeafletMarker>
-        ))}
-        {leafletRoute && (
-          <Polyline positions={leafletRoute} color="#0ea5e9" weight={4} opacity={0.8} />
-        )}
-      </MapContainer>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center text-red-500 p-4 text-center">
-        <AlertCircle size={40} className="mb-2" />
-        <p className="font-semibold">Gagal memuat Google Maps</p>
-        <p className="text-xs mt-1">Pastikan API Key valid dan domain diizinkan.</p>
-      </div>
-    );
-  }
-
-  if (!isLoaded) return <div className="w-full h-full bg-slate-200 animate-pulse"></div>;
+  const locateUser = () => {
+    if (navigator.geolocation && mapInstance) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          mapInstance.flyTo([position.coords.latitude, position.coords.longitude], 19, { animate: true });
+        },
+        (err) => {
+          console.error("Geolocation error:", err);
+        }
+      );
+    }
+  };
 
   return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={center}
-      zoom={zoom}
-      options={{ disableDefaultUI: true, zoomControl: false }}
-    >
-      {!route && markers.map((m, idx) => (
-        <GoogleMarker key={idx} position={m} />
-      ))}
+    <div className="relative w-full h-full">
+      <MapContainer 
+        center={mapCenter} 
+        zoom={zoom} 
+        style={{ height: '100%', width: '100%', zIndex: 0 }} 
+        zoomControl={false}
+        ref={setMapInstance}
+      >
+        <MapAutoFitter markers={markers} route={route} />
+        <TileLayer 
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" 
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        />
+        
+        {markers.map((m, idx) => {
+          if (!m) return null;
+          let icon = pickupIcon;
+          if (m.type === 'dropoff') icon = dropoffIcon;
+          else if (m.type === 'driver') icon = driverIcon;
+          else if (idx === 1) icon = dropoffIcon; // fallback based on index if type not provided
+          
+          return (
+            <LeafletMarker 
+              key={idx} 
+              position={[m.lat, m.lng]} 
+              icon={icon}
+              draggable={!!onMarkerDragEnd}
+              eventHandlers={{
+                dragend: (e) => {
+                  if (onMarkerDragEnd) {
+                    const latLng = e.target.getLatLng();
+                    onMarkerDragEnd(idx, { lat: latLng.lat, lng: latLng.lng });
+                  }
+                }
+              }}
+            >
+              <Popup>{m.label || (idx === 0 ? 'Pickup' : 'Dropoff')}</Popup>
+            </LeafletMarker>
+          )
+        })}
+        {route && (
+          <Polyline positions={route} color="#0ea5e9" weight={5} opacity={0.8} />
+        )}
+      </MapContainer>
       
-      {route && (
-        <DirectionsRenderer directions={route} options={{ suppressMarkers: false }} />
-      )}
-    </GoogleMap>
+      {/* Floating Action Button */}
+      <button 
+        onClick={locateUser}
+        className="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+      >
+        <LocateFixed className="w-6 h-6 text-slate-700" />
+      </button>
+    </div>
   );
 }

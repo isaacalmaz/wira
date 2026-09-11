@@ -67,7 +67,7 @@ export const OrderProvider = ({ children }) => {
 
       // 2. Load from ecosystem store HANYA untuk guest (belum login)
       if (!user) {
-        const local = getStoredOrders();
+        const local = await getStoredOrders();
         setOrders(local.map(mapDbOrderToUi));
       }
     };

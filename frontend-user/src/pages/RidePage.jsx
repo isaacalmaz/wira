@@ -275,9 +275,9 @@ export default function RidePage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] max-w-4xl mx-auto">
+    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden w-full max-w-md mx-auto bg-slate-50 dark:bg-slate-900">
       {/* Area Peta Interaktif */}
-      <div className="flex-1 bg-slate-200 relative rounded-2xl overflow-hidden mb-3 shadow-inner min-h-[220px]">
+      <div className="absolute inset-0 z-0 bg-slate-200">
         <WiraMap 
           center={mapState.center} 
           zoom={mapState.zoom} 
@@ -358,7 +358,9 @@ export default function RidePage() {
       </div>
 
       {/* Bagian Bawah: Aksi & Langkah Pemesanan */}
-      <div className="shrink-0 bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="absolute bottom-0 w-full z-10 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] border-t border-white/20 dark:border-slate-700/50 flex flex-col max-h-[75vh]">
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-3 shrink-0"></div>
+        <div className="flex-1 overflow-y-auto pb-6">
         {/* LANGKAH 1: PILIH TUJUAN CEPAT */}
         {step === 'input' && (
           <div className="p-5 space-y-3">
@@ -651,6 +653,7 @@ export default function RidePage() {
         )}
       </div>
 
+      </div>
       {isChatOpen && activeOrderId && (
         <ChatModal
           orderId={activeOrderId}
