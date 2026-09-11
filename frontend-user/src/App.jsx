@@ -26,6 +26,7 @@ import PulsaPage from './pages/PulsaPage';
 import VillaPage from './pages/VillaPage';
 import ServicePage from './pages/ServicePage';
 import PoolPage from './pages/PoolPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
 export default function Root() {
   return (
@@ -44,6 +45,7 @@ export default function Root() {
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         <Route path="/otp" element={<OTPPage />} />
+                        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
                         {/* Pelanggan (User) Main Layout & Services */}
                         <Route element={<Layout />}>
