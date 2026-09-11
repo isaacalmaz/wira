@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders } from 'lucide-react';
+import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X } from 'lucide-react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 
 const INITIAL_FEATURES = [
   { id: 'wira_ride', name: 'WiraRide (Ojek & Taksi Online)', status: true, regions: ['Semua Wilayah'] },
@@ -14,6 +19,114 @@ const INITIAL_FEATURES = [
   { id: 'wira_pool', name: 'WiraPool (Tebengan Bersama)', status: false, regions: [] },
 ];
 
+const MapContent = ({ initialGeojson, onSaveMap }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    map.pm.addControls({
+      position: 'topleft',
+      drawMarker: false,
+      drawCircleMarker: false,
+      drawPolyline: false,
+      drawRectangle: false,
+      drawCircle: false,
+      drawText: false,
+      editMode: true,
+      dragMode: true,
+      cutPolygon: false,
+      removalMode: true,
+    });
+
+    if (initialGeojson) {
+      try {
+        const layer = L.geoJSON(initialGeojson).addTo(map);
+        if (layer.getBounds().isValid()) {
+          map.fitBounds(layer.getBounds());
+        }
+      } catch (err) {
+        console.error('Invalid initial GeoJSON', err);
+      }
+    }
+
+    return () => {
+      map.pm.removeControls();
+    };
+  }, [map, initialGeojson]);
+
+  useEffect(() => {
+    const handleSave = () => {
+      const pmLayers = map.pm.getGeomanLayers();
+      const features = pmLayers.map(l => {
+        const geojson = l.toGeoJSON();
+        // toGeoJSON doesn't always keep options or properties, but geometry is what we care about
+        return geojson;
+      });
+      let geojsonToSave = null;
+      if (features.length > 0) {
+        geojsonToSave = {
+          type: 'FeatureCollection',
+          features: features
+        };
+      }
+      onSaveMap(geojsonToSave);
+    };
+
+    const SaveControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+        const btn = L.DomUtil.create('button', 'px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded', container);
+        btn.innerHTML = 'Simpan Batas';
+        btn.style.cursor = 'pointer';
+        btn.onclick = function(e) {
+          L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
+          handleSave();
+        };
+        return container;
+      }
+    });
+    const saveControl = new SaveControl();
+    map.addControl(saveControl);
+
+    return () => {
+      map.removeControl(saveControl);
+    };
+  }, [map, onSaveMap]);
+
+  return null;
+};
+
+const MapModal = ({ zone, onClose, onSaveMap }) => {
+  return (
+    <div className="fixed inset-0 z-[9999] bg-slate-900/80 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+            📍 Gambar Batas Peta: {zone.name}
+          </h3>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="flex-1 relative">
+          <MapContainer 
+            center={[-8.5830695, 116.1165279]} // Lombok center
+            zoom={10} 
+            className="w-full h-full"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapContent initialGeojson={zone.geojson} onSaveMap={onSaveMap} />
+          </MapContainer>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FeatureFlagsPage = () => {
   const [features, setFeatures] = useState(INITIAL_FEATURES);
   const [zones, setZones] = useState([]);
@@ -21,43 +134,30 @@ const FeatureFlagsPage = () => {
   const [saving, setSaving] = useState(false);
   const [showAddZone, setShowAddZone] = useState(false);
   const [newZone, setNewZone] = useState({ name: '', status_text: '' });
-
-  const handleAddZone = () => {
-    if (!newZone.name) return toast.error('Nama wilayah harus diisi');
-    const id = newZone.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    if (zones.some(z => z.id === id)) return toast.error('Wilayah sudah ada');
-    const zoneToAdd = {
-      id,
-      name: newZone.name,
-      status_text: newZone.status_text || 'Zona Baru',
-      services: { ride: false, food: false, send: false, villa: false, service: false, pay: false, pulsa: false, pool: false }
-    };
-    setZones([...zones, zoneToAdd]);
-    setShowAddZone(false);
-    setNewZone({ name: '', status_text: '' });
-    toast.success('Wilayah ditambahkan. Klik Simpan Perubahan untuk mengunci ke database.');
-  };
+  
+  // Geofencing state
+  const [activeMapZone, setActiveMapZone] = useState(null);
 
   const fetchFeatures = async () => {
     setLoading(true);
     try {
       const [configRes, zonesRes] = await Promise.all([
         supabase.from('feature_flags').select('*').eq('region', 'features_config').maybeSingle(),
-        supabase.from('feature_flags').select('*').eq('region', 'operational_zones').maybeSingle()
+        supabase.from('operational_zones').select('*').order('created_at', { ascending: true })
       ]);
 
       if (configRes.error && configRes.error.code !== 'PGRST116') throw configRes.error;
-      if (zonesRes.error && zonesRes.error.code !== 'PGRST116') throw zonesRes.error;
+      if (zonesRes.error) throw zonesRes.error;
 
       if (configRes.data && Array.isArray(configRes.data.features) && configRes.data.features.length > 0) {
         setFeatures(configRes.data.features);
       }
       
-      if (zonesRes.data && Array.isArray(zonesRes.data.features) && zonesRes.data.features.length > 0) {
-        setZones(zonesRes.data.features);
+      if (zonesRes.data) {
+        setZones(zonesRes.data);
       }
     } catch (err) {
-      console.error('Error fetching feature flags:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -67,25 +167,80 @@ const FeatureFlagsPage = () => {
     fetchFeatures();
   }, []);
 
+  const handleAddZone = async () => {
+    if (!newZone.name) return toast.error('Nama wilayah harus diisi');
+    const id = newZone.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    if (zones.some(z => z.id === id)) return toast.error('Wilayah sudah ada');
+    
+    const zoneToAdd = {
+      id,
+      name: newZone.name,
+      status_text: newZone.status_text || 'Zona Baru',
+      services: { ride: false, food: false, send: false, villa: false, service: false, pay: false, pulsa: false, pool: false },
+      is_active: true
+    };
+    
+    try {
+      const { error } = await supabase.from('operational_zones').insert([zoneToAdd]);
+      if (error) throw error;
+      setZones([...zones, zoneToAdd]);
+      setShowAddZone(false);
+      setNewZone({ name: '', status_text: '' });
+      toast.success('Wilayah berhasil ditambahkan.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menambahkan wilayah');
+    }
+  };
+
   const toggleFeature = (id) => {
     setFeatures(features.map(f => 
       f.id === id ? { ...f, status: !f.status } : f
     ));
   };
 
-  const toggleZoneService = (zoneId, serviceKey) => {
-    setZones(zones.map(z => {
-      if (z.id === zoneId) {
-        return {
-          ...z,
-          services: {
-            ...z.services,
-            [serviceKey]: !z.services[serviceKey]
-          }
-        };
-      }
-      return z;
-    }));
+  const toggleZoneService = async (zoneId, serviceKey) => {
+    const zone = zones.find(z => z.id === zoneId);
+    if (!zone) return;
+    
+    const updatedServices = {
+      ...zone.services,
+      [serviceKey]: !zone.services[serviceKey]
+    };
+    
+    setZones(zones.map(z => z.id === zoneId ? { ...z, services: updatedServices } : z));
+    
+    try {
+      const { error } = await supabase
+        .from('operational_zones')
+        .update({ services: updatedServices })
+        .eq('id', zoneId);
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengubah layanan wilayah');
+      fetchFeatures(); // revert on error
+    }
+  };
+
+  const handleSaveMap = async (geojson) => {
+    if (!activeMapZone) return;
+    
+    try {
+      const { error } = await supabase
+        .from('operational_zones')
+        .update({ geojson: geojson })
+        .eq('id', activeMapZone.id);
+        
+      if (error) throw error;
+      
+      toast.success('Batas wilayah berhasil disimpan!');
+      setZones(zones.map(z => z.id === activeMapZone.id ? { ...z, geojson } : z));
+      setActiveMapZone(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menyimpan batas wilayah');
+    }
   };
 
   const handleSave = async () => {
@@ -101,22 +256,10 @@ const FeatureFlagsPage = () => {
 
       if (configError) throw configError;
 
-      const { error: zonesError } = await supabase
-        .from('feature_flags')
-        .upsert({
-          region: 'operational_zones',
-          features: zones,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'region' });
-
-      if (zonesError) throw zonesError;
-
-      toast.success('Konfigurasi fitur & wilayah berhasil disimpan ke cloud!');
+      toast.success('Konfigurasi fitur global berhasil disimpan ke cloud!');
     } catch (err) {
-      console.warn('Sync error, saving locally:', err);
-      localStorage.setItem('wira_features_config', JSON.stringify(features));
-      localStorage.setItem('wira_operational_zones', JSON.stringify(zones));
-      toast.success('Konfigurasi fitur disimpan secara lokal');
+      console.error(err);
+      toast.error('Gagal menyimpan konfigurasi');
     } finally {
       setSaving(false);
     }
@@ -124,6 +267,14 @@ const FeatureFlagsPage = () => {
 
   return (
     <div className="space-y-6">
+      {activeMapZone && (
+        <MapModal 
+          zone={activeMapZone} 
+          onClose={() => setActiveMapZone(null)} 
+          onSaveMap={handleSaveMap} 
+        />
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -144,7 +295,7 @@ const FeatureFlagsPage = () => {
             disabled={saving}
             className="btn-primary flex items-center gap-2"
           >
-            <Save size={18} /> {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            <Save size={18} /> {saving ? 'Menyimpan...' : 'Simpan Konfigurasi Global'}
           </button>
         </div>
       </div>
@@ -222,9 +373,18 @@ const FeatureFlagsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {zones.map((zone) => (
               <div key={zone.id} className="card p-5 bg-white dark:bg-slate-800 shadow rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col">
-                <div className="mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
+                <div className="mb-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
+                    <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveMapZone(zone)}
+                    className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1 text-xs font-medium"
+                    title="Gambar Batas Peta"
+                  >
+                    <MapIcon size={16} /> <span>Peta</span>
+                  </button>
                 </div>
                 <div className="space-y-4 flex-1">
                   {zone.services && Object.keys(zone.services).map((serviceKey) => (
