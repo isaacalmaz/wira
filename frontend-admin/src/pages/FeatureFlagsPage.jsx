@@ -16,22 +16,27 @@ const INITIAL_FEATURES = [
 
 const FeatureFlagsPage = () => {
   const [features, setFeatures] = useState(INITIAL_FEATURES);
+  const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchFeatures = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('feature_flags')
-        .select('*')
-        .eq('region', 'features_config')
-        .maybeSingle();
+      const [configRes, zonesRes] = await Promise.all([
+        supabase.from('feature_flags').select('*').eq('region', 'features_config').maybeSingle(),
+        supabase.from('feature_flags').select('*').eq('region', 'operational_zones').maybeSingle()
+      ]);
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (configRes.error && configRes.error.code !== 'PGRST116') throw configRes.error;
+      if (zonesRes.error && zonesRes.error.code !== 'PGRST116') throw zonesRes.error;
 
-      if (data && Array.isArray(data.features) && data.features.length > 0) {
-        setFeatures(data.features);
+      if (configRes.data && Array.isArray(configRes.data.features) && configRes.data.features.length > 0) {
+        setFeatures(configRes.data.features);
+      }
+      
+      if (zonesRes.data && Array.isArray(zonesRes.data.features) && zonesRes.data.features.length > 0) {
+        setZones(zonesRes.data.features);
       }
     } catch (err) {
       console.error('Error fetching feature flags:', err);
@@ -50,10 +55,25 @@ const FeatureFlagsPage = () => {
     ));
   };
 
+  const toggleZoneService = (zoneId, serviceKey) => {
+    setZones(zones.map(z => {
+      if (z.id === zoneId) {
+        return {
+          ...z,
+          services: {
+            ...z.services,
+            [serviceKey]: !z.services[serviceKey]
+          }
+        };
+      }
+      return z;
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error: configError } = await supabase
         .from('feature_flags')
         .upsert({
           region: 'features_config',
@@ -61,11 +81,23 @@ const FeatureFlagsPage = () => {
           updated_at: new Date().toISOString()
         }, { onConflict: 'region' });
 
-      if (error) throw error;
-      toast.success('Konfigurasi fitur berhasil disimpan ke cloud!');
+      if (configError) throw configError;
+
+      const { error: zonesError } = await supabase
+        .from('feature_flags')
+        .upsert({
+          region: 'operational_zones',
+          features: zones,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'region' });
+
+      if (zonesError) throw zonesError;
+
+      toast.success('Konfigurasi fitur & wilayah berhasil disimpan ke cloud!');
     } catch (err) {
       console.warn('Sync error, saving locally:', err);
       localStorage.setItem('wira_features_config', JSON.stringify(features));
+      localStorage.setItem('wira_operational_zones', JSON.stringify(zones));
       toast.success('Konfigurasi fitur disimpan secara lokal');
     } finally {
       setSaving(false);
@@ -100,13 +132,15 @@ const FeatureFlagsPage = () => {
       </div>
       
       <div className="card overflow-hidden p-0">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Layanan Global</h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Layanan & Fitur</th>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Status Saklar</th>
-                <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Wilayah Berlaku</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -131,24 +165,50 @@ const FeatureFlagsPage = () => {
                       {feature.status ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1.5">
-                      {feature.regions && feature.regions.length > 0 ? (
-                        feature.regions.map(region => (
-                          <span key={region} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-xs">
-                            {region}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Nonaktif secara global</span>
-                      )}
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Manajemen Wilayah Operasional</h2>
+        {zones.length === 0 ? (
+          <div className="p-6 text-center text-slate-500 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            {loading ? 'Memuat data wilayah...' : 'Tidak ada data wilayah operasional.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {zones.map((zone) => (
+              <div key={zone.id} className="card p-5 bg-white dark:bg-slate-800 shadow rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+                <div className="mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
+                </div>
+                <div className="space-y-4 flex-1">
+                  {zone.services && Object.keys(zone.services).map((serviceKey) => (
+                    <div key={serviceKey} className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
+                        {serviceKey}
+                      </span>
+                      <button 
+                        onClick={() => toggleZoneService(zone.id, serviceKey)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                          zone.services[serviceKey] ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
+                          zone.services[serviceKey] ? 'translate-x-5' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
