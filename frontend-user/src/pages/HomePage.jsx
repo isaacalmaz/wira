@@ -14,7 +14,7 @@ export default function HomePage() {
   const { t, lang } = useTranslation();
   const { balance } = useWallet();
   const { orders } = useOrders();
-  const [activeServices, setActiveServices] = useState(SERVICES);
+  const [activeServices, setActiveServices] = useState(SERVICES.map(s => ({ ...s, enabled: false })));
 
   const [globalFlags, setGlobalFlags] = useState([]);
   const [userZones, setUserZones] = useState(null);
