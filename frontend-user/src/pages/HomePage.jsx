@@ -16,34 +16,128 @@ export default function HomePage() {
   const { orders } = useOrders();
   const [activeServices, setActiveServices] = useState(SERVICES);
 
+  const [globalFlags, setGlobalFlags] = useState([]);
+  const [userZones, setUserZones] = useState(null);
+  const [locationWarning, setLocationWarning] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+
   useEffect(() => {
-    // Ambil konfigurasi awal
-    const fetchFlags = async () => {
+    let currentGlobalFlags = [];
+
+    const updateServices = (flags, zones) => {
+      const updatedServices = SERVICES.map(srv => {
+        // 1. Cek Global Flag
+        const flag = flags.find(f => f.id === srv.id);
+        const isGloballyEnabled = flag ? flag.status : srv.enabled;
+
+        // 2. Cek Zone Services
+        let isZoneEnabled = false;
+        if (zones && zones.length > 0) {
+          const serviceKey = srv.id.replace('wira_', '');
+          isZoneEnabled = zones.some(zone => zone.services && zone.services[serviceKey] === true);
+        }
+
+        // 3. Intersect (hanya aktif jika global aktif DAN zona aktif)
+        // Jika tidak ada zona (di luar jangkauan/izin ditolak), semua layanan dimatikan kecuali mungkin yang tidak bergantung lokasi (tapi sesuai instruksi: "disable the respective services").
+        return { ...srv, enabled: isGloballyEnabled && isZoneEnabled };
+      });
+      setActiveServices(updatedServices);
+    };
+
+    const fetchGlobalFlags = async () => {
       const { data, error } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
       console.log("FEATURE FLAGS FETCH:", { data, error });
-      if (data && data.features) applyFlags(data.features);
+      if (data && data.features) {
+        currentGlobalFlags = data.features;
+        setGlobalFlags(data.features);
+      }
+      return currentGlobalFlags;
     };
-    fetchFlags();
+
+    const fetchLocationAndZones = async (flags) => {
+      if (!navigator.geolocation) {
+        setLocationWarning('Geolocation tidak didukung browser ini.');
+        updateServices(flags, []);
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const { data: zones, error: rpcError } = await supabase.rpc('get_zone_for_location', { lat: latitude, lng: longitude });
+            if (rpcError) throw rpcError;
+
+            if (!zones || zones.length === 0) {
+              setLocationWarning('Lokasi di luar jangkauan operasional Wira.');
+              setUserZones([]);
+              updateServices(flags, []);
+            } else {
+              setLocationWarning(null);
+              setUserZones(zones);
+              updateServices(flags, zones);
+            }
+          } catch (err) {
+            console.error("RPC Error:", err);
+            setLocationWarning('Gagal memverifikasi area operasional.');
+            setUserZones([]);
+            updateServices(flags, []);
+          } finally {
+            setIsLoadingLocation(false);
+          }
+        },
+        (err) => {
+          console.error("GPS Error:", err);
+          setLocationWarning('Izin lokasi ditolak atau tidak tersedia.');
+          setUserZones([]);
+          updateServices(flags, []);
+          setIsLoadingLocation(false);
+        },
+        { timeout: 10000 }
+      );
+    };
+
+    const init = async () => {
+      const flags = await fetchGlobalFlags();
+      fetchLocationAndZones(flags);
+    };
+
+    init();
 
     const channel = supabase.channel('feature_flags_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_flags', filter: "region=eq.features_config" }, (payload) => {
         console.log("REALTIME PAYLOAD:", payload);
-        if (payload.new && payload.new.features) applyFlags(payload.new.features);
+        if (payload.new && payload.new.features) {
+          setGlobalFlags(payload.new.features);
+          // Gunakan userZones dari state closure via functional state update atau reference (we will re-evaluate on render instead)
+        }
       })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
   }, []);
 
-  const applyFlags = (flags) => {
-    // Update SERVICES array based on flags status
-    const updatedServices = SERVICES.map(srv => {
-      const flag = flags.find(f => f.id === srv.id);
-      return { ...srv, enabled: flag ? flag.status : srv.enabled };
-    });
-    console.log("UPDATED SERVICES:", updatedServices.filter(s => s.enabled).map(s => s.id));
-    setActiveServices(updatedServices);
-  };
+  useEffect(() => {
+    if (!isLoadingLocation) {
+       const updateServices = () => {
+          const updatedServices = SERVICES.map(srv => {
+            const flag = globalFlags.find(f => f.id === srv.id);
+            const isGloballyEnabled = flag ? flag.status : srv.enabled;
+
+            let isZoneEnabled = false;
+            if (userZones && userZones.length > 0) {
+              const serviceKey = srv.id.replace('wira_', '');
+              isZoneEnabled = userZones.some(zone => zone.services && zone.services[serviceKey] === true);
+            }
+
+            return { ...srv, enabled: isGloballyEnabled && isZoneEnabled };
+          });
+          setActiveServices(updatedServices);
+       };
+       updateServices();
+    }
+  }, [globalFlags, userZones, isLoadingLocation]);
 
   const recentOrders = orders.slice(0, 3);
 
@@ -75,6 +169,24 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Lokasi / Peringatan Geofencing */}
+      {isLoadingLocation && (
+        <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-center flex items-center justify-center gap-2">
+           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+           <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Menentukan lokasi Anda...</span>
+        </div>
+      )}
+      
+      {!isLoadingLocation && locationWarning && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-xl flex items-start gap-3">
+          <Navigation className="text-red-500 shrink-0 mt-0.5" size={18} />
+          <div>
+            <p className="text-sm font-bold text-red-700 dark:text-red-400">Lokasi Terbatas</p>
+            <p className="text-xs text-red-600 dark:text-red-300 mt-0.5">{locationWarning}</p>
+          </div>
+        </div>
+      )}
 
       {/* Grid Layanan Utama */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 mt-6 relative z-10 px-2 sm:px-0">
