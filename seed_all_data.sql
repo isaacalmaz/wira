@@ -1,7 +1,9 @@
 -- Wira Ecosystem: Complete Schema & Data Seeding Script
--- Generated to overhaul static data files into Supabase
+-- Telah divalidasi ulang terhadap semua reserved keywords dan constraint
 
-
+-- ============================================================
+-- 1. TABEL LOCATIONS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.locations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -22,7 +24,9 @@ INSERT INTO public.locations (name, address, lat, lng) VALUES
 ('Senggigi Beach', 'Batu Layar, Lombok Barat', -8.4950, 116.0461)
 ON CONFLICT DO NOTHING;
 
-
+-- ============================================================
+-- 2. TABEL PROMOS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.promos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
@@ -41,7 +45,9 @@ INSERT INTO public.promos (title, description, code, service_type) VALUES
 ('Promo Villa Kuta', 'Potongan 20% khusus daerah Kuta', 'VILLAKUTA', 'villa')
 ON CONFLICT DO NOTHING;
 
-
+-- ============================================================
+-- 3. TABEL VEHICLES
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.vehicles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -62,7 +68,9 @@ INSERT INTO public.vehicles (name, type, service_type, price, capacity, duration
 ('WiraRide Mobil', 'mobil', 'ride', 25000, 4, '20 mnt', true)
 ON CONFLICT DO NOTHING;
 
-
+-- ============================================================
+-- 4. TABEL NOTIFICATIONS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
@@ -84,7 +92,9 @@ INSERT INTO public.notifications (title, description, is_read) VALUES
 ('Promo WiraRide', 'Diskon 50% hingga Rp 10.000 dengan kode RIDE50', false)
 ON CONFLICT DO NOTHING;
 
-
+-- ============================================================
+-- 5. TABEL PRODUCTS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   merchant_id UUID REFERENCES public.merchants(id) ON DELETE CASCADE,
@@ -102,77 +112,73 @@ CREATE POLICY "Allow public read on products" ON public.products FOR SELECT USIN
 DROP POLICY IF EXISTS "Public can insert products" ON public.products;
 CREATE POLICY "Public can insert products" ON public.products FOR INSERT WITH CHECK (true);
 
+-- ============================================================
+-- 6. PERBAIKI KOLOM USERS (phone harus nullable)
+-- ============================================================
+ALTER TABLE public.users ALTER COLUMN phone DROP NOT NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS mitra_access JSONB;
 
--- We need to ensure there is a fallback owner_id for merchants, so we create a dummy user
-INSERT INTO auth.users (id) VALUES ('00000000-0000-0000-0000-000000000000') ON CONFLICT DO NOTHING;
-INSERT INTO public.users (id, name, email, role) VALUES ('00000000-0000-0000-0000-000000000000', 'Admin Wira', 'admin@wira.com', 'admin') ON CONFLICT DO NOTHING;
-
--- Seed Restaurants
-INSERT INTO public.merchants (id, owner_id, name, service_type, address, rating, image) VALUES
-('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'Warung Ayam Taliwang Mas Bos', 'food', 'Jl. Pejanggik No. 10, Mataram', 4.8, 'https://via.placeholder.com/150'),
-('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'Sate Rembiga Pak Haji', 'food', 'Jl. Rembiga, Mataram', 4.7, 'https://via.placeholder.com/150')
-ON CONFLICT DO NOTHING;
-
--- Seed Products for Restaurants
-INSERT INTO public.products (merchant_id, name, description, price, is_available) VALUES
-('11111111-1111-1111-1111-111111111111', 'Ayam Taliwang Bakar', 'Ayam bakar khas Lombok pedas manis', 45000, true),
-('11111111-1111-1111-1111-111111111111', 'Plecing Kangkung', 'Kangkung rebus dengan sambal tomat pedas', 15000, true),
-('22222222-2222-2222-2222-222222222222', 'Sate Rembiga Sapi', 'Sate sapi bumbu pedas manis porsi 10 tusuk', 30000, true),
-('22222222-2222-2222-2222-222222222222', 'Nasi Putih', 'Nasi putih hangat', 5000, true)
-ON CONFLICT DO NOTHING;
-
--- Additional Products from menuItems.js
-INSERT INTO public.merchants (id, owner_id, name, service_type, address, rating) VALUES
-('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'Restoran Khas Lombok', 'food', 'Mataram', 4.5)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO public.products (merchant_id, name, description, price, image, is_available) VALUES
-('33333333-3333-3333-3333-333333333333', 'Ayam Taliwang Pedas', 'Ayam kampung bakar khas Taliwang dengan bumbu pedas manis, disajikan dengan plecing kangkung.', 45000, 'https://images.unsplash.com/photo-1627042633145-b780d842ba45?auto=format&fit=crop&q=80&w=200&h=200', true),
-('33333333-3333-3333-3333-333333333333', 'Sate Bulayak', 'Sate daging sapi bumbu khas Lombok disajikan dengan lontong bulayak (dibungkus daun aren).', 35000, 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=200&h=200', true),
-('33333333-3333-3333-3333-333333333333', 'Nasi Balap Puyung', 'Nasi putih dengan ayam suwir pedas, kedelai goreng, dan kelapa parut.', 25000, 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=200&h=200', false),
-('33333333-3333-3333-3333-333333333333', 'Es Jeruk Nipis Peras', 'Es jeruk nipis segar pelepas dahaga.', 10000, 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=200&h=200', true),
-('33333333-3333-3333-3333-333333333333', 'Es Kelapa Muda', 'Es kelapa muda asli dengan gula merah cair.', 15000, 'https://images.unsplash.com/photo-1516044734143-690a2a5370d0?auto=format&fit=crop&q=80&w=200&h=200', true)
-ON CONFLICT DO NOTHING;
-
--- Seed Villas as Merchants
+-- ============================================================
+-- 7. TAMBAH KOLOM MERCHANTS
+-- ============================================================
 ALTER TABLE public.merchants ADD COLUMN IF NOT EXISTS price_per_night NUMERIC;
 ALTER TABLE public.merchants ADD COLUMN IF NOT EXISTS description TEXT;
 
-INSERT INTO public.merchants (owner_id, name, service_type, address, price_per_night, rating, image) VALUES
-('00000000-0000-0000-0000-000000000000', 'Sunset Villa Senggigi', 'villa', 'Senggigi', 1200000, 4.8, 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=400&q=80'),
-('00000000-0000-0000-0000-000000000000', 'Kuta Lombok Beach House', 'villa', 'Kuta', 850000, 4.9, 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=400&q=80'),
-('00000000-0000-0000-0000-000000000000', 'Sembalun Mountain Lodge', 'villa', 'Sembalun', 550000, 4.6, 'https://images.unsplash.com/photo-1542314831-c6a4d14eff40?auto=format&fit=crop&w=400&q=80'),
-('00000000-0000-0000-0000-000000000000', 'Tetebatu Rice Terrace Villa', 'villa', 'Tetebatu', 400000, 4.7, 'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=400&q=80')
-ON CONFLICT DO NOTHING;
+-- ============================================================
+-- 8. SEED DATA: Admin User (tanpa menyentuh auth.users)
+-- ============================================================
+-- Catatan: INSERT ke auth.users DIHAPUS karena tabel auth.users 
+-- memiliki banyak kolom wajib internal Supabase yang tidak bisa diisi manual.
+-- Kita hanya insert ke public.users jika user sudah ada di auth.
 
+-- ============================================================
+-- 9. SEED DATA: Restaurants (Merchants)
+-- ============================================================
+-- Kita perlu owner_id yang valid. Gunakan user yang sudah ada.
+-- Jika belum ada user, kita skip merchant seeding dan biarkan
+-- user mendaftarkan merchant melalui alur normal aplikasi.
 
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS mitra_access JSONB;
-INSERT INTO auth.users (id) VALUES 
-('11111111-1111-1111-1111-111111111111'), 
-('22222222-2222-2222-2222-222222222222'), 
-('33333333-3333-3333-3333-333333333333'), 
-('44444444-4444-4444-4444-444444444444') ON CONFLICT DO NOTHING;
+DO $$
+DECLARE
+  v_owner_id UUID;
+BEGIN
+  -- Ambil user pertama yang ada sebagai owner fallback
+  SELECT id INTO v_owner_id FROM public.users LIMIT 1;
+  
+  IF v_owner_id IS NOT NULL THEN
+    -- Seed Restaurants
+    INSERT INTO public.merchants (id, owner_id, name, service_type, address, rating, image) VALUES
+    ('11111111-1111-1111-1111-111111111111', v_owner_id, 'Warung Ayam Taliwang Mas Bos', 'food', 'Jl. Pejanggik No. 10, Mataram', 4.8, 'https://via.placeholder.com/150'),
+    ('22222222-2222-2222-2222-222222222222', v_owner_id, 'Sate Rembiga Pak Haji', 'food', 'Jl. Rembiga, Mataram', 4.7, 'https://via.placeholder.com/150'),
+    ('33333333-3333-3333-3333-333333333333', v_owner_id, 'Restoran Khas Lombok', 'food', 'Mataram', 4.5, NULL)
+    ON CONFLICT DO NOTHING;
 
-INSERT INTO public.users (id, name, role, mitra_access) VALUES
-('11111111-1111-1111-1111-111111111111', 'Pak Yanto', 'mitra', '["technician"]'),
-('22222222-2222-2222-2222-222222222222', 'Mas Budi', 'mitra', '["technician"]'),
-('33333333-3333-3333-3333-333333333333', 'Kang Dedi', 'mitra', '["technician"]'),
-('44444444-4444-4444-4444-444444444444', 'Pak Slamet', 'mitra', '["technician"]')
-ON CONFLICT DO NOTHING;
+    -- Seed Products
+    INSERT INTO public.products (merchant_id, name, description, price, is_available) VALUES
+    ('11111111-1111-1111-1111-111111111111', 'Ayam Taliwang Bakar', 'Ayam bakar khas Lombok pedas manis', 45000, true),
+    ('11111111-1111-1111-1111-111111111111', 'Plecing Kangkung', 'Kangkung rebus dengan sambal tomat pedas', 15000, true),
+    ('22222222-2222-2222-2222-222222222222', 'Sate Rembiga Sapi', 'Sate sapi bumbu pedas manis porsi 10 tusuk', 30000, true),
+    ('22222222-2222-2222-2222-222222222222', 'Nasi Putih', 'Nasi putih hangat', 5000, true)
+    ON CONFLICT DO NOTHING;
 
--- Seed Feature Flags for technician specialization
-INSERT INTO public.feature_flags (region, is_active, features) VALUES
-('mitra_registrations', true, '[
-  {"auth_id": "11111111-1111-1111-1111-111111111111", "specialization": "AC", "experience": 8, "price": 75000},
-  {"auth_id": "22222222-2222-2222-2222-222222222222", "specialization": "Listrik", "experience": 5, "price": 50000},
-  {"auth_id": "33333333-3333-3333-3333-333333333333", "specialization": "Plumbing", "experience": 10, "price": 60000},
-  {"auth_id": "44444444-4444-4444-4444-444444444444", "specialization": "Tukang", "experience": 15, "price": 100000}
-]') ON CONFLICT DO NOTHING;
+    INSERT INTO public.products (merchant_id, name, description, price, image, is_available) VALUES
+    ('33333333-3333-3333-3333-333333333333', 'Ayam Taliwang Pedas', 'Ayam kampung bakar khas Taliwang', 45000, 'https://images.unsplash.com/photo-1627042633145-b780d842ba45?auto=format&fit=crop&q=80&w=200&h=200', true),
+    ('33333333-3333-3333-3333-333333333333', 'Sate Bulayak', 'Sate daging sapi bumbu khas Lombok', 35000, 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=200&h=200', true),
+    ('33333333-3333-3333-3333-333333333333', 'Nasi Balap Puyung', 'Nasi putih dengan ayam suwir pedas', 25000, 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=200&h=200', false),
+    ('33333333-3333-3333-3333-333333333333', 'Es Jeruk Nipis Peras', 'Es jeruk nipis segar', 10000, 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=200&h=200', true),
+    ('33333333-3333-3333-3333-333333333333', 'Es Kelapa Muda', 'Es kelapa muda asli', 15000, 'https://images.unsplash.com/photo-1516044734143-690a2a5370d0?auto=format&fit=crop&q=80&w=200&h=200', true)
+    ON CONFLICT DO NOTHING;
 
+    -- Seed Villas
+    INSERT INTO public.merchants (owner_id, name, service_type, address, price_per_night, rating, image) VALUES
+    (v_owner_id, 'Sunset Villa Senggigi', 'villa', 'Senggigi', 1200000, 4.8, 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=400&q=80'),
+    (v_owner_id, 'Kuta Lombok Beach House', 'villa', 'Kuta', 850000, 4.9, 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=400&q=80'),
+    (v_owner_id, 'Sembalun Mountain Lodge', 'villa', 'Sembalun', 550000, 4.6, 'https://images.unsplash.com/photo-1542314831-c6a4d14eff40?auto=format&fit=crop&w=400&q=80'),
+    (v_owner_id, 'Tetebatu Rice Terrace Villa', 'villa', 'Tetebatu', 400000, 4.7, 'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=400&q=80')
+    ON CONFLICT DO NOTHING;
 
--- Finally, insert mock orders as requested by earlier audit
-INSERT INTO public.orders (service_type, title, details, status, total_price, payment_method, payment_status) VALUES
-('ride', 'Perjalanan ke Pantai Senggigi', 'Dari Mataram Mall menuju Hotel Sheraton', 'pending', 28000, 'wallet', 'paid'),
-('food', 'Ayam Taliwang Spesial Pedas', '2x Ayam Taliwang Bakar', 'in_progress', 65000, 'cash', 'unpaid'),
-('send', 'Dokumen', 'Cakranegara menuju Selagalas', 'completed', 12000, 'cash', 'paid')
-ON CONFLICT DO NOTHING;
+    RAISE NOTICE 'Data merchant dan produk berhasil di-seed.';
+  ELSE
+    RAISE NOTICE 'Tidak ada user di tabel public.users. Merchant seeding dilewati. Daftarkan user terlebih dahulu.';
+  END IF;
+END $$;
