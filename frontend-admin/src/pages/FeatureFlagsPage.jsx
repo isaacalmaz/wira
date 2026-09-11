@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X } from 'lucide-react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
@@ -28,94 +28,75 @@ const INITIAL_FEATURES = [
   { id: 'wira_pool', name: 'WiraPool (Tebengan Bersama)', status: false, regions: [] },
 ];
 
-const MapContent = ({ initialGeojson, onSaveMap }) => {
-  const map = useMap();
+const MapModal = ({ zone, onClose, onSaveMap }) => {
+  const mapRef = React.useRef(null);
+  const mapInstance = React.useRef(null);
 
-  useEffect(() => {
-    try {
-      if (map && map.pm) {
-        map.pm.addControls({
-          position: 'topleft',
-          drawMarker: false,
-          drawCircleMarker: false,
-          drawPolyline: false,
-          drawRectangle: false,
-          drawCircle: false,
-          drawText: false,
-          editMode: true,
-          dragMode: true,
-          cutPolygon: false,
-          removalMode: true,
-        });
-      }
+  React.useEffect(() => {
+    if (!mapRef.current) return;
 
-      if (initialGeojson && Object.keys(initialGeojson).length > 0) {
-        const layer = L.geoJSON(initialGeojson).addTo(map);
+    // Initialize map
+    const map = L.map(mapRef.current).setView([-8.5830695, 116.1165279], 10);
+    mapInstance.current = map;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OSM'
+    }).addTo(map);
+
+    // Setup Geoman
+    if (map.pm) {
+      map.pm.addControls({
+        position: 'topleft',
+        drawMarker: false, drawCircleMarker: false, drawPolyline: false,
+        drawRectangle: false, drawCircle: false, drawText: false,
+        editMode: true, dragMode: true, cutPolygon: false, removalMode: true,
+      });
+    }
+
+    // Load initial GeoJSON
+    if (zone.geojson && Object.keys(zone.geojson).length > 0) {
+      try {
+        const layer = L.geoJSON(zone.geojson).addTo(map);
         if (layer.getBounds().isValid()) {
           map.fitBounds(layer.getBounds(), { padding: [50, 50] });
         }
+      } catch (err) {
+        console.error('GeoJSON load error:', err);
       }
-    } catch (err) {
-      console.error('Map init error:', err);
     }
 
-    return () => {
-      try {
-        if (map && map.pm) map.pm.removeControls();
-      } catch(e) {}
-    };
-  }, [map, initialGeojson]);
-
-  useEffect(() => {
-    let saveControl;
-    try {
-      const handleSave = () => {
-        if (!map || !map.pm) return onSaveMap(null);
-        const pmLayers = map.pm.getGeomanLayers();
-        const features = pmLayers.map(l => l.toGeoJSON());
-        let geojsonToSave = null;
-        if (features.length > 0) {
-          geojsonToSave = {
-            type: 'FeatureCollection',
-            features: features
-          };
-        }
-        onSaveMap(geojsonToSave);
-      };
-
-      const SaveControl = L.Control.extend({
-        options: { position: 'topright' },
-        onAdd: function() {
-          const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
-          const btn = L.DomUtil.create('button', 'px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded', container);
-          btn.innerHTML = 'Simpan Batas';
-          btn.style.cursor = 'pointer';
-          btn.style.pointerEvents = 'auto';
-          btn.onclick = function(e) {
-            L.DomEvent.stopPropagation(e);
-            L.DomEvent.preventDefault(e);
-            handleSave();
-          };
-          return container;
-        }
-      });
-      saveControl = new SaveControl();
-      map.addControl(saveControl);
-    } catch (err) {
-      console.error('Save control error:', err);
-    }
+    // Add Save Button Control
+    const SaveControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        container.style.backgroundColor = 'white';
+        container.style.padding = '5px';
+        container.style.cursor = 'pointer';
+        container.style.fontWeight = 'bold';
+        container.innerHTML = '💾 Simpan Batas Peta';
+        
+        container.onclick = function(e) {
+          L.DomEvent.stopPropagation(e);
+          if (!map.pm) return onSaveMap(null);
+          const pmLayers = map.pm.getGeomanLayers();
+          const features = pmLayers.map(l => l.toGeoJSON());
+          let geojsonToSave = null;
+          if (features.length > 0) {
+            geojsonToSave = { type: 'FeatureCollection', features };
+          }
+          onSaveMap(geojsonToSave);
+        };
+        return container;
+      }
+    });
+    map.addControl(new SaveControl());
 
     return () => {
-      try {
-        if (saveControl && map) map.removeControl(saveControl);
-      } catch(e) {}
+      map.remove();
     };
-  }, [map, onSaveMap]);
+  }, [zone]);
 
-  return null;
-};
-
-const MapModal = ({ zone, onClose, onSaveMap }) => {
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-900/80 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
@@ -128,17 +109,7 @@ const MapModal = ({ zone, onClose, onSaveMap }) => {
           </button>
         </div>
         <div className="flex-1 relative">
-          <MapContainer 
-            center={[-8.5830695, 116.1165279]} // Lombok center
-            zoom={10} 
-            className="w-full h-full"
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapContent initialGeojson={zone.geojson} onSaveMap={onSaveMap} />
-          </MapContainer>
+          <div ref={mapRef} className="w-full h-full" style={{ minHeight: '400px' }}></div>
         </div>
       </div>
     </div>
