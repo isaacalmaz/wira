@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X } from 'lucide-react';
+import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -123,6 +123,7 @@ const FeatureFlagsPage = () => {
   const [saving, setSaving] = useState(false);
   const [showAddZone, setShowAddZone] = useState(false);
   const [newZone, setNewZone] = useState({ name: '', status_text: '' });
+  const [editingZone, setEditingZone] = useState(null);
   
   // Geofencing state
   const [activeMapZone, setActiveMapZone] = useState(null);
@@ -179,6 +180,43 @@ const FeatureFlagsPage = () => {
     } catch (err) {
       console.error(err);
       toast.error('Gagal menambahkan wilayah');
+    }
+  };
+
+  const handleDeleteZone = async (zoneId) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus wilayah ini?')) return;
+    
+    try {
+      const { error } = await supabase.from('operational_zones').delete().eq('id', zoneId);
+      if (error) throw error;
+      setZones(zones.filter(z => z.id !== zoneId));
+      toast.success('Wilayah berhasil dihapus.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menghapus wilayah');
+    }
+  };
+
+  const handleUpdateZone = async () => {
+    if (!editingZone.name) return toast.error('Nama wilayah harus diisi');
+    
+    try {
+      const { error } = await supabase
+        .from('operational_zones')
+        .update({
+          name: editingZone.name,
+          status_text: editingZone.status_text
+        })
+        .eq('id', editingZone.id);
+        
+      if (error) throw error;
+      
+      setZones(zones.map(z => z.id === editingZone.id ? { ...z, name: editingZone.name, status_text: editingZone.status_text } : z));
+      setEditingZone(null);
+      toast.success('Wilayah berhasil diperbarui.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal memperbarui wilayah');
     }
   };
 
@@ -363,17 +401,38 @@ const FeatureFlagsPage = () => {
             {zones.map((zone) => (
               <div key={zone.id} className="card p-5 bg-white dark:bg-slate-800 shadow rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col">
                 <div className="mb-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
-                    <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
-                  </div>
-                  <button 
-                    onClick={() => setActiveMapZone(zone)}
-                    className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1 text-xs font-medium"
-                    title="Gambar Batas Peta"
-                  >
-                    <MapIcon size={16} /> <span>Peta</span>
-                  </button>
+                  {editingZone?.id === zone.id ? (
+                    <div className="w-full flex flex-col gap-2">
+                      <input type="text" value={editingZone.name} onChange={e => setEditingZone({...editingZone, name: e.target.value})} className="w-full px-2 py-1 text-sm border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
+                      <input type="text" value={editingZone.status_text} onChange={e => setEditingZone({...editingZone, status_text: e.target.value})} className="w-full px-2 py-1 text-sm border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
+                      <div className="flex gap-2 justify-end mt-1">
+                        <button onClick={handleUpdateZone} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600">Simpan</button>
+                        <button onClick={() => setEditingZone(null)} className="px-2 py-1 bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded text-xs hover:bg-slate-300">Batal</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
+                        <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setEditingZone(zone)} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors" title="Edit Wilayah">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteZone(zone.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors" title="Hapus Wilayah">
+                          <Trash2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setActiveMapZone(zone)}
+                          className="p-1.5 ml-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1 text-xs font-medium"
+                          title="Gambar Batas Peta"
+                        >
+                          <MapIcon size={16} /> <span className="hidden sm:inline">Peta</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-4 flex-1">
                   {zone.services && Object.keys(zone.services).map((serviceKey) => (
