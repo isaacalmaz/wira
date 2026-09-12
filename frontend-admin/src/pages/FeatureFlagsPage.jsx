@@ -83,7 +83,7 @@ const MapModal = ({ zone, onClose, onSaveMap }) => {
           const features = pmLayers.map(l => l.toGeoJSON());
           let geojsonToSave = null;
           if (features.length > 0) {
-            geojsonToSave = { type: 'FeatureCollection', features };
+            geojsonToSave = features[0].geometry;
           }
           onSaveMap(geojsonToSave);
         };

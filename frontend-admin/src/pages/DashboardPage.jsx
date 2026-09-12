@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { toast } from 'react-hot-toast';
 import { Users, Car, Store, ArrowUpRight, TrendingUp, DollarSign, Activity } from 'lucide-react';
 
 const DashboardPage = () => {
@@ -16,12 +17,22 @@ const DashboardPage = () => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [{ count: users }, { data: allUsers }, { count: merchants }, { data: orders }] = await Promise.all([
+        const [usersRes, allUsersRes, merchantsRes, ordersRes] = await Promise.all([
           supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
           supabase.from('users').select('*'),
           supabase.from('merchants').select('*', { count: 'exact', head: true }),
           supabase.from('orders').select('total_price, status').eq('status', 'completed')
         ]);
+
+        if (usersRes.error) throw usersRes.error;
+        if (allUsersRes.error) throw allUsersRes.error;
+        if (merchantsRes.error) throw merchantsRes.error;
+        if (ordersRes.error) throw ordersRes.error;
+
+        const users = usersRes.count;
+        const allUsers = allUsersRes.data;
+        const merchants = merchantsRes.count;
+        const orders = ordersRes.data;
 
         const drivers = allUsers ? allUsers.filter(u => {
           if (!u.mitra_access) return false;
@@ -40,7 +51,8 @@ const DashboardPage = () => {
           revenue: totalRev
         });
       } catch (err) {
-        console.error(err);
+        console.error("Dashboard error:", err);
+        toast.error("Gagal memuat data dasbor.");
       } finally {
         setLoading(false);
       }

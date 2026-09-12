@@ -9,18 +9,31 @@ const UsersPage = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('users').select('*').eq('role', 'user').order('created_at', { ascending: false });
-    if (data) setUsers(data);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('role', 'user').order('created_at', { ascending: false });
+      if (error) throw error;
+      if (data) setUsers(data);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil data pengguna');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
-    await supabase.from('users').update({ status: newStatus }).eq('id', id);
-    toast.success(`Status diubah menjadi ${newStatus}`);
-    fetchUsers();
+    try {
+      const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
+      if (error) throw error;
+      toast.success(`Status diubah menjadi ${newStatus}`);
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengubah status');
+    }
   };
 
   return (
