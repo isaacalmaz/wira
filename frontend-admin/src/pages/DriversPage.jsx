@@ -13,107 +13,112 @@ const DriversPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    
-    // 1. Ambil driver aktif
-    const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-    if (activeErr) console.error("Error fetching drivers:", activeErr);
-    if (allUsers) {
-      const activeDrivers = allUsers.filter(u => {
-        if (!u.mitra_access) return false;
-        if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
-        if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
-        return false;
-      });
-      setDrivers(activeDrivers);
-    }
+    try {
+      const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+      if (activeErr) throw activeErr;
+      if (allUsers) {
+        const activeMitras = allUsers.filter(u => {
+          if (!u.mitra_access) return false;
+          if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
+          if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
+          return false;
+        });
+        setDrivers(activeMitras);
+      }
 
-    // 2. Ambil driver pending dari feature_flags
-    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-    if (flagsData && Array.isArray(flagsData.features)) {
-      const p = flagsData.features.filter(m => m.role === 'driver' && m.status === 'Pending');
-      setPendingDrivers(p);
+      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+      if (flagsData && Array.isArray(flagsData.features)) {
+        const p = flagsData.features.filter(m => m.role === 'driver' && m.status === 'Pending');
+        setPendingDrivers(p);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal memuat data');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
   const handleVerify = async (id, accept, notes = '') => {
-    // 1. Update status di feature_flags
-    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-    let updatedFeatures = [];
-    if (flagsData && Array.isArray(flagsData.features)) {
-      updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
-      await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
-    }
-
-    if (accept) {
-      // 2. Berikan akses driver ke public.users
-      const pending = pendingDrivers.find(m => m.id === id);
-      if (pending && pending.auth_id) {
-        // Ambil data user saat ini
-        const { data: userProfile } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
-        
-        let currentAccess = [];
-        let isExisting = false;
-
-        if (userProfile) {
-          currentAccess = userProfile.mitra_access || [];
-          isExisting = true;
-        }
-
-        if (!currentAccess.includes('driver')) {
-          currentAccess.push('driver');
-        }
-
-        if (isExisting) {
-          const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
-            mitra_access: currentAccess,
-            status: 'Aktif'
-          }).eq('id', pending.auth_id).select();
-          
-          if (updateErr) {
-            console.error("Update users error:", updateErr);
-            toast.error("Gagal mengupdate database profil driver.");
-            return;
-          }
-          if (!updatedUser || updatedUser.length === 0) {
-            toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase. Silakan jalankan script SQL RLS di Dashboard Supabase Anda.");
-            return;
-          }
-        } else {
-          // Jika row belum ada di public.users (karena tidak ada trigger DB)
-          const { error: insertErr } = await supabase.from('users').insert([{
-            id: pending.auth_id,
-            name: pending.name,
-            email: pending.email,
-            phone: pending.phone,
-            role: 'mitra',
-            status: 'Aktif',
-            mitra_access: currentAccess
-          }]);
-          
-          if (insertErr) {
-            console.error("Insert users error:", insertErr);
-            toast.error("Gagal membuat profil driver di database.");
-            return;
-          }
-        }
+    try {
+      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+      
+      let updatedFeatures = [];
+      if (flagsData && Array.isArray(flagsData.features)) {
+        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
+        const { error: updateFlagsErr } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
+        if (updateFlagsErr) throw updateFlagsErr;
       }
-      toast.success(`Driver berhasil disetujui!`);
-    } else {
-      toast.error(`Pendaftaran ditolak.`);
+
+      if (accept) {
+        const pending = pendingDrivers.find(m => m.id === id);
+        if (pending && pending.auth_id) {
+          const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
+          if (profileErr && profileErr.code !== 'PGRST116') throw profileErr;
+          
+          let currentAccess = [];
+          let isExisting = false;
+
+          if (userProfile) {
+            currentAccess = userProfile.mitra_access || [];
+            isExisting = true;
+          }
+
+          if (!currentAccess.includes('driver')) {
+            currentAccess.push('driver');
+          }
+
+          if (isExisting) {
+            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
+              mitra_access: currentAccess,
+              status: 'Aktif'
+            }).eq('id', pending.auth_id).select();
+            
+            if (updateErr) throw updateErr;
+            if (!updatedUser || updatedUser.length === 0) {
+              toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
+              return;
+            }
+          } else {
+            const { error: insertErr } = await supabase.from('users').insert([{
+              id: pending.auth_id,
+              name: pending.name,
+              email: pending.email,
+              phone: pending.phone,
+              role: 'mitra',
+              status: 'Aktif',
+              mitra_access: currentAccess
+            }]);
+            if (insertErr) throw insertErr;
+          }
+        }
+        toast.success('Driver berhasil disetujui!');
+      } else {
+        toast.success('Pendaftaran ditolak.');
+      }
+      setIsReviewOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Terjadi kesalahan saat memverifikasi');
     }
-    setIsReviewOpen(false);
-    fetchData();
   };
 
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
-    await supabase.from('users').update({ status: newStatus }).eq('id', id);
-    toast.success(`Status diubah menjadi ${newStatus}`);
-    fetchData();
+    try {
+      const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
+      if (error) throw error;
+      toast.success(`Status diubah menjadi ${newStatus}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengubah status');
+    }
   };
 
   return (

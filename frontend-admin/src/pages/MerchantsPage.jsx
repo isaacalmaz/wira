@@ -16,44 +16,50 @@ const MerchantsPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    
-    // 1. Ambil Merchant Live (dari tabel merchants)
-    const { data: merchantsData } = await supabase
-      .from('merchants')
-      .select('*')
-      .eq('service_type', 'food')
-      .order('created_at', { ascending: false });
-    
-    setLiveMerchants(merchantsData || []);
+    try {
+      const { data: merchantsData, error: merchantsErr } = await supabase
+        .from('merchants')
+        .select('*')
+        .eq('service_type', 'food')
+        .order('created_at', { ascending: false });
+      
+      if (merchantsErr) throw merchantsErr;
+      setLiveMerchants(merchantsData || []);
 
-    // 2. Ambil Pending Registrations (dari feature_flags)
-    const { data: flagsData } = await supabase
-      .from('feature_flags')
-      .select('features')
-      .eq('region', 'mitra_registrations')
-      .maybeSingle();
+      const { data: flagsData, error: flagsErr } = await supabase
+        .from('feature_flags')
+        .select('features')
+        .eq('region', 'mitra_registrations')
+        .maybeSingle();
 
-    if (flagsData && Array.isArray(flagsData.features)) {
-      const p = flagsData.features
-        .filter(m => m.role === 'merchant' && m.status === 'Pending')
-        .map(m => ({
-          id: m.id,
-          name: m.restaurant_name || m.name,
-          owner: m.name,
-          phone: m.phone,
-          email: m.email,
-          address: m.address || 'Mataram, Lombok',
-          sim_photo: m.sim_photo,
-          ktp_photo: m.ktp_photo,
-          selfie_photo: m.selfie_photo,
-          vehicle_plate: m.vehicle_plate,
-          vehicle_type: m.vehicle_type,
-          status: m.status,
-          date: m.date
-        }));
-      setPendingMerchants(p);
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+
+      if (flagsData && Array.isArray(flagsData.features)) {
+        const p = flagsData.features
+          .filter(m => m.role === 'merchant' && m.status === 'Pending')
+          .map(m => ({
+            id: m.id,
+            name: m.restaurant_name || m.name,
+            owner: m.name,
+            phone: m.phone,
+            email: m.email,
+            address: m.address || 'Mataram, Lombok',
+            sim_photo: m.sim_photo,
+            ktp_photo: m.ktp_photo,
+            selfie_photo: m.selfie_photo,
+            vehicle_plate: m.vehicle_plate,
+            vehicle_type: m.vehicle_type,
+            status: m.status,
+            date: m.date
+          }));
+        setPendingMerchants(p);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal memuat data restoran');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -61,91 +67,100 @@ const MerchantsPage = () => {
   }, []);
 
   const handleVerify = async (id, accept, notes = '') => {
-    // 1. Update status di feature_flags
-    const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-    let updatedFeatures = [];
-    if (flagsData && Array.isArray(flagsData.features)) {
-      updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
-      await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
-    }
-
-    if (accept) {
-      // 2. Jika diterima, masukkan ke tabel merchants live!
-      const pending = pendingMerchants.find(m => m.id === id);
-      if (pending) {
-        await supabase.from('merchants').insert([{
-          owner_id: pending.auth_id || null,
-          name: pending.restaurant_name || pending.name,
-          service_type: 'food',
-          address: pending.address,
-          image: 'https://via.placeholder.com/150',
-        }]);
-        
-        // 3. Berikan akses merchant ke public.users
-        if (pending.auth_id) {
-          const { data: userProfile } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
-          
-          let currentAccess = [];
-          let isExisting = false;
-
-          if (userProfile) {
-            currentAccess = userProfile.mitra_access || [];
-            isExisting = true;
-          }
-
-          if (!currentAccess.includes('merchant')) {
-            currentAccess.push('merchant');
-          }
-
-          if (isExisting) {
-            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
-              mitra_access: currentAccess,
-              status: 'Aktif'
-            }).eq('id', pending.auth_id).select();
-            
-            if (updateErr) {
-               console.error("Update users error:", updateErr);
-               toast.error("Gagal mengupdate database profil pemilik.");
-               return;
-            }
-            if (!updatedUser || updatedUser.length === 0) {
-              toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase. Silakan jalankan script SQL RLS.");
-              return;
-            }
-          } else {
-            // INSERT INTO public.users
-            const { error: insertErr } = await supabase.from('users').insert([{
-              id: pending.auth_id,
-              name: pending.name,
-              email: pending.email,
-              phone: pending.phone,
-              role: 'mitra',
-              status: 'Aktif',
-              mitra_access: currentAccess
-            }]);
-            if (insertErr) {
-               console.error("Insert users error:", insertErr);
-               toast.error("Gagal membuat profil merchant di database.");
-               return;
-            }
-          }
-        }
-        
-        toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
+    try {
+      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+      
+      let updatedFeatures = [];
+      if (flagsData && Array.isArray(flagsData.features)) {
+        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
+        const { error: updateFlagsErr } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
+        if (updateFlagsErr) throw updateFlagsErr;
       }
-    } else {
-      toast.success('Pendaftaran ditolak.');
+
+      if (accept) {
+        const pending = pendingMerchants.find(m => m.id === id);
+        if (pending) {
+          const { error: insertMerchantErr } = await supabase.from('merchants').insert([{
+            owner_id: pending.auth_id || null,
+            name: pending.name,
+            service_type: 'food',
+            address: pending.address,
+            image: 'https://via.placeholder.com/150',
+          }]);
+          if (insertMerchantErr) throw insertMerchantErr;
+          
+          if (pending.auth_id) {
+            const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
+            if (profileErr && profileErr.code !== 'PGRST116') throw profileErr;
+            
+            let currentAccess = [];
+            let isExisting = false;
+
+            if (userProfile) {
+              currentAccess = userProfile.mitra_access || [];
+              isExisting = true;
+            }
+
+            if (!currentAccess.includes('merchant')) {
+              currentAccess.push('merchant');
+            }
+
+            if (isExisting) {
+              const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
+                mitra_access: currentAccess,
+                status: 'Aktif'
+              }).eq('id', pending.auth_id).select();
+              
+              if (updateErr) {
+                 toast.error("Gagal mengupdate database profil pemilik.");
+                 throw updateErr;
+              }
+              if (!updatedUser || updatedUser.length === 0) {
+                toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
+                return;
+              }
+            } else {
+              const { error: insertErr } = await supabase.from('users').insert([{
+                id: pending.auth_id,
+                name: pending.name,
+                email: pending.email,
+                phone: pending.phone,
+                role: 'mitra',
+                status: 'Aktif',
+                mitra_access: currentAccess
+              }]);
+              if (insertErr) {
+                 toast.error("Gagal membuat profil merchant di database.");
+                 throw insertErr;
+              }
+            }
+          }
+          toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
+        }
+      } else {
+        toast.success('Pendaftaran ditolak.');
+      }
+      
+      setIsReviewOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Terjadi kesalahan saat memverifikasi restoran');
     }
-    
-    setIsReviewOpen(false);
-    fetchData();
   };
 
   const handleDeleteLive = async (id) => {
     if (!window.confirm('Hapus restoran ini dari aplikasi?')) return;
-    await supabase.from('merchants').delete().eq('id', id);
-    toast.success('Restoran dihapus dari Live Database');
-    fetchData();
+    try {
+      const { error } = await supabase.from('merchants').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Restoran dihapus dari Live Database');
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menghapus restoran');
+    }
   };
 
   const filteredLive = liveMerchants.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
