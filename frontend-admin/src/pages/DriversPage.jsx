@@ -80,8 +80,7 @@ const DriversPage = () => {
             
             if (updateErr) throw updateErr;
             if (!updatedUser || updatedUser.length === 0) {
-              toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
-              return;
+              throw new Error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
             }
           } else {
             const { error: insertErr } = await supabase.from('users').insert([{
@@ -104,20 +103,21 @@ const DriversPage = () => {
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error('Terjadi kesalahan saat memverifikasi');
+      toast.error(err.message || 'Terjadi kesalahan saat memverifikasi');
     }
   };
 
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
-      const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
+      const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
       toast.success(`Status diubah menjadi ${newStatus}`);
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error('Gagal mengubah status');
+      toast.error(err.message || 'Gagal mengubah status');
     }
   };
 

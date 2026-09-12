@@ -26,13 +26,14 @@ const UsersPage = () => {
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
-      const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
+      const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
       toast.success(`Status diubah menjadi ${newStatus}`);
       fetchUsers();
     } catch (err) {
       console.error(err);
-      toast.error('Gagal mengubah status');
+      toast.error(err.message || 'Gagal mengubah status');
     }
   };
 

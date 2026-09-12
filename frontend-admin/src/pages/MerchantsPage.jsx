@@ -112,13 +112,9 @@ const MerchantsPage = () => {
                 status: 'Aktif'
               }).eq('id', pending.auth_id).select();
               
-              if (updateErr) {
-                 toast.error("Gagal mengupdate database profil pemilik.");
-                 throw updateErr;
-              }
+              if (updateErr) throw updateErr;
               if (!updatedUser || updatedUser.length === 0) {
-                toast.error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
-                return;
+                throw new Error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
               }
             } else {
               const { error: insertErr } = await supabase.from('users').insert([{
@@ -130,10 +126,7 @@ const MerchantsPage = () => {
                 status: 'Aktif',
                 mitra_access: currentAccess
               }]);
-              if (insertErr) {
-                 toast.error("Gagal membuat profil merchant di database.");
-                 throw insertErr;
-              }
+              if (insertErr) throw insertErr;
             }
           }
           toast.success(`Restoran ${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
@@ -146,20 +139,21 @@ const MerchantsPage = () => {
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error('Terjadi kesalahan saat memverifikasi restoran');
+      toast.error(err.message || 'Terjadi kesalahan saat memverifikasi restoran');
     }
   };
 
   const handleDeleteLive = async (id) => {
     if (!window.confirm('Hapus restoran ini dari aplikasi?')) return;
     try {
-      const { error } = await supabase.from('merchants').delete().eq('id', id);
+      const { error, data } = await supabase.from('merchants').delete().eq('id', id).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
       toast.success('Restoran dihapus dari Live Database');
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error('Gagal menghapus restoran');
+      toast.error(err.message || 'Gagal menghapus restoran');
     }
   };
 

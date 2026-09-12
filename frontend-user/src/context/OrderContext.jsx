@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 import { 
   getStoredOrders, 
   createEcosystemOrder, 
@@ -45,30 +46,41 @@ export const OrderProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchOrders = async () => {
       // 1. Check Supabase first if user exists
       if (user) {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('orders')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .abortSignal(abortController.signal);
 
-          // Selalu update order sesuai DB meskipun kosong (agar tidak fallback ke local dummy)
-          if (data) {
+          if (error && error.name !== 'AbortError') {
+            console.warn('Supabase fetch orders error:', error);
+            return;
+          }
+
+          if (data && !abortController.signal.aborted) {
             setOrders(data.map(mapDbOrderToUi));
             return;
           }
         } catch (e) {
-          console.warn('Supabase fetch orders error:', e);
+          if (e.name !== 'AbortError') {
+            console.warn('Supabase fetch orders error:', e);
+          }
         }
       }
 
       // 2. Load from ecosystem store HANYA untuk guest (belum login)
-      if (!user) {
+      if (!user && !abortController.signal.aborted) {
         const local = await getStoredOrders();
-        setOrders(local.map(mapDbOrderToUi));
+        if (!abortController.signal.aborted) {
+          setOrders(local.map(mapDbOrderToUi));
+        }
       }
     };
 
@@ -85,7 +97,10 @@ export const OrderProvider = ({ children }) => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      abortController.abort();
+      unsubscribe();
+    };
   }, [user]);
 
   const addOrder = async (orderData) => {
@@ -94,8 +109,8 @@ export const OrderProvider = ({ children }) => {
       
       let createdOrder = null;
 
-      // Try Supabase insert
-      try {
+      if (user || session?.user) {
+        // Try Supabase insert
         const { data, error } = await supabase.from('orders').insert([
           {
             user_id: session?.user?.id || user?.id || null,
@@ -110,47 +125,60 @@ export const OrderProvider = ({ children }) => {
           },
         ]).select().single();
 
-        if (!error && data) {
-          createdOrder = data;
+        if (error) {
+          throw error;
         }
-      } catch (dbErr) {
-        console.warn('Direct DB insert fallback to ecosystem sync:', dbErr);
-      }
 
-      // If DB was not available or guest, record in Ecosystem service
-      if (!createdOrder) {
+        if (data) {
+          createdOrder = data;
+          createEcosystemOrder({
+            ...createdOrder,
+            id: createdOrder.id,
+            price: createdOrder.total_price,
+            serviceType: createdOrder.service_type,
+          });
+        }
+      } else {
+        // Guest user fallback (if allowed)
         createdOrder = createEcosystemOrder({
           ...orderData,
-          userId: session?.user?.id || user?.id || 'usr-lombok-guest',
-          customerName: user?.user_metadata?.name || user?.name || 'Pelanggan Wira Lombok',
-        });
-      } else {
-        createEcosystemOrder({
-          ...createdOrder,
-          id: createdOrder.id,
-          price: createdOrder.total_price,
-          serviceType: createdOrder.service_type,
+          userId: 'usr-lombok-guest',
+          customerName: 'Pelanggan Wira Lombok',
         });
       }
 
       const uiOrder = mapDbOrderToUi(createdOrder);
       setOrders((prev) => [uiOrder, ...prev.filter(o => o.id !== uiOrder.id)]);
+      toast.success('Pesanan berhasil dibuat');
       return uiOrder;
     } catch (err) {
       console.error('Gagal membuat pesanan:', err);
-      // Even on failure, guarantee order creation so user is never blocked
-      const fallback = createEcosystemOrder(orderData);
-      const uiOrder = mapDbOrderToUi(fallback);
-      setOrders((prev) => [uiOrder, ...prev]);
-      return uiOrder;
+      toast.error('Gagal membuat pesanan. Silakan coba lagi.');
+      throw err; // Proper error handling instead of local fallback
     }
   };
 
-  const updateOrderStatus = (id, newStatus, extraData = {}) => {
-    updateOrderStatusEcosystem(id, newStatus, extraData);
+  const updateOrderStatus = async (id, newStatus, extraData = {}) => {
+    // Find the original order to enable rollback
+    const originalOrder = orders.find((o) => o.id === id);
+    if (!originalOrder) return;
+
+    // Optimistic Update
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus, rawStatus: newStatus, ...extraData } : o))
     );
+
+    try {
+      // In case updateOrderStatusEcosystem does something async/DB related
+      await updateOrderStatusEcosystem(id, newStatus, extraData);
+    } catch (err) {
+      console.error('Failed to update order status:', err);
+      toast.error('Gagal memperbarui status pesanan');
+      // Rollback
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? originalOrder : o))
+      );
+    }
   };
 
   return (
@@ -161,4 +189,3 @@ export const OrderProvider = ({ children }) => {
 };
 
 export const useOrders = () => useContext(OrderContext);
-
