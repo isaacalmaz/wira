@@ -15,6 +15,8 @@ import {
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
+import { supabase } from '../config/supabase';
+import { useAuth } from '../context/AuthContext';
 import { useWallet } from '../context/WalletContext';
 import { toast } from 'react-hot-toast';
 
@@ -39,14 +41,26 @@ export default function WalletPage() {
 
   const quickAmounts = [20000, 50000, 100000, 200000, 500000];
 
+  const { user } = useAuth();
+  
   const handleTopUpConfirm = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    await topUp(topUpAmount, topUpMethod);
-    setLoading(false);
-    toast.success(`Top Up ${formatRupiah(topUpAmount)} Berhasil!`);
-    setModalType(null);
-    setTopUpStep(1);
+    try {
+      const { error } = await supabase.from('topup_requests').insert([{
+        user_id: user.id,
+        amount: topUpAmount,
+        method: topUpMethod,
+        status: 'pending'
+      }]);
+      if (error) throw error;
+      toast.success(`Permintaan Top Up ${formatRupiah(topUpAmount)} berhasil. Menunggu admin.`);
+      setModalType(null);
+      setTopUpStep(1);
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat permintaan top up');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTransferSubmit = async (e) => {
