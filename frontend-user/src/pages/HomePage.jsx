@@ -89,7 +89,11 @@ export default function HomePage() {
         },
         (err) => {
           console.error("GPS Error:", err);
-          setLocationWarning('Izin lokasi ditolak atau tidak tersedia.');
+          let errMsg = 'Izin lokasi ditolak atau tidak tersedia.';
+          if (err.code === 1) errMsg = 'Akses GPS ditolak oleh Browser atau Sistem Operasi Anda.';
+          if (err.code === 2) errMsg = 'Sinyal GPS tidak tersedia (Coba nyalakan Wi-Fi Anda).';
+          if (err.code === 3) errMsg = 'Waktu pencarian sinyal GPS habis (Timeout).';
+          setLocationWarning(errMsg);
           setUserZones([]);
           updateServices(flags, []);
           setIsLoadingLocation(false);
