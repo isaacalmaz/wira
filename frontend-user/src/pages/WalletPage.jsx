@@ -49,7 +49,6 @@ export default function WalletPage() {
       const { error } = await supabase.from('topup_requests').insert([{
         user_id: user.id,
         amount: topUpAmount,
-        method: topUpMethod,
         status: 'pending'
       }]);
       if (error) throw error;
