@@ -6,6 +6,7 @@
     "frontend-user",
     "frontend-admin",
     "frontend-mitra",
+    "frontend-partner",
     "backend"
   ],
   "scripts": {
@@ -17,5 +18,8 @@
     "recharts": "^3.10.1",
     "vite": "^5.2.0",
     "@vitejs/plugin-react": "^4.2.1"
+  },
+  "allowScripts": {
+    "esbuild": true
   }
 }
