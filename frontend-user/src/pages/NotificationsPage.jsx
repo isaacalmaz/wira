@@ -3,36 +3,36 @@ import { Bell } from 'lucide-react';
 import Card from '../components/common/Card';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
+import { useNotification } from '../context/NotificationContext';
 
 export default function NotificationsPage() {
-  const [notifs, setNotifs] = useState([]);
+  const { notifications: notifs, setNotifications } = useNotification();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNotifs = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (data) {
-        setNotifs(data);
-      }
-      setLoading(false);
-    };
-
-    fetchNotifs();
+    // Context already fetches it on mount, so just turn off loading
+    setLoading(false);
   }, []);
 
   const handleMarkAllRead = async () => {
-    const { error } = await supabase
+    const hasUnread = notifs.some(n => !n.is_read);
+    if (!hasUnread) {
+      toast.success("Semua notifikasi sudah dibaca");
+      return;
+    }
+
+    const { data, error } = await supabase
       .from('notifications')
-      .update({ read: true })
-      .eq('read', false);
+      .update({ is_read: true })
+      .eq('is_read', false)
+      .select();
       
-    if (!error) {
-      setNotifs(notifs.map(n => ({ ...n, read: true })));
+    if (error) {
+      toast.error("Gagal menandai dibaca: " + error.message);
+    } else if (!data || data.length === 0) {
+      toast.error("Gagal menandai dibaca (Akses Ditolak)");
+    } else {
+      setNotifications(notifs.map(n => ({ ...n, is_read: true })));
       toast.success("Semua notifikasi ditandai dibaca");
     }
   };
@@ -55,11 +55,11 @@ export default function NotificationsPage() {
           </div>
         ) : (
           notifs.map(n => (
-            <Card key={n.id} className={`p-4 flex gap-4 ${n.read ? 'opacity-70' : 'bg-primary/5 border-l-4 border-l-primary'}`}>
-              <div className="mt-1"><Bell size={20} className={n.read ? 'text-slate-400' : 'text-primary'} /></div>
+            <Card key={n.id} className={`p-4 flex gap-4 ${n.is_read ? 'opacity-70' : 'bg-primary/5 border-l-4 border-l-primary'}`}>
+              <div className="mt-1"><Bell size={20} className={n.is_read ? 'text-slate-400' : 'text-primary'} /></div>
               <div>
-                <h3 className={`font-semibold ${n.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">{n.desc}</p>
+                <h3 className={`font-semibold ${n.is_read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</h3>
+                <p className="text-sm text-slate-500 mt-1">{n.description}</p>
                 <p className="text-xs text-slate-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
               </div>
             </Card>

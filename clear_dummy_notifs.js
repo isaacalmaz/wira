@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
+const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
 const envPath = path.resolve('frontend-user', '.env');
 let envFile;

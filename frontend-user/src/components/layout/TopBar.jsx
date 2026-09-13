@@ -3,10 +3,12 @@ import { Bell, Moon, Sun } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useTheme } from '../../context/ThemeContext';
 import { APP_CONFIG } from '../../config/app';
+import { useNotification } from '../../context/NotificationContext';
 
 export default function TopBar() {
   const { lang, toggleLang } = useTranslation();
   const { darkMode, toggleTheme } = useTheme();
+  const { unreadCount } = useNotification();
 
   return (
     <header className="h-16 flex items-center justify-between px-4 bg-white dark:bg-slate-800 shadow-sm z-10">
@@ -24,7 +26,9 @@ export default function TopBar() {
         </button>
         <Link to="/notifications" className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full relative transition">
           <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+          )}
         </Link>
       </div>
     </header>
