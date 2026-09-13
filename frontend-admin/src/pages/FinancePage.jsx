@@ -8,27 +8,32 @@ const FinancePage = () => {
   const [topups, setTopups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-
   const fetchData = async () => {
     setLoading(true);
-    // Fetch Revenue
-    const { data: ordersData } = await supabase.from('orders').select('total_price').eq('status', 'completed');
-    if (ordersData) {
-      setRevenue(ordersData.reduce((sum, o) => sum + (o.total_price || 0), 0));
-    }
+    try {
+      // Fetch Revenue
+      const { data: ordersData, error: ordersError } = await supabase.from('orders').select('total_price').eq('status', 'completed');
+      if (ordersError) throw ordersError;
+      if (ordersData) {
+        setRevenue(ordersData.reduce((sum, o) => sum + (o.total_price || 0), 0));
+      }
 
-    // Fetch Topup Requests
-    const { data: topupData } = await supabase
-      .from('topup_requests')
-      .select('*, users(name, phone)')
-      .order('created_at', { ascending: false });
-    
-    if (topupData) {
-      setTopups(topupData);
+      // Fetch Topup Requests
+      const { data: topupData, error: topupError } = await supabase
+        .from('topup_requests')
+        .select('*, users(name, phone)')
+        .order('created_at', { ascending: false });
+      
+      if (topupError) throw topupError;
+      if (topupData) {
+        setTopups(topupData);
+      }
+    } catch (error) {
+      toast.error(error.message || 'Gagal memuat data');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
   useEffect(() => {
     fetchData();
   }, []);

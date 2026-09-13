@@ -2,23 +2,25 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 
+import React, { Suspense, lazy } from 'react';
+
 // Layout
-import AdminLayout from './components/layout/AdminLayout';
+const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
 
 // Pages
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import FeatureFlagsPage from './pages/FeatureFlagsPage';
-import UsersPage from './pages/UsersPage';
-import OrdersPage from './pages/OrdersPage';
-import DriversPage from './pages/DriversPage';
-import MerchantsPage from './pages/MerchantsPage';
-import TechniciansPage from './pages/TechniciansPage';
-import VillasPage from './pages/VillasPage';
-import FinancePage from './pages/FinancePage';
-import PromosPage from './pages/PromosPage';
-import WhatsAppPage from './pages/WhatsAppPage';
-import SettingsPage from './pages/SettingsPage';
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const FeatureFlagsPage = lazy(() => import('./pages/FeatureFlagsPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const DriversPage = lazy(() => import('./pages/DriversPage'));
+const MerchantsPage = lazy(() => import('./pages/MerchantsPage'));
+const TechniciansPage = lazy(() => import('./pages/TechniciansPage'));
+const VillasPage = lazy(() => import('./pages/VillasPage'));
+const FinancePage = lazy(() => import('./pages/FinancePage'));
+const PromosPage = lazy(() => import('./pages/PromosPage'));
+const WhatsAppPage = lazy(() => import('./pages/WhatsAppPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 // Komponen untuk rute yang dilindungi
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -39,38 +41,40 @@ function App() {
   return (
     <Router>
       <Toaster position="top-right" />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        
-        {/* Rute Admin dengan Layout Utama */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="text-lg text-slate-500">Memuat...</div></div>}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
           
-          {/* Fitur yang bisa diakses Superadmin & Admin Ops */}
-          <Route path="features" element={
-            <ProtectedRoute allowedRoles={['Superadmin', 'Admin Ops']}>
-              <FeatureFlagsPage />
+          {/* Rute Admin dengan Layout Utama */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <AdminLayout />
             </ProtectedRoute>
-          } />
-          
-          <Route path="users" element={<UsersPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="drivers" element={<DriversPage />} />
-          <Route path="merchants" element={<MerchantsPage />} />
-          <Route path="technicians" element={<TechniciansPage />} />
-          <Route path="villas" element={<VillasPage />} />
-          <Route path="finance" element={<FinancePage />} />
-          <Route path="promos" element={<PromosPage />} />
-          <Route path="whatsapp" element={<WhatsAppPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          
-        </Route>
-      </Routes>
+          }>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            
+            {/* Fitur yang bisa diakses Superadmin & Admin Ops */}
+            <Route path="features" element={
+              <ProtectedRoute allowedRoles={['Superadmin', 'Admin Ops']}>
+                <FeatureFlagsPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="users" element={<UsersPage />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="drivers" element={<DriversPage />} />
+            <Route path="merchants" element={<MerchantsPage />} />
+            <Route path="technicians" element={<TechniciansPage />} />
+            <Route path="villas" element={<VillasPage />} />
+            <Route path="finance" element={<FinancePage />} />
+            <Route path="promos" element={<PromosPage />} />
+            <Route path="whatsapp" element={<WhatsAppPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            
+          </Route>
+        </Routes>
+      </Suspense>
     </Router>
   );
 }
