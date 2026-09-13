@@ -4,7 +4,7 @@ import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
-import { Wallet, Clock, Package, ShoppingBag, ArrowRight, Settings2, X } from 'lucide-react';
+import { Wallet, Clock, Package, ShoppingBag, ArrowRight, Settings2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { supabase } from '../config/supabase';
@@ -16,6 +16,13 @@ export default function HomePage() {
   const { orders } = useOrders();
   const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
+  const [serviceOrder, setServiceOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('serviceOrder');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return SERVICES.map(s => s.id);
+  });
   const [hiddenServices, setHiddenServices] = useState(() => {
     try {
       const saved = localStorage.getItem('hiddenServices');
@@ -120,7 +127,15 @@ export default function HomePage() {
 
       {/* Grid Layanan Utama */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 relative z-10 px-2 sm:px-0">
-        {activeServices.filter(s => !hiddenServices.includes(s.id)).map((service) => {
+        {activeServices
+        .slice()
+        .sort((a, b) => {
+          const indexA = serviceOrder.indexOf(a.id) !== -1 ? serviceOrder.indexOf(a.id) : 999;
+          const indexB = serviceOrder.indexOf(b.id) !== -1 ? serviceOrder.indexOf(b.id) : 999;
+          return indexA - indexB;
+        })
+        .filter(s => !hiddenServices.includes(s.id))
+        .map((service) => {
           const IconComponent = service.icon;
             return (
               <Link
@@ -204,11 +219,56 @@ export default function HomePage() {
               </button>
             </div>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-              {activeServices.map(service => {
+              {activeServices
+              .slice()
+              .sort((a, b) => {
+                const indexA = serviceOrder.indexOf(a.id) !== -1 ? serviceOrder.indexOf(a.id) : 999;
+                const indexB = serviceOrder.indexOf(b.id) !== -1 ? serviceOrder.indexOf(b.id) : 999;
+                return indexA - indexB;
+              })
+              .map((service, index, array) => {
                 const isHidden = hiddenServices.includes(service.id);
+                
+                const moveUp = () => {
+                  if (index === 0) return;
+                  const newOrder = [...serviceOrder];
+                  // Ensure all items are in serviceOrder
+                  const currentIds = array.map(s => s.id);
+                  const completeOrder = newOrder.length === currentIds.length ? newOrder : currentIds;
+                  
+                  const temp = completeOrder[index - 1];
+                  completeOrder[index - 1] = completeOrder[index];
+                  completeOrder[index] = temp;
+                  
+                  setServiceOrder(completeOrder);
+                  localStorage.setItem('serviceOrder', JSON.stringify(completeOrder));
+                };
+
+                const moveDown = () => {
+                  if (index === array.length - 1) return;
+                  const newOrder = [...serviceOrder];
+                  const currentIds = array.map(s => s.id);
+                  const completeOrder = newOrder.length === currentIds.length ? newOrder : currentIds;
+                  
+                  const temp = completeOrder[index + 1];
+                  completeOrder[index + 1] = completeOrder[index];
+                  completeOrder[index] = temp;
+                  
+                  setServiceOrder(completeOrder);
+                  localStorage.setItem('serviceOrder', JSON.stringify(completeOrder));
+                };
+
                 return (
                   <div key={service.id} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1 mr-1">
+                        <button onClick={moveUp} disabled={index === 0} className={`p-0.5 rounded transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
+                          <ChevronUp size={16} />
+                        </button>
+                        <button onClick={moveDown} disabled={index === array.length - 1} className={`p-0.5 rounded transition-colors ${index === array.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: service.color }}>
                         {service.icon ? <service.icon size={24} /> : <span className="font-bold text-lg">{service.name_id.charAt(4)}</span>}
                       </div>
