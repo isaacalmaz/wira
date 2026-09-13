@@ -4,7 +4,7 @@ import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
-import { Wallet, Navigation, Clock, Package, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Wallet, Clock, Package, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { supabase } from '../config/supabase';
@@ -14,32 +14,14 @@ export default function HomePage() {
   const { t, lang } = useTranslation();
   const { balance } = useWallet();
   const { orders } = useOrders();
-  const [activeServices, setActiveServices] = useState(SERVICES.map(s => ({ ...s, enabled: false })));
-
+  const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
-  const [userZones, setUserZones] = useState(null);
-  const [locationWarning, setLocationWarning] = useState(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
 
   useEffect(() => {
-    let currentGlobalFlags = [];
-
-    const updateServices = (flags, zones) => {
+    const updateServices = (flags) => {
       const updatedServices = SERVICES.map(srv => {
-        // 1. Cek Global Flag
-        const flag = flags.find(f => f.id === srv.id);
-        const isGloballyEnabled = flag ? flag.status : srv.enabled;
-
-        // 2. Cek Zone Services
-        let isZoneEnabled = false;
-        if (zones && zones.length > 0) {
-          const serviceKey = srv.id.replace('wira_', '');
-          isZoneEnabled = zones.some(zone => zone.services && zone.services[serviceKey] === true);
-        }
-
-        // 3. Intersect (hanya aktif jika global aktif DAN zona aktif)
-        // Jika tidak ada zona (di luar jangkauan/izin ditolak), semua layanan dimatikan kecuali mungkin yang tidak bergantung lokasi (tapi sesuai instruksi: "disable the respective services").
-        return { ...srv, enabled: isGloballyEnabled && isZoneEnabled };
+        const flag = flags?.find(f => f.id === srv.id);
+        return { ...srv, enabled: flag ? flag.status : srv.enabled };
       });
       setActiveServices(updatedServices);
     };
@@ -48,63 +30,13 @@ export default function HomePage() {
       const { data, error } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
       console.log("FEATURE FLAGS FETCH:", { data, error });
       if (data && data.features) {
-        currentGlobalFlags = data.features;
         setGlobalFlags(data.features);
+        updateServices(data.features);
       }
-      return currentGlobalFlags;
-    };
-
-    const fetchLocationAndZones = async (flags) => {
-      if (!navigator.geolocation) {
-        setLocationWarning('Geolocation tidak didukung browser ini.');
-        updateServices(flags, []);
-        setIsLoadingLocation(false);
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            const { data: zones, error: rpcError } = await supabase.rpc('get_zone_for_location', { lat: latitude, lng: longitude });
-            if (rpcError) throw rpcError;
-
-            if (!zones || zones.length === 0) {
-              setLocationWarning('Lokasi di luar jangkauan operasional Wira.');
-              setUserZones([]);
-              updateServices(flags, []);
-            } else {
-              setLocationWarning(null);
-              setUserZones(zones);
-              updateServices(flags, zones);
-            }
-          } catch (err) {
-            console.error("RPC Error:", err);
-            setLocationWarning('Gagal memverifikasi area operasional.');
-            setUserZones([]);
-            updateServices(flags, []);
-          } finally {
-            setIsLoadingLocation(false);
-          }
-        },
-        (err) => {
-          console.error("GPS Error:", err);
-          let errMsg = 'Izin lokasi ditolak atau tidak tersedia.';
-          if (err.code === 1) errMsg = 'Akses GPS ditolak oleh Browser atau Sistem Operasi Anda.';
-          if (err.code === 2) errMsg = 'Sinyal GPS tidak tersedia (Coba nyalakan Wi-Fi Anda).';
-          if (err.code === 3) errMsg = 'Waktu pencarian sinyal GPS habis (Timeout).';
-          setLocationWarning(errMsg);
-          setUserZones([]);
-          updateServices(flags, []);
-          setIsLoadingLocation(false);
-        },
-        { timeout: 10000 }
-      );
     };
 
     const init = async () => {
-      const flags = await fetchGlobalFlags();
-      fetchLocationAndZones(flags);
+      await fetchGlobalFlags();
     };
 
     init();
@@ -114,7 +46,6 @@ export default function HomePage() {
         console.log("REALTIME PAYLOAD:", payload);
         if (payload.new && payload.new.features) {
           setGlobalFlags(payload.new.features);
-          // Gunakan userZones dari state closure via functional state update atau reference (we will re-evaluate on render instead)
         }
       })
       .subscribe();
@@ -123,25 +54,15 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoadingLocation) {
-       const updateServices = () => {
-          const updatedServices = SERVICES.map(srv => {
-            const flag = globalFlags.find(f => f.id === srv.id);
-            const isGloballyEnabled = flag ? flag.status : srv.enabled;
-
-            let isZoneEnabled = false;
-            if (userZones && userZones.length > 0) {
-              const serviceKey = srv.id.replace('wira_', '');
-              isZoneEnabled = userZones.some(zone => zone.services && zone.services[serviceKey] === true);
-            }
-
-            return { ...srv, enabled: isGloballyEnabled && isZoneEnabled };
-          });
-          setActiveServices(updatedServices);
-       };
-       updateServices();
-    }
-  }, [globalFlags, userZones, isLoadingLocation]);
+    const updateServices = () => {
+      const updatedServices = SERVICES.map(srv => {
+        const flag = globalFlags.find(f => f.id === srv.id);
+        return { ...srv, enabled: flag ? flag.status : srv.enabled };
+      });
+      setActiveServices(updatedServices);
+    };
+    updateServices();
+  }, [globalFlags]);
 
   const recentOrders = orders.slice(0, 3);
 
@@ -174,23 +95,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Lokasi / Peringatan Geofencing */}
-      {isLoadingLocation && (
-        <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-center flex items-center justify-center gap-2">
-           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-           <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Menentukan lokasi Anda...</span>
-        </div>
-      )}
-      
-      {!isLoadingLocation && locationWarning && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-xl flex items-start gap-3">
-          <Navigation className="text-red-500 shrink-0 mt-0.5" size={18} />
-          <div>
-            <p className="text-sm font-bold text-red-700 dark:text-red-400">Lokasi Terbatas</p>
-            <p className="text-xs text-red-600 dark:text-red-300 mt-0.5">{locationWarning}</p>
-          </div>
-        </div>
-      )}
 
       {/* Grid Layanan Utama */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 mt-6 relative z-10 px-2 sm:px-0">
