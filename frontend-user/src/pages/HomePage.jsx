@@ -220,7 +220,11 @@ export default function HomePage() {
                       onClick={() => {
                         const newHidden = isHidden ? hiddenServices.filter(id => id !== service.id) : [...hiddenServices, service.id];
                         setHiddenServices(newHidden);
-                        localStorage.setItem('hiddenServices', JSON.stringify(newHidden));
+                        try {
+                          localStorage.setItem('hiddenServices', JSON.stringify(newHidden));
+                        } catch (e) {
+                          console.error("Failed to save hidden services to local storage", e);
+                        }
                       }}
                       className={`w-14 h-7 rounded-full relative transition-colors duration-300 ease-in-out shadow-inner ${!isHidden ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
                     >
