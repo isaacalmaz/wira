@@ -177,8 +177,8 @@ $$;
 -- 7. Fungsi Alias Kenyamanan: find_nearest_drivers
 -- Mendukung pemanggilan dengan parameter nama pendek ({ lat, lng })
 CREATE OR REPLACE FUNCTION find_nearest_drivers(
-    lat DOUBLE PRECISION,
-    lng DOUBLE PRECISION,
+    user_lat DOUBLE PRECISION,
+    user_lng DOUBLE PRECISION,
     target_vehicle_type TEXT DEFAULT NULL,
     only_online BOOLEAN DEFAULT true,
     max_results INT DEFAULT 10
@@ -204,8 +204,8 @@ AS $$
 BEGIN
     RETURN QUERY 
     SELECT * FROM get_nearest_drivers(
-        user_lat => lat,
-        user_lng => lng,
+        user_lat => user_lat,
+        user_lng => user_lng,
         target_vehicle_type => target_vehicle_type,
         only_online => only_online,
         max_results => max_results

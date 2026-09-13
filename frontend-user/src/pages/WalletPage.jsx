@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wallet,
   ArrowUpRight,
@@ -11,23 +11,38 @@ import {
   PhoneCall,
   Clock,
   Sparkles,
+  AlertTriangle,
+  Check,
 } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import QRISCard from '../components/common/QRISCard';
 import { formatRupiah } from '../utils/formatRupiah';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useWallet } from '../context/WalletContext';
+import {
+  createTopUpRequest,
+  cancelTopUpRequest,
+  calculateUniqueTopUpAmount,
+  getAvailableUniqueCode,
+  fetchUserTopUpRequests,
+  formatAmountWithUniqueHighlight,
+} from '../services/topupService';
 import { toast } from 'react-hot-toast';
 
 export default function WalletPage() {
-  const { balance, transactions, topUp, transfer, pay } = useWallet();
+  const { balance, transactions, transfer, pay } = useWallet();
 
   // Modal States
   const [modalType, setModalType] = useState(null); // 'topup', 'transfer', 'qris', null
   const [topUpStep, setTopUpStep] = useState(1); // 1: input, 2: instruction
-  const [topUpAmount, setTopUpAmount] = useState(50000);
-  const [topUpMethod, setTopUpMethod] = useState('BCA Virtual Account');
+  const [baseAmount, setBaseAmount] = useState(50000);
+  const [uniqueCode, setUniqueCode] = useState(0);
+  const [finalAmount, setFinalAmount] = useState(50000);
+  const [copiedNominal, setCopiedNominal] = useState(false);
+  const [pendingTopUps, setPendingTopUps] = useState([]);
+  const [viewingPendingId, setViewingPendingId] = useState(null); // Tracks if currently reviewing an existing pending top-up
 
   // Transfer States
   const [transferPhone, setTransferPhone] = useState('');
@@ -42,19 +57,155 @@ export default function WalletPage() {
   const quickAmounts = [20000, 50000, 100000, 200000, 500000];
 
   const { user } = useAuth();
-  
-  const handleTopUpConfirm = async () => {
+
+  const loadPendingTopUps = async () => {
+    if (!user?.id) {
+      setPendingTopUps([]);
+      return;
+    }
+    const data = await fetchUserTopUpRequests(supabase, user.id);
+    setPendingTopUps(data);
+  };
+
+  useEffect(() => {
+    loadPendingTopUps();
+
+    const handleFocus = () => {
+      loadPendingTopUps();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadPendingTopUps();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
+  const handleCancelPending = async (requestId) => {
+    if (!requestId || loading) return;
+    if (!window.confirm('Batalkan permintaan Top Up ini? Kode unik akan dibebaskan.')) return;
+
     setLoading(true);
     try {
-      const { error } = await supabase.from('topup_requests').insert([{
-        user_id: user.id,
-        amount: topUpAmount,
-        status: 'pending'
-      }]);
-      if (error) throw error;
-      toast.success(`Permintaan Top Up ${formatRupiah(topUpAmount)} berhasil. Menunggu admin.`);
+      await cancelTopUpRequest(supabase, requestId, user?.id);
+      toast.success('Permintaan Top Up berhasil dibatalkan');
+      if (viewingPendingId === requestId) {
+        setModalType(null);
+        setViewingPendingId(null);
+        setTopUpStep(1);
+      }
+      await loadPendingTopUps();
+    } catch (err) {
+      toast.error(err.message || 'Gagal membatalkan permintaan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text, label = 'Nominal') => {
+    let copied = false;
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(String(text));
+        copied = true;
+      } catch (_) {
+        // Clipboard permission denied or iframe sandboxed; fallback to execCommand below
+      }
+    }
+    if (!copied) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = String(text);
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (_) {}
+    }
+    if (copied) {
+      toast.success(`${label} disalin!`);
+      return true;
+    } else {
+      toast.error('Gagal menyalin ke clipboard');
+      return false;
+    }
+  };
+
+  const handleProceedToPayment = async () => {
+    if (loading) return;
+    if (!user) {
+      toast.error('Silakan login terlebih dahulu untuk melakukan Top Up');
+      return;
+    }
+    if (!baseAmount || Number(baseAmount) < 10000) {
+      toast.error('Minimal top up adalah Rp 10.000');
+      return;
+    }
+    setLoading(true);
+    try {
+      const code = await getAvailableUniqueCode(supabase, baseAmount);
+      const calc = calculateUniqueTopUpAmount(baseAmount, code);
+      setBaseAmount(calc.baseAmount);
+      setUniqueCode(calc.uniqueCode);
+      setFinalAmount(calc.totalAmount);
+      setViewingPendingId(null);
+      setTopUpStep(2);
+    } catch (err) {
+      toast.error(err.message || 'Nominal tidak valid');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyNominal = async () => {
+    const ok = await copyToClipboard(
+      finalAmount,
+      `Nominal Rp ${finalAmount.toLocaleString('id-ID')}`
+    );
+    if (ok) {
+      setCopiedNominal(true);
+      setTimeout(() => setCopiedNominal(false), 2500);
+    }
+  };
+
+  const handleTopUpConfirm = async () => {
+    if (loading) return;
+
+    // If viewing an already created pending request, avoid duplicate insertions
+    if (viewingPendingId) {
+      toast.success('Permintaan Top Up ini sudah tercatat dan sedang menunggu verifikasi admin.');
       setModalType(null);
+      setViewingPendingId(null);
       setTopUpStep(1);
+      return;
+    }
+
+    if (!user) {
+      toast.error('Silakan login terlebih dahulu');
+      return;
+    }
+    setLoading(true);
+    try {
+      const created = await createTopUpRequest(supabase, {
+        userId: user.id,
+        amount: finalAmount,
+      });
+      const recordedAmount = created?.amount ? Number(created.amount) : finalAmount;
+      toast.success(`Permintaan Top Up Rp ${recordedAmount.toLocaleString('id-ID')} berhasil. Menunggu verifikasi admin.`);
+      setModalType(null);
+      setViewingPendingId(null);
+      setTopUpStep(1);
+      await loadPendingTopUps();
     } catch (err) {
       toast.error(err.message || 'Gagal membuat permintaan top up');
     } finally {
@@ -142,8 +293,10 @@ export default function WalletPage() {
         <div className="flex justify-between gap-3">
           <button
             onClick={() => {
+              setViewingPendingId(null);
               setModalType('topup');
               setTopUpStep(1);
+              setBaseAmount(50000);
             }}
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
@@ -166,6 +319,86 @@ export default function WalletPage() {
           </button>
         </div>
       </div>
+
+      {/* Permintaan Top-Up Menunggu Verifikasi */}
+      {pendingTopUps.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <Clock size={16} /> Menunggu Verifikasi Pembayaran ({pendingTopUps.length})
+            </h3>
+            <span className="text-[11px] text-slate-400">QRIS Statis DANA</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {pendingTopUps.map((p) => {
+              const pFormatted = formatAmountWithUniqueHighlight(p.amount);
+              return (
+                <div
+                  key={p.id}
+                  className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-base text-slate-900 dark:text-white inline-flex items-baseline flex-nowrap whitespace-nowrap gap-0.5">
+                        <span>{pFormatted.prefix}</span>
+                        <span className="text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-mono underline decoration-amber-500 shrink-0">
+                          {pFormatted.uniqueDigits}
+                        </span>
+                      </span>
+                      <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold px-2 py-0.5 rounded-full">
+                        Menunggu Admin
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      Wajib transfer tepat <strong className="text-amber-700 dark:text-amber-300">{pFormatted.fullFormatted}</strong> (termasuk 3 digit unik).
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(p.amount, `Nominal ${pFormatted.fullFormatted}`)}
+                      className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 hover:bg-amber-200 px-2.5 py-1.5 rounded-xl transition"
+                      title="Salin nominal untuk transfer"
+                    >
+                      <Copy size={13} />
+                      <span>Salin</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = Number(p.amount) % 1000;
+                        const base = Number(p.amount) - code;
+                        setBaseAmount(base);
+                        setUniqueCode(code);
+                        setFinalAmount(Number(p.amount));
+                        setViewingPendingId(p.id);
+                        setModalType('topup');
+                        setTopUpStep(2);
+                      }}
+                      className="flex items-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl transition shadow-sm"
+                    >
+                      <QrCode size={13} />
+                      <span>Lihat QRIS</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelPending(p.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 px-2 py-1.5 rounded-xl transition border border-rose-200/60 dark:border-rose-800/60"
+                      title="Batalkan permintaan top up"
+                    >
+                      <X size={13} />
+                      <span>Batal</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Riwayat Transaksi */}
       <div>
@@ -230,9 +463,13 @@ export default function WalletPage() {
       {/* MODAL 1: TOP UP SALDO */}
       {modalType === 'topup' && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setModalType(null)}
+              onClick={() => {
+                setModalType(null);
+                setViewingPendingId(null);
+                setTopUpStep(1);
+              }}
               className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
             >
               <X size={20} />
@@ -245,7 +482,7 @@ export default function WalletPage() {
                     Top Up WiraPay
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Pilih nominal isi ulang saldo Anda
+                    Pilih nominal isi ulang saldo dompet digital Anda
                   </p>
                 </div>
 
@@ -258,9 +495,9 @@ export default function WalletPage() {
                       <button
                         key={amt}
                         type="button"
-                        onClick={() => setTopUpAmount(amt)}
+                        onClick={() => setBaseAmount(amt)}
                         className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition ${
-                          topUpAmount === amt
+                          baseAmount === amt
                             ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
                             : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                         }`}
@@ -281,8 +518,13 @@ export default function WalletPage() {
                       <input
                         type="number"
                         min="10000"
-                        value={topUpAmount}
-                        onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                        step="1000"
+                        placeholder="Min. 10.000"
+                        value={baseAmount || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBaseAmount(val === '' ? '' : Math.max(0, Number(val)));
+                        }}
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white font-bold text-base focus:ring-2 focus:ring-primary focus:outline-none"
                       />
                     </div>
@@ -290,110 +532,173 @@ export default function WalletPage() {
 
                   <div className="pt-2">
                     <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">
-                      Pilih Jalur Pembayaran
+                      Metode Pembayaran
                     </label>
-                    <div className="space-y-2">
-                      {[
-                        { id: 'BCA Virtual Account', icon: '🏦', name: 'BCA Virtual Account' },
-                        { id: 'BRI Virtual Account', icon: '🏦', name: 'BRI Virtual Account' },
-                        { id: 'Mandiri Virtual Account', icon: '🏦', name: 'Mandiri Livin' },
-                        { id: 'QRIS All Payment', icon: '📱', name: 'QRIS (Gopay, OVO, Dana, Shopee)' },
-                      ].map((m) => (
-                        <label
-                          key={m.id}
-                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                            topUpMethod === m.id
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                              : 'border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl">{m.icon}</span>
-                            <span className="text-xs font-semibold dark:text-white">
-                              {m.name}
+                    {/* Single QRIS Payment Flow - VA options eliminated */}
+                    <div className="p-3.5 rounded-2xl border-2 border-primary bg-primary/5 dark:bg-primary/10 flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-md">
+                          <QrCode size={22} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            Pembayaran via QRIS (Wajib Sesuai Nominal)
+                            <span className="text-[10px] bg-green-500 text-white font-semibold px-2 py-0.5 rounded-full">
+                              Aktif
                             </span>
-                          </div>
-                          <input
-                            type="radio"
-                            name="method"
-                            checked={topUpMethod === m.id}
-                            onChange={() => setTopUpMethod(m.id)}
-                            className="text-primary focus:ring-primary"
-                          />
-                        </label>
-                      ))}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            QRIS Statis DANA • Semua E-Wallet & M-Banking
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center">
+                        <Check size={13} strokeWidth={3} />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <Button
-                  className="w-full py-3 text-sm font-bold"
-                  onClick={() => setTopUpStep(2)}
-                  disabled={topUpAmount < 10000}
+                  className="w-full py-3 text-sm font-bold shadow-lg shadow-primary/20"
+                  onClick={handleProceedToPayment}
+                  disabled={loading || !baseAmount || Number(baseAmount) < 10000}
                 >
-                  Lanjut Pembayaran ({formatRupiah(topUpAmount)})
+                  {loading
+                    ? 'Menyiapkan Kode Unik...'
+                    : `Lanjut ke Pembayaran QRIS (${formatRupiah(Number(baseAmount) || 0)})`}
                 </Button>
               </>
             ) : (
               <>
                 <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-primary mx-auto flex items-center justify-center mb-2">
-                    <Building2 size={24} />
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-primary mb-2 shadow-inner">
+                    <QrCode size={26} />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Instruksi Pembayaran
+                    Pembayaran QRIS Statis DANA
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{topUpMethod}</p>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl space-y-3 border border-slate-100 dark:border-slate-700">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">Total Tagihan</span>
-                    <span className="font-extrabold text-base text-primary">
-                      {formatRupiah(topUpAmount)}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-slate-200 dark:border-slate-700 pt-3">
-                    <p className="text-[11px] text-slate-500 mb-1">Nomor Virtual Account</p>
-                    <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <span className="font-mono font-bold text-sm tracking-widest text-slate-900 dark:text-white">
-                        8213 0812 3456 7890
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('8213081234567890');
-                          toast.success('Nomor VA disalin!');
-                        }}
-                        className="text-primary hover:text-cyan-700 p-1 rounded"
-                        title="Salin No VA"
-                      >
-                        <Copy size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Transfer dari m-Banking atau ATM ke nomor Virtual Account di atas. Saldo WiraPay akan langsung masuk otomatis.
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Scan barcode di bawah lalu transfer tepat sesuai nominal unik
                   </p>
                 </div>
 
-                <div className="flex gap-2">
+                {/* Standardized QRIS Card */}
+                <QRISCard />
+
+                {/* Total Payment with Highlighted 3 Unique Digits */}
+                {(() => {
+                  const formatted = formatAmountWithUniqueHighlight(finalAmount);
+                  return (
+                    <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                           Total Tagihan Pembayaran
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyNominal}
+                          className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-cyan-700 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition shrink-0"
+                          title="Salin Nominal Pembayaran"
+                        >
+                          {copiedNominal ? (
+                            <>
+                              <Check size={13} className="text-green-600" />
+                              <span className="text-green-600 font-bold">Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={13} />
+                              <span>Salin Nominal</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Prominent Bold Nominal with Distinct Highlight on Last 3 Digits */}
+                      <div className="text-center py-2.5 px-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner overflow-hidden">
+                        <p className="inline-flex items-baseline justify-center flex-nowrap whitespace-nowrap gap-0.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums max-w-full">
+                          <span>{formatted.prefix}</span>
+                          <span className="text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-amber-700 underline decoration-amber-500 decoration-2 shrink-0">
+                            {formatted.uniqueDigits}
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Nominal Pokok: Rp {Number(baseAmount).toLocaleString('id-ID')} + Kode Unik:{' '}
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            +{uniqueCode}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Info Banner when reviewing existing pending top-up */}
+                      {viewingPendingId && (
+                        <div className="text-center text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-700 flex items-center justify-center gap-1.5">
+                          <Clock size={14} className="shrink-0" />
+                          <span>Status: Menunggu verifikasi admin untuk transfer ini</span>
+                        </div>
+                      )}
+
+                      {/* Important Warning Instruction Box */}
+                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl flex gap-2.5 text-amber-800 dark:text-amber-200 text-xs">
+                        <AlertTriangle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-bold">
+                            PENTING: Wajib transfer tepat hingga 3 digit terakhir ({formatted.uniqueDigits})!
+                          </p>
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                            Jangan bulatkan nominal. 3 digit terakhir adalah kode verifikasi otomatis admin. Seluruh nominal akan masuk 100% ke saldo WiraPay Anda.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step-by-Step Instructions */}
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pt-1">
+                        <p className="font-semibold text-slate-700 dark:text-slate-300">
+                          Panduan Transfer:
+                        </p>
+                        <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                          <li>Buka aplikasi pembayaran (DANA, BCA, Mandiri, GoPay, OVO, ShopeePay, dll).</li>
+                          <li>Scan QRIS di atas.</li>
+                          <li>Masukkan nominal transfer PERSIS: <strong>Rp {finalAmount.toLocaleString('id-ID')}</strong>.</li>
+                          <li>Setelah pembayaran selesai, tekan tombol konfirmasi di bawah.</li>
+                        </ol>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex gap-2 pt-1">
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={() => setTopUpStep(1)}
+                    onClick={() => {
+                      setViewingPendingId(null);
+                      setTopUpStep(1);
+                    }}
                   >
-                    Ubah
+                    {viewingPendingId ? 'Top Up Baru' : 'Ubah Nominal'}
                   </Button>
                   <Button
-                    className="flex-1"
+                    className="flex-1 font-bold shadow-lg shadow-primary/20"
                     onClick={handleTopUpConfirm}
                     disabled={loading}
                   >
-                    {loading ? 'Memproses...' : 'Saya Sudah Transfer'}
+                    {loading ? 'Memproses...' : viewingPendingId ? 'Tutup (Sudah Transfer)' : 'Saya Sudah Transfer'}
                   </Button>
                 </div>
+
+                {viewingPendingId && (
+                  <button
+                    type="button"
+                    onClick={() => handleCancelPending(viewingPendingId)}
+                    disabled={loading}
+                    className="w-full text-center text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-rose-200 dark:border-rose-900/50"
+                  >
+                    <X size={14} />
+                    <span>Batalkan Permintaan Top Up Ini</span>
+                  </button>
+                )}
               </>
             )}
           </div>

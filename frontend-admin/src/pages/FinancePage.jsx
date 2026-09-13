@@ -56,13 +56,30 @@ const FinancePage = () => {
     if (!window.confirm('Yakin ingin menolak top-up ini?')) return;
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('topup_requests')
-        .update({ status: 'rejected' })
-        .eq('id', id);
-      if (error) throw error;
-      toast.success('Top-up berhasil ditolak');
-      fetchData();
+      const { data, error } = await supabase.rpc('reject_topup_request', { request_id: id });
+      if (error) {
+        // Safe fallback to direct update if RPC is not yet registered
+        const { data: updateData, error: updateErr } = await supabase
+          .from('topup_requests')
+          .update({ status: 'rejected', updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select();
+        if (updateErr) throw updateErr;
+        if (!updateData || updateData.length === 0) {
+          toast.error('Gagal menolak, status permintaan sudah berubah');
+        } else {
+          toast.success('Top-up berhasil ditolak');
+          fetchData();
+        }
+        return;
+      }
+      if (data) {
+        toast.success('Top-up berhasil ditolak');
+        fetchData();
+      } else {
+        toast.error('Gagal menolak, mungkin status sudah berubah');
+      }
     } catch (err) {
       toast.error(err.message || 'Terjadi kesalahan');
     } finally {
@@ -121,12 +138,31 @@ const FinancePage = () => {
                       <div className="text-xs text-slate-500">{t.users?.phone || '-'}</div>
                     </td>
                     <td className="px-4 py-3 font-bold text-slate-900">
-                      Rp {t.amount.toLocaleString('id-ID')}
+                      {(() => {
+                        const amt = Number(t.amount);
+                        const str = amt.toLocaleString('id-ID');
+                        const code = amt % 1000;
+                        if (code > 0 && str.length >= 3) {
+                          return (
+                            <div>
+                              <span>Rp {str.slice(0, -3)}</span>
+                              <span className="text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-200">
+                                {str.slice(-3)}
+                              </span>
+                              <span className="block text-[10px] text-amber-700 font-semibold mt-0.5">
+                                Kode Unik: +{code}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return `Rp ${str}`;
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                         t.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                         t.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        t.status === 'cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
                         'bg-red-100 text-red-700'
                       }`}>
                         {t.status.toUpperCase()}

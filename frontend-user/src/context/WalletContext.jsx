@@ -63,7 +63,7 @@ export const WalletProvider = ({ children }) => {
     };
   }, [user]);
 
-  const topUp = async (amount, method = 'BCA Virtual Account') => {
+  const topUp = async (amount, method = 'QRIS Statis DANA') => {
     const numAmount = Number(amount);
     const newTrx = {
       id: `TOP-${Date.now().toString().slice(-6)}`,
