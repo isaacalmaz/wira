@@ -275,7 +275,7 @@ export default function RidePage() {
   };
 
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden w-full max-w-md mx-auto bg-slate-50 dark:bg-slate-900">
+    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-slate-50 dark:bg-slate-900">
       {/* Area Peta Interaktif */}
       <div className="absolute inset-0 z-0 bg-slate-200">
         <WiraMap 
@@ -313,7 +313,7 @@ export default function RidePage() {
 
         {/* Input Terapung jika langkah awal */}
         {step === 'input' && (
-          <div className="absolute top-3 left-3 right-3 z-[400] max-w-md mx-auto">
+          <div className="absolute top-3 left-3 right-3 md:right-auto md:left-6 md:top-6 md:w-[28rem] z-[400] max-w-md mx-auto md:mx-0">
             <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700">
               <LocationAutocomplete
                 placeholder="Lokasi Penjemputan Anda (cth: Ampenan / Rumah)"
@@ -358,7 +358,7 @@ export default function RidePage() {
       </div>
 
       {/* Bagian Bawah: Aksi & Langkah Pemesanan */}
-      <div className="absolute bottom-0 w-full z-10 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] border-t border-white/20 dark:border-slate-700/50 flex flex-col max-h-[75vh]">
+      <div className="absolute bottom-0 w-full md:w-[28rem] md:left-6 md:bottom-6 md:rounded-3xl z-10 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] border-t md:border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[75vh]">
         <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-3 shrink-0"></div>
         <div className="flex-1 overflow-y-auto pb-6">
         {/* LANGKAH 1: PILIH TUJUAN CEPAT */}
