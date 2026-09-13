@@ -4,7 +4,7 @@ import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
-import { Wallet, Clock, Package, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Wallet, Clock, Package, ShoppingBag, ArrowRight, Settings2, X } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { supabase } from '../config/supabase';
@@ -16,6 +16,15 @@ export default function HomePage() {
   const { orders } = useOrders();
   const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
+  const [hiddenServices, setHiddenServices] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hiddenServices');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
   useEffect(() => {
     const updateServices = (flags) => {
@@ -96,29 +105,42 @@ export default function HomePage() {
       </div>
 
 
+      {/* Header & Atur Menu */}
+      <div className="flex justify-between items-center mt-6 mb-2 px-2 sm:px-0">
+        <h2 className="font-bold text-lg text-slate-900 dark:text-white">
+          {t('home.services') || 'Layanan'}
+        </h2>
+        <button
+          onClick={() => setIsMenuModalOpen(true)}
+          className="text-xs font-bold text-primary flex items-center gap-1 bg-primary/10 hover:bg-primary/20 transition px-3 py-1.5 rounded-full"
+        >
+          <Settings2 size={14} /> Atur Menu
+        </button>
+      </div>
+
       {/* Grid Layanan Utama */}
-      <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 mt-6 relative z-10 px-2 sm:px-0">
-        {activeServices.map((service) => {
+      <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:gap-4 relative z-10 px-2 sm:px-0">
+        {activeServices.filter(s => !hiddenServices.includes(s.id)).map((service) => {
           const IconComponent = service.icon;
             return (
               <Link
                 key={service.id}
                 to={service.enabled ? service.path : '#'}
-                className={`flex flex-col items-center gap-1.5 group ${service.enabled ? "" : "opacity-40 grayscale cursor-not-allowed"}`} onClick={(e) => { if(!service.enabled) e.preventDefault(); }}
+                className={`flex flex-col items-center gap-2 group ${service.enabled ? "" : "opacity-40 grayscale cursor-not-allowed"}`} onClick={(e) => { if(!service.enabled) e.preventDefault(); }}
               >
                 <div
                   style={{ backgroundColor: service.enabled ? service.color : "#94a3b8" }}
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center text-white shadow-md group-hover:scale-105 group-hover:shadow-lg transition-all duration-200"
                 >
                   {IconComponent ? (
-                    <IconComponent size={24} className="text-white" />
+                    <IconComponent size={32} className="text-white" />
                   ) : (
-                    <span className="text-xl font-bold">
+                    <span className="text-2xl font-bold">
                       {service.name_id.charAt(4)}
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] sm:text-xs text-center font-bold text-slate-700 dark:text-slate-200 leading-tight">
+                <span className="text-xs sm:text-sm text-center font-bold text-slate-700 dark:text-slate-200 leading-tight">
                   {lang === 'id'
                     ? service.name_id.replace('Wira', '')
                     : service.name_en.replace('Wira', '')}
@@ -171,6 +193,46 @@ export default function HomePage() {
           )}
         </div>
       </div>
+      {/* Menu Customization Modal */}
+      {isMenuModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl transform transition-all">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-bold text-xl text-slate-900 dark:text-white">Atur Menu</h3>
+              <button onClick={() => setIsMenuModalOpen(false)} className="text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 p-2 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {activeServices.map(service => {
+                const isHidden = hiddenServices.includes(service.id);
+                return (
+                  <div key={service.id} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: service.color }}>
+                        {service.icon ? <service.icon size={24} /> : <span className="font-bold text-lg">{service.name_id.charAt(4)}</span>}
+                      </div>
+                      <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
+                        {lang === 'id' ? service.name_id.replace('Wira', '') : service.name_en.replace('Wira', '')}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newHidden = isHidden ? hiddenServices.filter(id => id !== service.id) : [...hiddenServices, service.id];
+                        setHiddenServices(newHidden);
+                        localStorage.setItem('hiddenServices', JSON.stringify(newHidden));
+                      }}
+                      className={`w-14 h-7 rounded-full relative transition-colors duration-300 ease-in-out shadow-inner ${!isHidden ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1 left-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 ease-in-out shadow-sm ${!isHidden ? 'translate-x-7' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
