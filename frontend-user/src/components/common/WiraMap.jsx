@@ -72,7 +72,13 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         },
         (err) => {
           console.error("Geolocation error:", err);
-        }
+          let errorMsg = 'Gagal mendapatkan lokasi.';
+          if (err.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
+          else if (err.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
+          else if (err.code === 3) errorMsg = 'Pencarian lokasi timeout.';
+          alert(errorMsg);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
     }
   };

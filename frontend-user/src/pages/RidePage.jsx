@@ -118,10 +118,14 @@ export default function RidePage() {
         toast.success('Lokasi ditemukan!', { id: toastId });
       },
       (error) => {
-        console.error(error);
-        toast.error('Gagal mendapatkan lokasi. Pastikan izin lokasi aktif.', { id: toastId });
+        console.error("GPS Error:", error);
+        let errorMsg = 'Gagal mendapatkan lokasi.';
+        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
+        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
+        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout. Sinyal GPS lemah.';
+        toast.error(errorMsg, { id: toastId, duration: 6000 });
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   };
 

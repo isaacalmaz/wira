@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Bell, Moon, Sun } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useTheme } from '../../context/ThemeContext';
@@ -21,10 +22,10 @@ export default function TopBar() {
         <button onClick={toggleLang} className="px-2 py-1 text-sm bg-slate-100 dark:bg-slate-700 rounded">
           {lang === 'id' ? 'ID' : 'EN'}
         </button>
-        <button className="p-2 text-slate-500 dark:text-slate-400 relative">
+        <Link to="/notifications" className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full relative transition">
           <Bell size={20} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+        </Link>
       </div>
     </header>
   );
