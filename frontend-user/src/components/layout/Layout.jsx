@@ -1,10 +1,12 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 
 export default function Layout() {
+  const location = useLocation();
+  const isFullScreenPage = ['/ride'].includes(location.pathname);
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
@@ -24,8 +26,8 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0 p-4">
-          <div className="max-w-4xl mx-auto">
+        <main className={`flex-1 overflow-y-auto pb-16 md:pb-0 ${isFullScreenPage ? '' : 'p-4'}`}>
+          <div className={isFullScreenPage ? 'h-full w-full' : 'max-w-4xl mx-auto'}>
             <Outlet />
           </div>
         </main>
