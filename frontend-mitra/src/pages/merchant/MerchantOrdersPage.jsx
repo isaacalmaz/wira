@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import { Clock, RefreshCw } from 'lucide-react';
 import { OrderStatus } from '../../constants/orderStatus';
+import { updateOrderStatus } from '../../services/orderService';
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
@@ -29,8 +30,12 @@ const MerchantOrdersPage = () => {
   }, [user]);
 
   const updateStatus = async (id, newStatus) => {
-    await supabase.from('orders').update({ status: newStatus }).eq('id', id);
-    fetchOrders();
+    try {
+      await updateOrderStatus(supabase, id, newStatus);
+      fetchOrders();
+    } catch (err) {
+      // ignore - status might already have moved on via another device
+    }
   };
 
   const filteredOrders = orders.filter(o => tab === 'active' ? (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) : (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED));

@@ -8,6 +8,8 @@ import ChatModal from '../../components/common/ChatModal';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { OrderStatus } from '../../constants/orderStatus';
+import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToDriverOrders } from '../../services/orderService';
 
 const DriverHomePage = () => {
   const { user } = useAuth();
@@ -52,7 +54,7 @@ const DriverHomePage = () => {
         setWeekEarnings(wEarn);
 
         // Check active job on load
-        const activeJob = data.find(d => d.status === 'accepted' || d.status === 'working');
+        const activeJob = data.find(d => [OrderStatus.ACCEPTED, OrderStatus.PICKING_UP, OrderStatus.IN_TRIP].includes(d.status));
         if (activeJob && !activeOrder) setActiveOrder(activeJob);
       }
     };
@@ -65,26 +67,27 @@ const DriverHomePage = () => {
       return;
     }
 
-    // Fungsi untuk mencari orderan yang menggantung (pending)
+    // Fungsi untuk mencari orderan yang menggantung (pending), difilter
+    // ke service_type driver saja (ride/send) - sebelumnya query ini tidak
+    // memfilter service_type sama sekali, jadi order food/villa/service bisa
+    // muncul sebagai "pesanan masuk" untuk driver.
     const checkPendingOrders = async () => {
       if (activeOrder) return; // Jangan cari jika sedang sibuk
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('status', 'pending')
-        .is('driver_id', null)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      try {
+        const pending = await fetchPendingOrders(supabase, 'driver');
+        const latest = pending[0];
 
-      if (data && data.length > 0) {
-        // Jika ada orderan pending dan belum masuk ke state
-        setIncomingOrder(prev => {
-          if (!prev || prev.id !== data[0].id) {
-            toast.success('Ada pesanan menunggu!', { icon: '🔔' });
-            return data[0];
-          }
-          return prev;
-        });
+        if (latest) {
+          setIncomingOrder(prev => {
+            if (!prev || prev.id !== latest.id) {
+              toast.success('Ada pesanan menunggu!', { icon: '🔔' });
+              return latest;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.warn('checkPendingOrders failed:', err);
       }
     };
 
@@ -97,42 +100,30 @@ const DriverHomePage = () => {
     }, 10000);
 
     // Dengarkan orderan baru dari tabel 'orders' via Realtime
-    const channel = supabase
-      .channel('driver-orders')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
-          // Hanya tangkap jika orderan pending & belum ada orderan yang diproses
-          if (payload.new.status === 'pending' && !activeOrder) {
-            setIncomingOrder(payload.new);
-            toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
-          }
-        }
-      )
-      .subscribe();
+    const unsubscribe = subscribeToDriverOrders(supabase, (order) => {
+      if (!activeOrder) {
+        setIncomingOrder(order);
+        toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
+      }
+    });
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [isOnline, activeOrder]);
 
   const handleAcceptOrder = async () => {
-    if (!incomingOrder) return;
+    if (!incomingOrder || !user) return;
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'accepted', driver_id: user?.id })
-        .eq('id', incomingOrder.id);
-        
-      if (error) throw error;
-
-      setActiveOrder(incomingOrder);
+      const accepted = await acceptOrder(supabase, incomingOrder.id, user.id, 'driver');
+      setActiveOrder(accepted);
       setIncomingOrder(null);
       toast.success('Berhasil mengambil pesanan!');
     } catch (err) {
-      toast.error(`Gagal: ${err.message}`);
+      // Order was very likely taken by another driver first - this is expected
+      // under the atomic accept guard, not a real error.
+      toast.error('Pesanan sudah diambil mitra lain.');
       setIncomingOrder(null);
     }
   };
@@ -140,11 +131,7 @@ const DriverHomePage = () => {
   const handleCompleteOrder = async () => {
     if (!activeOrder) return;
     try {
-      await supabase
-        .from('orders')
-        .update({ status: 'completed' })
-        .eq('id', activeOrder.id);
-      
+      await completeOrder(supabase, activeOrder.id);
       toast.success('Perjalanan diselesaikan!');
       setActiveOrder(null);
     } catch (err) {

@@ -7,6 +7,8 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
+import { OrderStatus } from '../../constants/orderStatus';
+import { acceptOrder, subscribeToTechnicianOrders } from '../../services/orderService';
 
 const TechHomePage = () => {
   const { user } = useAuth();
@@ -44,7 +46,7 @@ const TechHomePage = () => {
         setWeekEarnings(wEarn);
 
         // Pekerjaan hari ini
-        const activeJobs = data.filter(d => d.status === 'accepted' || d.status === 'working');
+        const activeJobs = data.filter(d => [OrderStatus.ACCEPTED, OrderStatus.ON_THE_WAY, OrderStatus.WORKING].includes(d.status));
         setTodayOrders(activeJobs);
       }
     };
@@ -56,33 +58,23 @@ const TechHomePage = () => {
       return;
     }
 
-    const channel = supabase
-      .channel('tech-orders')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
-          if (payload.new.status === 'pending' && payload.new.service_type === 'service') {
-            setIncomingOrder(payload.new);
-            toast.success('Panggilan Jasa Baru Masuk!', { icon: '🔧' });
-          }
-        }
-      )
-      .subscribe();
+    const unsubscribe = subscribeToTechnicianOrders(supabase, (order) => {
+      setIncomingOrder(order);
+      toast.success('Panggilan Jasa Baru Masuk!', { icon: '🔧' });
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return unsubscribe;
   }, [isOnline, user]);
 
   const handleAcceptJob = async () => {
     if (!incomingOrder || !user) return;
     try {
-      await supabase.from('orders').update({ status: 'accepted', driver_id: user.id }).eq('id', incomingOrder.id);
+      await acceptOrder(supabase, incomingOrder.id, user.id, 'technician');
       toast.success('Panggilan jasa diterima!');
       setIncomingOrder(null);
     } catch (err) {
-      toast.error('Gagal menerima panggilan');
+      toast.error('Panggilan sudah diambil teknisi lain.');
+      setIncomingOrder(null);
     }
   };
 

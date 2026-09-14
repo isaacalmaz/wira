@@ -7,6 +7,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
+import { updateOrderStatus } from '../../services/orderService';
 
 const TechOrdersPage = () => {
   const { user } = useAuth();
@@ -35,9 +36,13 @@ const TechOrdersPage = () => {
 
   const updateStatus = async (newStatus) => {
     if (activeOrder) {
-      await supabase.from('orders').update({ status: newStatus }).eq('id', activeOrder.id);
-      toast.success(`Status pekerjaan diubah ke: ${newStatus}`);
-      fetchOrders();
+      try {
+        await updateOrderStatus(supabase, activeOrder.id, newStatus);
+        toast.success(`Status pekerjaan diubah ke: ${newStatus}`);
+        fetchOrders();
+      } catch (err) {
+        toast.error('Gagal memperbarui status');
+      }
     }
   };
 

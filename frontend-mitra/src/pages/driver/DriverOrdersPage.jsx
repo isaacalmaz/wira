@@ -5,7 +5,8 @@ import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, MapPin, Package, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { OrderStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { updateOrderStatus } from '../../services/orderService';
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
@@ -35,9 +36,9 @@ const DriverOrdersPage = () => {
   const updateStatus = async (newStatus) => {
     if(activeOrder) {
       try {
-        await supabase.from('orders').update({ status: newStatus }).eq('id', activeOrder.id);
+        await updateOrderStatus(supabase, activeOrder.id, newStatus);
         fetchOrders();
-        toast.success(`Status diperbarui ke: ${newStatus}`);
+        toast.success(`Status diperbarui ke: ${getDisplayStatus(newStatus)}`);
       } catch (err) {
         toast.error('Gagal memperbarui status');
       }

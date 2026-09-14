@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
+import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToMerchantOrders } from '../../services/orderService';
 
 const MerchantHomePage = () => {
   const { user } = useAuth();
@@ -53,22 +54,20 @@ const MerchantHomePage = () => {
 
     const checkPendingOrders = async () => {
       if (activeOrder) return;
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('merchant_id', merchantId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (data && data.length > 0) {
-        setIncomingOrder(prev => {
-          if (!prev || prev.id !== data[0].id) {
-            toast.success('Ada pesanan menunggu!', { icon: '🍲' });
-            return data[0];
-          }
-          return prev;
-        });
+      try {
+        const pending = await fetchPendingOrders(supabase, 'merchant', merchantId);
+        const latest = pending[0];
+        if (latest) {
+          setIncomingOrder(prev => {
+            if (!prev || prev.id !== latest.id) {
+              toast.success('Ada pesanan menunggu!', { icon: '🍲' });
+              return latest;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.warn('checkPendingOrders failed:', err);
       }
     };
 
@@ -78,41 +77,28 @@ const MerchantHomePage = () => {
       checkPendingOrders();
     }, 10000);
 
-    const channel = supabase
-      .channel('merchant-orders')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}` },
-        (payload) => {
-          if (payload.new.status === 'pending' && !activeOrder) {
-            setIncomingOrder(payload.new);
-            toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
-          }
-        }
-      )
-      .subscribe();
+    const unsubscribe = subscribeToMerchantOrders(supabase, merchantId, (order) => {
+      if (!activeOrder) {
+        setIncomingOrder(order);
+        toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
+      }
+    });
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [isOpen, activeOrder, merchantId]);
 
   const handleAcceptOrder = async () => {
     if (!incomingOrder) return;
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'accepted' })
-        .eq('id', incomingOrder.id);
-        
-      if (error) throw error;
-
-      setActiveOrder(incomingOrder);
+      const accepted = await acceptOrder(supabase, incomingOrder.id, merchantId, 'merchant');
+      setActiveOrder(accepted);
       setIncomingOrder(null);
       toast.success('Pesanan Diterima! Silakan siapkan makanan.');
     } catch (err) {
-      toast.error(`Gagal: ${err.message}`);
+      toast.error('Pesanan sudah diproses.');
       setIncomingOrder(null);
     }
   };
@@ -120,11 +106,7 @@ const MerchantHomePage = () => {
   const handleCompleteOrder = async () => {
     if (!activeOrder) return;
     try {
-      await supabase
-        .from('orders')
-        .update({ status: 'completed' })
-        .eq('id', activeOrder.id);
-      
+      await completeOrder(supabase, activeOrder.id);
       setActiveOrder(null);
       toast.success('Pesanan Selesai / Diserahkan ke Driver!');
       setTodayOrders(prev => prev + 1);
