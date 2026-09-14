@@ -15,7 +15,6 @@ try {
 }
 
 export const getStoredOrders = async () => {
-  console.log('[DEBUG getStoredOrders] supabaseUrl=', supabase.supabaseUrl, 'restUrl=', supabase.rest && supabase.rest.url);
   const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
   if (error) {
     console.error('Error fetching orders:', error);
