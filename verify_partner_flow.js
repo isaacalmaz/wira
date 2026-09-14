@@ -24,7 +24,6 @@ function loadEnvironment() {
   const candidates = [
     path.resolve(__dirname, 'backend/.env'),
     path.resolve(__dirname, '.env'),
-    path.resolve(__dirname, 'frontend-partner/.env'),
     path.resolve(__dirname, 'frontend-mitra/.env')
   ];
 

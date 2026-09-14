@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * WiraPartner E2E Test Suite - Tier 3: Cross-Feature Pairwise Interactions
+ * Wira Mitra E2E Test Suite - Tier 3: Cross-Feature Pairwise Interactions
  * File: test_tiers/tier3_pairwise_combinations.test.js
  * ============================================================================
  * Coverage: ≥7 tests covering pairwise interactions between features:

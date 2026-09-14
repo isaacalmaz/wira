@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * WiraPartner E2E Test Suite - Shared Test Harness
+ * Wira Mitra E2E Test Suite - Shared Test Harness
  * File: test_tiers/test_harness.js
  * ============================================================================
  * Provides:
@@ -25,7 +25,6 @@ function loadEnvironment() {
   const candidates = [
     path.resolve(rootDir, 'backend/.env'),
     path.resolve(rootDir, '.env'),
-    path.resolve(rootDir, 'frontend-partner/.env'),
     path.resolve(rootDir, 'frontend-mitra/.env')
   ];
 

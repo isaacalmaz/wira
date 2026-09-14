@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * WiraPartner E2E Test Suite - Tier 4: Real-World Workload Scenarios
+ * Wira Mitra E2E Test Suite - Tier 4: Real-World Workload Scenarios
  * File: test_tiers/tier4_realworld_workloads.test.js
  * ============================================================================
  * Coverage: ≥5 end-to-end realistic production application scenarios:

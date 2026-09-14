@@ -14,10 +14,19 @@ const MerchantEarningsPage = () => {
   useEffect(() => {
     const fetchEarnings = async () => {
       if (!user) return;
+
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('id')
+        .eq('owner_id', user.id)
+        .single();
+
+      if (!merchantData) return;
+
       const { data } = await supabase
         .from('orders')
         .select('total_price, created_at, title')
-        .eq('service_type', 'food')
+        .eq('merchant_id', merchantData.id)
         .eq('status', 'completed');
 
       if (data) {

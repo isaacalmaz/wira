@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * WiraPartner E2E Test Suite - Tier 1: Core Feature Coverage
+ * Wira Mitra E2E Test Suite - Tier 1: Core Feature Coverage
  * File: test_tiers/tier1_feature_coverage.test.js
  * ============================================================================
  * Coverage: ≥35 tests covering all 7 core features:
@@ -416,7 +416,10 @@ async function runTier1() {
   console.log('\n--- [Feature 6] Capacitor.js Config & APK Readiness ---');
 
   const rootDir = path.resolve(__dirname, '..');
-  const partnerDir = path.resolve(rootDir, 'frontend-partner');
+  // frontend-partner was merged into frontend-mitra (see git history around
+  // 2026-09-14/15) - this suite now validates the consolidated app's
+  // Capacitor packaging instead of the retired standalone app.
+  const partnerDir = path.resolve(rootDir, 'frontend-mitra');
   const capJsonPath = path.resolve(partnerDir, 'capacitor.config.json');
   const capTsPath = path.resolve(partnerDir, 'capacitor.config.ts');
   const rootCapJsonPath = path.resolve(rootDir, 'capacitor.config.json');
@@ -439,8 +442,8 @@ async function runTier1() {
   } else {
     // Fallback blueprint from surveyor specifications
     capConfig = {
-      appId: 'com.wira.partner',
-      appName: 'WiraPartner',
+      appId: 'com.wira.mitra',
+      appName: 'WiraMitra',
       webDir: 'dist',
       server: { androidScheme: 'https' }
     };
@@ -451,12 +454,12 @@ async function runTier1() {
     assert.strictEqual(typeof capConfig, 'object');
   });
 
-  await runner.test('F6.2: appId is configured as com.wira.partner', async () => {
-    assert.strictEqual(capConfig.appId, 'com.wira.partner');
+  await runner.test('F6.2: appId is configured as com.wira.mitra', async () => {
+    assert.strictEqual(capConfig.appId, 'com.wira.mitra');
   });
 
-  await runner.test('F6.3: appName is configured as WiraPartner', async () => {
-    assert.strictEqual(capConfig.appName, 'WiraPartner');
+  await runner.test('F6.3: appName is configured as WiraMitra', async () => {
+    assert.strictEqual(capConfig.appName, 'WiraMitra');
   });
 
   await runner.test('F6.4: webDir is strictly mapped to "dist" directory per Acceptance Criteria', async () => {
@@ -515,7 +518,7 @@ async function runTier1() {
 
   await runner.test('F7.5: Build output target directory contracts are defined for dist folder', async () => {
     // Check vite config or package build specification
-    const viteConfigPath = path.resolve(partnerDir, 'vite.config.ts');
+    const viteConfigPath = path.resolve(partnerDir, 'vite.config.js');
     let outDir = 'dist';
     if (fs.existsSync(viteConfigPath)) {
       const content = fs.readFileSync(viteConfigPath, 'utf8');

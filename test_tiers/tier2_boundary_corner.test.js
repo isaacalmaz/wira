@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * WiraPartner E2E Test Suite - Tier 2: Boundary & Corner Cases
+ * Wira Mitra E2E Test Suite - Tier 2: Boundary & Corner Cases
  * File: test_tiers/tier2_boundary_corner.test.js
  * ============================================================================
  * Coverage: ≥35 tests covering edge cases, boundary values, error handling,

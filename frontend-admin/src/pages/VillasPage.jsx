@@ -26,9 +26,15 @@ const VillasPage = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Hapus vila ini?')) return;
-    await supabase.from('merchants').delete().eq('id', id);
-    toast.success('Vila berhasil dihapus');
-    fetchVillas();
+    try {
+      const { error, data } = await supabase.from('merchants').delete().eq('id', id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau data tidak ditemukan.');
+      toast.success('Vila berhasil dihapus');
+      fetchVillas();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menghapus vila');
+    }
   };
 
   const filtered = villas.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));

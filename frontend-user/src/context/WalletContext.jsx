@@ -63,44 +63,6 @@ export const WalletProvider = ({ children }) => {
     };
   }, [user]);
 
-  const topUp = async (amount, method = 'QRIS Statis DANA') => {
-    const numAmount = Number(amount);
-    const newTrx = {
-      id: `TOP-${Date.now().toString().slice(-6)}`,
-      type: 'income',
-      desc: `Top Up via ${method}`,
-      date: 'Baru saja',
-      amount: numAmount,
-      status: 'Berhasil',
-    };
-
-    setBalance((prev) => prev + numAmount);
-    setTransactions((prev) => [newTrx, ...prev]);
-
-    try {
-      const { error } = await supabase.from('transactions').insert([
-        {
-          user_id: user?.id || null,
-          amount: numAmount,
-          type: 'topup',
-          status: 'success',
-          description: `Top Up via ${method}`,
-        },
-      ]);
-      
-      if (error) throw error;
-      toast.success('Top up berhasil');
-      return true;
-    } catch (err) {
-      console.error('Topup failed:', err);
-      // Rollback
-      setBalance((prev) => prev - numAmount);
-      setTransactions((prev) => prev.filter(t => t.id !== newTrx.id));
-      toast.error('Top up gagal. Silakan coba lagi.');
-      throw err;
-    }
-  };
-
   const transfer = async (amount, recipientPhone, recipientName = 'Pengguna Wira') => {
     const numAmount = Number(amount);
     if (balance < numAmount) {
@@ -188,7 +150,7 @@ export const WalletProvider = ({ children }) => {
   };
 
   return (
-    <WalletContext.Provider value={{ balance, transactions, topUp, transfer, pay }}>
+    <WalletContext.Provider value={{ balance, transactions, transfer, pay }}>
       {children}
     </WalletContext.Provider>
   );
