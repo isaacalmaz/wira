@@ -82,17 +82,17 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
       </div>
 
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute top-full left-8 right-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 max-h-48 overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 max-h-72 overflow-y-auto z-50">
           {suggestions.map((item, idx) => (
             <div
               key={idx}
-              className="p-3 border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex gap-2 items-start"
+              className="px-3 py-3.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0 hover:bg-primary/5 dark:hover:bg-slate-700 cursor-pointer flex gap-3 items-start transition-colors"
               onClick={() => handleSelect(item)}
             >
-              <Search size={14} className="text-slate-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{item.display_name.split(',')[0]}</p>
-                <p className="text-[10px] text-slate-500 line-clamp-1">{item.display_name}</p>
+              <MapPin size={16} className="text-primary mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800 dark:text-white">{item.display_name.split(',')[0]}</p>
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-tight">{item.display_name}</p>
               </div>
             </div>
           ))}
