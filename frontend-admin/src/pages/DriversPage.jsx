@@ -50,8 +50,9 @@ const DriversPage = () => {
       let updatedFeatures = [];
       if (flagsData && Array.isArray(flagsData.features)) {
         updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
-        const { error: updateFlagsErr } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
+        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
         if (updateFlagsErr) throw updateFlagsErr;
+        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
       }
 
       if (accept) {

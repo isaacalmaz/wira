@@ -77,12 +77,14 @@ export default function AdminDashboardPage() {
   const saveGlobalServices = async () => {
     setSavingGlobal(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('feature_flags')
         .update({ features: globalServices })
-        .eq('region', 'features_config');
+        .eq('region', 'features_config')
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak.');
       toast.success('Layanan Global berhasil disimpan!');
     } catch (error) {
       console.error('Error saving global services:', error);
@@ -95,12 +97,14 @@ export default function AdminDashboardPage() {
   const saveOperationalZones = async () => {
     setSavingZones(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('feature_flags')
         .update({ features: operationalZones })
-        .eq('region', 'operational_zones');
+        .eq('region', 'operational_zones')
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak.');
       toast.success('Wilayah Operasional berhasil disimpan!');
     } catch (error) {
       console.error('Error saving operational zones:', error);

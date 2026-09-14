@@ -187,8 +187,9 @@ const FeatureFlagsPage = () => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus wilayah ini?')) return;
     
     try {
-      const { error } = await supabase.from('operational_zones').delete().eq('id', zoneId);
+      const { error, data } = await supabase.from('operational_zones').delete().eq('id', zoneId).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau wilayah tidak ditemukan.');
       setZones(zones.filter(z => z.id !== zoneId));
       toast.success('Wilayah berhasil dihapus.');
     } catch (err) {
@@ -201,16 +202,18 @@ const FeatureFlagsPage = () => {
     if (!editingZone.name) return toast.error('Nama wilayah harus diisi');
     
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('operational_zones')
         .update({
           name: editingZone.name,
           status_text: editingZone.status_text
         })
-        .eq('id', editingZone.id);
-        
+        .eq('id', editingZone.id)
+        .select();
+
       if (error) throw error;
-      
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau wilayah tidak ditemukan.');
+
       setZones(zones.map(z => z.id === editingZone.id ? { ...z, name: editingZone.name, status_text: editingZone.status_text } : z));
       setEditingZone(null);
       toast.success('Wilayah berhasil diperbarui.');
@@ -238,11 +241,13 @@ const FeatureFlagsPage = () => {
     setZones(zones.map(z => z.id === zoneId ? { ...z, services: updatedServices } : z));
     
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('operational_zones')
         .update({ services: updatedServices })
-        .eq('id', zoneId);
+        .eq('id', zoneId)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak.');
     } catch (err) {
       console.error(err);
       toast.error('Gagal mengubah layanan wilayah');
@@ -254,13 +259,15 @@ const FeatureFlagsPage = () => {
     if (!activeMapZone) return;
     
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('operational_zones')
         .update({ geojson: geojson })
-        .eq('id', activeMapZone.id);
-        
+        .eq('id', activeMapZone.id)
+        .select();
+
       if (error) throw error;
-      
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau wilayah tidak ditemukan.');
+
       toast.success('Batas wilayah berhasil disimpan!');
       setZones(zones.map(z => z.id === activeMapZone.id ? { ...z, geojson } : z));
       setActiveMapZone(null);

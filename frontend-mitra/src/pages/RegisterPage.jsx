@@ -145,11 +145,13 @@ const RegisterPage = () => {
         const updatedList = [newMitra, ...currentList.filter((m) => m.id !== newMitra.id)];
 
         if (data) {
-          const { error: updateErr } = await supabase
+          const { error: updateErr, data: updatedRow } = await supabase
             .from('feature_flags')
             .update({ features: updatedList, updated_at: new Date().toISOString() })
-            .eq('region', 'mitra_registrations');
+            .eq('region', 'mitra_registrations')
+            .select();
           if (updateErr) throw updateErr;
+          if (!updatedRow || updatedRow.length === 0) throw new Error('Akses ditolak saat menyimpan pendaftaran.');
         } else {
           const { error: insertErr } = await supabase
             .from('feature_flags')

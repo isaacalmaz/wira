@@ -32,15 +32,17 @@ const SettingsPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('users')
         .update({
           name: formData.name,
           phone: formData.phone
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
       toast.success('Profil berhasil diperbarui!');
     } catch (error) {
       toast.error(`Gagal menyimpan: ${error.message}`);
