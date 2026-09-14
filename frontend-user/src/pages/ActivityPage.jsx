@@ -3,6 +3,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useOrders } from '../context/OrderContext';
+import { OrderStatus } from '../constants/orderStatus';
 import {
   ShoppingBag,
   Bike,
@@ -133,11 +134,11 @@ export default function ActivityPage() {
                 </div>
                 <span
                   className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
-                    act.status === 'Selesai' || act.status === 'Terkonfirmasi'
+                    act.rawStatus === OrderStatus.COMPLETED
                       ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : act.status === 'Sedang Diantar' || act.status === 'Sedang Disiapkan' || act.status === 'Berjalan' || act.status === 'Dikonfirmasi' || act.status === 'Sedang Mencari'
-                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 animate-pulse'
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                      : act.rawStatus === OrderStatus.CANCELLED
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 animate-pulse'
                   }`}
                 >
                   {act.status}

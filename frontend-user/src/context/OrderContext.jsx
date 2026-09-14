@@ -2,12 +2,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
-import { 
-  getStoredOrders, 
-  createEcosystemOrder, 
-  updateOrderStatusEcosystem, 
-  subscribeEcosystemEvent 
+import {
+  getStoredOrders,
+  createEcosystemOrder,
+  updateOrderStatusEcosystem,
+  subscribeEcosystemEvent
 } from '../services/ecosystemService';
+import { getDisplayStatus } from '../constants/orderStatus';
 
 const OrderContext = createContext();
 
@@ -24,12 +25,7 @@ export const OrderProvider = ({ children }) => {
     else if (o.service_type === 'pool') uiService = 'WiraPool';
     else if (o.service_type === 'pulsa') uiService = 'WiraPulsa';
 
-    let formattedStatus = o.status;
-    if (o.status === 'pending') formattedStatus = 'Sedang Mencari';
-    else if (o.status === 'accepted') formattedStatus = 'Dikonfirmasi';
-    else if (o.status === 'working' || o.status === 'picking_up') formattedStatus = 'Berjalan';
-    else if (o.status === 'completed') formattedStatus = 'Selesai';
-    else if (o.status === 'cancelled') formattedStatus = 'Dibatalkan';
+    const formattedStatus = getDisplayStatus(o.status);
 
     return {
       id: o.id,

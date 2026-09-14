@@ -35,7 +35,8 @@ export default function VillaPage() {
           pricePerNight: v.price_per_night || 750000,
           image: v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600',
           desc: v.description || 'Villa eksklusif di Pulau Lombok dengan pemandangan asri.',
-          features: ['WiFi Cepat', 'Kolam Renang', 'Sarapan Gratis']
+          bedrooms: v.bedrooms || 2,
+          amenities: v.amenities || ['WiFi Cepat', 'Kolam Renang', 'Sarapan Gratis']
         })));
       }
       setFetchLoading(false);

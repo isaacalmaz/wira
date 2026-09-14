@@ -3,6 +3,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import { Clock, RefreshCw } from 'lucide-react';
+import { OrderStatus } from '../../constants/orderStatus';
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ const MerchantOrdersPage = () => {
     fetchOrders();
   };
 
-  const filteredOrders = orders.filter(o => tab === 'active' ? (o.status !== 'completed' && o.status !== 'rejected') : (o.status === 'completed' || o.status === 'rejected'));
+  const filteredOrders = orders.filter(o => tab === 'active' ? (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) : (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED));
 
   return (
     <div className="space-y-6 pb-20">
@@ -51,7 +52,7 @@ const MerchantOrdersPage = () => {
           <Card key={order.id} className="p-4">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <Badge variant={order.status === 'pending' ? 'danger' : 'primary'} className="mb-1 capitalize">{order.status}</Badge>
+                <Badge variant={order.status === OrderStatus.PENDING ? 'danger' : 'primary'} className="mb-1 capitalize">{order.status}</Badge>
                 <h3 className="font-bold text-xs">{order.id.slice(0,12)}</h3>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(order.created_at).toLocaleTimeString('id-ID')} • User: {order.user_id?.slice(0,6)}</p>
               </div>
@@ -65,10 +66,14 @@ const MerchantOrdersPage = () => {
 
             {tab === 'active' && (
               <div className="flex gap-2">
-                {order.status === 'pending' ? (
-                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, 'accepted')}>Terima</Button>
+                {order.status === OrderStatus.PENDING ? (
+                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.ACCEPTED)}>Terima</Button>
+                ) : order.status === OrderStatus.ACCEPTED ? (
+                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
+                ) : order.status === OrderStatus.PREPARING ? (
+                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
                 ) : (
-                  <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, 'completed')}>Tandai Selesai</Button>
+                  <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
                 )}
               </div>
             )}

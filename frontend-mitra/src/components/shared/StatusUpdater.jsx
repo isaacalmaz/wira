@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from './UIComponents';
+import { OrderStatus } from '../../constants/orderStatus';
 
 const StatusUpdater = ({ currentStatus, role, onUpdate }) => {
   let nextStatus = '';
@@ -7,18 +8,16 @@ const StatusUpdater = ({ currentStatus, role, onUpdate }) => {
   let variant = 'primary';
 
   if (role === 'driver') {
-    if (currentStatus === 'Active') { nextStatus = 'Pick Up'; buttonText = 'Menuju Lokasi'; }
-    else if (currentStatus === 'Pick Up') { nextStatus = 'On The Way'; buttonText = 'Sudah Di Jemput'; }
-    else if (currentStatus === 'On The Way') { nextStatus = 'Arrived'; buttonText = 'Tiba di Tujuan'; }
-    else if (currentStatus === 'Arrived') { nextStatus = 'Completed'; buttonText = 'Selesaikan Pesanan'; variant = 'success'; }
+    if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PICKING_UP; buttonText = 'Menuju Lokasi'; }
+    else if (currentStatus === OrderStatus.PICKING_UP) { nextStatus = OrderStatus.IN_TRIP; buttonText = 'Sudah Di Jemput'; }
+    else if (currentStatus === OrderStatus.IN_TRIP) { nextStatus = OrderStatus.COMPLETED; buttonText = 'Selesaikan Pesanan'; variant = 'success'; }
   } else if (role === 'merchant') {
-    if (currentStatus === 'Incoming') { nextStatus = 'Preparing'; buttonText = 'Terima & Siapkan'; }
-    else if (currentStatus === 'Preparing') { nextStatus = 'Ready'; buttonText = 'Siap Diambil'; variant = 'success'; }
+    if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PREPARING; buttonText = 'Mulai Siapkan'; }
+    else if (currentStatus === OrderStatus.PREPARING) { nextStatus = OrderStatus.READY; buttonText = 'Siap Diambil'; variant = 'success'; }
   } else if (role === 'technician') {
-    if (currentStatus === 'Incoming') { nextStatus = 'Accepted'; buttonText = 'Terima Pekerjaan'; }
-    else if (currentStatus === 'Accepted') { nextStatus = 'On The Way'; buttonText = 'Menuju Lokasi'; }
-    else if (currentStatus === 'On The Way') { nextStatus = 'Working'; buttonText = 'Mulai Bekerja'; }
-    else if (currentStatus === 'Working') { nextStatus = 'Completed'; buttonText = 'Pekerjaan Selesai'; variant = 'success'; }
+    if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.ON_THE_WAY; buttonText = 'Menuju Lokasi'; }
+    else if (currentStatus === OrderStatus.ON_THE_WAY) { nextStatus = OrderStatus.WORKING; buttonText = 'Mulai Bekerja'; }
+    else if (currentStatus === OrderStatus.WORKING) { nextStatus = OrderStatus.COMPLETED; buttonText = 'Pekerjaan Selesai'; variant = 'success'; }
   }
 
   if (!nextStatus) return null;

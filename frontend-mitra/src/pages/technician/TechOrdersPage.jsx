@@ -6,6 +6,7 @@ import { MapPin, Clock, Camera, RefreshCw } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { OrderStatus } from '../../constants/orderStatus';
 
 const TechOrdersPage = () => {
   const { user } = useAuth();
@@ -30,7 +31,7 @@ const TechOrdersPage = () => {
     fetchOrders();
   }, [user]);
 
-  const activeOrder = orders.find(o => o.status === 'accepted' || o.status === 'working');
+  const activeOrder = orders.find(o => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.ON_THE_WAY || o.status === OrderStatus.WORKING);
 
   const updateStatus = async (newStatus) => {
     if (activeOrder) {
@@ -68,7 +69,7 @@ const TechOrdersPage = () => {
 
           <NavigationButton destination={activeOrder.address} />
           
-          {activeOrder.status === 'Working' && (
+          {activeOrder.status === OrderStatus.WORKING && (
              <div className="mt-4 p-4 border-2 border-dashed border-slate-300 rounded-lg text-center cursor-pointer hover:bg-slate-50">
                <Camera size={24} className="mx-auto text-slate-400 mb-2" />
                <p className="text-sm font-medium">Upload Foto Hasil Pekerjaan</p>

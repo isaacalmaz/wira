@@ -5,6 +5,7 @@ import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, MapPin, Package, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { OrderStatus } from '../../constants/orderStatus';
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
@@ -28,8 +29,8 @@ const DriverOrdersPage = () => {
     fetchOrders();
   }, [user]);
 
-  const activeOrder = orders.find(o => o.status === 'accepted' || o.status === 'picking_up' || o.status === 'delivering');
-  const history = orders.filter(o => o.status === 'completed');
+  const activeOrder = orders.find(o => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.PICKING_UP || o.status === OrderStatus.IN_TRIP);
+  const history = orders.filter(o => o.status === OrderStatus.COMPLETED);
 
   const updateStatus = async (newStatus) => {
     if(activeOrder) {
