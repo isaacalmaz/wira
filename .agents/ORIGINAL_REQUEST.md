@@ -23,3 +23,39 @@ Acceptance Criteria:
 - Antarmuka Pengguna: Kode sumber UI Top-Up tidak lagi memiliki opsi hard-coded bank BCA VA, BRI VA, dll. Hanya menampilkan alur QRIS Statis tunggal. Nominal unik yang harus dibayar ditampilkan dengan highlight atau warna berbeda pada 3 digit terakhirnya di antarmuka pelanggan.
 
 Execute the SWE Light loop with implementation, review, and automated testing. Maintain your progress.md and BRIEFING.md in your working directory and report completion when verified.
+
+## 2026-09-13T12:31:04Z
+
+# Teamwork Project Prompt — Draft
+
+> Status: Launched 🚀
+> Goal: Craft prompt → get user approval → delegate to teamwork_preview
+> Requested team: Full team
+
+Build a dedicated Partner/Driver application (WiraPartner) that allows both drivers and merchants to receive and manage orders, designed as a React Web App wrapped with Capacitor.js for Android APK compilation.
+
+Working directory: /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/frontend-partner
+Integrity mode: development
+
+## Requirements
+
+### R1. Unified Partner Interface
+Build a React-based web application with Capacitor.js. The app must allow users to log in and toggle between two operational profiles: "Driver Mode" (for handling WiraRide and WiraSend) and "Merchant Mode" (for handling WiraFood and WiraVilla). The UI should be optimized for mobile screens using Tailwind CSS.
+
+### R2. Order Management & Real-Time Sync
+The application must listen to real-time incoming orders from the Supabase database. In Driver Mode, the user must be able to accept orders, update their GPS location, and complete trips. In Merchant Mode, the user must be able to accept orders, mark them as being prepared, and mark them as ready for pickup.
+
+### R3. APK Readiness
+The repository must be initialized with Capacitor out-of-the-box (`@capacitor/core`, `@capacitor/android`, etc.) so that the user can immediately run `npx cap sync android` and generate an APK without needing further configuration.
+
+## Acceptance Criteria
+
+### Automated Simulation (End-to-End)
+- [ ] A simulation script (`verify_partner_flow.js`) successfully creates a mock customer order directly in Supabase.
+- [ ] The script utilizes the Partner App's service logic to fetch, accept, and complete the order.
+- [ ] The script queries Supabase to confirm the order's final status is successfully marked as 'completed'.
+
+### Build & Compilation
+- [ ] `npm run build` completes successfully with exit code 0.
+- [ ] Capacitor configuration (`capacitor.config.ts` or `.json`) is present and correctly mapped to the web directory (`dist`).
+

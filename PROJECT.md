@@ -1,79 +1,103 @@
-# Project: Wira Proximity-Based Matching
+# Project: WiraPartner
 
 ## Architecture
-Transition Wira application from strict geofencing (blocking users outside operational polygons) to PostGIS proximity-based nearest-neighbor matching across frontend, database, and automated test verification.
-
-- **Frontend (`frontend-user`)**:
-  - `HomePage.jsx` displays all available services without requesting GPS permissions on initial load and without disabling services or displaying "Lokasi Terbatas" banners.
-  - GPS is requested lazily only when a user navigates to a specific order page (e.g., `RidePage.jsx`).
-  - Global feature toggles from Supabase `feature_flags` are preserved.
-- **Backend & Database (PostGIS & Supabase)**:
-  - `public.drivers` is enhanced with `lat`, `lng`, and `location GEOGRAPHY(Point, 4326)` columns.
-  - Spatial GiST index `idx_drivers_location` enables high-performance KNN queries.
-  - Bidirectional trigger `sync_driver_location` keeps `lat`/`lng` and `location` synchronized.
-  - RPC function `get_nearest_drivers(user_lat, user_lng, target_vehicle_type, only_online, max_results)` (and alias `find_nearest_drivers`) calculates distances using PostGIS `ST_Distance` on WGS84 geography and orders drivers by proximity using the PostGIS KNN `<->` operator without hard radius limits.
-  - SQL migration script `setup_nearest_driver.sql` contains the complete DDL/DML.
-- **Verification & Testing (`test_proximity.js`)**:
-  - Standalone script `test_proximity.js` at project root using Node 24 native features and `@supabase/supabase-js` with `SUPABASE_SERVICE_KEY`.
-  - Injects graduated mock drivers across Lombok (from ~300m up to ~50km) to test without radius caps.
-  - Compares PostGIS calculated distances against mathematical Haversine calculations in JavaScript.
-  - Validates ordering, precision, and clean teardown.
+- **Framework & Runtime**: React 18 (`^18.3.1`), Vite 5 (`^5.2.0`), TypeScript 5 (`^5.4.5`), Tailwind CSS 3 (`^3.4.3`), Lucide React icons.
+- **Mobile Container**: Capacitor.js (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android` v6.x) mapping `webDir: 'dist'`, appId `com.wira.partner`, appName `WiraPartner`.
+- **Backend & Realtime Data Layer**: Supabase PostgreSQL database (`public.orders`, `public.drivers`, `public.merchants`, `public.users`).
+  - Realtime Change Data Capture via WebSocket subscription to `postgres_changes` on `public.orders`.
+  - Resilience Polling Fallback: 10-second polling interval ensures zero dropped orders during mobile background sleep/wake cycles.
+  - Driver Geolocation: Browser Geolocation API synchronizes `lat` and `lng` to `public.drivers`, with PostgreSQL trigger `trg_sync_driver_location` updating PostGIS `location` point automatically.
+- **Headless Service Architecture**: Business logic is isolated in `frontend-partner/src/services/partnerOrderService.js`. Both the React UI components and the Node.js E2E test harness (`verify_partner_flow.js`) import this exact service layer.
 
 ## Feature Inventory
-| # | Feature | Description | Milestone | Source | Status |
-|---|---------|-------------|-----------|--------|--------|
-| 1 | R1.1: Remove GPS Request on Init | Remove `fetchLocationAndZones` invocation on `HomePage.jsx` startup | M1 | ORIGINAL_REQUEST §R1 | DONE |
-| 2 | R1.2: Remove Service Greying/Blocking | Keep all service icons colorful and accessible without geofence polygon checks | M1 | ORIGINAL_REQUEST §R1 | DONE |
-| 3 | R1.3: Remove Warning Banners | Eliminate "Lokasi Terbatas" and "Izin lokasi ditolak" banners from HomePage | M1 | ORIGINAL_REQUEST §R1 | DONE |
-| 4 | R1.4: Lazy GPS in Order Pages | Preserve existing lazy GPS handling in `RidePage.jsx` when ordering | M1 | ORIGINAL_REQUEST §R1 | DONE |
-| 5 | R2.1: PostGIS Schema Migration | Add `lat`, `lng`, `location GEOGRAPHY(Point, 4326)` and GiST index to `public.drivers` | M2 | ORIGINAL_REQUEST §R2 | READY |
-| 6 | R2.2: Nearest Neighbor RPC | Implement `get_nearest_drivers` and `find_nearest_drivers` without absolute radius limit | M2 | ORIGINAL_REQUEST §R2 | READY |
-| 7 | R3.1: Automated Proximity Test | Implement `test_proximity.js` at root with mock driver insertion, RPC query, and cleanup | M3 | ORIGINAL_REQUEST §R3 | PLANNED |
-| 8 | R3.2: Mathematical Distance Validation | Assert strict monotonic ascending order and <1% delta between PostGIS and Haversine formula | M3 | ORIGINAL_REQUEST §R3 | PLANNED |
+| # | Feature | Description | Milestone | Source |
+|---|---------|-------------|-----------|--------|
+| 1 | Workspace Integration | Monorepo `package.json` workspace includes `frontend-partner` | M1 | Survey |
+| 2 | Project Tooling & Dependencies | Vite, React 18, Tailwind CSS, Lucide icons, Supabase JS client installed and configured | M1 | Survey |
+| 3 | Capacitor.js Mobile Setup | `@capacitor/core`, `@capacitor/android`, `@capacitor/cli` initialized with `capacitor.config.json` (`webDir: 'dist'`) and Android sync readiness | M1 | Survey (R3) |
+| 4 | Mobile Safe-Area & Viewport Layout | Viewport meta, mobile safe-area padding, Tailwind mobile layout | M1 | Survey (R1) |
+| 5 | Supabase Client & Auth Configuration | Client initialization from env (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), demo login support, session persistence | M1 | Survey (R1) |
+| 6 | Core Partner Order Service | Decoupled headless service (`partnerOrderService.js`) with methods: `fetchOrders`, `acceptOrder`, `updateDriverLocation`, `updateOrderStatus`, `completeOrder` | M1 | Survey (R2, AC) |
+| 7 | Unified Partner Mode Toggle | UI header toggle between Driver Mode and Merchant Mode governed by `user.mitra_access` | M2 | Survey (R1) |
+| 8 | Driver Mode Dashboard | Online/offline toggle, active trips overview, completed counter, mobile cards | M2 | Survey (R1) |
+| 9 | Driver Incoming Order Real-Time Sync | Realtime listener for `pending` orders with `service_type IN ('ride', 'send')` + 10s polling fallback | M2 | Survey (R2) |
+| 10 | Driver Order Acceptance | Atomic update assigning `driver_id` and setting `status = 'accepted'` | M2 | Survey (R2) |
+| 11 | Driver GPS Location Tracking | Geolocation updates pushing `lat`/`lng` to `public.drivers` with PostGIS sync trigger | M2 | Survey (R2) |
+| 12 | Driver Navigation & Status Progression | Route directions / navigation intent and status progression (`accepted` -> `picking_up` / `delivering` -> `completed`) | M2 | Survey (R2) |
+| 13 | Driver Trip Completion | Set `orders.status = 'completed'` and return to online dispatch queue | M2 | Survey (R2, AC) |
+| 14 | Merchant Mode Dashboard | Store open/closed status, pending/preparing/ready order queues, summary statistics | M3 | Survey (R1) |
+| 15 | Merchant Incoming Order Real-Time Sync | Realtime listener for `pending` orders with `service_type IN ('food', 'villa')` + 10s polling fallback | M3 | Survey (R2) |
+| 16 | Merchant Order Acceptance | Transition incoming order from `pending` to `preparing` | M3 | Survey (R2) |
+| 17 | Merchant Preparation & Ready for Pickup | Progress order from `preparing` to `ready` for pickup | M3 | Survey (R2) |
+| 18 | Merchant Order Handover Completion | Finalize pickup/handover by marking order `completed` | M3 | Survey (R2) |
+| 19 | Production Build Target | `npm run build` in `frontend-partner` completes with exit code 0 producing `dist/` | M1 | Survey (AC) |
+| 20 | Automated Simulation Script (`verify_partner_flow.js`) | Root-level Node.js script creating mock customer order in Supabase, using `partnerOrderService` to accept and complete it, and verifying DB `status === 'completed'` | M4 | Survey (AC) |
+| 21 | Graceful Offline/Reconnection Resilience | Channel reconnection logic and fallback polling | M2, M3 | Survey |
+| 22 | Deterministic Test Teardown | Mock order cleanup and test isolation in `verify_partner_flow.js` | M4 | Survey (AC) |
 
 ## Milestones
-| # | Name | Scope | Dependencies | Status | Key Outputs |
-|---|------|-------|-------------|--------|-------------|
-| M1 | Frontend Lazy GPS Load | Update `frontend-user/src/pages/HomePage.jsx` to remove auto-GPS and zone blocking | None | DONE | `frontend-user/src/pages/HomePage.jsx` updated, build passed, gate approved |
-| M2 | Supabase PostGIS Nearest Driver RPC | Create `setup_nearest_driver.sql` with schema extension, trigger, and `get_nearest_drivers` RPC; apply migration | None | READY | - |
-| M3 | Proximity Verification & Test Runner | Create and run `test_proximity.js` verifying mathematical accuracy and ordering without radius cutoff | M2 | PLANNED | - |
+| # | Name | Scope | Dependencies | Status |
+|---|------|-------|-------------|--------|
+| M1 | Core Foundation & Mobile Packaging | Project scaffolding, Vite/React/Tailwind, Capacitor configuration (`capacitor.config.json`), `@capacitor/android` setup, `partnerOrderService.js`, Supabase client, build verification | none | PLANNED |
+| M2 | Driver Mode Operations | Driver dashboard, online toggle, real-time ride/send order listening, atomic acceptance, GPS tracking via `public.drivers`, trip progression and completion | M1 | PLANNED |
+| M3 | Merchant Mode Operations | Merchant dashboard, store open toggle, real-time food/villa order listening, order acceptance, `preparing` status, `ready` status, handover completion | M1 | PLANNED |
+| M4 | Final Milestone: E2E Integration & Verification | Phase 1: 100% passing E2E test suite (Tiers 1-4) & `verify_partner_flow.js`. Phase 2: Adversarial coverage hardening (Tier 5) | M1, M2, M3 | PLANNED |
 
 ## Interface Contracts
+### `partnerOrderService` Interface
+```typescript
+export interface PartnerOrder {
+  id: string;
+  user_id: string;
+  driver_id?: string | null;
+  merchant_id?: string | null;
+  service_type: 'ride' | 'send' | 'food' | 'villa';
+  title?: string;
+  details?: string;
+  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'delivering' | 'completed' | 'cancelled';
+  total_price: number;
+  payment_method: string;
+  payment_status: string;
+  created_at?: string;
+}
 
-### Frontend (`frontend-user/src/pages/HomePage.jsx`)
-- State: `activeServices` initialized from `SERVICES` with default enabled status.
-- Services toggled only via `globalFlags` from Supabase `feature_flags`.
-- No invocation of `navigator.geolocation` or `get_zone_for_location` during HomePage render.
-
-### Supabase PostGIS RPC Contract
-- **Function**: `get_nearest_drivers(user_lat DOUBLE PRECISION, user_lng DOUBLE PRECISION, target_vehicle_type TEXT DEFAULT NULL, only_online BOOLEAN DEFAULT true, max_results INT DEFAULT 10)`
-- **Alias**: `find_nearest_drivers(lat DOUBLE PRECISION, lng DOUBLE PRECISION, target_vehicle_type TEXT DEFAULT NULL, only_online BOOLEAN DEFAULT true, max_results INT DEFAULT 10)`
-- **Returns**:
-  ```sql
-  TABLE (
-    id UUID,
-    name TEXT,
-    phone TEXT,
-    vehicle_type VARCHAR,
-    vehicle_plate VARCHAR,
-    rating DECIMAL,
-    status VARCHAR,
-    is_online BOOLEAN,
-    lat DOUBLE PRECISION,
-    lng DOUBLE PRECISION,
-    distance_meters DOUBLE PRECISION
-  )
-  ```
-- **Distance Formula**: `ST_Distance(location, ST_SetSRID(ST_MakePoint(user_lng, user_lat), 4326)::geography)`
-- **Ordering**: `ORDER BY location <-> ST_SetSRID(ST_MakePoint(user_lng, user_lat), 4326)::geography ASC`
-
-### Test Runner Contract (`test_proximity.js`)
-- Executable via `node test_proximity.js` from workspace root.
-- Exit code `0` on success, non-zero on failure.
-- Self-contained environment parsing (`process.loadEnvFile('backend/.env')`).
-- Strictly cleans up all mock records on exit.
+export interface IPartnerService {
+  getOrders(filter?: { mode?: 'driver' | 'merchant'; status?: string; driverId?: string; merchantId?: string }): Promise<PartnerOrder[]>;
+  acceptOrder(orderId: string, partnerId: string, mode: 'driver' | 'merchant'): Promise<PartnerOrder>;
+  updateOrderStatus(orderId: string, status: string, additionalFields?: Record<string, any>): Promise<PartnerOrder>;
+  updateDriverLocation(driverId: string, lat: number, lng: number): Promise<{ success: boolean; lat: number; lng: number }>;
+  completeOrder(orderId: string): Promise<PartnerOrder>;
+  subscribeToIncomingOrders(mode: 'driver' | 'merchant', partnerId: string, onOrder: (order: PartnerOrder) => void): () => void;
+}
+```
 
 ## Code Layout
-- `frontend-user/src/pages/HomePage.jsx`: Frontend home page service menus and location state (M1 DONE).
-- `setup_nearest_driver.sql`: Database migration for PostGIS schema and RPC functions (M2).
-- `test_proximity.js`: Verification test script verifying PostGIS nearest-neighbor matching against Haversine calculations (M3).
+```
+/Users/ishakalmaazi/.gemini/antigravity/scratch/wira/
+├── frontend-partner/                       # WiraPartner Application Root
+│   ├── package.json                        # Dependencies, build scripts
+│   ├── vite.config.ts                      # Vite build configuration
+│   ├── tsconfig.json                       # TypeScript config (noEmit: true)
+│   ├── tailwind.config.js                  # Tailwind mobile responsive theme
+│   ├── postcss.config.js                   # PostCSS Tailwind plugins
+│   ├── capacitor.config.json               # Capacitor configuration (webDir: 'dist')
+│   ├── index.html                          # Entry HTML with mobile viewport
+│   ├── android/                            # Capacitor Android project files
+│   └── src/
+│       ├── main.tsx                        # React application entry point
+│       ├── App.tsx                         # Main container & Mode toggle
+│       ├── config/
+│       │   └── supabase.js                 # Supabase client singleton & env loader
+│       ├── services/
+│       │   └── partnerOrderService.js      # Headless business logic service
+│       ├── context/
+│       │   └── AuthContext.tsx             # Supabase auth & partner role context
+│       ├── components/
+│       │   ├── Header.tsx                  # App bar with Driver/Merchant toggle
+│       │   ├── DriverView.tsx              # Driver UI (Ride, Send, GPS, Trip)
+│       │   ├── MerchantView.tsx            # Merchant UI (Food, Villa, Queues)
+│       │   └── OrderCard.tsx               # Mobile-optimized order action card
+│       └── types/
+│           └── partner.ts                  # TypeScript models and interfaces
+└── verify_partner_flow.js                  # Root E2E simulation script
+```

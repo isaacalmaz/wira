@@ -1,7 +1,7 @@
-# BRIEFING — 2026-09-13T04:12:13Z
+# BRIEFING — 2026-09-13T12:31:04Z
 
 ## Mission
-Overhaul WiraPay Top-Up flow to QRIS Statis DANA with unique 1-3 digit code system, remove Virtual Account options from UI, and verify mathematically via automated test script.
+Build dedicated Partner/Driver application (WiraPartner) for drivers and merchants with Capacitor.js and Supabase sync, verifying via verify_partner_flow.js and build verification.
 
 ## 🔒 My Identity
 - Archetype: sentinel
@@ -10,6 +10,9 @@ Overhaul WiraPay Top-Up flow to QRIS Statis DANA with unique 1-3 digit code syst
 - Victory Auditor: 8f86ff5b-5963-4d24-9b99-96ed26de4b84
 - Active Route: SWE Light (teamwork_preview_swe)
 - Active Orchestrator: 78c6d754-a161-44d4-be4f-62aab18729d4 (Gen 3)
+- Milestone: WiraPartner
+- Current Active Route: General (teamwork_preview_orchestrator)
+- Current Orchestrator: 5a6c74de-a82f-44c7-a776-76e7c4fe50ce
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -18,27 +21,19 @@ Overhaul WiraPay Top-Up flow to QRIS Statis DANA with unique 1-3 digit code syst
 - Keep context ultra-light
 
 ## User Context
-- **Last user request**: Merombak alur Top-Up WiraPay menggunakan QRIS Statis DANA dengan sistem "Kode Unik" (R1: Sistem Nominal Unik 1-3 digit, R2: Perombakan UI Top-Up membuang VA dan hanya QRIS tunggal dengan highlight 3 digit terakhir, skrip tes test_unique_code.js). "This is a single self-contained fix; keep it small and focused."
+- **Last user request**: Build dedicated Partner/Driver application (WiraPartner) in frontend-partner with React + Capacitor.js + Tailwind CSS, Driver Mode (WiraRide, WiraSend) and Merchant Mode (WiraFood, WiraVilla), real-time Supabase sync, APK readiness, and verify_partner_flow.js simulation.
 - **Pending clarifications**: none
 - **Delivered results**:
-  - R1: Sistem Nominal Unik 1-3 digit (`topupService.js`, DB trigger di `setup_wallet.sql`, tampilan tebal & penyorotan 3 digit kode unik di `WalletPage.jsx` dan `FinancePage.jsx`).
-  - R2: Perombakan UI Top-Up (pembersihan seluruh opsi Virtual Account bank, alur tunggal QRIS Statis DANA `QRISCard.jsx`, instruksi transfer eksak).
-  - Verifikasi: Skrip tes otomatis `test_unique_code.js` (31/31 assertions lolos), `audit_test.js` (6/6 stress tests lolos), build Vite `frontend-user` & `frontend-admin` sukses.
+  - [Previous project: WiraPay QRIS Statis DANA completed and verified]
 
 ## Project Status
-- **Phase**: complete
+- **Phase**: in progress
 
 ## Victory Audit Status
-- **Triggered**: yes
-- **Verdict**: VICTORY CONFIRMED
+- **Triggered**: no
+- **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/.agents/ORIGINAL_REQUEST.md — Verbatim user request record
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/frontend-user/src/services/topupService.js — Unique code generation & validation
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/frontend-user/src/components/common/QRISCard.jsx — Static QRIS DANA component
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/frontend-user/src/pages/WalletPage.jsx — Overhauled top-up modal without VA & unique code highlight
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/frontend-admin/src/pages/FinancePage.jsx — Admin approval/rejection with unique code isolation
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/setup_wallet.sql — PostgreSQL transactions table, trigger & unique index
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/test_unique_code.js — Comprehensive verification test suite
-- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/.agents/victory_auditor_sentinel_5/handoff.md — Victory Auditor report
+- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/.agents/ORIGINAL_REQUEST.md — Authoritative user requests
+- /Users/ishakalmaazi/.gemini/antigravity/scratch/wira/ORIGINAL_REQUEST.md — Workspace user requests

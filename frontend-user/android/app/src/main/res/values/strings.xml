@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wira User</string>
+    <string name="title_activity_main">Wira User</string>
+    <string name="package_name">com.wira.user</string>
+    <string name="custom_url_scheme">com.wira.user</string>
+</resources>

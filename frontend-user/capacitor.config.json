@@ -1,0 +1,8 @@
+{
+  "appId": "com.wira.user",
+  "appName": "Wira User",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -8,6 +8,8 @@ export const OrderStatus = {
   ACCEPTED: 'accepted',
   PREPARING: 'preparing',
   READY: 'ready',
+  PICKING_UP: 'picking_up',
+  IN_TRIP: 'in_trip',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled'
 };
@@ -53,29 +55,49 @@ export async function getOrderById(supabaseClient, orderId) {
  * Accept an incoming order
  */
 export async function acceptOrder(supabaseClient, orderId, partnerId, mode = 'driver') {
-  const updates = {
-    status: OrderStatus.ACCEPTED
-  };
+  let query = supabaseClient
+    .from('orders')
+    .update({
+      status: OrderStatus.ACCEPTED,
+      driver_id: mode === 'driver' ? partnerId : null
+    })
+    .eq('id', orderId)
+    .eq('status', OrderStatus.PENDING);
 
-  if (mode === 'driver' && partnerId) {
-    updates.driver_id = partnerId;
+  if (mode === 'driver') {
+    query = query.is('driver_id', null);
   }
 
-  const { data, error } = await supabaseClient
-    .from('orders')
-    .update(updates)
-    .eq('id', orderId)
-    .select()
-    .single();
-
-  if (error) throw new Error(`acceptOrder failed: ${error.message}`);
+  const { data, error } = await query.select().single();
+  if (error || !data) {
+    throw new Error(`acceptOrder failed: order was already accepted, cancelled, or not found (${error ? error.message : 'no rows updated'})`);
+  }
   return data;
 }
 
 /**
- * Update order status (preparing, ready, etc.)
+ * Update order status (preparing, ready, picking_up, in_trip, etc.)
  */
 export async function updateOrderStatus(supabaseClient, orderId, nextStatus) {
+  const validTransitions = {
+    [OrderStatus.PENDING]: [OrderStatus.ACCEPTED, OrderStatus.CANCELLED],
+    [OrderStatus.ACCEPTED]: [OrderStatus.PICKING_UP, OrderStatus.PREPARING, OrderStatus.CANCELLED, OrderStatus.COMPLETED],
+    [OrderStatus.PICKING_UP]: [OrderStatus.IN_TRIP, OrderStatus.CANCELLED],
+    [OrderStatus.IN_TRIP]: [OrderStatus.COMPLETED],
+    [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
+    [OrderStatus.READY]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+    [OrderStatus.COMPLETED]: [],
+    [OrderStatus.CANCELLED]: []
+  };
+
+  const currentOrder = await getOrderById(supabaseClient, orderId);
+  if (!currentOrder) throw new Error(`Order ${orderId} not found`);
+
+  const allowed = validTransitions[currentOrder.status] || [];
+  if (!allowed.includes(nextStatus)) {
+    throw new Error(`Invalid status transition: Cannot transition order ${orderId} from '${currentOrder.status}' to '${nextStatus}'`);
+  }
+
   const { data, error } = await supabaseClient
     .from('orders')
     .update({ status: nextStatus })
@@ -88,16 +110,90 @@ export async function updateOrderStatus(supabaseClient, orderId, nextStatus) {
 }
 
 /**
+ * Update driver location (lat/lng)
+ */
+export async function updateDriverLocation(supabaseClient, driverId, lat, lng) {
+  if (lat === null || lng === null || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+    throw new Error(`Invalid GPS coordinates: [${lat}, ${lng}]. Refusing to update location.`);
+  }
+
+  const { error } = await supabaseClient
+    .from('drivers')
+    .upsert({
+      id: driverId,
+      lat,
+      lng,
+      is_online: true,
+      updated_at: new Date().toISOString()
+    });
+
+  if (error) throw new Error(`updateDriverLocation failed: ${error.message}`);
+}
+
+/**
  * Complete an order
  */
 export async function completeOrder(supabaseClient, orderId) {
-  const { data, error } = await supabaseClient
-    .from('orders')
-    .update({ status: OrderStatus.COMPLETED })
-    .eq('id', orderId)
-    .select()
-    .single();
-
-  if (error) throw new Error(`completeOrder failed: ${error.message}`);
-  return data;
+  return updateOrderStatus(supabaseClient, orderId, OrderStatus.COMPLETED);
 }
+
+/**
+ * Subscribe to realtime pending driver orders
+ */
+export function subscribeToDriverOrders(supabaseClient, onOrder) {
+  const channel = supabaseClient
+    .channel('driver-orders-stream')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'orders' },
+      (payload) => {
+        const order = payload.new;
+        if (order && order.status === OrderStatus.PENDING && !order.driver_id && ['ride', 'send', 'WiraRide', 'WiraSend'].includes(order.service_type)) {
+          onOrder(order);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => channel.unsubscribe();
+}
+
+/**
+ * Subscribe to realtime merchant orders
+ */
+export function subscribeToMerchantOrders(supabaseClient, merchantId, onOrder) {
+  const channel = supabaseClient
+    .channel(`merchant-orders-${merchantId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}` },
+      (payload) => {
+        const order = payload.new;
+        if (order && order.status === OrderStatus.PENDING) {
+          onOrder(order);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => channel.unsubscribe();
+}
+
+/**
+ * Subscribe to realtime updates for a specific order
+ */
+export function subscribeToOrderUpdates(supabaseClient, orderId, onUpdate) {
+  const channel = supabaseClient
+    .channel(`order-track-${orderId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+      (payload) => {
+        if (payload.new) onUpdate(payload.new);
+      }
+    )
+    .subscribe();
+
+  return () => channel.unsubscribe();
+}
+
