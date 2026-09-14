@@ -178,6 +178,7 @@ export default function RidePage() {
   };
 
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [nearbyDriverCount, setNearbyDriverCount] = useState(null);
 
   const handleStartBooking = async () => {
     if (paymentMethod === 'WiraPay' && balance < selectedVehicle.price) {
@@ -186,8 +187,27 @@ export default function RidePage() {
     }
 
     try {
+      const pickupLat = mapState.markers[0]?.lat;
+      const pickupLng = mapState.markers[0]?.lng;
+
+      // Cek ketersediaan driter terdekat secara real (PostGIS nearest-neighbor),
+      // hanya untuk memberi info jujur ke pelanggan - tidak memblokir pemesanan,
+      // karena driver baru bisa online kapan saja setelah ini.
+      let driverCount = null;
+      if (pickupLat != null && pickupLng != null) {
+        const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
+          user_lat: pickupLat,
+          user_lng: pickupLng,
+          target_vehicle_type: selectedVehicle?.id || null,
+          only_online: true,
+          max_results: 5
+        });
+        driverCount = nearby?.length || 0;
+      }
+      setNearbyDriverCount(driverCount);
+
       const orderDetails = JSON.stringify({
-        pickup: { name: pickup, lat: mapState.markers[0]?.lat, lng: mapState.markers[0]?.lng },
+        pickup: { name: pickup, lat: pickupLat, lng: pickupLng },
         dropoff: { name: dropoff, lat: mapState.markers[1]?.lat, lng: mapState.markers[1]?.lng },
         route: mapState.route
       });
@@ -201,7 +221,12 @@ export default function RidePage() {
       });
       setActiveOrderId(order.id);
       setStep('searching');
-      toast.success('Mencari driver di sekitar Anda...');
+
+      if (driverCount === 0) {
+        toast('Belum ada driver online di sekitar Anda, tapi pesanan tetap dicari...', { icon: '⏳', duration: 5000 });
+      } else {
+        toast.success('Mencari driver di sekitar Anda...');
+      }
     } catch (err) {
       toast.error(`Gagal: ${err.message}`);
     }
@@ -501,7 +526,11 @@ export default function RidePage() {
                 Mencarikan Driver Terdekat...
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Sistem Wira sedang menghubungkan pesanan Anda dengan mitra driver di sekitar Mataram.
+                {nearbyDriverCount > 0
+                  ? `${nearbyDriverCount} driver ditemukan di sekitar lokasi jemput Anda, menunggu salah satu menerima.`
+                  : nearbyDriverCount === 0
+                  ? 'Belum ada driver online di sekitar Anda saat ini. Pesanan tetap menunggu jika ada driver yang online.'
+                  : 'Sistem Wira sedang menghubungkan pesanan Anda dengan mitra driver di sekitar Mataram.'}
               </p>
             </div>
             <Button

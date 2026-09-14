@@ -49,7 +49,7 @@ const DriversPage = () => {
       
       let updatedFeatures = [];
       if (flagsData && Array.isArray(flagsData.features)) {
-        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected' } : f);
+        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
         const { error: updateFlagsErr } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations');
         if (updateFlagsErr) throw updateFlagsErr;
       }

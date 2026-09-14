@@ -1,37 +1,50 @@
+const supabase = require('../config/supabase');
+
 class MatchingService {
-  // Simulasi mencari driver (Delay buatan)
-  async findDriver(orderId, location) {
-    return new Promise((resolve) => {
-      console.log(`Mencari driver untuk pesanan ${orderId}...`);
-      
-      // Delay simulasi 3 detik
-      setTimeout(() => {
-        const mockDriver = {
-          id: 'driver-' + Math.floor(Math.random() * 1000),
-          name: 'Budi (Driver Simulasi)',
-          phone: '081234567890',
-          vehicle_plate: 'DR 1234 XX',
-          rating: 4.8
-        };
-        console.log(`Driver ditemukan: ${mockDriver.name}`);
-        resolve(mockDriver);
-      }, 3000);
+  /**
+   * Find the nearest online drivers to a pickup point using the PostGIS
+   * get_nearest_drivers RPC (unbounded radius, sorted by real distance).
+   * @param {{ lat: number, lng: number }} location - pickup coordinates
+   * @param {string|null} vehicleType - 'motor' | 'mobil' | null for any
+   * @returns {Promise<object|null>} nearest driver, or null if none online nearby
+   */
+  async findDriver(orderId, location, vehicleType = null) {
+    if (!location || location.lat == null || location.lng == null) {
+      throw new Error('findDriver requires a valid { lat, lng } pickup location');
+    }
+
+    const { data, error } = await supabase.rpc('get_nearest_drivers', {
+      user_lat: location.lat,
+      user_lng: location.lng,
+      target_vehicle_type: vehicleType,
+      only_online: true,
+      max_results: 1
     });
+
+    if (error) throw new Error(`findDriver RPC failed: ${error.message}`);
+    return (data && data[0]) || null;
   }
 
-  // Simulasi mencari teknisi
-  async findTechnician(orderId, category) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockTech = {
-          id: 'tech-' + Math.floor(Math.random() * 1000),
-          name: 'Agus (Teknisi Simulasi)',
-          category: category,
-          rating: 4.9
-        };
-        resolve(mockTech);
-      }, 2000);
+  /**
+   * Find the nearest online technicians to a job location. Technicians are
+   * stored in the same public.drivers table (mitra_access includes
+   * 'technician'), so the same proximity RPC applies.
+   */
+  async findTechnician(orderId, location) {
+    if (!location || location.lat == null || location.lng == null) {
+      throw new Error('findTechnician requires a valid { lat, lng } job location');
+    }
+
+    const { data, error } = await supabase.rpc('get_nearest_drivers', {
+      user_lat: location.lat,
+      user_lng: location.lng,
+      target_vehicle_type: null,
+      only_online: true,
+      max_results: 1
     });
+
+    if (error) throw new Error(`findTechnician RPC failed: ${error.message}`);
+    return (data && data[0]) || null;
   }
 }
 

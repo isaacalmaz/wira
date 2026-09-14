@@ -14,12 +14,6 @@ const SettingsPage = () => {
   const [defaultRegion, setDefaultRegion] = useState('Kota Mataram');
   const [csPhone, setCsPhone] = useState('081234567890');
 
-  // Pricing Settings
-  const [wiraRidePrice, setWiraRidePrice] = useState('2500');
-  const [wiraFoodPrice, setWiraFoodPrice] = useState('8000');
-  const [wiraSendPrice, setWiraSendPrice] = useState('3000');
-  const [adminFee, setAdminFee] = useState('2000');
-
   // Admin users
   const [admins, setAdmins] = useState([
     { id: 'adm_1', name: 'Super Administrator', email: 'admin@wira.app', role: 'Super Admin', status: 'Active' }
@@ -44,10 +38,6 @@ const SettingsPage = () => {
         if (s.tagline) setTagline(s.tagline);
         if (s.defaultRegion) setDefaultRegion(s.defaultRegion);
         if (s.csPhone) setCsPhone(s.csPhone);
-        if (s.wiraRidePrice) setWiraRidePrice(String(s.wiraRidePrice));
-        if (s.wiraFoodPrice) setWiraFoodPrice(String(s.wiraFoodPrice));
-        if (s.wiraSendPrice) setWiraSendPrice(String(s.wiraSendPrice));
-        if (s.adminFee) setAdminFee(String(s.adminFee));
         if (Array.isArray(s.admins) && s.admins.length > 0) setAdmins(s.admins);
       }
     } catch (err) {
@@ -68,10 +58,6 @@ const SettingsPage = () => {
       tagline,
       defaultRegion,
       csPhone,
-      wiraRidePrice: Number(wiraRidePrice) || 2500,
-      wiraFoodPrice: Number(wiraFoodPrice) || 8000,
-      wiraSendPrice: Number(wiraSendPrice) || 3000,
-      adminFee: Number(adminFee) || 2000,
       admins: overrideAdmins || admins
     };
 
@@ -195,66 +181,6 @@ const SettingsPage = () => {
               <option value="Lombok Timur">Lombok Timur</option>
               <option value="Lombok Utara (Gili)">Lombok Utara (Gili)</option>
             </select>
-          </div>
-        </div>
-
-        {/* Pricing Settings */}
-        <div className="card space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
-            Tarif Dasar Layanan
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WiraRide (per km)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Rp</span>
-                <input 
-                  type="number" 
-                  value={wiraRidePrice} 
-                  onChange={(e) => setWiraRidePrice(e.target.value)}
-                  className="input-field pl-9 w-full" 
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WiraFood (Ongkir)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Rp</span>
-                <input 
-                  type="number" 
-                  value={wiraFoodPrice} 
-                  onChange={(e) => setWiraFoodPrice(e.target.value)}
-                  className="input-field pl-9 w-full" 
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">WiraSend (per km)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Rp</span>
-                <input 
-                  type="number" 
-                  value={wiraSendPrice} 
-                  onChange={(e) => setWiraSendPrice(e.target.value)}
-                  className="input-field pl-9 w-full" 
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Biaya Layanan Admin</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Rp</span>
-                <input 
-                  type="number" 
-                  value={adminFee} 
-                  onChange={(e) => setAdminFee(e.target.value)}
-                  className="input-field pl-9 w-full" 
-                />
-              </div>
-            </div>
-          </div>
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
-            ℹ️ Tarif dasar di atas digunakan secara otomatis oleh kalkulator rute dan checkout pada aplikasi pengguna.
           </div>
         </div>
       </div>

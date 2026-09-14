@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, CheckCircle, XCircle, Phone, MessageSquare, Car, Store, Wrench, 
   FileText, Calendar, Clock, AlertCircle, ZoomIn, Download, ShieldCheck, User 
 } from 'lucide-react';
 
 const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
-  const [adminNotes, setAdminNotes] = useState('');
+  const [adminNotes, setAdminNotes] = useState(mitra?.admin_notes || '');
   const [isZoomed, setIsZoomed] = useState(false);
+
+  useEffect(() => {
+    setAdminNotes(mitra?.admin_notes || '');
+  }, [mitra?.id]);
 
   if (!isOpen || !mitra) return null;
 
