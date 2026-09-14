@@ -42,14 +42,19 @@ const UnauthorizedPage = () => {
       const updatedList = [newMitra, ...currentList.filter(m => m.auth_id !== user.id || m.role !== role)];
 
       if (data) {
-        await supabase.from('feature_flags').update({ features: updatedList }).eq('region', 'mitra_registrations');
+        const { error, data: updated } = await supabase.from('feature_flags').update({ features: updatedList }).eq('region', 'mitra_registrations').select();
+        if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('Gagal menyimpan pendaftaran (akses ditolak).');
       } else {
-        await supabase.from('feature_flags').insert([{ region: 'mitra_registrations', features: updatedList }]);
+        const { error } = await supabase.from('feature_flags').insert([{ region: 'mitra_registrations', features: updatedList }]);
+        if (error) throw error;
       }
-      
+
       // Update public.users status to Pending
-      await supabase.from('users').update({ status: 'Pending' }).eq('id', user.id);
-      
+      const { error: userErr, data: userData } = await supabase.from('users').update({ status: 'Pending' }).eq('id', user.id).select();
+      if (userErr) throw userErr;
+      if (!userData || userData.length === 0) throw new Error('Gagal memperbarui status akun (akses ditolak).');
+
       toast.success('Pendaftaran mitra berhasil dikirim! Silakan tunggu persetujuan Admin.');
       window.location.reload(); // Reload to trigger routing to pending-verification
     } catch (err) {

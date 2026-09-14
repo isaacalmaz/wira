@@ -110,7 +110,7 @@ const MerchantMenuPage = () => {
     try {
       if (editingItem) {
         // Edit mode di Supabase
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('products')
           .update({
             name,
@@ -118,9 +118,11 @@ const MerchantMenuPage = () => {
             description,
             image: image || editingItem.image,
           })
-          .eq('id', editingItem.id);
+          .eq('id', editingItem.id)
+          .select();
 
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
         toast.success(`Menu "${name}" berhasil diperbarui!`);
       } else {
         // Add mode di Supabase
@@ -155,8 +157,9 @@ const MerchantMenuPage = () => {
   const handleDelete = async (id, itemName) => {
     if (window.confirm(`Hapus menu "${itemName}" dari daftar restoran Anda?`)) {
       try {
-        const { error } = await supabase.from('products').delete().eq('id', id);
+        const { error, data } = await supabase.from('products').delete().eq('id', id).select();
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
         toast.success(`Menu "${itemName}" telah dihapus`);
         fetchMenu();
       } catch (err) {
