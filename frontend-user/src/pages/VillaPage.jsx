@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck, Clock } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
@@ -55,11 +55,42 @@ export default function VillaPage() {
   const [guests, setGuests] = useState(2);
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [bookingPending, setBookingPending] = useState(null); // request sent, awaiting owner confirmation
+  const [bookingSuccess, setBookingSuccess] = useState(null); // owner confirmed
+  const [activeOrderId, setActiveOrderId] = useState(null);
 
   const filtered = area === 'Semua' ? villas : villas.filter((v) => v.area.toLowerCase().includes(area.toLowerCase()));
 
   const totalPrice = selectedVilla ? selectedVilla.pricePerNight * nights : 0;
+
+  // Dengarkan konfirmasi/penolakan dari pemilik villa (mitra) secara realtime
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    const channel = supabase
+      .channel(`order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        (payload) => {
+          const newStatus = payload.new.status;
+          if (newStatus === 'accepted' || newStatus === 'completed') {
+            setBookingSuccess(bookingPending);
+            setBookingPending(null);
+            toast.success('Reservasi Anda telah dikonfirmasi oleh pemilik villa!');
+          } else if (newStatus === 'cancelled') {
+            setBookingPending(null);
+            setSelectedVilla(null);
+            toast.error('Mohon maaf, reservasi villa ini tidak dapat dikonfirmasi.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId, bookingPending]);
 
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
@@ -70,25 +101,24 @@ export default function VillaPage() {
 
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-
       const bookingCode = 'VIL-' + Math.floor(10000 + Math.random() * 90000);
 
       if (paymentMethod === 'WiraPay') {
         await pay(totalPrice, `Reservasi Villa ${selectedVilla.name}`);
       }
 
-      await addOrder({
+      const order = await addOrder({
+        merchantId: selectedVilla.id,
         service: 'WiraVilla',
         serviceType: 'villa',
         title: selectedVilla.name,
         details: `Kode: ${bookingCode} • ${nights} Malam (${checkIn}) • ${guests} Tamu`,
         price: totalPrice,
-        status: 'Terkonfirmasi',
         paymentMethod: paymentMethod,
       });
 
-      setBookingSuccess({
+      setActiveOrderId(order.id);
+      setBookingPending({
         code: bookingCode,
         villaName: selectedVilla.name,
         nights,
@@ -98,7 +128,7 @@ export default function VillaPage() {
         area: selectedVilla.area,
       });
 
-      toast.success('Reservasi Villa Berhasil Dikonfirmasi!');
+      toast.success('Permintaan reservasi terkirim, menunggu konfirmasi pemilik villa.');
     } catch (err) {
       toast.error(err.message || 'Reservasi gagal');
     } finally {
@@ -141,7 +171,9 @@ export default function VillaPage() {
             key={villa.id}
             onClick={() => {
               setSelectedVilla(villa);
+              setBookingPending(null);
               setBookingSuccess(null);
+              setActiveOrderId(null);
             }}
             className="overflow-hidden cursor-pointer hover:shadow-xl hover:border-primary/50 transition-all p-0 border border-slate-200 dark:border-slate-700 group flex flex-col"
           >
@@ -203,7 +235,7 @@ export default function VillaPage() {
               <X size={20} />
             </button>
 
-            {!bookingSuccess ? (
+            {!bookingPending && !bookingSuccess ? (
               <form onSubmit={handleConfirmBooking} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -333,6 +365,35 @@ export default function VillaPage() {
                   </Button>
                 </div>
               </form>
+            ) : bookingPending ? (
+              /* MENUNGGU KONFIRMASI PEMILIK VILLA */
+              <div className="text-center space-y-4 py-6">
+                <div className="relative w-14 h-14 mx-auto">
+                  <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <Clock size={22} className="absolute inset-0 m-auto text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Menunggu Konfirmasi
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
+                    Permintaan reservasi Anda telah dikirim ke pemilik {bookingPending.villaName}. Anda akan diberitahu segera setelah dikonfirmasi.
+                  </p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-left text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold uppercase text-[10px]">Kode Booking:</span>
+                    <span className="font-mono font-extrabold text-sm text-primary">{bookingPending.code}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full py-3 font-bold text-xs"
+                  onClick={() => setSelectedVilla(null)}
+                >
+                  Tutup (tetap menunggu di latar belakang)
+                </Button>
+              </div>
             ) : (
               /* VOUCHER RESERVASI BERHASIL */
               <div className="text-center space-y-4 py-2">

@@ -41,7 +41,7 @@ export default function SendPage() {
 
   // Tracking State
   const [trackingData, setTrackingData] = useState(null);
-  const [deliveryStage, setDeliveryStage] = useState(1);
+  const [deliveryStage, setDeliveryStage] = useState(0);
 
   const packages = [
     { id: 'dokumen', name: 'Dokumen', desc: 'Berkas / Kertas (< 1kg)', price: 8000, icon: '📄' },
@@ -77,8 +77,11 @@ export default function SendPage() {
               courierPhone = driverUser?.phone || '-';
             }
             setTrackingData(prev => prev ? { ...prev, courier: courierName, courierPhone } : prev);
-            setDeliveryStage(2);
+            setDeliveryStage(1);
             toast.success('Kurir telah menerima pengiriman paket!', { icon: '📦' });
+          } else if (newStatus === 'picking_up' || newStatus === 'in_trip') {
+            setDeliveryStage(2);
+            if (newStatus === 'in_trip') toast.success('Paket dalam perjalanan ke penerima!', { icon: '🚚' });
           } else if (newStatus === 'completed') {
             setDeliveryStage(3);
             toast.success('Paket telah berhasil diantar ke penerima!');
@@ -137,8 +140,8 @@ export default function SendPage() {
       });
 
       setStep('tracking');
-      setDeliveryStage(1);
-      toast.success('Pesanan WiraSend Berhasil Dibuat!');
+      setDeliveryStage(0);
+      toast.success('Mencari kurir terdekat...');
     } catch (err) {
       toast.error(err.message || 'Pemesanan kurir gagal');
     } finally {
@@ -319,10 +322,10 @@ export default function SendPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                Kurir Sedang Menuju Lokasi
+                {deliveryStage === 0 ? 'Mencari Kurir Terdekat...' : 'Kurir Sedang Menuju Lokasi'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Estimasi penjemputan paket dalam ± 10 menit
+                {deliveryStage === 0 ? 'Sistem Wira sedang mencarikan kurir untuk paket Anda' : 'Estimasi penjemputan paket dalam ± 10 menit'}
               </p>
             </div>
 
@@ -359,42 +362,34 @@ export default function SendPage() {
               <div className="flex items-start gap-3">
                 <div className={`w-3 h-3 rounded-full mt-1 ${deliveryStage >= 2 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                 <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Paket Dijemput dari Pengirim</p>
-                  <p className="text-slate-500">{trackingData?.from}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">Paket Dijemput & Dalam Perjalanan</p>
+                  <p className="text-slate-500">{trackingData?.from} ➔ {trackingData?.to}</p>
                 </div>
               </div>
               <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
               <div className="flex items-start gap-3">
                 <div className={`w-3 h-3 rounded-full mt-1 ${deliveryStage >= 3 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                 <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Dalam Perjalanan ke Penerima</p>
-                  <p className="text-slate-500">{trackingData?.to} ({trackingData?.receiver})</p>
+                  <p className="font-bold text-slate-900 dark:text-white">Diterima Penerima</p>
+                  <p className="text-slate-500">{trackingData?.receiver}</p>
                 </div>
               </div>
             </div>
 
-            {/* Simulasi Tombol Update Pengiriman */}
             <div className="flex gap-2">
               {deliveryStage < 3 ? (
-                <Button
-                  className="flex-1 text-xs"
-                  onClick={() => {
-                    setDeliveryStage((prev) => prev + 1);
-                    toast.success('Status pengiriman diperbarui!');
-                  }}
-                >
-                  Perbarui Status Pengiriman ➔
-                </Button>
+                <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
+                  Menunggu update dari kurir...
+                </div>
               ) : (
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
                   onClick={() => {
                     setStep('form');
                     setTrackingData(null);
-                    toast.success('Pengiriman WiraSend telah selesai!');
                   }}
                 >
-                  Paket Selesai Diterima ✓
+                  Selesai ✓
                 </Button>
               )}
             </div>

@@ -77,12 +77,17 @@ export default function RestaurantPage() {
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
         (payload) => {
           const newStatus = payload.new.status;
-          
+
           if (newStatus === 'accepted') {
             setTrackingStage(1);
             toast.success(`Pesanan Anda diterima oleh restoran!`, { icon: '🍲' });
-          } 
+          }
+          else if (newStatus === 'preparing' || newStatus === 'ready') {
+            setTrackingStage(2);
+            if (newStatus === 'preparing') toast.success('Restoran mulai menyiapkan pesanan Anda!', { icon: '🍳' });
+          }
           else if (newStatus === 'completed') {
+            setTrackingStage(3);
             handleCompleteFood();
           }
         }
@@ -93,19 +98,6 @@ export default function RestaurantPage() {
       supabase.removeChannel(channel);
     };
   }, [activeOrderId]);
-
-  // Simulasi Masak & Antar HANYA JIKA SUDAH ACCEPTED (stage 1+)
-  useEffect(() => {
-    if (step === 'tracking' && trackingStage >= 1) {
-      if (trackingStage === 1) {
-        const t = setTimeout(() => setTrackingStage(2), 5000);
-        return () => clearTimeout(t);
-      } else if (trackingStage === 2) {
-        const t = setTimeout(() => setTrackingStage(3), 5000);
-        return () => clearTimeout(t);
-      }
-    }
-  }, [step, trackingStage]);
 
   if (!rest) {
     return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
@@ -464,7 +456,7 @@ export default function RestaurantPage() {
             <div className="flex items-start gap-3">
               <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 3 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Driver Mengantar ke Alamat Anda</p>
+                <p className="font-bold text-slate-900 dark:text-white">Pesanan Selesai</p>
                 <p className="text-slate-500">{deliveryAddress}</p>
               </div>
             </div>
@@ -472,25 +464,15 @@ export default function RestaurantPage() {
 
           <div className="flex gap-2">
             {trackingStage < 3 ? (
-              <Button
-                variant="outline"
-                className="flex-1 border-primary text-primary font-bold text-xs"
-                onClick={() => {
-                  setTrackingStage((prev) => prev + 1);
-                  toast.success('Status pesanan makanan diperbarui!');
-                }}
-              >
-                Perbarui Status Pesanan ➔
-              </Button>
+              <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
+                Menunggu update dari restoran...
+              </div>
             ) : (
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
-                onClick={() => {
-                  setStep('menu');
-                  toast.success('Makanan telah sampai! Selamat menikmati!');
-                }}
+                onClick={() => setStep('menu')}
               >
-                Makanan Telah Diterima ✓
+                Selesai ✓
               </Button>
             )}
           </div>

@@ -5,9 +5,11 @@ import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import { Clock, RefreshCw } from 'lucide-react';
 import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
+import { parseOrderDetails } from '../../utils/formatters';
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
+  const [merchantId, setMerchantId] = useState(null);
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
@@ -15,12 +17,30 @@ const MerchantOrdersPage = () => {
   const fetchOrders = async () => {
     if (!user) return;
     setLoading(true);
+
+    let mId = merchantId;
+    if (!mId) {
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('id')
+        .eq('owner_id', user.id)
+        .single();
+      mId = merchantData?.id;
+      setMerchantId(mId || null);
+    }
+
+    if (!mId) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
     const { data } = await supabase
       .from('orders')
       .select('*')
-      .eq('service_type', 'food')
+      .eq('merchant_id', mId)
       .order('created_at', { ascending: false });
-    
+
     setOrders(data || []);
     setLoading(false);
   };
@@ -53,7 +73,9 @@ const MerchantOrdersPage = () => {
       </div>
 
       <div className="space-y-4">
-        {filteredOrders.length > 0 ? filteredOrders.map(order => (
+        {filteredOrders.length > 0 ? filteredOrders.map(order => {
+          const isVilla = order.service_type === 'villa' || order.service_type === 'WiraVilla';
+          return (
           <Card key={order.id} className="p-4">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -63,27 +85,32 @@ const MerchantOrdersPage = () => {
               </div>
               <span className="font-bold text-lg text-primary">Rp {(order.total_price || 0).toLocaleString('id-ID')}</span>
             </div>
-            
+
             <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg mb-4 text-sm">
-               <p className="text-slate-800 dark:text-slate-200 font-bold mb-1">{order.title || 'Pesanan WiraFood'}</p>
-               <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(order.details) || 'Tidak ada detail menu'}</p>
+               <p className="text-slate-800 dark:text-slate-200 font-bold mb-1">{order.title || (isVilla ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+               <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(order.details) || (isVilla ? 'Tidak ada detail reservasi' : 'Tidak ada detail menu')}</p>
             </div>
 
             {tab === 'active' && (
               <div className="flex gap-2">
                 {order.status === OrderStatus.PENDING ? (
-                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.ACCEPTED)}>Terima</Button>
+                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
+                ) : isVilla ? (
+                  order.status === OrderStatus.ACCEPTED && (
+                    <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                  )
                 ) : order.status === OrderStatus.ACCEPTED ? (
                   <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
                 ) : order.status === OrderStatus.PREPARING ? (
                   <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
-                ) : (
+                ) : order.status === OrderStatus.READY ? (
                   <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
-                )}
+                ) : null}
               </div>
             )}
           </Card>
-        )) : (
+          );
+        }) : (
           <div className="text-center py-10 text-slate-500">Tidak ada pesanan.</div>
         )}
       </div>

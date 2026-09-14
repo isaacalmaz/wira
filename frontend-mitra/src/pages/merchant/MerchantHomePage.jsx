@@ -60,7 +60,7 @@ const MerchantHomePage = () => {
         if (latest) {
           setIncomingOrder(prev => {
             if (!prev || prev.id !== latest.id) {
-              toast.success('Ada pesanan menunggu!', { icon: '🍲' });
+              toast.success('Ada pesanan menunggu!', { icon: isVillaOrder(latest) ? '🏡' : '🍲' });
               return latest;
             }
             return prev;
@@ -80,7 +80,7 @@ const MerchantHomePage = () => {
     const unsubscribe = subscribeToMerchantOrders(supabase, merchantId, (order) => {
       if (!activeOrder) {
         setIncomingOrder(order);
-        toast.success('Pesanan Makanan Baru Masuk!', { icon: '🍲' });
+        toast.success(isVillaOrder(order) ? 'Permintaan Reservasi Baru Masuk!' : 'Pesanan Makanan Baru Masuk!', { icon: isVillaOrder(order) ? '🏡' : '🍲' });
       }
     });
 
@@ -90,13 +90,15 @@ const MerchantHomePage = () => {
     };
   }, [isOpen, activeOrder, merchantId]);
 
+  const isVillaOrder = (order) => order && (order.service_type === 'villa' || order.service_type === 'WiraVilla');
+
   const handleAcceptOrder = async () => {
     if (!incomingOrder) return;
     try {
       const accepted = await acceptOrder(supabase, incomingOrder.id, merchantId, 'merchant');
       setActiveOrder(accepted);
       setIncomingOrder(null);
-      toast.success('Pesanan Diterima! Silakan siapkan makanan.');
+      toast.success(isVillaOrder(accepted) ? 'Reservasi Dikonfirmasi!' : 'Pesanan Diterima! Silakan siapkan makanan.');
     } catch (err) {
       toast.error('Pesanan sudah diproses.');
       setIncomingOrder(null);
@@ -108,7 +110,7 @@ const MerchantHomePage = () => {
     try {
       await completeOrder(supabase, activeOrder.id);
       setActiveOrder(null);
-      toast.success('Pesanan Selesai / Diserahkan ke Driver!');
+      toast.success(isVillaOrder(activeOrder) ? 'Reservasi Selesai!' : 'Pesanan Selesai / Diserahkan ke Driver!');
       setTodayOrders(prev => prev + 1);
       setTodayEarnings(prev => prev + (activeOrder.total_price || 0));
     } catch (err) {
@@ -123,7 +125,7 @@ const MerchantHomePage = () => {
           <div className="p-2 bg-primary/10 rounded-lg"><Store className="text-primary" /></div>
           <div>
             <h1 className="text-lg font-bold">{user?.name || 'Warung Anda'}</h1>
-            <p className="text-sm text-slate-500">{activeOrder ? 'Sedang Memasak...' : (isOpen ? 'Toko Buka' : 'Toko Tutup')}</p>
+            <p className="text-sm text-slate-500">{activeOrder ? (isVillaOrder(activeOrder) ? 'Reservasi Aktif...' : 'Sedang Memasak...') : (isOpen ? 'Toko Buka' : 'Toko Tutup')}</p>
           </div>
         </div>
         {!activeOrder && (
@@ -155,14 +157,14 @@ const MerchantHomePage = () => {
               <Store size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Pesanan Harus Disiapkan</h3>
+              <h3 className="font-bold text-lg">{isVillaOrder(activeOrder) ? 'Reservasi Terkonfirmasi' : 'Pesanan Harus Disiapkan'}</h3>
               <p className="text-sm text-slate-500">Order ID: {activeOrder.id.slice(0,8)}</p>
             </div>
           </div>
-          
+
           <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-sm mb-2 border border-slate-100 dark:border-slate-700">
-             <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">{activeOrder.title || 'Pesanan WiraFood'}</p>
-             <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(activeOrder.details) || 'Tidak ada detail menu'}</p>
+             <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">{activeOrder.title || (isVillaOrder(activeOrder) ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+             <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(activeOrder.details) || 'Tidak ada detail'}</p>
           </div>
 
           <div className="flex justify-between items-center text-xl font-bold pt-2">
@@ -170,7 +172,7 @@ const MerchantHomePage = () => {
             <span className="text-primary">Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
           </div>
           <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
-            Tandai Siap / Selesai
+            {isVillaOrder(activeOrder) ? 'Tandai Selesai' : 'Tandai Siap / Selesai'}
           </Button>
         </Card>
       )}
@@ -184,14 +186,14 @@ const MerchantHomePage = () => {
               <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
                 <BellRing size={32} className="animate-bounce" />
               </div>
-              <Badge variant="primary" className="mb-2">{incomingOrder.title || 'Wira Food'}</Badge>
+              <Badge variant="primary" className="mb-2">{incomingOrder.title || (isVillaOrder(incomingOrder) ? 'Reservasi WiraVilla' : 'Wira Food')}</Badge>
               <h2 className="text-2xl font-bold">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</h2>
               <p className="text-slate-500 mt-2 text-sm">{parseOrderDetails(incomingOrder.details) || 'Pesanan baru masuk!'}</p>
             </div>
-            
+
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
-              <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>Terima Pesanan</Button>
+              <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>{isVillaOrder(incomingOrder) ? 'Konfirmasi Reservasi' : 'Terima Pesanan'}</Button>
             </div>
           </Card>
         </div>

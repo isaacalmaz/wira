@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -6,6 +6,7 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { Waves, Sparkles, CheckCircle2, X, MapPin, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../config/supabase';
 
 export default function PoolPage() {
   const { balance, pay } = useWallet();
@@ -24,7 +25,38 @@ export default function PoolPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderPending, setOrderPending] = useState(false); // request sent, awaiting technician acceptance
+  const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
+  const [activeOrderId, setActiveOrderId] = useState(null);
+
+  // Dengarkan penerimaan panggilan dari teknisi secara realtime
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    const channel = supabase
+      .channel(`order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        (payload) => {
+          const newStatus = payload.new.status;
+          if (newStatus === 'accepted') {
+            setOrderPending(false);
+            setOrderSuccess(true);
+            toast.success('Teknisi telah menerima permintaan Anda!', { icon: '💧' });
+          } else if (newStatus === 'cancelled') {
+            setOrderPending(false);
+            setIsModalOpen(false);
+            toast.error('Mohon maaf, tidak ada teknisi yang tersedia saat ini.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId]);
 
   const services = [
     { id: 'S1', name: 'Pembersihan Rutin', price: 200000, desc: 'Vakum lantai dasar kolam, sikat dinding lumut, & kuras daun' },
@@ -41,7 +73,9 @@ export default function PoolPage() {
 
   const handleOpenBooking = (srv) => {
     setSelectedService(srv);
+    setOrderPending(false);
     setOrderSuccess(false);
+    setActiveOrderId(null);
     setIsModalOpen(true);
   };
 
@@ -56,24 +90,22 @@ export default function PoolPage() {
 
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-
       if (paymentMethod === 'WiraPay') {
         await pay(selectedService.price, `WiraPool - ${selectedService.name}`);
       }
 
-      await addOrder({
+      const order = await addOrder({
         service: 'WiraPool',
         serviceType: 'pool',
         title: selectedService.name,
         details: `Ukuran: ${poolSize} • Lokasi: ${address} • Kunjungan: ${visitDate}`,
         price: selectedService.price,
-        status: 'Dijadwalkan',
         paymentMethod: paymentMethod,
       });
 
-      setOrderSuccess(true);
-      toast.success('Pemesanan Perawatan Kolam Renang Berhasil!');
+      setActiveOrderId(order.id);
+      setOrderPending(true);
+      toast.success('Permintaan terkirim, menunggu teknisi menerima.');
     } catch (err) {
       toast.error(err.message || 'Pemesanan gagal');
     } finally {
@@ -167,7 +199,7 @@ export default function PoolPage() {
               <X size={20} />
             </button>
 
-            {!orderSuccess ? (
+            {!orderPending && !orderSuccess ? (
               <form onSubmit={handleConfirmOrder} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -279,6 +311,29 @@ export default function PoolPage() {
                   </Button>
                 </div>
               </form>
+            ) : orderPending ? (
+              /* MENUNGGU TEKNISI MENERIMA */
+              <div className="text-center space-y-4 py-6">
+                <div className="relative w-14 h-14 mx-auto">
+                  <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <Waves size={20} className="absolute inset-0 m-auto text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Menunggu Teknisi
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
+                    Permintaan Anda sedang dikirim ke teknisi kolam terdekat. Anda akan diberitahu segera setelah diterima.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full py-3 font-bold text-xs"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Tutup (tetap menunggu di latar belakang)
+                </Button>
+              </div>
             ) : (
               /* SUKSES DIJADWALKAN */
               <div className="text-center space-y-4 py-3">

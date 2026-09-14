@@ -62,7 +62,38 @@ export default function ServicePage() {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderPending, setOrderPending] = useState(false); // request sent, awaiting technician acceptance
+  const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
+  const [activeOrderId, setActiveOrderId] = useState(null);
+
+  // Dengarkan penerimaan panggilan dari teknisi secara realtime
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    const channel = supabase
+      .channel(`order_${activeOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
+        (payload) => {
+          const newStatus = payload.new.status;
+          if (newStatus === 'accepted') {
+            setOrderPending(false);
+            setOrderSuccess(true);
+            toast.success('Teknisi telah menerima panggilan Anda!', { icon: '🔧' });
+          } else if (newStatus === 'cancelled') {
+            setOrderPending(false);
+            setIsModalOpen(false);
+            toast.error('Mohon maaf, tidak ada teknisi yang tersedia saat ini.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrderId]);
 
   const categories = [
     { id: 'AC', icon: '❄️', name: 'Service AC & Cuci', price: 75000, desc: 'Cuci AC, tambah freon, perbaikan bocor' },
@@ -74,7 +105,9 @@ export default function ServicePage() {
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
     setSelectedTech(tech || technicians.find((t) => t.category.includes(cat.id)) || technicians[0] || { name: 'Mitra Teknisi Wira', rating: 5.0 });
+    setOrderPending(false);
     setOrderSuccess(false);
+    setActiveOrderId(null);
     setIsModalOpen(true);
   };
 
@@ -89,24 +122,22 @@ export default function ServicePage() {
 
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-
       if (paymentMethod === 'WiraPay') {
         await pay(selectedService.price, `WiraService - ${selectedService.name}`);
       }
 
-      await addOrder({
+      const order = await addOrder({
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
         details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`,
         price: selectedService.price,
-        status: 'Dijadwalkan',
         paymentMethod: paymentMethod,
       });
 
-      setOrderSuccess(true);
-      toast.success('Pemesanan Teknisi Berhasil Dijadwalkan!');
+      setActiveOrderId(order.id);
+      setOrderPending(true);
+      toast.success('Permintaan terkirim, menunggu teknisi menerima panggilan.');
     } catch (err) {
       toast.error(err.message || 'Pemesanan teknisi gagal');
     } finally {
@@ -203,7 +234,7 @@ export default function ServicePage() {
               <X size={20} />
             </button>
 
-            {!orderSuccess ? (
+            {!orderPending && !orderSuccess ? (
               <form onSubmit={handleConfirmOrder} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -330,6 +361,29 @@ export default function ServicePage() {
                   </Button>
                 </div>
               </form>
+            ) : orderPending ? (
+              /* MENUNGGU TEKNISI MENERIMA */
+              <div className="text-center space-y-4 py-6">
+                <div className="relative w-14 h-14 mx-auto">
+                  <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <Wrench size={20} className="absolute inset-0 m-auto text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Menunggu Teknisi
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
+                    Permintaan Anda sedang dikirim ke teknisi terdekat. Anda akan diberitahu segera setelah diterima.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full py-3 font-bold text-xs"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Tutup (tetap menunggu di latar belakang)
+                </Button>
+              </div>
             ) : (
               /* SUKSES DIJADWALKAN */
               <div className="text-center space-y-4 py-3">
