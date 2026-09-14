@@ -618,11 +618,12 @@ const referencePartnerService = {
 };
 
 /**
- * Loads either the real frontend-partner service or the reference service
+ * Loads either the real frontend-mitra order service (frontend-partner was
+ * merged into it) or the reference service
  */
 async function getPartnerOrderService() {
   const rootDir = path.resolve(__dirname, '..');
-  const servicePath = path.resolve(rootDir, 'frontend-partner/src/services/partnerOrderService.js');
+  const servicePath = path.resolve(rootDir, 'frontend-mitra/src/services/orderService.js');
   if (fs.existsSync(servicePath)) {
     try {
       const imported = await import(`file://${servicePath}`);

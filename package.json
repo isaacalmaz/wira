@@ -6,7 +6,6 @@
     "frontend-user",
     "frontend-admin",
     "frontend-mitra",
-    "frontend-partner",
     "backend"
   ],
   "scripts": {

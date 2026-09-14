@@ -1,7 +1,7 @@
 /**
  * Canonical order status vocabulary for the Wira `orders` table.
  * This is the single source of truth for status values across the
- * whole system (frontend-user, frontend-mitra, frontend-partner).
+ * whole system (frontend-user, frontend-mitra).
  * Any app writing to `orders.status` must use these exact values.
  */
 export const OrderStatus = {

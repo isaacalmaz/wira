@@ -72,13 +72,14 @@ async function runSimulation() {
   console.log('🚀 [WiraPartner E2E] Starting End-to-End Simulation...');
   console.log('   Supabase URL:', SUPABASE_URL);
 
-  // Dynamically import Partner App service logic
-  const servicePath = path.resolve(__dirname, 'frontend-partner/src/services/partnerOrderService.js');
+  // Dynamically import mitra order service logic (frontend-partner was
+  // merged into frontend-mitra; this now loads the consolidated service).
+  const servicePath = path.resolve(__dirname, 'frontend-mitra/src/services/orderService.js');
   let partnerService;
   try {
     partnerService = await import(`file://${servicePath}`);
   } catch (err) {
-    console.error(`❌ Could not load Partner App service logic from ${servicePath}:`, err.message);
+    console.error(`❌ Could not load mitra order service logic from ${servicePath}:`, err.message);
     process.exit(1);
   }
 
