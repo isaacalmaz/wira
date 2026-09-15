@@ -11,6 +11,13 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Padding aman untuk notch/home-indicator di layar HP asli (dipakai bottom
+   nav di MitraLayout.jsx) - bukan utility bawaan Tailwind, harus didefinisikan
+   manual. Fallback 0 di browser yang tidak mendukung env(). */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Scrollbar kustom */
 ::-webkit-scrollbar {
   width: 6px;

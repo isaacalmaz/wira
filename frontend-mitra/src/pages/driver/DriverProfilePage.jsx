@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 
 const DriverProfilePage = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const [vehicle, setVehicle] = useState('Memuat data...');
   const [plate, setPlate] = useState('');
 
@@ -68,7 +68,7 @@ const DriverProfilePage = () => {
         </Link>
       </Card>
       
-      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>
+      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={logout}>Keluar Akun</Button>
     </div>
   );
 };

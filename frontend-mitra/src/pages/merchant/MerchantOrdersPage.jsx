@@ -3,6 +3,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
 import { Clock, RefreshCw, MessageCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
@@ -63,9 +64,10 @@ const MerchantOrdersPage = () => {
   const updateStatus = async (id, newStatus) => {
     try {
       await updateOrderStatus(supabase, id, newStatus);
+      toast.success('Status pesanan diperbarui');
       fetchOrders();
     } catch (err) {
-      // ignore - status might already have moved on via another device
+      toast.error(err.message || 'Gagal memperbarui status pesanan');
     }
   };
 

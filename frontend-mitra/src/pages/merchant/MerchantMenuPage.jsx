@@ -71,6 +71,7 @@ const MerchantMenuPage = () => {
       }
     } catch (err) {
       console.error(err);
+      toast.error('Gagal memuat menu: ' + err.message);
     } finally {
       setLoading(false);
     }

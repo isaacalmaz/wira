@@ -8,33 +8,31 @@ const MitraLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Ekstrak role aktif saat ini dari URL (contoh: /mitra/driver/orders -> driver)
+  // Ekstrak role aktif saat ini dari URL (contoh: /driver/orders -> driver).
+  // Semua route di App.jsx berakar langsung di /driver, /merchant, /technician
+  // (tidak pernah di bawah prefix /mitra), jadi tidak perlu cabang tambahan.
   const pathParts = location.pathname.split('/').filter(Boolean);
-  const isMitraPrefixed = pathParts[0] === 'mitra';
-  const activeRole = isMitraPrefixed 
-    ? (pathParts[1] || mitraAccess?.[0] || 'driver')
-    : (pathParts[0] || mitraAccess?.[0] || 'driver');
-  const basePrefix = isMitraPrefixed ? '/mitra' : '';
+  const activeRole = pathParts[0] || mitraAccess?.[0] || 'driver';
 
   const getNavItems = () => {
     const base = [
-      { to: `${basePrefix}/${activeRole}`, icon: Home, label: 'Beranda' },
-      { to: `${basePrefix}/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
+      { to: `/${activeRole}`, icon: Home, label: 'Beranda' },
+      { to: `/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
     ];
-    
+
     if (activeRole === 'merchant') {
-      base.push({ to: `${basePrefix}/merchant/menu`, icon: MenuIcon, label: 'Menu' });
+      base.push({ to: `/merchant/menu`, icon: MenuIcon, label: 'Menu' });
     }
-    
+
     if (activeRole === 'technician') {
-      base.push({ to: `${basePrefix}/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
+      base.push({ to: `/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
     }
-    
+
     base.push(
-      { to: `${basePrefix}/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
-      { to: `${basePrefix}/${activeRole}/profile`, icon: User, label: 'Profil' }
+      { to: `/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
+      { to: `/${activeRole}/profile`, icon: User, label: 'Profil' }
     );
-    
+
     return base;
   };
 
@@ -67,7 +65,7 @@ const MitraLayout = ({ children }) => {
         </nav>
         
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
-          <button onClick={() => { logout(); navigate(isMitraPrefixed ? '/mitra/login' : '/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
+          <button onClick={() => { logout(); navigate('/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
             Keluar
           </button>
         </div>

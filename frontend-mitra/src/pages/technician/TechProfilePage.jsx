@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Badge, StarRating, Button } from '../../components/shared/UIComponents';
+import { Card, Badge, StarRating, Button, EmptyState } from '../../components/shared/UIComponents';
 import { User, Wrench, ShieldCheck, Image as ImageIcon, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 
 const TechProfilePage = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const [specialization, setSpecialization] = useState('Memuat...');
   const [experience, setExperience] = useState('');
 
@@ -56,11 +56,11 @@ const TechProfilePage = () => {
       <Card className="p-0">
         <div className="p-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="font-bold mb-3 flex items-center gap-2"><ImageIcon size={18}/> Portfolio Hasil Kerja</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {[1,2,3].map(i => (
-              <div key={i} className="aspect-square bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center text-slate-400">Foto {i}</div>
-            ))}
-          </div>
+          <EmptyState
+            icon={ImageIcon}
+            title="Belum ada foto portofolio"
+            description="Fitur unggah foto hasil kerja akan segera hadir."
+          />
         </div>
         <Link to="/technician/settings" className="p-4 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
           <Settings className="text-slate-400" />
@@ -68,7 +68,7 @@ const TechProfilePage = () => {
         </Link>
       </Card>
       
-      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={signOut}>Keluar Akun</Button>
+      <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={logout}>Keluar Akun</Button>
     </div>
   );
 };
