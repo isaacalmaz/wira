@@ -65,9 +65,10 @@ BEGIN
 
     RETURN QUERY
     SELECT
-        o.id, o.user_id, o.merchant_id, o.service_type, o.title, o.details,
-        o.status, o.total_price, o.payment_method, o.payment_status, o.driver_id,
-        o.created_at, o.pickup_lat, o.pickup_lng,
+        o.id, o.user_id, o.merchant_id,
+        o.service_type::TEXT, o.title::TEXT, o.details::TEXT,
+        o.status::TEXT, o.total_price, o.payment_method::TEXT, o.payment_status::TEXT,
+        o.driver_id, o.created_at, o.pickup_lat, o.pickup_lng,
         CASE
             WHEN have_driver_point AND o.pickup_lat IS NOT NULL AND o.pickup_lng IS NOT NULL THEN
                 ROUND(ST_Distance(
