@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, BellRing, Target, Activity } from 'lucide-react';
+import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck } from 'lucide-react';
 import { Card, Button, Badge } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import EarningsCard from '../../components/shared/EarningsCard';
@@ -9,7 +9,12 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
-import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToDriverOrders, updateDriverLocation, setDriverOffline } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, updateOrderStatus, subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters } from '../../services/orderService';
+
+// Driver dianggap "sudah sampai" (tombol konfirmasi menyala) dalam radius ini.
+// Tidak memblokir tombol di luar radius - hanya penanda visual, driver tetap
+// bisa konfirmasi manual kapan saja (lihat rasional GPS-assisted-confirm).
+const ARRIVAL_RADIUS_METERS = 150;
 
 const DriverHomePage = () => {
   const { user } = useAuth();
@@ -31,6 +36,10 @@ const DriverHomePage = () => {
   // bukan state, karena hanya dibaca saat query/realtime callback jalan -
   // tidak perlu memicu render ulang setiap detik.
   const driverPosRef = useRef(null);
+  // Salinan driverPosRef sebagai state, hanya diperbarui bersamaan dengan
+  // penulisan DB (tiap ~8 detik) - dipakai untuk menampilkan jarak-ke-tujuan
+  // secara live tanpa re-render setiap detik.
+  const [driverPos, setDriverPos] = useState(null);
 
   // Fetch real stats
   useEffect(() => {
@@ -155,6 +164,7 @@ const DriverHomePage = () => {
         const now = Date.now();
         if (now - lastSentAt < 8000) return; // throttle: kirim maksimal tiap ~8 detik
         lastSentAt = now;
+        setDriverPos(driverPosRef.current);
         updateDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude)
           .catch((err) => console.warn('updateDriverLocation failed:', err.message));
       },
@@ -201,15 +211,49 @@ const DriverHomePage = () => {
     }
   };
 
-  const handleCompleteOrder = async () => {
+  // Tahapan perjalanan: ACCEPTED (menuju jemputan) -> PICKING_UP (konfirmasi
+  // sampai, jemput penumpang) -> IN_TRIP (menuju tujuan) -> COMPLETED (selesai).
+  // Sebelumnya UI ini langsung lompat ACCEPTED -> COMPLETED dengan satu tombol
+  // "Selesai", padahal PICKING_UP/IN_TRIP sudah ada di state machine tapi
+  // tidak pernah benar-benar dipakai di layar driver.
+  const STAGE_FLOW = {
+    [OrderStatus.ACCEPTED]: { next: OrderStatus.PICKING_UP, label: 'Konfirmasi Sampai di Jemputan', icon: MapPin },
+    [OrderStatus.PICKING_UP]: { next: OrderStatus.IN_TRIP, label: 'Mulai Perjalanan', icon: Navigation2 },
+    [OrderStatus.IN_TRIP]: { next: OrderStatus.COMPLETED, label: 'Selesaikan Perjalanan', icon: PackageCheck },
+  };
+
+  const handleAdvanceStage = async () => {
     if (!activeOrder) return;
+    const step = STAGE_FLOW[activeOrder.status];
+    if (!step) return;
     try {
-      await completeOrder(supabase, activeOrder.id);
-      toast.success('Perjalanan diselesaikan!');
-      setActiveOrder(null);
+      const updated = await updateOrderStatus(supabase, activeOrder.id, step.next);
+      if (step.next === OrderStatus.COMPLETED) {
+        toast.success('Perjalanan diselesaikan!');
+        setActiveOrder(null);
+      } else {
+        setActiveOrder(updated);
+        toast.success(step.next === OrderStatus.PICKING_UP ? 'Sampai di lokasi jemputan' : 'Perjalanan dimulai');
+      }
     } catch (err) {
-      toast.error('Gagal menyelesaikan pesanan');
+      toast.error('Gagal memperbarui status pesanan');
     }
+  };
+
+  // Target GPS saat ini tergantung tahap: menuju jemputan (ACCEPTED), sudah
+  // di jemputan (PICKING_UP, tidak butuh jarak), atau menuju tujuan (IN_TRIP).
+  const getCurrentLegTarget = () => {
+    if (!activeOrder) return null;
+    const pickup = activeOrder.pickup_lat != null && activeOrder.pickup_lng != null
+      ? { lat: activeOrder.pickup_lat, lng: activeOrder.pickup_lng, label: 'lokasi jemputan' }
+      : (orderDetails?.pickup?.lat != null ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng, label: 'lokasi jemputan' } : null);
+    const dropoff = activeOrder.dropoff_lat != null && activeOrder.dropoff_lng != null
+      ? { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng, label: 'tujuan' }
+      : (orderDetails?.dropoff?.lat != null ? { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng, label: 'tujuan' } : null);
+
+    if (activeOrder.status === OrderStatus.ACCEPTED) return pickup;
+    if (activeOrder.status === OrderStatus.IN_TRIP) return dropoff;
+    return null;
   };
 
   let orderDetails = null;
@@ -222,7 +266,20 @@ const DriverHomePage = () => {
   }
 
   const mapCenter = orderDetails?.pickup ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng } : { lat: mataramPos[0], lng: mataramPos[1] };
-  const mapMarkers = orderDetails ? [{ lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng }, { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng }] : [{ lat: mataramPos[0], lng: mataramPos[1] }];
+  const mapMarkers = orderDetails
+    ? [
+        { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng, type: 'pickup', label: 'Jemputan' },
+        { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng, type: 'dropoff', label: 'Tujuan' },
+        ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }] : []),
+      ]
+    : [{ lat: mataramPos[0], lng: mataramPos[1] }];
+
+  const legTarget = getCurrentLegTarget();
+  const legDistance = legTarget && driverPos
+    ? distanceMeters(driverPos.lat, driverPos.lng, legTarget.lat, legTarget.lng)
+    : null;
+  const hasArrived = legDistance != null && legDistance <= ARRIVAL_RADIUS_METERS;
+  const currentStep = activeOrder ? STAGE_FLOW[activeOrder.status] : null;
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
@@ -250,7 +307,11 @@ const DriverHomePage = () => {
           <div>
             <h1 className="text-xl font-bold">Halo, {user?.name || 'Driver'}!</h1>
             <p className="text-sm text-slate-500">
-              {activeOrder ? 'Sedang Mengantar...' : (isOnline ? 'Mencari pesanan...' : 'Anda offline')}
+              {activeOrder
+                ? (activeOrder.status === OrderStatus.ACCEPTED ? 'Menuju lokasi jemputan...'
+                  : activeOrder.status === OrderStatus.PICKING_UP ? 'Menjemput penumpang...'
+                  : 'Dalam perjalanan ke tujuan...')
+                : (isOnline ? 'Mencari pesanan...' : 'Anda offline')}
             </p>
           </div>
           {!activeOrder && (
@@ -300,12 +361,26 @@ const DriverHomePage = () => {
                 <span>Total Tagihan:</span>
                 <span className="text-primary">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
               </div>
+
+              {legTarget && (
+                <div className={`text-center text-xs font-semibold py-2 rounded-lg ${hasArrived ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}>
+                  {hasArrived
+                    ? `✅ Anda sudah sampai di ${legTarget.label}`
+                    : legDistance != null
+                      ? `📍 ~${legDistance < 1000 ? Math.round(legDistance) + ' m' : (legDistance / 1000).toFixed(1) + ' km'} menuju ${legTarget.label}`
+                      : 'Mencari sinyal GPS...'}
+                </div>
+              )}
+
               <div className="flex gap-2">
-                {orderDetails?.dropoff && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full font-bold border-primary text-primary" 
-                    onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${orderDetails.pickup.lat},${orderDetails.pickup.lng}&destination=${orderDetails.dropoff.lat},${orderDetails.dropoff.lng}`, '_blank')}
+                {legTarget && (
+                  <Button
+                    variant="outline"
+                    className="w-full font-bold border-primary text-primary"
+                    onClick={() => {
+                      const origin = driverPos ? `${driverPos.lat},${driverPos.lng}` : '';
+                      window.open(`https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ''}&destination=${legTarget.lat},${legTarget.lng}`, '_blank');
+                    }}
                   >
                     Navigasi
                   </Button>
@@ -313,9 +388,15 @@ const DriverHomePage = () => {
                 <Button variant="outline" className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300" onClick={() => setIsChatOpen(true)}>
                   Chat
                 </Button>
-                <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
-                  Selesai
-                </Button>
+                {currentStep && (
+                  <Button
+                    variant="primary"
+                    className={`w-full font-bold ${hasArrived ? 'animate-pulse' : ''}`}
+                    onClick={handleAdvanceStage}
+                  >
+                    {currentStep.label}
+                  </Button>
+                )}
               </div>
             </Card>
           )}

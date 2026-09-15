@@ -121,6 +121,8 @@ export const OrderProvider = ({ children }) => {
             payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
             pickup_lat: orderData.pickupLat ?? null,
             pickup_lng: orderData.pickupLng ?? null,
+            dropoff_lat: orderData.dropoffLat ?? null,
+            dropoff_lng: orderData.dropoffLng ?? null,
           },
         ]).select().single();
 

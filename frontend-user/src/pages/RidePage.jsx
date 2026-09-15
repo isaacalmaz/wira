@@ -190,6 +190,8 @@ export default function RidePage() {
     try {
       const pickupLat = mapState.markers[0]?.lat;
       const pickupLng = mapState.markers[0]?.lng;
+      const dropoffLat = mapState.markers[1]?.lat;
+      const dropoffLng = mapState.markers[1]?.lng;
 
       // Cek ketersediaan driter terdekat secara real (PostGIS nearest-neighbor),
       // hanya untuk memberi info jujur ke pelanggan - tidak memblokir pemesanan,
@@ -221,6 +223,8 @@ export default function RidePage() {
         details: orderDetails,
         pickupLat,
         pickupLng,
+        dropoffLat,
+        dropoffLng,
       });
       setActiveOrderId(order.id);
       setStep('searching');

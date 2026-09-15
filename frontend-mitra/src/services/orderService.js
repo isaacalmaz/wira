@@ -15,7 +15,7 @@ const NEARBY_RADIUS_METERS = 15000;
  * Haversine distance in meters. Used client-side for the realtime path,
  * where Supabase's postgres_changes filter can't run PostGIS math.
  */
-function distanceMeters(lat1, lng1, lat2, lng2) {
+export function distanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
