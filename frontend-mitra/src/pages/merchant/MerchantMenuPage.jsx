@@ -64,6 +64,7 @@ const MerchantMenuPage = () => {
             price: p.price,
             description: p.description,
             image: p.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+            category: p.category || 'makanan',
             isAvailable: p.is_available ?? true
           })));
         }
@@ -84,6 +85,7 @@ const MerchantMenuPage = () => {
     setEditingItem(null);
     setName('');
     setPrice('');
+    setCategory('makanan');
     setDescription('');
     setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400');
     setIsModalOpen(true);
@@ -94,6 +96,7 @@ const MerchantMenuPage = () => {
     setEditingItem(item);
     setName(item.name);
     setPrice(item.price);
+    setCategory(item.category || 'makanan');
     setDescription(item.description || '');
     setImage(item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400');
     setIsModalOpen(true);
@@ -115,6 +118,7 @@ const MerchantMenuPage = () => {
           .update({
             name,
             price: Number(price),
+            category,
             description,
             image: image || editingItem.image,
           })
@@ -137,6 +141,7 @@ const MerchantMenuPage = () => {
             merchant_id: merchantId,
             name,
             price: Number(price),
+            category,
             description,
             image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
             is_available: true
@@ -186,7 +191,9 @@ const MerchantMenuPage = () => {
   };
 
   const filteredItems = menuItems.filter(
-    (item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (activeCategory === 'all' || item.category === activeCategory)
   );
 
   return (
@@ -260,6 +267,9 @@ const MerchantMenuPage = () => {
                     Rp {item.price.toLocaleString('id-ID')}
                   </span>
                 </div>
+                <span className="inline-block text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full mt-1">
+                  {categories.find((c) => c.id === item.category)?.name || item.category}
+                </span>
                 <p className="text-xs text-slate-500 line-clamp-2 mt-1">
                   {item.description}
                 </p>

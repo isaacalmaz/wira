@@ -218,11 +218,27 @@ export default function RestaurantPage() {
           </h2>
           {rest.menuItems.map((item) => {
             const inCart = cart.items.find((i) => i.id === item.id);
+            const isAvailable = item.is_available ?? true;
             return (
               <Card
                 key={item.id}
-                className="p-4 flex gap-4 items-center border border-slate-200 dark:border-slate-700 hover:shadow-sm transition"
+                className={`p-4 flex gap-4 items-center border border-slate-200 dark:border-slate-700 transition ${isAvailable ? 'hover:shadow-sm' : 'opacity-60'}`}
               >
+                {item.image && (
+                  <div className="relative shrink-0">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-16 h-16 rounded-xl object-cover bg-slate-100"
+                    />
+                    {!isAvailable && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl text-white text-[10px] font-bold">
+                        Habis
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex-1">
                   <h3 className="font-bold text-sm text-slate-900 dark:text-white">
                     {item.name}
@@ -233,10 +249,15 @@ export default function RestaurantPage() {
                   <p className="font-extrabold text-sm text-primary">
                     {formatRupiah(item.price)}
                   </p>
+                  {!isAvailable && !item.image && (
+                    <span className="inline-block mt-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">
+                      Habis
+                    </span>
+                  )}
                 </div>
 
                 <div className="shrink-0 flex items-center gap-2">
-                  {inCart ? (
+                  {!isAvailable ? null : inCart ? (
                     <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
                       <button
                         onClick={() => removeItem(item.id)}

@@ -20,6 +20,7 @@ import MerchantOrdersPage from './pages/merchant/MerchantOrdersPage';
 import MerchantMenuPage from './pages/merchant/MerchantMenuPage';
 import MerchantEarningsPage from './pages/merchant/MerchantEarningsPage';
 import MerchantProfilePage from './pages/merchant/MerchantProfilePage';
+import VillaListingPage from './pages/merchant/VillaListingPage';
 
 import TechHomePage from './pages/technician/TechHomePage';
 import TechOrdersPage from './pages/technician/TechOrdersPage';
@@ -87,6 +88,7 @@ function App() {
               <Route path="/" element={<MerchantHomePage />} />
               <Route path="orders" element={<MerchantOrdersPage />} />
               <Route path="menu" element={<MerchantMenuPage />} />
+              <Route path="listing" element={<VillaListingPage />} />
               <Route path="earnings" element={<MerchantEarningsPage />} />
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
