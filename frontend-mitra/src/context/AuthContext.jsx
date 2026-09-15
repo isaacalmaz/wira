@@ -48,10 +48,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    setLoading(true);
+    // Deliberately does NOT touch the `loading` state here. `loading` gates
+    // whether AuthProvider renders its children at all ({!loading &&
+    // children} below, and App.jsx's own `if (loading) return null`) - it
+    // exists to avoid flashing a logged-out UI before the initial session
+    // check resolves. Toggling it again on every login call used to unmount
+    // the entire app (including the <BrowserRouter>) mid-submit, destroying
+    // the LoginPage instance and its `navigate()` call before it could ever
+    // fire - the user would land back on a blank login form despite having
+    // actually signed in, and had to submit a second time for it to "stick".
+    // LoginPage already has its own local loading state for the button spinner.
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setLoading(false);
       throw error;
     }
     await handleSession(data.session);
