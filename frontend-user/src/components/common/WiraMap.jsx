@@ -25,6 +25,29 @@ const pickupIcon = createIcon(<MapPin className="text-emerald-500 fill-emerald-1
 const dropoffIcon = createIcon(<MapPin className="text-red-500 fill-red-100 w-8 h-8" />);
 const driverIcon = createIcon(<Navigation className="text-slate-800 fill-yellow-400 w-8 h-8 transform rotate-45" />);
 
+// Leaflet mengukur ukuran container-nya sekali saat mount. Jika layout di
+// sekitarnya masih berubah bentuk setelah itu (mis. sidebar/topbar baru
+// selesai render, transisi flexbox), peta bisa "terjebak" pada lebar lama
+// yang lebih sempit - terlihat seperti peta tidak memenuhi lebar penuh
+// meski container div-nya sudah full width. invalidateSize() memaksa
+// Leaflet mengukur ulang.
+const MapResizeFix = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const fix = () => map.invalidateSize();
+    // Sesaat setelah mount (menunggu layout settle) + setiap resize window.
+    const t = setTimeout(fix, 250);
+    window.addEventListener('resize', fix);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', fix);
+    };
+  }, [map]);
+
+  return null;
+};
+
 // AutoFitter
 const MapAutoFitter = ({ markers, route }) => {
   const map = useMap();
@@ -92,8 +115,9 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         zoomControl={false}
         ref={setMapInstance}
       >
+        <MapResizeFix />
         <MapAutoFitter markers={markers} route={route} />
-        <TileLayer 
+        <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />

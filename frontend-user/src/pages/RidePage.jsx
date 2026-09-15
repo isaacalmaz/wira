@@ -350,7 +350,7 @@ export default function RidePage() {
         {/* Input Terapung jika langkah awal */}
         {step === 'input' && (
           <div className="absolute top-3 left-3 right-3 md:right-auto md:left-1/2 md:-translate-x-1/2 md:top-6 md:w-[28rem] z-[400] max-w-md mx-auto md:mx-0">
-            <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700">
+            <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700 !overflow-visible">
               <LocationAutocomplete
                 placeholder="Lokasi Penjemputan Anda (cth: Ampenan / Rumah)"
                 icon={Navigation}
