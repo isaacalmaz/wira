@@ -232,7 +232,7 @@ export default function WalletPage() {
     setLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 800));
-      await transfer(amt, transferPhone, 'Pengguna Wira');
+      await transfer(amt, transferPhone);
       toast.success(`Berhasil transfer ${formatRupiah(amt)} ke ${transferPhone}`);
       setModalType(null);
       setTransferPhone('');
