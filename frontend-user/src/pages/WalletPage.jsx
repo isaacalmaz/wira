@@ -327,7 +327,7 @@ export default function WalletPage() {
             <h3 className="font-bold text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
               <Clock size={16} /> Menunggu Verifikasi Pembayaran ({pendingTopUps.length})
             </h3>
-            <span className="text-[11px] text-slate-400">QRIS Statis DANA</span>
+            <span className="text-[11px] text-slate-400">QRIS Statis</span>
           </div>
 
           <div className="space-y-2.5">
@@ -548,7 +548,7 @@ export default function WalletPage() {
                             </span>
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            QRIS Statis DANA • Semua E-Wallet & M-Banking
+                            QRIS Statis • Semua E-Wallet & M-Banking
                           </p>
                         </div>
                       </div>
@@ -576,7 +576,7 @@ export default function WalletPage() {
                     <QrCode size={26} />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Pembayaran QRIS Statis DANA
+                    Pembayaran QRIS Statis
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Scan barcode di bawah lalu transfer tepat sesuai nominal unik

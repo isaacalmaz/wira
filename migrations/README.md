@@ -71,6 +71,7 @@ task's background, and out of scope to touch.
 | 0018 | `0018_nearby_pending_orders_rpc.sql` | *(none — new feature, 2026-09-15)* | Creates `get_nearby_pending_orders()` RPC (mirrors `get_nearest_drivers()` in the opposite direction) - scopes a driver's pending-orders list to a 15km radius, while always still showing orders with no pickup coordinates yet (send/service/pool). Stage 2 of driver matching. |
 | 0019 | `0019_messages_rls.sql` | *(none — security fix, 2026-09-15)* | Enables RLS on `messages` (was enabled then immediately disabled in 0001/0009, no policies ever existed - any client could read/write any order's private chat). Scopes to the order's customer, assigned mitra, owning merchant, or admin. |
 | 0020 | `0020_orders_dropoff_coords.sql` | *(none — new feature, 2026-09-15)* | Adds real `dropoff_lat`/`dropoff_lng` columns to `orders`, mirroring `pickup_lat`/`pickup_lng` from 0017. Powers GPS-assisted trip-stage confirmation in `DriverHomePage.jsx` (distance-to-target display, arrival radius highlight) - only `RidePage.jsx` populates these so far. |
+| 0021 | `0021_fix_topup_description_text.sql` | *(none — text fix, 2026-09-15)* | Re-creates `approve_topup_request()` from 0015 unchanged except for the transaction `description` string: `'Top Up QRIS Statis DANA'` → `'Top Up QRIS Statis'`, since Wira's real QRIS (added this session, `frontend-user/src/assets/qris-wira.jpeg`) is a generic national QRIS (GPN), not DANA-specific. |
 
 ## Files intentionally excluded from the numbered sequence
 
