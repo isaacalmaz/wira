@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Car, Store, Wrench } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+const ROLE_LABEL = { driver: 'Driver', merchant: 'Merchant', technician: 'Teknisi' };
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,11 +23,27 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await login(email, password);
-      toast.success('Berhasil masuk!');
-      // Arahkan ke rute spesifik yang dipilih pengguna. 
-      // Jika mereka tidak memiliki akses ke rute ini, ProtectedRoute di App.jsx akan memindahkan mereka ke rute yang valid.
-      navigate(`/${intendedRole}`);
+      const { profile } = await login(email, password);
+      const mitraAccess = profile?.mitra_access || [];
+
+      // Login ke Supabase Auth berhasil tidak berarti akun ini punya akses
+      // ke portal yang dipilih (Driver/Merchant/Teknisi) - sebelumnya toast
+      // "Berhasil masuk!" selalu muncul di sini padahal pengguna langsung
+      // diarahkan ke halaman "akses ditolak" begitu ProtectedRoute mengecek
+      // mitra_access yang sebenarnya. Sekarang pesan mengikuti hasil nyata.
+      if (mitraAccess.includes(intendedRole)) {
+        toast.success('Berhasil masuk!');
+        navigate(`/${intendedRole}`);
+      } else if (mitraAccess.length > 0) {
+        toast.error(`Akun ini tidak terdaftar sebagai ${ROLE_LABEL[intendedRole] || intendedRole}. Mengarahkan ke portal Anda...`);
+        navigate(`/${mitraAccess[0]}`);
+      } else if (profile?.status === 'Pending') {
+        toast('Akun Anda sedang menunggu verifikasi admin.', { icon: '⏳' });
+        navigate('/pending-verification');
+      } else {
+        toast.error('Akun ini belum terdaftar sebagai mitra.');
+        navigate('/unauthorized');
+      }
     } catch (error) {
       toast.error(error.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.');
     } finally {

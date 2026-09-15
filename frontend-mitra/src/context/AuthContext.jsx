@@ -20,12 +20,17 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Returns the resolved profile (or null) so callers like login() can act
+  // on it immediately - React state (user/mitraAccess) updates are async
+  // and reading them right after calling handleSession can still see the
+  // pre-login value in the same tick (the exact stale-data class of bug
+  // that caused the false "Berhasil masuk!" toast - see login() below).
   const handleSession = async (session) => {
     if (!session?.user) {
       setUser(null);
       setMitraAccess([]);
       setLoading(false);
-      return;
+      return null;
     }
 
     try {
@@ -34,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         setUser({ ...session.user, ...profile });
         setMitraAccess(profile.mitra_access || []);
         setLoading(false);
-        return;
+        return profile;
       }
     } catch (err) {
       console.warn('Supabase mitra profile check error:', err);
@@ -45,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     setUser(session.user);
     setMitraAccess([]);
     setLoading(false);
+    return null;
   };
 
   const login = async (email, password) => {
@@ -62,8 +68,8 @@ export const AuthProvider = ({ children }) => {
     if (error) {
       throw error;
     }
-    await handleSession(data.session);
-    return data;
+    const profile = await handleSession(data.session);
+    return { ...data, profile };
   };
 
   const logout = async () => {
