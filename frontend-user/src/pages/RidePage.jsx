@@ -60,6 +60,7 @@ export default function RidePage() {
           name: v.name,
           basePrice: v.price, // Store original for calculation
           price: v.price,
+          perKmRate: v.per_km_rate,
           time: v.duration,
           icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
           desc: `Kapasitas: ${v.capacity} orang`
@@ -160,7 +161,7 @@ export default function RidePage() {
     if (!routeInfo) return v;
     const distKm = routeInfo.distance / 1000;
     const extraKm = Math.max(0, distKm - 2);
-    const perKmRate = v.id === 'motor' ? 3000 : 5000;
+    const perKmRate = v.perKmRate || (v.id === 'motor' ? 3000 : 5000);
     const dynamicPrice = (v.basePrice || v.price || 15000) + Math.ceil(extraKm * perKmRate);
     const estMins = Math.ceil(routeInfo.duration / 60);
     return { ...v, price: dynamicPrice, time: `~${estMins} mnt` };

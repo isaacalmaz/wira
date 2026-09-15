@@ -17,6 +17,7 @@ const DriversPage = lazy(() => import('./pages/DriversPage'));
 const MerchantsPage = lazy(() => import('./pages/MerchantsPage'));
 const TechniciansPage = lazy(() => import('./pages/TechniciansPage'));
 const VillasPage = lazy(() => import('./pages/VillasPage'));
+const VehiclesPricingPage = lazy(() => import('./pages/VehiclesPricingPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
 const PromosPage = lazy(() => import('./pages/PromosPage'));
 const WhatsAppPage = lazy(() => import('./pages/WhatsAppPage'));
@@ -67,6 +68,7 @@ function App() {
             <Route path="merchants" element={<MerchantsPage />} />
             <Route path="technicians" element={<TechniciansPage />} />
             <Route path="villas" element={<VillasPage />} />
+            <Route path="pricing" element={<VehiclesPricingPage />} />
             <Route path="finance" element={<FinancePage />} />
             <Route path="promos" element={<PromosPage />} />
             <Route path="whatsapp" element={<WhatsAppPage />} />
