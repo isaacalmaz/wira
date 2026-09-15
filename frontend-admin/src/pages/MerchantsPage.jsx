@@ -70,54 +70,32 @@ const MerchantsPage = () => {
 
   const handleVerify = async (id, accept, notes = '') => {
     try {
-      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-      
-      let updatedFeatures = [];
-      if (flagsData && Array.isArray(flagsData.features)) {
-        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
-        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
-        if (updateFlagsErr) throw updateFlagsErr;
-        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
-      }
-
       if (accept) {
         const pending = pendingMerchants.find(m => m.id === id);
         if (pending) {
-          const { error: insertMerchantErr } = await supabase.from('merchants').insert([{
-            owner_id: pending.auth_id || null,
-            name: pending.name,
-            service_type: pending.service_type || 'food',
-            address: pending.address,
-            image: 'https://via.placeholder.com/150',
-          }]);
-          if (insertMerchantErr) throw insertMerchantErr;
-          
+          // public.users must exist BEFORE merchants (merchants.owner_id has
+          // a foreign key to users.id) - this used to insert merchants first,
+          // which threw a foreign-key violation for every brand-new
+          // registrant (no existing users row yet, the normal case for a
+          // first-time mitra signup). Because feature_flags status was
+          // updated to 'Active' separately with no rollback on failure, the
+          // registration looked "approved" in the queue while no merchants
+          // row and no mitra_access grant ever actually happened.
           if (pending.auth_id) {
-            const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
-            if (profileErr && profileErr.code !== 'PGRST116') throw profileErr;
-            
-            let currentAccess = [];
-            let isExisting = false;
+            const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
+            if (profileErr) throw profileErr;
+
+            let currentAccess = userProfile?.mitra_access || [];
+            if (!currentAccess.includes('merchant')) currentAccess.push('merchant');
 
             if (userProfile) {
-              currentAccess = userProfile.mitra_access || [];
-              isExisting = true;
-            }
-
-            if (!currentAccess.includes('merchant')) {
-              currentAccess.push('merchant');
-            }
-
-            if (isExisting) {
-              const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
+              const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
                 mitra_access: currentAccess,
                 status: 'Aktif'
               }).eq('id', pending.auth_id).select();
-              
               if (updateErr) throw updateErr;
               if (!updatedUser || updatedUser.length === 0) {
-                throw new Error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
+                throw new Error("Gagal! Akses ditolak oleh sistem keamanan RLS Supabase.");
               }
             } else {
               const { error: insertErr } = await supabase.from('users').insert([{
@@ -132,12 +110,35 @@ const MerchantsPage = () => {
               if (insertErr) throw insertErr;
             }
           }
+
+          const { error: insertMerchantErr } = await supabase.from('merchants').insert([{
+            owner_id: pending.auth_id || null,
+            name: pending.name,
+            service_type: pending.service_type || 'food',
+            address: pending.address,
+            image: 'https://via.placeholder.com/150',
+          }]);
+          if (insertMerchantErr) throw insertMerchantErr;
+
           toast.success(`${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
         }
       } else {
         toast.success('Pendaftaran ditolak.');
       }
-      
+
+      // Only mark the registration handled (Active/Rejected) after the
+      // writes above actually succeeded - if they threw, the registration
+      // stays 'Pending' so it's still visible to retry, instead of looking
+      // silently "done" with nothing actually granted.
+      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+      if (flagsData && Array.isArray(flagsData.features)) {
+        const updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
+        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
+        if (updateFlagsErr) throw updateFlagsErr;
+        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
+      }
+
       setIsReviewOpen(false);
       fetchData();
     } catch (err) {

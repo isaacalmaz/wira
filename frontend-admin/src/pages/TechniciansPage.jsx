@@ -44,44 +44,23 @@ const TechniciansPage = () => {
 
   const handleVerify = async (id, accept, notes = '') => {
     try {
-      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-      
-      let updatedFeatures = [];
-      if (flagsData && Array.isArray(flagsData.features)) {
-        updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
-        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
-        if (updateFlagsErr) throw updateFlagsErr;
-        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
-      }
-
       if (accept) {
         const pending = pendingTechs.find(m => m.id === id);
         if (pending && pending.auth_id) {
-          const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).single();
-          if (profileErr && profileErr.code !== 'PGRST116') throw profileErr;
-          
-          let currentAccess = [];
-          let isExisting = false;
+          const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
+          if (profileErr) throw profileErr;
+
+          let currentAccess = userProfile?.mitra_access || [];
+          if (!currentAccess.includes('technician')) currentAccess.push('technician');
 
           if (userProfile) {
-            currentAccess = userProfile.mitra_access || [];
-            isExisting = true;
-          }
-
-          if (!currentAccess.includes('technician')) {
-            currentAccess.push('technician');
-          }
-
-          if (isExisting) {
-            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({ 
+            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
               mitra_access: currentAccess,
               status: 'Aktif'
             }).eq('id', pending.auth_id).select();
-            
             if (updateErr) throw updateErr;
             if (!updatedUser || updatedUser.length === 0) {
-              throw new Error("Gagal! Anda diblokir oleh sistem keamanan RLS Supabase.");
+              throw new Error("Gagal! Akses ditolak oleh sistem keamanan RLS Supabase.");
             }
           } else {
             const { error: insertErr } = await supabase.from('users').insert([{
@@ -100,6 +79,20 @@ const TechniciansPage = () => {
       } else {
         toast.success('Pendaftaran ditolak.');
       }
+
+      // Only mark the registration handled after the write above actually
+      // succeeded - if it threw, the registration stays 'Pending' so it's
+      // still visible to retry, instead of looking silently "done" with no
+      // real mitra_access grant.
+      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
+      if (flagsData && Array.isArray(flagsData.features)) {
+        const updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
+        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
+        if (updateFlagsErr) throw updateFlagsErr;
+        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
+      }
+
       setIsReviewOpen(false);
       fetchData();
     } catch (err) {
