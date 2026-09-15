@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Wrench, Star, Calendar, Clock, MapPin, CheckCircle2, X, Shield } from 'lucide-react';
+import { Wrench, Star, Calendar, Clock, MapPin, CheckCircle2, X, Shield, MessageCircle } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import ChatModal from '../components/common/ChatModal';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
@@ -65,6 +66,7 @@ export default function ServicePage() {
   const [orderPending, setOrderPending] = useState(false); // request sent, awaiting technician acceptance
   const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Dengarkan penerimaan panggilan dari teknisi secara realtime
   useEffect(() => {
@@ -426,16 +428,33 @@ export default function ServicePage() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full py-3 font-bold"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Selesai
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 py-3 font-bold text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => setIsChatOpen(true)}
+                  >
+                    <MessageCircle size={16} /> Chat Teknisi
+                  </Button>
+                  <Button
+                    className="flex-1 py-3 font-bold"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Selesai
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName={selectedTech?.name}
+        />
       )}
     </div>
   );

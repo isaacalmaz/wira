@@ -22,7 +22,6 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const OTPPage = lazy(() => import('./pages/OTPPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
-const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SendPage = lazy(() => import('./pages/SendPage'));
 const PulsaPage = lazy(() => import('./pages/PulsaPage'));
 const VillaPage = lazy(() => import('./pages/VillaPage'));
@@ -60,7 +59,6 @@ export default function Root() {
                             <Route path="/profile" element={<ProfilePage />} />
                             <Route path="/notifications" element={<NotificationsPage />} />
                             <Route path="/activity" element={<ActivityPage />} />
-                            <Route path="/chat" element={<ChatPage />} />
                             <Route path="/send" element={<SendPage />} />
                             <Route path="/pulsa" element={<PulsaPage />} />
                             <Route path="/villa" element={<VillaPage />} />

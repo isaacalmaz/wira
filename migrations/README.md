@@ -69,6 +69,7 @@ task's background, and out of scope to touch.
 | 0016 | `0016_vehicles_pricing_admin.sql` | *(none — new feature, 2026-09-15)* | Adds `per_km_rate` to `vehicles`; admin INSERT/UPDATE/DELETE RLS policies (previously public-SELECT-only, no write policy existed at all). |
 | 0017 | `0017_orders_pickup_coords.sql` | *(none — new feature, 2026-09-15)* | Adds real `pickup_lat`/`pickup_lng` columns to `orders` (previously only buried as JSON text in `details`, unusable by SQL/PostGIS). Stage 1 of upgrading driver matching from island-wide broadcast to distance-aware. |
 | 0018 | `0018_nearby_pending_orders_rpc.sql` | *(none — new feature, 2026-09-15)* | Creates `get_nearby_pending_orders()` RPC (mirrors `get_nearest_drivers()` in the opposite direction) - scopes a driver's pending-orders list to a 15km radius, while always still showing orders with no pickup coordinates yet (send/service/pool). Stage 2 of driver matching. |
+| 0019 | `0019_messages_rls.sql` | *(none — security fix, 2026-09-15)* | Enables RLS on `messages` (was enabled then immediately disabled in 0001/0009, no policies ever existed - any client could read/write any order's private chat). Scopes to the order's customer, assigned mitra, owning merchant, or admin. |
 
 ## Files intentionally excluded from the numbered sequence
 

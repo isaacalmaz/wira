@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck, Clock } from 'lucide-react';
+import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck, Clock, MessageCircle } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import ChatModal from '../components/common/ChatModal';
 
 export default function VillaPage() {
   const { balance, pay } = useWallet();
@@ -58,6 +59,7 @@ export default function VillaPage() {
   const [bookingPending, setBookingPending] = useState(null); // request sent, awaiting owner confirmation
   const [bookingSuccess, setBookingSuccess] = useState(null); // owner confirmed
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const filtered = area === 'Semua' ? villas : villas.filter((v) => v.area.toLowerCase().includes(area.toLowerCase()));
 
@@ -444,16 +446,33 @@ export default function VillaPage() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full py-3 font-bold"
-                  onClick={() => setSelectedVilla(null)}
-                >
-                  Selesai & Tutup
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 py-3 font-bold text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => setIsChatOpen(true)}
+                  >
+                    <MessageCircle size={16} /> Chat Pemilik
+                  </Button>
+                  <Button
+                    className="flex-1 py-3 font-bold"
+                    onClick={() => setSelectedVilla(null)}
+                  >
+                    Selesai & Tutup
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName={bookingSuccess?.villaName || selectedVilla?.name}
+        />
       )}
     </div>
   );

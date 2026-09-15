@@ -6,6 +6,7 @@ import { useOrders } from '../context/OrderContext';
 import { supabase } from '../config/supabase';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
+import ChatModal from '../components/common/ChatModal';
 import {
   Star,
   Clock,
@@ -18,6 +19,7 @@ import {
   Tag,
   X,
   Bike,
+  MessageCircle,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { toast } from 'react-hot-toast';
@@ -66,6 +68,7 @@ export default function RestaurantPage() {
 
 
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     if (!activeOrderId) return;
@@ -464,9 +467,17 @@ export default function RestaurantPage() {
 
           <div className="flex gap-2">
             {trackingStage < 3 ? (
-              <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
-                Menunggu update dari restoran...
-              </div>
+              <>
+                <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
+                  Menunggu update dari restoran...
+                </div>
+                <Button
+                  className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs px-4 flex items-center gap-1.5"
+                  onClick={() => setIsChatOpen(true)}
+                >
+                  <MessageCircle size={16} /> Chat
+                </Button>
+              </>
             ) : (
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
@@ -477,6 +488,14 @@ export default function RestaurantPage() {
             )}
           </div>
         </Card>
+      )}
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName={rest?.name}
+        />
       )}
     </div>
   );

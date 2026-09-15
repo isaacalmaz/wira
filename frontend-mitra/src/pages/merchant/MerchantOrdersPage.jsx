@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button } from '../../components/shared/UIComponents';
-import { Clock, RefreshCw } from 'lucide-react';
+import { Clock, RefreshCw, MessageCircle } from 'lucide-react';
 import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
+import ChatModal from '../../components/common/ChatModal';
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
@@ -13,6 +14,16 @@ const MerchantOrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
+  const [chatOrder, setChatOrder] = useState(null); // {id, customerName} | null
+
+  const openChat = async (order) => {
+    let customerName = 'Pelanggan';
+    if (order.user_id) {
+      const { data } = await supabase.from('users').select('name').eq('id', order.user_id).maybeSingle();
+      if (data?.name) customerName = data.name;
+    }
+    setChatOrder({ id: order.id, customerName });
+  };
 
   const fetchOrders = async () => {
     if (!user) return;
@@ -95,17 +106,24 @@ const MerchantOrdersPage = () => {
               <div className="flex gap-2">
                 {order.status === OrderStatus.PENDING ? (
                   <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
-                ) : isVilla ? (
-                  order.status === OrderStatus.ACCEPTED && (
-                    <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
-                  )
-                ) : order.status === OrderStatus.ACCEPTED ? (
-                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
-                ) : order.status === OrderStatus.PREPARING ? (
-                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
-                ) : order.status === OrderStatus.READY ? (
-                  <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
-                ) : null}
+                ) : (
+                  <>
+                    {isVilla ? (
+                      order.status === OrderStatus.ACCEPTED && (
+                        <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                      )
+                    ) : order.status === OrderStatus.ACCEPTED ? (
+                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
+                    ) : order.status === OrderStatus.PREPARING ? (
+                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
+                    ) : order.status === OrderStatus.READY ? (
+                      <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                    ) : null}
+                    <Button variant="outline" className="px-3 flex items-center gap-1.5" onClick={() => openChat(order)}>
+                      <MessageCircle size={16} /> Chat
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </Card>
@@ -114,6 +132,14 @@ const MerchantOrdersPage = () => {
           <div className="text-center py-10 text-slate-500">Tidak ada pesanan.</div>
         )}
       </div>
+
+      {chatOrder && (
+        <ChatModal
+          orderId={chatOrder.id}
+          onClose={() => setChatOrder(null)}
+          receiverName={chatOrder.customerName}
+        />
+      )}
     </div>
   );
 };

@@ -17,6 +17,7 @@ const DriverHomePage = () => {
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false); // Jika sedang menjalankan order
+  const [customerName, setCustomerName] = useState('Penumpang');
   
   // Real stats state
   const [todayEarnings, setTodayEarnings] = useState(0);
@@ -66,6 +67,20 @@ const DriverHomePage = () => {
     };
     fetchDriverStats();
   }, [user, activeOrder]);
+
+  // Ambil nama asli penumpang untuk order aktif (sebelumnya selalu "Penumpang" generik di chat)
+  useEffect(() => {
+    if (!activeOrder?.user_id) {
+      setCustomerName('Penumpang');
+      return;
+    }
+    let cancelled = false;
+    supabase.from('users').select('name').eq('id', activeOrder.user_id).maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setCustomerName(data?.name || 'Penumpang');
+      });
+    return () => { cancelled = true; };
+  }, [activeOrder?.user_id]);
 
   useEffect(() => {
     if (!isOnline) {
@@ -340,7 +355,7 @@ const DriverHomePage = () => {
         <ChatModal
           orderId={activeOrder.id}
           onClose={() => setIsChatOpen(false)}
-          receiverName="Penumpang"
+          receiverName={customerName}
         />
       )}
     </div>

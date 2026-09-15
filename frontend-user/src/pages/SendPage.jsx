@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import ChatModal from '../components/common/ChatModal';
 import {
   Package,
   Truck,
@@ -12,6 +13,7 @@ import {
   ArrowRight,
   Clock,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
@@ -28,6 +30,7 @@ export default function SendPage() {
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Form State
   const [senderName, setSenderName] = useState('');
@@ -378,9 +381,19 @@ export default function SendPage() {
 
             <div className="flex gap-2">
               {deliveryStage < 3 ? (
-                <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
-                  Menunggu update dari kurir...
-                </div>
+                <>
+                  <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
+                    Menunggu update dari kurir...
+                  </div>
+                  {deliveryStage >= 1 && (
+                    <Button
+                      className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs px-4 flex items-center gap-1.5"
+                      onClick={() => setIsChatOpen(true)}
+                    >
+                      <MessageCircle size={16} /> Chat
+                    </Button>
+                  )}
+                </>
               ) : (
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
@@ -395,6 +408,14 @@ export default function SendPage() {
             </div>
           </Card>
         </div>
+      )}
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName={trackingData?.courier}
+        />
       )}
     </div>
   );

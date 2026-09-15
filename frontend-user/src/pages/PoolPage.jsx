@@ -4,9 +4,10 @@ import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
-import { Waves, Sparkles, CheckCircle2, X, MapPin, ShieldCheck } from 'lucide-react';
+import { Waves, Sparkles, CheckCircle2, X, MapPin, ShieldCheck, MessageCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import ChatModal from '../components/common/ChatModal';
 
 export default function PoolPage() {
   const { balance, pay } = useWallet();
@@ -28,6 +29,7 @@ export default function PoolPage() {
   const [orderPending, setOrderPending] = useState(false); // request sent, awaiting technician acceptance
   const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Dengarkan penerimaan panggilan dari teknisi secara realtime
   useEffect(() => {
@@ -376,16 +378,33 @@ export default function PoolPage() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full py-3 font-bold"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Selesai
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 py-3 font-bold text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => setIsChatOpen(true)}
+                  >
+                    <MessageCircle size={16} /> Chat Teknisi
+                  </Button>
+                  <Button
+                    className="flex-1 py-3 font-bold"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Selesai
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {isChatOpen && activeOrderId && (
+        <ChatModal
+          orderId={activeOrderId}
+          onClose={() => setIsChatOpen(false)}
+          receiverName="Teknisi Kolam"
+        />
       )}
     </div>
   );
