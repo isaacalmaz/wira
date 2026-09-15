@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { Clock, MessageCircle, Wrench } from 'lucide-react';
+import { Clock, MessageCircle, Wrench, Waves } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -9,6 +9,14 @@ import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
+
+// Technicians currently receive every service+pool job regardless of their
+// declared specialization (specialization is asserted at registration but
+// never enforced for routing - see RegisterPage.jsx step 3) - a hard filter
+// risks stranding pool jobs with zero eligible technicians in a small
+// market like Lombok, so this stays visibility-only: pool jobs get a
+// distinct icon/label instead of being hidden from non-pool specialists.
+const isPoolOrder = (order) => order?.service_type === 'pool' || order?.service_type === 'WiraPool';
 
 const TechOrdersPage = () => {
   const { user } = useAuth();
@@ -70,7 +78,10 @@ const TechOrdersPage = () => {
         <Card className="p-4 border-primary/50 shadow-md">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <Badge variant="primary" className="mb-2 capitalize">{activeOrder.service_type}</Badge>
+              <Badge variant={isPoolOrder(activeOrder) ? 'primary' : 'gray'} className="mb-2 capitalize flex items-center gap-1 w-fit">
+                {isPoolOrder(activeOrder) ? <Waves size={12} /> : <Wrench size={12} />}
+                {isPoolOrder(activeOrder) ? 'Kolam Renang' : activeOrder.service_type}
+              </Badge>
               <h3 className="font-bold text-lg">{activeOrder.title || 'Pekerjaan'}</h3>
               <p className="text-sm font-medium mt-1">Klien: {customerName}</p>
             </div>
