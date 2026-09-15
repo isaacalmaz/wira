@@ -66,6 +66,8 @@ task's background, and out of scope to touch.
 | 0013b | `0013b_drivers_table_reconstructed.sql` | *(none — reconstructed from live schema, 2026-09-15)* | Creates `public.drivers` (id PK/FK -> `users.id`, vehicle_type, vehicle_plate, is_online, rating, status). Fills the gap below 0014 relies on. Not sourced from any root `.sql` file — see known issue #1 for how it was confirmed. |
 | 0014 | `0014_postgis_nearest_driver.sql` | `setup_nearest_driver.sql` | Adds spatial columns/index/trigger to `public.drivers`; creates `get_nearest_drivers()`/`find_nearest_drivers()` RPCs, RLS, `driver_locations` view. Depends on 0013b now existing first. |
 | 0015 | `0015_wallet_topup_system.sql` | `setup_wallet.sql` | Adds `users.wallet_balance`; creates `topup_requests` + `transactions` tables, RLS, unique-code trigger, and `approve_topup_request()`/`reject_topup_request()`/`cancel_topup_request()`/`get_pending_topup_codes()` RPCs. |
+| 0016 | `0016_vehicles_pricing_admin.sql` | *(none — new feature, 2026-09-15)* | Adds `per_km_rate` to `vehicles`; admin INSERT/UPDATE/DELETE RLS policies (previously public-SELECT-only, no write policy existed at all). |
+| 0017 | `0017_orders_pickup_coords.sql` | *(none — new feature, 2026-09-15)* | Adds real `pickup_lat`/`pickup_lng` columns to `orders` (previously only buried as JSON text in `details`, unusable by SQL/PostGIS). Stage 1 of upgrading driver matching from island-wide broadcast to distance-aware. |
 
 ## Files intentionally excluded from the numbered sequence
 

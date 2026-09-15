@@ -6,7 +6,8 @@ import {
   getStoredOrders,
   createEcosystemOrder,
   updateOrderStatusEcosystem,
-  subscribeEcosystemEvent
+  subscribeEcosystemEvent,
+  broadcastEcosystemEvent
 } from '../services/ecosystemService';
 import { getDisplayStatus } from '../constants/orderStatus';
 
@@ -118,6 +119,8 @@ export const OrderProvider = ({ children }) => {
             details: orderData.details || null,
             payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
             payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
+            pickup_lat: orderData.pickupLat ?? null,
+            pickup_lng: orderData.pickupLng ?? null,
           },
         ]).select().single();
 
@@ -127,12 +130,10 @@ export const OrderProvider = ({ children }) => {
 
         if (data) {
           createdOrder = data;
-          createEcosystemOrder({
-            ...createdOrder,
-            id: createdOrder.id,
-            price: createdOrder.total_price,
-            serviceType: createdOrder.service_type,
-          });
+          // Order row is already inserted above - only broadcast the event
+          // for other open tabs/portals to pick up, don't insert a second
+          // (phantom, user_id-less) row via createEcosystemOrder.
+          broadcastEcosystemEvent('ORDER_CREATED', createdOrder);
         }
       } else {
         // Guest user fallback (if allowed)

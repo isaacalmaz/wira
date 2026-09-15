@@ -219,6 +219,8 @@ export default function RidePage() {
         price: selectedVehicle.price,
         paymentMethod: paymentMethod,
         details: orderDetails,
+        pickupLat,
+        pickupLng,
       });
       setActiveOrderId(order.id);
       setStep('searching');

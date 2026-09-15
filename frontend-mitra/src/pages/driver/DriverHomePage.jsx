@@ -9,7 +9,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
-import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToDriverOrders } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToDriverOrders, updateDriverLocation, setDriverOffline } from '../../services/orderService';
 
 const DriverHomePage = () => {
   const { user } = useAuth();
@@ -112,6 +112,52 @@ const DriverHomePage = () => {
       unsubscribe();
     };
   }, [isOnline, activeOrder]);
+
+  // Lacak lokasi GPS driver secara live ke public.drivers selama online, agar
+  // pencarian driver terdekat (PostGIS) punya data nyata untuk dicari - tanpa
+  // ini kolom lat/lng driver tidak pernah terisi sama sekali.
+  useEffect(() => {
+    if (!isOnline || !user) return;
+    if (!navigator.geolocation) return;
+
+    let lastSentAt = 0;
+    let warnedPermission = false;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const now = Date.now();
+        if (now - lastSentAt < 8000) return; // throttle: kirim maksimal tiap ~8 detik
+        lastSentAt = now;
+        updateDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude)
+          .catch((err) => console.warn('updateDriverLocation failed:', err.message));
+      },
+      (error) => {
+        if (error.code === 1 && !warnedPermission) {
+          warnedPermission = true;
+          toast.error('Aktifkan izin lokasi agar Anda muncul di pencarian driver terdekat.');
+        }
+        console.warn('GPS tracking error:', error);
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [isOnline, user]);
+
+  // Saat driver mematikan toggle atau meninggalkan halaman, tandai offline di DB.
+  useEffect(() => {
+    if (isOnline || !user) return;
+    setDriverOffline(supabase, user.id).catch((err) => console.warn('setDriverOffline failed:', err.message));
+  }, [isOnline, user]);
+
+  useEffect(() => {
+    return () => {
+      if (user) {
+        setDriverOffline(supabase, user.id).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAcceptOrder = async () => {
     if (!incomingOrder || !user) return;

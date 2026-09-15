@@ -135,6 +135,22 @@ export async function updateDriverLocation(supabaseClient, driverId, lat, lng) {
 }
 
 /**
+ * Mark a driver/technician offline (nothing else writes is_online=false, so
+ * without this every driver who has ever gone online stays "online" forever
+ * in public.drivers regardless of what the app UI shows).
+ */
+export async function setDriverOffline(supabaseClient, driverId) {
+  const { error, data } = await supabaseClient
+    .from('drivers')
+    .update({ is_online: false, updated_at: new Date().toISOString() })
+    .eq('id', driverId)
+    .select();
+
+  if (error) throw new Error(`setDriverOffline failed: ${error.message}`);
+  if (!data || data.length === 0) throw new Error('setDriverOffline: no matching driver row (RLS denied or not found)');
+}
+
+/**
  * Complete an order
  */
 export async function completeOrder(supabaseClient, orderId) {
