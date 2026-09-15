@@ -7,6 +7,8 @@ import { supabase } from '../config/supabase';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import ChatModal from '../components/common/ChatModal';
+import WiraMap from '../components/common/WiraMap';
+import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import {
   Star,
   Clock,
@@ -20,6 +22,7 @@ import {
   X,
   Bike,
   MessageCircle,
+  LocateFixed,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { toast } from 'react-hot-toast';
@@ -34,6 +37,7 @@ export default function RestaurantPage() {
 
   const [step, setStep] = useState('menu'); // 'menu', 'checkout', 'tracking'
   const [deliveryAddress, setDeliveryAddress] = useState('Jl. Pejanggik No. 8, Mataram');
+  const [deliveryCoords, setDeliveryCoords] = useState({ lat: -8.5833, lng: 116.1167 });
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -109,6 +113,50 @@ export default function RestaurantPage() {
   const deliveryFee = 8000;
   const grandTotal = Math.max(0, total + deliveryFee - discount);
 
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      return;
+    }
+    const toastId = toast.loading('Mencari lokasi Anda...');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setDeliveryCoords(latLng);
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            setDeliveryAddress(data.display_name);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        toast.success('Lokasi ditemukan!', { id: toastId });
+      },
+      (error) => {
+        console.error('GPS Error:', error);
+        let errorMsg = 'Gagal mendapatkan lokasi.';
+        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
+        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
+        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout.';
+        toast.error(errorMsg, { id: toastId, duration: 6000 });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  };
+
+  const handleMarkerDrag = async (idx, latLng) => {
+    setDeliveryCoords(latLng);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+      const data = await res.json();
+      if (data && data.display_name) setDeliveryAddress(data.display_name);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleApplyPromo = () => {
     if (promoCode.toUpperCase() === 'WIRALOMBOK' || promoCode.toUpperCase() === 'DISKON10') {
       setDiscount(10000);
@@ -140,6 +188,8 @@ export default function RestaurantPage() {
         details: `${itemsSummary} — Antar ke: ${deliveryAddress}`,
         price: grandTotal,
         deliveryFee: deliveryFee,
+        dropoffLat: deliveryCoords.lat,
+        dropoffLng: deliveryCoords.lng,
         paymentMethod: paymentMethod,
       });
 
@@ -322,20 +372,36 @@ export default function RestaurantPage() {
       {/* TAMPILAN 2: HALAMAN CHECKOUT LENGKAP */}
       {step === 'checkout' && (
         <div className="space-y-4 animate-in fade-in zoom-in duration-150">
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
+          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700 !overflow-visible">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">
               Alamat Pengantaran
             </h3>
-            <div className="flex items-start gap-2.5">
-              <MapPin size={18} className="text-red-500 mt-1 shrink-0" />
-              <textarea
+            <div className="relative z-10">
+              <LocationAutocomplete
+                placeholder="Cari alamat pengantaran..."
+                icon={MapPin}
+                iconColor="text-red-500"
                 value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
-                rows="2"
-                placeholder="Alamat lengkap / patokan rumah..."
-              ></textarea>
+                onChange={setDeliveryAddress}
+                onSelect={(loc) => setDeliveryCoords({ lat: loc.lat, lng: loc.lng })}
+              />
             </div>
+            <button
+              type="button"
+              onClick={handleLocateMe}
+              className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark w-full justify-end -mt-1"
+            >
+              <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+            </button>
+            <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+              <WiraMap
+                center={deliveryCoords}
+                zoom={16}
+                markers={[{ ...deliveryCoords, type: 'dropoff', label: 'Alamat Pengantaran' }]}
+                onMarkerDragEnd={handleMarkerDrag}
+              />
+            </div>
+            <p className="text-[11px] text-slate-400">Geser pin di peta untuk menyesuaikan titik pengantaran yang tepat.</p>
           </Card>
 
           {/* Rincian Pesanan */}
