@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, CheckCircle, XCircle, Phone, MessageSquare, Car, Store, Wrench, 
-  FileText, Calendar, Clock, AlertCircle, ZoomIn, Download, ShieldCheck, User 
+import {
+  X, CheckCircle, XCircle, Phone, MessageSquare, Car, Store, Wrench, Package,
+  FileText, Calendar, Clock, AlertCircle, ZoomIn, Download, ShieldCheck, User
 } from 'lucide-react';
 
 const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
@@ -16,8 +16,11 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
 
   const role = mitra.role || 'driver';
   const isVillaMerchant = mitra.service_type === 'villa' || mitra.service_type === 'WiraVilla';
-  const roleTitle = role === 'driver' ? 'Driver (Ojek / Mobil)' : role === 'merchant' ? (isVillaMerchant ? 'Merchant (Villa)' : 'Merchant (Restoran)') : 'Teknisi & Jasa';
-  const roleIcon = role === 'driver' ? Car : role === 'merchant' ? Store : Wrench;
+  const roleTitle = role === 'driver' ? 'Driver (Ojek / Mobil)'
+    : role === 'courier' ? 'Kurir (Antar Barang)'
+    : role === 'merchant' ? (isVillaMerchant ? 'Merchant (Villa)' : 'Merchant (Restoran)')
+    : 'Teknisi & Jasa';
+  const roleIcon = role === 'driver' ? Car : role === 'courier' ? Package : role === 'merchant' ? Store : Wrench;
   const RoleIconComponent = roleIcon;
 
   const cleanPhone = (mitra.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
@@ -116,7 +119,7 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
             <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-xs uppercase tracking-wider text-slate-500">
               2. Detail Operasional & Kendaraan
             </h4>
-            {role === 'driver' && (
+            {(role === 'driver' || role === 'courier') && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
                 <div>
                   <p className="text-xs text-slate-500">Jenis & Tipe Kendaraan</p>

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Car, Store, Home, Wrench } from 'lucide-react';
+import { LogIn, Car, Store, Home, Wrench, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-// Single source of truth for the 4 mitra portals - label, icon, and the
+// Single source of truth for the 5 mitra portals - label, icon, and the
 // active/button color per role, so adding a role later only means adding
 // one entry here instead of touching every tab/button individually.
 const ROLE_CONFIG = {
   driver: { label: 'Driver', icon: Car, active: 'text-blue-600', button: 'bg-blue-600 hover:bg-blue-700' },
+  courier: { label: 'Kurir', icon: Package, active: 'text-rose-600', button: 'bg-rose-600 hover:bg-rose-700' },
   merchant: { label: 'Restoran', icon: Store, active: 'text-amber-600', button: 'bg-amber-500 hover:bg-amber-600' },
   villa: { label: 'Villa', icon: Home, active: 'text-violet-600', button: 'bg-violet-600 hover:bg-violet-700' },
   technician: { label: 'Teknisi', icon: Wrench, active: 'text-emerald-600', button: 'bg-emerald-600 hover:bg-emerald-700' },
@@ -80,7 +81,7 @@ export default function LoginPage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 fill-mode-both border border-slate-100 dark:border-slate-700">
 
             {/* Pilihan Portal */}
-            <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl mb-6">
+            <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl mb-6">
               {ROLES.map((role) => {
                 const cfg = ROLE_CONFIG[role];
                 const Icon = cfg.icon;

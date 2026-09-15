@@ -34,10 +34,16 @@ const DashboardPage = () => {
         const merchants = merchantsRes.count;
         const orders = ordersRes.data;
 
+        // Counts both Driver (Ride) and Kurir (Send) mitra_access holders as
+        // one combined "Driver" stat - they're two distinct roles now (see
+        // migrations/0031) but this card was never split into two tiles, so
+        // a courier-only mitra (registered after tonight's split, no
+        // 'driver' access at all) must still be counted here or the
+        // dashboard would silently undercount the transportation fleet.
         const drivers = allUsers ? allUsers.filter(u => {
           if (!u.mitra_access) return false;
-          if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
-          if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
+          if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver') || u.mitra_access.includes('courier');
+          if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver') || u.mitra_access.includes('courier');
           return false;
         }).length : 0;
 

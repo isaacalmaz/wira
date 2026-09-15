@@ -81,7 +81,27 @@ function App() {
             </Routes>
           </ProtectedRoute>
         } />
-        
+
+        {/* Kurir (Send) is its own login portal, separate from Driver (Ride) -
+            reuses the exact same Home/Orders/Earnings/Profile components as
+            driver, since they already branch on the URL's basePath internally
+            (see RIDE_SERVICE_TYPES/SEND_SERVICE_TYPES usage in each) to scope
+            "my jobs" to ride-only or send-only. Unlike Restoran/Villa, a real
+            driver can legitimately hold BOTH 'driver' and 'courier' access at
+            once (see migrations/0031) - SettingsPage.jsx's dual-capability
+            toggle is the self-service path for getting the second one. */}
+        <Route path="/courier/*" element={
+          <ProtectedRoute allowedRole="courier">
+            <Routes>
+              <Route path="/" element={<DriverHomePage />} />
+              <Route path="orders" element={<DriverOrdersPage />} />
+              <Route path="earnings" element={<DriverEarningsPage />} />
+              <Route path="profile" element={<DriverProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Routes>
+          </ProtectedRoute>
+        } />
+
         <Route path="/merchant/*" element={
           <ProtectedRoute allowedRole="merchant">
             <Routes>

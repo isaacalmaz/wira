@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck } from 'lucide-react';
 import { Card, Button, Badge, Modal, StatTile } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
@@ -9,7 +10,11 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
-import { fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus, subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters } from '../../services/orderService';
+import {
+  fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
+  subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
+  RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES,
+} from '../../services/orderService';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
  * but food/villa/service's is a plain string, and a driver's incoming-order
@@ -30,6 +35,17 @@ const ARRIVAL_RADIUS_METERS = 150;
 
 const DriverHomePage = () => {
   const { user } = useAuth();
+  // This component is reused under both /driver ("Ride") and /courier
+  // ("Kurir"/Send) portals - which service types count as "my jobs" must
+  // follow whichever root it's actually mounted under, not be hardcoded to
+  // the old undifferentiated ride+send list. Food-delivery jobs (merchant
+  // marks an order 'ready') stay visible under BOTH roots on purpose - see
+  // orderService.js's fetchPendingOrders/subscribeToDriverOrders doc
+  // comments for why.
+  const { pathname } = useLocation();
+  const basePath = pathname.startsWith('/courier') ? '/courier' : '/driver';
+  const scopedServiceTypes = basePath === '/courier' ? SEND_SERVICE_TYPES : RIDE_SERVICE_TYPES;
+  const myOrderServiceTypes = [...scopedServiceTypes, ...FOOD_DELIVERY_SERVICE_TYPES];
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
@@ -60,7 +76,8 @@ const DriverHomePage = () => {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('driver_id', user.id);
+        .eq('driver_id', user.id)
+        .in('service_type', myOrderServiceTypes);
 
       if (data) {
         const completed = data.filter(d => d.status === 'completed');
@@ -116,7 +133,7 @@ const DriverHomePage = () => {
     const checkPendingOrders = async () => {
       if (activeOrder) return; // Jangan cari jika sedang sibuk
       try {
-        const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current);
+        const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current, scopedServiceTypes);
         const latest = pending[0];
 
         if (latest) {
@@ -150,7 +167,8 @@ const DriverHomePage = () => {
           toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
         }
       },
-      () => driverPosRef.current
+      () => driverPosRef.current,
+      scopedServiceTypes
     );
 
     return () => {

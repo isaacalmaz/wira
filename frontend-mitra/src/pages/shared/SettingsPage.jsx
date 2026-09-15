@@ -3,7 +3,7 @@ import { Card, Button } from '../../components/shared/UIComponents';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, ChevronLeft, Moon, Camera, Store } from 'lucide-react';
+import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
@@ -24,6 +24,51 @@ const SettingsPage = () => {
   const hasBusiness = mitraAccess?.includes('merchant') || mitraAccess?.includes('villa');
   const [merchant, setMerchant] = useState(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // A single real driver with one motorbike can legitimately do both ride
+  // and delivery jobs - unlike Restoran/Villa, this isn't mutually
+  // exclusive. Someone who registered for only one of Driver/Kurir can
+  // self-activate the other here without a second admin review (they're
+  // already a vetted mitra) - see migrations/0031's header for the full
+  // rationale. Only offered when they hold exactly one of the two.
+  const hasDriver = !!mitraAccess?.includes('driver');
+  const hasCourier = !!mitraAccess?.includes('courier');
+  const missingDualRole = hasDriver && !hasCourier ? 'courier' : (hasCourier && !hasDriver ? 'driver' : null);
+  const [isActivatingDual, setIsActivatingDual] = useState(false);
+
+  const handleActivateDualRole = async () => {
+    if (!missingDualRole || !user) return;
+    setIsActivatingDual(true);
+    try {
+      const currentAccess = Array.isArray(mitraAccess) ? mitraAccess : [];
+      const nextAccess = [...currentAccess, missingDualRole];
+      // RLS trap (see AGENTS.md): an update blocked by RLS returns
+      // error:null with 0 rows, which looks like success unless the
+      // response array length is checked.
+      const { error, data } = await supabase
+        .from('users')
+        .update({ mitra_access: nextAccess })
+        .eq('id', user.id)
+        .select();
+
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
+
+      toast.success(
+        missingDualRole === 'courier'
+          ? 'Berhasil diaktifkan sebagai Kurir! Memuat ulang...'
+          : 'Berhasil diaktifkan sebagai Driver! Memuat ulang...'
+      );
+      // mitraAccess lives in AuthContext state, populated from the session's
+      // profile fetch - a plain DB write here doesn't refresh it on its own,
+      // so reload to pick up the new role and unlock the /driver or
+      // /courier route immediately instead of requiring a manual re-login.
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      toast.error(`Gagal mengaktifkan: ${err.message}`);
+      setIsActivatingDual(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -147,6 +192,33 @@ const SettingsPage = () => {
             </div>
           </label>
           <p className="text-[11px] text-slate-400 mt-2">Ditampilkan ke pelanggan yang melihat toko/villa Anda.</p>
+        </Card>
+      )}
+
+      {missingDualRole && (
+        <Card className="p-6 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            {missingDualRole === 'courier' ? <Package size={22} /> : <Car size={22} />}
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">
+              {missingDualRole === 'courier' ? 'Terima juga pesanan Kurir?' : 'Terima juga pesanan Driver?'}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {missingDualRole === 'courier'
+                ? 'Aktifkan untuk mulai menerima antar barang (Send) dengan kendaraan yang sama, tanpa perlu verifikasi ulang.'
+                : 'Aktifkan untuk mulai menerima antar penumpang (Ride) dengan kendaraan yang sama, tanpa perlu verifikasi ulang.'}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            className="shrink-0 flex items-center gap-1.5 text-xs px-3 py-2"
+            onClick={handleActivateDualRole}
+            disabled={isActivatingDual}
+          >
+            {isActivatingDual ? <Loader2 size={14} className="animate-spin" /> : null}
+            {missingDualRole === 'courier' ? 'Aktifkan Kurir' : 'Aktifkan Driver'}
+          </Button>
         </Card>
       )}
 

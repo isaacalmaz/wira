@@ -10,6 +10,17 @@ const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
 const FOOD_DELIVERY_SERVICE_TYPES = ['food', 'WiraFood'];
 
+// Ride ('driver' portal) and Send ('courier' portal) split - mirrors the
+// Restoran/Villa mitra_access split, but DRIVER_SERVICE_TYPES above (both
+// combined) is deliberately kept as the default for any caller that doesn't
+// pass an explicit override, so nothing outside frontend-mitra's /driver and
+// /courier route roots changes behavior. Exported so DriverHomePage.jsx /
+// DriverOrdersPage.jsx / DriverEarningsPage.jsx can scope their queries to
+// exactly one of these per basePath instead of importing a hand-copied list.
+export const RIDE_SERVICE_TYPES = ['ride', 'WiraRide'];
+export const SEND_SERVICE_TYPES = ['send', 'WiraSend'];
+export { FOOD_DELIVERY_SERVICE_TYPES };
+
 const NEARBY_RADIUS_METERS = 15000;
 
 /**
@@ -58,11 +69,20 @@ async function fetchReadyFoodDeliveries(supabaseClient) {
  * with an empty list while location is still resolving.
  *
  * For mode 'driver', ready-for-delivery food orders are always merged in
- * alongside ride/send jobs (see fetchReadyFoodDeliveries above).
+ * alongside ride/send jobs (see fetchReadyFoodDeliveries above) - this stays
+ * true regardless of `serviceTypesOverride` below, so a food-delivery job
+ * still reaches both the /driver and /courier portals rather than silently
+ * disappearing from one of them the moment the ride/send split ships.
+ *
+ * `serviceTypesOverride` (optional array) lets a caller narrow mode
+ * 'driver''s combined ride+send list to just one of RIDE_SERVICE_TYPES or
+ * SEND_SERVICE_TYPES - used by DriverHomePage.jsx to scope the incoming-job
+ * queue to whichever of /driver ("Ride") or /courier ("Kurir") it's mounted
+ * under. Falls back to the full DRIVER_SERVICE_TYPES (both) when omitted.
  */
-export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null) {
+export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null, serviceTypesOverride = null) {
   if ((mode === 'driver' || mode === 'technician') && driverPos?.lat != null && driverPos?.lng != null) {
-    const serviceTypes = mode === 'driver' ? DRIVER_SERVICE_TYPES : TECHNICIAN_SERVICE_TYPES;
+    const serviceTypes = serviceTypesOverride || (mode === 'driver' ? DRIVER_SERVICE_TYPES : TECHNICIAN_SERVICE_TYPES);
     const { data, error } = await supabaseClient.rpc('get_nearby_pending_orders', {
       driver_lat: driverPos.lat,
       driver_lng: driverPos.lng,
@@ -85,7 +105,7 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
     .order('created_at', { ascending: false });
 
   if (mode === 'driver') {
-    query = query.in('service_type', DRIVER_SERVICE_TYPES).is('driver_id', null);
+    query = query.in('service_type', serviceTypesOverride || DRIVER_SERVICE_TYPES).is('driver_id', null);
     const { data, error } = await query;
     if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
     return [...(data || []), ...(await fetchReadyFoodDeliveries(supabaseClient))];
@@ -270,9 +290,15 @@ function isWithinNearbyRadius(order, getDriverPos) {
 /**
  * Subscribe to realtime pending driver orders. `getDriverPos` (optional) is
  * a `() => {lat, lng} | null` used to filter out-of-radius orders - see
- * isWithinNearbyRadius.
+ * isWithinNearbyRadius. `serviceTypesOverride` (optional) narrows which
+ * service types trigger `onOrder` - RIDE_SERVICE_TYPES under /driver,
+ * SEND_SERVICE_TYPES under /courier - falling back to the combined
+ * DRIVER_SERVICE_TYPES when omitted. The food-ready UPDATE listener below is
+ * intentionally NOT scoped by this override (see fetchPendingOrders' doc
+ * comment - food delivery stays visible to both portals).
  */
-export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null) {
+export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null, serviceTypesOverride = null) {
+  const relevantTypes = serviceTypesOverride || DRIVER_SERVICE_TYPES;
   const channel = supabaseClient
     .channel('driver-orders-stream')
     .on(
@@ -282,7 +308,7 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
         const order = payload.new;
         if (
           order && order.status === OrderStatus.PENDING && !order.driver_id &&
-          DRIVER_SERVICE_TYPES.includes(order.service_type) &&
+          relevantTypes.includes(order.service_type) &&
           isWithinNearbyRadius(order, getDriverPos)
         ) {
           onOrder(order);

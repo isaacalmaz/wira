@@ -42,8 +42,15 @@ const AdminSidebar = ({ isCollapsed }) => {
         }
       } catch (e) {}
 
-      const driverCount = list.filter((m) => m.role === 'driver' && m.status === 'Pending').length;
-      const merchantCount = list.filter((m) => m.role === 'merchant' && m.status === 'Pending').length;
+      // Driver (Ride) and Kurir (Send) are two distinct registration roles
+      // now (see migrations/0031) but still share the /drivers admin page
+      // and its sidebar badge - matching only 'driver' here would repeat
+      // the exact bug just fixed for Villa registrations (commit 1476fc0):
+      // a pending Kurir application would exist in feature_flags but never
+      // be counted, so the sidebar badge could sit at 0 while a real
+      // registration silently waited.
+      const driverCount = list.filter((m) => (m.role === 'driver' || m.role === 'courier') && m.status === 'Pending').length;
+      const merchantCount = list.filter((m) => (m.role === 'merchant' || m.role === 'villa') && m.status === 'Pending').length;
       const techCount = list.filter((m) => m.role === 'technician' && m.status === 'Pending').length;
 
       setPendingCounts({ driver: driverCount, merchant: merchantCount, technician: techCount });

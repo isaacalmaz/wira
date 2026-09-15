@@ -1,13 +1,14 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2 } from 'lucide-react';
+import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2, Car, Package, Store, Wrench } from 'lucide-react';
 
 // The underlying mitra_access value for the restaurant portal is still the
 // literal string 'merchant' (kept as-is so existing accounts/routes don't
 // break), but it's displayed everywhere else as "Restoran" now that Villa
 // is a separate portal - this keeps the sidebar label consistent with that.
-const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
+const ROLE_DISPLAY_LABEL = { driver: 'Driver', courier: 'Kurir', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
+const ROLE_ICON = { driver: Car, courier: Package, merchant: Store, villa: Building2, technician: Wrench };
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess } = useAuth();
@@ -38,6 +39,17 @@ const MitraLayout = ({ children }) => {
       base.push({ to: `/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
     }
 
+    // Driver and Kurir deliberately get NO 4th nav tab here, unlike
+    // merchant/villa/technician. Each of those three has a real standalone
+    // management surface behind its extra tab (a product catalog, a listing
+    // editor, a work calendar) that doesn't fit inside Beranda/Pesanan.
+    // Driver/Kurir have no equivalent - there's no separate "thing to
+    // manage" beyond the incoming-job screen (Beranda) and the job list
+    // (Pesanan) itself, so Beranda/Pesanan/Pendapatan/Profil is already the
+    // complete set. Forcing a 4th tab here just to match tab-count would add
+    // a dead-end screen, not real parity - so this asymmetry stays, on
+    // purpose, after reviewing it.
+
     base.push(
       { to: `/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
       { to: `/${activeRole}/profile`, icon: User, label: 'Profil' }
@@ -47,6 +59,7 @@ const MitraLayout = ({ children }) => {
   };
 
   const navItems = getNavItems();
+  const ActiveRoleIcon = ROLE_ICON[activeRole];
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -54,7 +67,10 @@ const MitraLayout = ({ children }) => {
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 shadow-lg h-screen sticky top-0">
         <div className="p-6">
           <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
-          <p className="text-sm text-slate-500">{ROLE_DISPLAY_LABEL[activeRole] || activeRole}</p>
+          <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
+            {ActiveRoleIcon && <ActiveRoleIcon size={14} />}
+            {ROLE_DISPLAY_LABEL[activeRole] || activeRole}
+          </p>
         </div>
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => (

@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Car, Ban, CheckCircle, Eye } from 'lucide-react';
+import { Car, Package, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
+
+// Ride (mitra_access 'driver') and Send (mitra_access 'courier') are now two
+// distinct roles that both live on this one page, same as WiraFood/WiraVilla
+// both live on MerchantsPage.jsx - see migrations/0031 for why they're not
+// mutually exclusive like merchant/villa are (one real driver can hold both).
+const hasAccess = (mitraAccess, role) => {
+  if (!mitraAccess) return false;
+  if (Array.isArray(mitraAccess)) return mitraAccess.includes(role);
+  if (typeof mitraAccess === 'string') return mitraAccess.includes(role);
+  return false;
+};
 
 const DriversPage = () => {
   const [drivers, setDrivers] = useState([]);
@@ -17,19 +28,21 @@ const DriversPage = () => {
       const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
       if (activeErr) throw activeErr;
       if (allUsers) {
-        const activeMitras = allUsers.filter(u => {
-          if (!u.mitra_access) return false;
-          if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('driver');
-          if (typeof u.mitra_access === 'string') return u.mitra_access.includes('driver');
-          return false;
-        });
+        const activeMitras = allUsers.filter(u => hasAccess(u.mitra_access, 'driver') || hasAccess(u.mitra_access, 'courier'));
         setDrivers(activeMitras);
       }
 
       const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
       if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
       if (flagsData && Array.isArray(flagsData.features)) {
-        const p = flagsData.features.filter(m => m.role === 'driver' && m.status === 'Pending');
+        // RegisterPage.jsx's step-1 Kurir choice writes the pending
+        // registration's role as the literal 'courier' (not 'driver'), now
+        // that it's its own top-level radio option separate from Driver -
+        // matching only 'driver' here would repeat the exact bug just fixed
+        // for Villa (see MerchantsPage.jsx / commit 1476fc0): a brand-new
+        // Kurir registration would be written to feature_flags but never
+        // show up in any admin approval queue.
+        const p = flagsData.features.filter(m => (m.role === 'driver' || m.role === 'courier') && m.status === 'Pending');
         setPendingDrivers(p);
       }
     } catch (err) {
@@ -50,8 +63,14 @@ const DriversPage = () => {
           const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
           if (profileErr) throw profileErr;
 
+          // Grant exactly the role this applicant registered for - never
+          // both. Getting the other one later (e.g. a Driver who also wants
+          // Kurir jobs) is the intentional self-service path in
+          // SettingsPage.jsx's dual-capability toggle, not something an
+          // approval here should pre-grant.
+          const grantRole = pending.role === 'courier' ? 'courier' : 'driver';
           let currentAccess = userProfile?.mitra_access || [];
-          if (!currentAccess.includes('driver')) currentAccess.push('driver');
+          if (!currentAccess.includes(grantRole)) currentAccess.push(grantRole);
 
           if (userProfile) {
             const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
@@ -75,7 +94,7 @@ const DriversPage = () => {
             if (insertErr) throw insertErr;
           }
         }
-        toast.success('Driver berhasil disetujui!');
+        toast.success(pending?.role === 'courier' ? 'Kurir berhasil disetujui!' : 'Driver berhasil disetujui!');
       } else {
         toast.success('Pendaftaran ditolak.');
       }
@@ -119,8 +138,8 @@ const DriversPage = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Car className="text-primary"/> Manajemen Driver</h1>
-          <p className="text-sm text-slate-500">Daftar Mitra Pengemudi Wira</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Car className="text-primary"/> Manajemen Driver & Kurir</h1>
+          <p className="text-sm text-slate-500">Daftar Mitra Pengemudi (Ride) & Kurir (Send) Wira</p>
         </div>
       </div>
       
@@ -132,7 +151,12 @@ const DriversPage = () => {
             {pendingDrivers.map(pending => (
               <div key={pending.id} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-amber-100">
                 <div>
-                  <p className="font-bold text-slate-800">{pending.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-800">{pending.name}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${pending.role === 'courier' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {pending.role === 'courier' ? 'Kurir' : 'Ride'}
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500">{pending.vehicle} - {pending.plate}</p>
                 </div>
                 <button 
@@ -153,6 +177,7 @@ const DriversPage = () => {
             <thead className="bg-slate-50 border-b">
               <tr>
                 <th className="px-6 py-4">Nama Driver</th>
+                <th className="px-6 py-4">Layanan</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Telepon</th>
                 <th className="px-6 py-4">Status</th>
@@ -163,6 +188,20 @@ const DriversPage = () => {
               {drivers.map(d => (
                 <tr key={d.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 font-semibold">{d.name}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-1.5">
+                      {hasAccess(d.mitra_access, 'driver') && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                          <Car size={11} /> Ride
+                        </span>
+                      )}
+                      {hasAccess(d.mitra_access, 'courier') && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">
+                          <Package size={11} /> Kurir
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-slate-500">{d.email}</td>
                   <td className="px-6 py-4">{d.phone}</td>
                   <td className="px-6 py-4">
@@ -179,7 +218,7 @@ const DriversPage = () => {
               ))}
               {drivers.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Tidak ada pengemudi aktif</td>
+                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Tidak ada pengemudi atau kurir aktif</td>
                 </tr>
               )}
             </tbody>

@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from '../../components/shared/UIComponents';
 import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES } from '../../services/orderService';
 
 const DriverEarningsPage = () => {
   const { user } = useAuth();
+  // Reused under /driver (Ride) and /courier (Kurir/Send) - earnings shown
+  // here are scoped to whichever portal is active, same as
+  // DriverOrdersPage.jsx/DriverHomePage.jsx, with food-delivery earnings
+  // (delivery_fee share) counted on both sides.
+  const { pathname } = useLocation();
+  const basePath = pathname.startsWith('/courier') ? '/courier' : '/driver';
+  const myOrderServiceTypes = [...(basePath === '/courier' ? SEND_SERVICE_TYPES : RIDE_SERVICE_TYPES), ...FOOD_DELIVERY_SERVICE_TYPES];
   const [tab, setTab] = useState('daily');
   const [earningsData, setEarningsData] = useState([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);
-  
+
   useEffect(() => {
     const fetchEarnings = async () => {
       if (!user) return;
@@ -20,6 +29,7 @@ const DriverEarningsPage = () => {
         .from('orders')
         .select('total_price, created_at')
         .eq('driver_id', user.id)
+        .in('service_type', myOrderServiceTypes)
         .eq('status', 'completed');
         
       if (data) {

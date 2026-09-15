@@ -40,7 +40,7 @@ const compressImage = (file) => {
   });
 };
 
-const ROLE_LABEL = { driver: 'Driver', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
+const ROLE_LABEL = { driver: 'Driver (Ojek/Ride)', courier: 'Kurir (Antar Barang/Send)', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
@@ -122,8 +122,8 @@ const RegisterPage = () => {
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
-        vehicle: role === 'driver' ? formData.vehicle : null,
-        plate: role === 'driver' ? formData.plate : null,
+        vehicle: (role === 'driver' || role === 'courier') ? formData.vehicle : null,
+        plate: (role === 'driver' || role === 'courier') ? formData.plate : null,
         sim_photo: formData.simPhoto || null,
         restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
         address: (role === 'merchant' || role === 'villa') ? formData.address : null,
@@ -213,7 +213,8 @@ const RegisterPage = () => {
             <div className="space-y-4">
               <h2 className="font-bold text-lg dark:text-white">Pilih Jenis Mitra</h2>
               {[
-                { id: 'driver', title: 'Driver (Ojek & Mobil)', desc: 'Antar penumpang & makanan di Lombok' },
+                { id: 'driver', title: 'Driver (Ojek/Ride)', desc: 'Antar penumpang keliling Lombok' },
+                { id: 'courier', title: 'Kurir (Antar Barang/Send)', desc: 'Antar paket & barang di Lombok' },
                 { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
                 { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
                 { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
@@ -287,9 +288,9 @@ const RegisterPage = () => {
           {step === 3 && (
             <div className="space-y-4">
               <h2 className="font-bold text-lg dark:text-white">
-                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
+                {(role === 'driver' || role === 'courier') ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
               </h2>
-              {role === 'driver' && (
+              {(role === 'driver' || role === 'courier') && (
                 <>
                   <input
                     type="text"
@@ -418,7 +419,7 @@ const RegisterPage = () => {
                 <p><span className="text-slate-500">Nama:</span> <strong>{formData.name}</strong></p>
                 <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
                 <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
-                {role === 'driver' && (
+                {(role === 'driver' || role === 'courier') && (
                   <>
                     <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate})</strong></p>
                     {formData.simPhoto && (

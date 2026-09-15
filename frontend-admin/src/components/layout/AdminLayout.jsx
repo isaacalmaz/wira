@@ -53,15 +53,32 @@ const AdminLayout = () => {
         if (data && Array.isArray(data.features)) {
           const pendings = data.features.filter((m) => m.status === 'Pending' || m.status === 'Menunggu Verifikasi');
           if (pendings.length > 0) {
-            const dynamicNotifs = pendings.map((m) => ({
-              id: m.id,
-              title: `Pendaftaran ${m.role === 'driver' ? 'Driver' : m.role === 'merchant' ? 'Restoran' : 'Teknisi'} Baru`,
-              desc: `${m.name} (${m.phone}) menunggu verifikasi.`,
-              time: m.created_at ? new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
-              unread: true,
-              link: m.role === 'driver' ? '/drivers' : m.role === 'merchant' ? '/merchants' : '/technicians',
-              type: m.role,
-            }));
+            // Every role must be named/linked explicitly here - the old
+            // 3-way ternary (driver/merchant/else-Teknisi) silently mislabeled
+            // any other role as "Teknisi Baru" and linked it to /technicians.
+            // That's exactly the bug already fixed once for Villa
+            // (MerchantsPage.jsx's pending queue, commit 1476fc0): a Kurir
+            // registration would have shown up here as a fake "Teknisi Baru"
+            // notification pointing admins at the wrong page entirely.
+            const ROLE_NOTIF_META = {
+              driver: { title: 'Driver', link: '/drivers' },
+              courier: { title: 'Kurir', link: '/drivers' },
+              merchant: { title: 'Restoran', link: '/merchants' },
+              villa: { title: 'Villa', link: '/merchants' },
+              technician: { title: 'Teknisi', link: '/technicians' },
+            };
+            const dynamicNotifs = pendings.map((m) => {
+              const meta = ROLE_NOTIF_META[m.role] || { title: m.role || 'Mitra', link: '/users' };
+              return {
+                id: m.id,
+                title: `Pendaftaran ${meta.title} Baru`,
+                desc: `${m.name} (${m.phone}) menunggu verifikasi.`,
+                time: m.created_at ? new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
+                unread: true,
+                link: meta.link,
+                type: m.role,
+              };
+            });
             setNotifications((prev) => {
               const prevNotifs = new Map(prev.map(p => [p.id, p]));
               return dynamicNotifs.map(newNotif => {
@@ -187,8 +204,10 @@ const AdminLayout = () => {
                           >
                             <Link to={notif.link} onClick={() => setShowNotifications(false)} className="flex gap-4">
                               <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                notif.type === 'driver' ? 'bg-amber-100 text-amber-600' : 
-                                notif.type === 'merchant' ? 'bg-emerald-100 text-emerald-600' : 
+                                notif.type === 'driver' ? 'bg-amber-100 text-amber-600' :
+                                notif.type === 'courier' ? 'bg-rose-100 text-rose-600' :
+                                notif.type === 'merchant' ? 'bg-emerald-100 text-emerald-600' :
+                                notif.type === 'villa' ? 'bg-violet-100 text-violet-600' :
                                 notif.type === 'technician' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'
                               }`}>
                                 {notif.type === 'system' ? <Check size={16} /> : <Bell size={16} />}
