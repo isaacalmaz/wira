@@ -70,7 +70,7 @@ export default function SendPage() {
             let courierName = 'Kurir Mitra Wira';
             let courierPhone = '-';
             if (payload.new.driver_id) {
-              const { data: driverUser } = await supabase.from('users').select('*').eq('id', payload.new.driver_id).maybeSingle();
+              const { data: driverUser } = await supabase.from('users').select('name, phone, email').eq('id', payload.new.driver_id).maybeSingle();
               const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
               let regInfo = null;
               if (flagsData && Array.isArray(flagsData.features)) {

@@ -20,18 +20,12 @@ export default function ServicePage() {
 
   useEffect(() => {
     const fetchTechnicians = async () => {
-      const { data: users } = await supabase.from('users').select('*');
+      const { data: users } = await supabase.rpc('list_technicians');
       const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      
+
       const regs = Array.isArray(flagsData?.features) ? flagsData.features : [];
       if (users) {
         const activeTechs = users
-          .filter(u => {
-            if (!u.mitra_access) return false;
-            if (Array.isArray(u.mitra_access)) return u.mitra_access.includes('technician');
-            if (typeof u.mitra_access === 'string') return u.mitra_access.includes('technician');
-            return false;
-          })
           .map(u => {
             const reg = regs.find(r => r.auth_id === u.id || r.email === u.email);
             return {
