@@ -25,7 +25,7 @@ const TechHomePage = () => {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .or(`driver_id.eq.${user.id},service_type.eq.service`)
+        .or(`driver_id.eq.${user.id},service_type.eq.service,service_type.eq.pool`)
         .order('created_at', { ascending: false });
 
       if (data) {

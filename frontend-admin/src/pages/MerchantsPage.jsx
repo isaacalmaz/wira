@@ -35,8 +35,13 @@ const MerchantsPage = () => {
       if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
 
       if (flagsData && Array.isArray(flagsData.features)) {
+        // RegisterPage.jsx's step-1 Villa radio writes the pending
+        // registration's role as the literal 'villa' (not 'merchant') now
+        // that Villa is its own top-level choice - without matching both
+        // values here, a brand-new Villa registration never appears in any
+        // admin queue at all and can never be approved.
         const p = flagsData.features
-          .filter(m => m.role === 'merchant' && m.status === 'Pending')
+          .filter(m => (m.role === 'merchant' || m.role === 'villa') && m.status === 'Pending')
           .map(m => ({
             id: m.id,
             role: 'merchant',

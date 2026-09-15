@@ -50,7 +50,7 @@ const MerchantProfilePage = () => {
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-start gap-3">
           <MapPin className="text-slate-400 mt-1" />
           <div>
-            <p className="font-semibold">Alamat Resto</p>
+            <p className="font-semibold">{isVilla ? 'Alamat Villa' : 'Alamat Resto'}</p>
             <p className="text-sm text-slate-500">{merchant?.address || 'Alamat belum diatur'}</p>
           </div>
         </div>
