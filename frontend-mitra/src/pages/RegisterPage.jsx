@@ -54,6 +54,7 @@ const RegisterPage = () => {
     password: '',
     vehicle: '',
     plate: '',
+    businessType: 'food',
     restaurantName: '',
     address: '',
     specialization: 'ac',
@@ -125,6 +126,7 @@ const RegisterPage = () => {
         sim_photo: formData.simPhoto || null,
         restaurant_name: role === 'merchant' ? formData.restaurantName : null,
         address: role === 'merchant' ? formData.address : null,
+        service_type: role === 'merchant' ? formData.businessType : null,
         specialization: role === 'technician' ? formData.specialization : null,
         experience: role === 'technician' ? formData.experience : null,
         status: 'Pending',
@@ -357,12 +359,38 @@ const RegisterPage = () => {
               )}
               {role === 'merchant' && (
                 <>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'food', title: 'Restoran / Warung', desc: 'Jual makanan di WiraFood' },
+                      { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
+                    ].map((t) => (
+                      <label
+                        key={t.id}
+                        className={`block p-3 border rounded-xl cursor-pointer transition-all ${
+                          formData.businessType === t.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
+                            : 'border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="businessType"
+                          value={t.id}
+                          checked={formData.businessType === t.id}
+                          onChange={handleChange}
+                          className="hidden"
+                        />
+                        <span className="font-bold block text-sm dark:text-white">{t.title}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</span>
+                      </label>
+                    ))}
+                  </div>
                   <input
                     type="text"
                     name="restaurantName"
                     value={formData.restaurantName}
                     onChange={handleChange}
-                    placeholder="Nama Restoran / Rumah Makan"
+                    placeholder={formData.businessType === 'villa' ? 'Nama Villa / Penginapan' : 'Nama Restoran / Rumah Makan'}
                     className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     required
                   />
@@ -426,7 +454,10 @@ const RegisterPage = () => {
                   </>
                 )}
                 {role === 'merchant' && (
-                  <p><span className="text-slate-500">Restoran:</span> <strong>{formData.restaurantName}</strong></p>
+                  <>
+                    <p><span className="text-slate-500">Jenis Usaha:</span> <strong>{formData.businessType === 'villa' ? 'Villa / Penginapan' : 'Restoran / Warung'}</strong></p>
+                    <p><span className="text-slate-500">Nama:</span> <strong>{formData.restaurantName}</strong></p>
+                  </>
                 )}
                 {role === 'technician' && (
                   <p><span className="text-slate-500">Keahlian:</span> <strong>{formData.specialization} ({formData.experience} thn)</strong></p>

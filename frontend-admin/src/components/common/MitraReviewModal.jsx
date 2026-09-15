@@ -15,7 +15,8 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   if (!isOpen || !mitra) return null;
 
   const role = mitra.role || 'driver';
-  const roleTitle = role === 'driver' ? 'Driver (Ojek / Mobil)' : role === 'merchant' ? 'Merchant (Restoran)' : 'Teknisi & Jasa';
+  const isVillaMerchant = mitra.service_type === 'villa' || mitra.service_type === 'WiraVilla';
+  const roleTitle = role === 'driver' ? 'Driver (Ojek / Mobil)' : role === 'merchant' ? (isVillaMerchant ? 'Merchant (Villa)' : 'Merchant (Restoran)') : 'Teknisi & Jasa';
   const roleIcon = role === 'driver' ? Car : role === 'merchant' ? Store : Wrench;
   const RoleIconComponent = roleIcon;
 
@@ -131,7 +132,7 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
             {role === 'merchant' && (
               <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
                 <div>
-                  <p className="text-xs text-slate-500">Nama Usaha / Restoran</p>
+                  <p className="text-xs text-slate-500">{isVillaMerchant ? 'Nama Villa / Penginapan' : 'Nama Usaha / Restoran'}</p>
                   <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-base">{mitra.restaurant_name || mitra.name}</p>
                 </div>
                 <div>
