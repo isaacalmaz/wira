@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed, RefreshCw, Camera } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/shared/UIComponents';
+import { uploadImageToBucket } from '../../utils/imageUpload';
 
 const categories = [
   { id: 'all', name: 'Semua Menu' },
@@ -30,6 +31,23 @@ const MerchantMenuPage = () => {
   const [category, setCategory] = useState('makanan');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setIsUploadingImage(true);
+    try {
+      const url = await uploadImageToBucket(supabase, 'menu-images', user.id, file);
+      setImage(url);
+      toast.success('Foto berhasil diunggah');
+    } catch (err) {
+      toast.error('Gagal mengunggah foto: ' + err.message);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = null;
+    }
+  };
 
   const fetchMenu = async () => {
     if (!user) return;
@@ -416,15 +434,20 @@ const MerchantMenuPage = () => {
 
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  URL Foto Makanan
+                  Foto Makanan
                 </label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                />
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 shrink-0 border border-slate-200 dark:border-slate-600">
+                    {image && <img src={image} alt="Pratinjau" className="w-full h-full object-cover" />}
+                  </div>
+                  <label className="flex-1 cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} disabled={isUploadingImage} />
+                    <div className="flex items-center justify-center gap-2 p-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors">
+                      <Camera size={16} />
+                      {isUploadingImage ? 'Mengunggah...' : 'Pilih Foto dari Perangkat'}
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="pt-2 flex gap-2">
@@ -437,7 +460,8 @@ const MerchantMenuPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-md hover:bg-opacity-90"
+                  disabled={isUploadingImage}
+                  className="flex-1 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-md hover:bg-opacity-90 disabled:opacity-50"
                 >
                   {editingItem ? 'Simpan Perubahan' : 'Tambah Menu'}
                 </button>
