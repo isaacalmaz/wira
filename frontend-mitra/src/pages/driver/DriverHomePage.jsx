@@ -225,7 +225,7 @@ const DriverHomePage = () => {
   const mapMarkers = orderDetails ? [{ lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng }, { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng }] : [{ lat: mataramPos[0], lng: mataramPos[1] }];
 
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden max-w-md mx-auto bg-slate-50 dark:bg-slate-900 border-t border-slate-200 shadow-xl">
+    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
       
       {/* MAP AREA - FULL SCREEN */}
       <div className="absolute inset-0 z-0">
@@ -246,7 +246,7 @@ const DriverHomePage = () => {
 
       {/* Header Panel */}
       <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
-        <div className="flex justify-between items-center bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 pointer-events-auto">
+        <div className="max-w-2xl mx-auto flex justify-between items-center bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 pointer-events-auto">
           <div>
             <h1 className="text-xl font-bold">Halo, {user?.name || 'Driver'}!</h1>
             <p className="text-sm text-slate-500">
@@ -266,7 +266,7 @@ const DriverHomePage = () => {
 
       {/* Bottom Panel */}
       <div className="absolute bottom-0 w-full z-10 bg-gradient-to-t from-slate-100 via-slate-100/80 to-transparent dark:from-slate-900 p-4 pb-6 pointer-events-none">
-        <div className="pointer-events-auto mt-10">
+        <div className="max-w-2xl mx-auto pointer-events-auto mt-10">
           {!activeOrder ? (
             <div className="space-y-4">
               <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-1 shadow-lg">
