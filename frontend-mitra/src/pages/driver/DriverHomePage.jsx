@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck } from 'lucide-react';
-import { Card, Button, Badge } from '../../components/shared/UIComponents';
+import { Card, Button, Badge, Modal, StatTile } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import EarningsCard from '../../components/shared/EarningsCard';
 import WiraMap from '../../components/common/WiraMap';
@@ -345,16 +345,8 @@ const DriverHomePage = () => {
                 <EarningsCard today={todayEarnings} week={weekEarnings} progress={completedTrips > 0 ? 100 : 0} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4 flex flex-col items-center justify-center text-center shadow-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-100 dark:border-slate-700">
-                  <Target className="text-primary mb-2" size={28} />
-                  <span className="text-2xl font-bold">{completedTrips}</span>
-                  <span className="text-xs text-slate-500">Trip Selesai</span>
-                </Card>
-                <Card className="p-4 flex flex-col items-center justify-center text-center shadow-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-100 dark:border-slate-700">
-                  <Activity className="text-green-500 mb-2" size={28} />
-                  <span className="text-2xl font-bold">{completedTrips > 0 ? '100%' : '0%'}</span>
-                  <span className="text-xs text-slate-500">Tingkat Penerimaan</span>
-                </Card>
+                <StatTile icon={Target} value={completedTrips} label="Trip Selesai" />
+                <StatTile icon={Activity} value={completedTrips > 0 ? '100%' : '0%'} label="Tingkat Penerimaan" iconClassName="text-green-500" />
               </div>
             </div>
           ) : (
@@ -426,8 +418,12 @@ const DriverHomePage = () => {
 
       {/* Incoming Order Popup */}
       {isOnline && incomingOrder && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300 pointer-events-auto">
-          <Card className="w-full max-w-sm p-6 bg-white dark:bg-slate-800 border-2 border-primary shadow-2xl relative overflow-hidden">
+      <Modal
+        isOpen={true}
+        onClose={() => {}}
+        closeOnBackdrop={false}
+        className="max-w-sm p-6 border-2 border-primary relative overflow-hidden pointer-events-auto"
+      >
             <div className="absolute top-0 left-0 w-full h-1 bg-primary animate-pulse"></div>
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
@@ -456,8 +452,7 @@ const DriverHomePage = () => {
               <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
               <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>Terima</Button>
             </div>
-          </Card>
-        </div>
+      </Modal>
       )}
 
       {isChatOpen && activeOrder && (

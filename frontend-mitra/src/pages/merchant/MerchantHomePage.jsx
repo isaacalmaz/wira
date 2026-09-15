@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button } from '../../components/shared/UIComponents';
+import { Card, Badge, Button, Modal } from '../../components/shared/UIComponents';
 import { Store, TrendingUp, ShoppingBag, BellRing, MapPin } from 'lucide-react';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import { supabase } from '../../config/supabase';
@@ -179,8 +179,12 @@ const MerchantHomePage = () => {
 
       {/* Incoming Order Popup */}
       {isOpen && incomingOrder && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-          <Card className="w-full max-w-sm p-6 bg-white dark:bg-slate-800 border-2 border-primary shadow-2xl relative overflow-hidden">
+      <Modal
+        isOpen={true}
+        onClose={() => {}}
+        closeOnBackdrop={false}
+        className="max-w-sm p-6 border-2 border-primary relative overflow-hidden"
+      >
             <div className="absolute top-0 left-0 w-full h-1 bg-primary animate-pulse"></div>
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
@@ -195,8 +199,7 @@ const MerchantHomePage = () => {
               <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
               <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>{isVillaOrder(incomingOrder) ? 'Konfirmasi Reservasi' : 'Terima Pesanan'}</Button>
             </div>
-          </Card>
-        </div>
+      </Modal>
       )}
     </div>
   );

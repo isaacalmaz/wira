@@ -47,3 +47,40 @@ export const EmptyState = ({ icon: Icon, title, description }) => (
     <p className="text-slate-500 dark:text-slate-400">{description}</p>
   </div>
 );
+
+/**
+ * Shared modal shell - was reimplemented 5 separate times (ChatModal,
+ * PayoutPanel, the driver/merchant incoming-order prompts, MerchantMenuPage's
+ * add/edit form) each with its own z-index (z-50 / z-[100] / z-[200]), a
+ * latent stacking bug if two ever ended up open at once. One managed
+ * z-modal token now, from tailwind.config.js.
+ */
+export const Modal = ({ isOpen, onClose, children, className = '', closeOnBackdrop = true }) => {
+  if (!isOpen) return null;
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 z-modal flex items-center justify-center p-4"
+      onClick={closeOnBackdrop ? onClose : undefined}
+    >
+      <div
+        className={`bg-white dark:bg-slate-800 rounded-modal shadow-2xl w-full ${className}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Shared "icon + big number + label" tile - was copy-pasted inline in
+ * DriverHomePage.jsx and MerchantHomePage.jsx with only color/content
+ * differing.
+ */
+export const StatTile = ({ icon: Icon, value, label, iconClassName = 'text-primary' }) => (
+  <Card className="p-4 flex flex-col items-center justify-center text-center shadow-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-100 dark:border-slate-700">
+    <Icon className={`${iconClassName} mb-2`} size={28} />
+    <span className="text-2xl font-bold">{value}</span>
+    <span className="text-xs text-slate-500">{label}</span>
+  </Card>
+);

@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed, R
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { Modal } from '../../components/shared/UIComponents';
 
 const categories = [
   { id: 'all', name: 'Semua Menu' },
@@ -333,9 +334,7 @@ const MerchantMenuPage = () => {
       </div>
 
       {/* MODAL TAMBAH / EDIT MENU */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative animate-in fade-in zoom-in duration-150">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-md p-6 space-y-4 relative">
             <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -444,9 +443,7 @@ const MerchantMenuPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };

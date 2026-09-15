@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Wallet, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { Card, Button } from './UIComponents';
+import { Card, Button, Modal } from './UIComponents';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -126,9 +126,7 @@ export default function PayoutPanel() {
         </div>
       )}
 
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <Card className="w-full max-w-sm p-5 bg-white dark:bg-slate-800 relative">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} className="max-w-sm p-5 relative">
             <button onClick={() => setModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
               <X size={20} />
             </button>
@@ -183,9 +181,7 @@ export default function PayoutPanel() {
                 {submitting ? 'Mengirim...' : 'Ajukan Pencairan'}
               </Button>
             </form>
-          </Card>
-        </div>
-      )}
+      </Modal>
     </Card>
   );
 }

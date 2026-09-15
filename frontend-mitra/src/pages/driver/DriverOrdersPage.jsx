@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button } from '../../components/shared/UIComponents';
+import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { User, MapPin, Package, RefreshCw } from 'lucide-react';
+import { User, MapPin, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
@@ -71,9 +71,8 @@ const DriverOrdersPage = () => {
           </div>
         </Card>
       ) : (
-        <Card className="p-8 text-center text-slate-500">
-          <div className="text-4xl mb-2">🏍️</div>
-          <p>Belum ada pesanan aktif.</p>
+        <Card>
+          <EmptyState icon={Package} title="Belum ada pesanan aktif" description="Pesanan yang Anda terima akan muncul di sini." />
         </Card>
       )}
 
@@ -81,7 +80,7 @@ const DriverOrdersPage = () => {
         <h2 className="text-xl font-bold mb-4">Riwayat Selesai</h2>
         <div className="space-y-3">
           {history.length === 0 ? (
-             <p className="text-sm text-slate-500 text-center py-4">Belum ada riwayat pesanan.</p>
+             <Card><EmptyState icon={History} title="Belum ada riwayat" description="Pesanan yang sudah selesai akan tercatat di sini." /></Card>
           ) : history.map(order => (
             <Card key={order.id} className="p-4 flex justify-between items-center">
               <div>

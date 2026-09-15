@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge } from '../../components/shared/UIComponents';
+import { Card, Badge, EmptyState } from '../../components/shared/UIComponents';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Calendar } from 'lucide-react';
+import { Calendar, CalendarX } from 'lucide-react';
 
 const TechSchedulePage = () => {
   const { user } = useAuth();
@@ -71,9 +71,7 @@ const TechSchedulePage = () => {
               </Card>
             ))
           ) : (
-            <div className="p-6 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl border border-slate-100">
-              Belum ada agenda tugas servis terjadwal.
-            </div>
+            <Card><EmptyState icon={CalendarX} title="Belum ada agenda" description="Tugas servis terjadwal akan muncul di sini." /></Card>
           )}
         </div>
       </div>

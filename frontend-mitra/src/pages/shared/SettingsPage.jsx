@@ -3,11 +3,13 @@ import { Card, Button } from '../../components/shared/UIComponents';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, ChevronLeft } from 'lucide-react';
+import { User, Phone, Save, ChevronLeft, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../context/ThemeContext';
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -101,7 +103,30 @@ const SettingsPage = () => {
           </Button>
         </form>
       </Card>
-      
+
+      <Card className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Moon className="text-slate-400" size={20} />
+          <div>
+            <p className="font-semibold text-sm">Mode Gelap</p>
+            <p className="text-xs text-slate-500">Lebih nyaman di mata saat malam</p>
+          </div>
+        </div>
+        <button
+          onClick={toggleDarkMode}
+          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none shadow-inner shrink-0 ${
+            darkMode ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'
+          }`}
+        >
+          <span className="sr-only">Aktifkan Mode Gelap</span>
+          <span
+            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${
+              darkMode ? 'translate-x-7' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </Card>
+
       {/* Penjelasan Arsitektur */}
       <div className="text-center text-sm text-slate-500 pt-4">
         <p>Halaman ini dikelola secara dinamis via session (JWT)</p>

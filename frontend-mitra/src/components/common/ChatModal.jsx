@@ -81,7 +81,7 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[200] flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 bg-black/60 z-modal flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 animate-in fade-in zoom-in duration-300">
       <div className="bg-white dark:bg-slate-800 w-full sm:w-[400px] h-[80vh] sm:h-[600px] rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden">
         
         {/* Header */}

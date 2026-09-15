@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button } from '../../components/shared/UIComponents';
+import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { Clock, MessageCircle } from 'lucide-react';
+import { Clock, MessageCircle, Wrench } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -101,7 +101,7 @@ const TechOrdersPage = () => {
           </div>
         </Card>
       ) : (
-        <div className="text-center py-10 text-slate-500">Tidak ada pekerjaan aktif saat ini.</div>
+        <Card><EmptyState icon={Wrench} title="Tidak ada pekerjaan aktif" description="Pekerjaan yang Anda terima akan muncul di sini." /></Card>
       )}
 
       {isChatOpen && activeOrder && (

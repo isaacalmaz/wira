@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button } from '../../components/shared/UIComponents';
-import { Clock, RefreshCw, MessageCircle } from 'lucide-react';
+import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
+import { Clock, RefreshCw, MessageCircle, ClipboardList } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
@@ -137,7 +137,7 @@ const MerchantOrdersPage = () => {
           </Card>
           );
         }) : (
-          <div className="text-center py-10 text-slate-500">Tidak ada pesanan.</div>
+          <Card><EmptyState icon={ClipboardList} title="Tidak ada pesanan" description={tab === 'active' ? 'Pesanan baru akan muncul di sini.' : 'Belum ada riwayat pesanan.'} /></Card>
         )}
       </div>
 
