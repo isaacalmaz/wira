@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { DollarSign, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, CheckCircle, XCircle, Clock, Landmark } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const FinancePage = () => {
   const [revenue, setRevenue] = useState(0);
   const [topups, setTopups] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const fetchData = async () => {
@@ -23,10 +24,21 @@ const FinancePage = () => {
         .from('topup_requests')
         .select('*, users(name, phone)')
         .order('created_at', { ascending: false });
-      
+
       if (topupError) throw topupError;
       if (topupData) {
         setTopups(topupData);
+      }
+
+      // Fetch Payout Requests (mitra withdrawals)
+      const { data: payoutData, error: payoutError } = await supabase
+        .from('payout_requests')
+        .select('*, users(name, phone)')
+        .order('created_at', { ascending: false });
+
+      if (payoutError) throw payoutError;
+      if (payoutData) {
+        setPayouts(payoutData);
       }
     } catch (error) {
       toast.error(error.message || 'Gagal memuat data');
@@ -81,6 +93,44 @@ const FinancePage = () => {
       }
       if (data) {
         toast.success('Top-up berhasil ditolak');
+        fetchData();
+      } else {
+        toast.error('Gagal menolak, mungkin status sudah berubah');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Terjadi kesalahan');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApprovePayout = async (id) => {
+    if (!window.confirm('Konfirmasi dana SUDAH ditransfer manual ke mitra ini?')) return;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('approve_payout_request', { request_id: id });
+      if (error) throw error;
+      if (data) {
+        toast.success('Pencairan ditandai selesai');
+        fetchData();
+      } else {
+        toast.error('Gagal memproses, mungkin status sudah berubah');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Terjadi kesalahan');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectPayout = async (id) => {
+    if (!window.confirm('Yakin ingin menolak pencairan ini? Saldo akan dikembalikan ke mitra.')) return;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('reject_payout_request', { request_id: id });
+      if (error) throw error;
+      if (data) {
+        toast.success('Pencairan ditolak, saldo dikembalikan');
         fetchData();
       } else {
         toast.error('Gagal menolak, mungkin status sudah berubah');
@@ -186,6 +236,88 @@ const FinancePage = () => {
                           </button>
                           <button 
                             onClick={() => handleReject(t.id)}
+                            disabled={actionLoading}
+                            className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition"
+                            title="Tolak"
+                          >
+                            <XCircle size={18}/>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card shadow-md">
+        <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
+          <Landmark size={20} className="text-slate-500"/> Permintaan Pencairan Mitra
+        </h3>
+
+        {loading ? (
+          <div className="text-center py-8 text-slate-500">Memuat data...</div>
+        ) : payouts.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl">Belum ada permintaan pencairan.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 border-b">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Waktu</th>
+                  <th className="px-4 py-3 font-semibold">Mitra</th>
+                  <th className="px-4 py-3 font-semibold">Nominal</th>
+                  <th className="px-4 py-3 font-semibold">Tujuan Transfer</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {payouts.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {new Date(p.created_at).toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{p.users?.name || 'Unknown'}</div>
+                      <div className="text-xs text-slate-500">{p.users?.phone || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-900">
+                      Rp {Number(p.amount).toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{p.payout_destination}</div>
+                      <div className="text-xs text-slate-500">
+                        {p.payout_method === 'ewallet' ? 'E-Wallet' : 'Transfer Bank'}
+                        {p.payout_account_name ? ` • a.n. ${p.payout_account_name}` : ''}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        p.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        p.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        p.status === 'cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {p.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApprovePayout(p.id)}
+                            disabled={actionLoading}
+                            className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition"
+                            title="Tandai Sudah Ditransfer"
+                          >
+                            <CheckCircle size={18}/>
+                          </button>
+                          <button
+                            onClick={() => handleRejectPayout(p.id)}
                             disabled={actionLoading}
                             className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition"
                             title="Tolak"

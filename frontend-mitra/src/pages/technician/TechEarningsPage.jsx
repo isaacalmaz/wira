@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from '../../components/shared/UIComponents';
 import EarningsCard from '../../components/shared/EarningsCard';
+import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -75,6 +76,8 @@ const TechEarningsPage = () => {
           </BarChart>
         </ResponsiveContainer>
       </Card>
+
+      <PayoutPanel />
     </div>
   );
 };

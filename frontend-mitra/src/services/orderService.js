@@ -8,6 +8,7 @@ import { OrderStatus } from '../constants/orderStatus';
 const DRIVER_SERVICE_TYPES = ['ride', 'send', 'WiraRide', 'WiraSend'];
 const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
+const FOOD_DELIVERY_SERVICE_TYPES = ['food', 'WiraFood'];
 
 const NEARBY_RADIUS_METERS = 15000;
 
@@ -27,6 +28,26 @@ export function distanceMeters(lat1, lng1, lat2, lng2) {
 }
 
 /**
+ * Food orders never get their own coordinates (merchants have no lat/lng at
+ * all - see migrations/0028's header), so they're fetched as a plain,
+ * unscoped query and merged in for drivers rather than run through the
+ * PostGIS nearby RPC. A food order becomes a "job" the moment the merchant
+ * marks it ready, not when the customer first places it - that's still the
+ * merchant's own queue via MERCHANT_SERVICE_TYPES.
+ */
+async function fetchReadyFoodDeliveries(supabaseClient) {
+  const { data, error } = await supabaseClient
+    .from('orders')
+    .select('*')
+    .eq('status', OrderStatus.READY)
+    .in('service_type', FOOD_DELIVERY_SERVICE_TYPES)
+    .is('driver_id', null)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`fetchReadyFoodDeliveries failed: ${error.message}`);
+  return data || [];
+}
+
+/**
  * Fetch pending orders matching a mitra mode and service types.
  *
  * `driverPos` ({lat, lng}), when given for mode 'driver'/'technician', scopes
@@ -35,6 +56,9 @@ export function distanceMeters(lat1, lng1, lat2, lng2) {
  * always included (see migration 0018 for why). Without driverPos (GPS not
  * yet available), falls back to the old unscoped query so mitra aren't left
  * with an empty list while location is still resolving.
+ *
+ * For mode 'driver', ready-for-delivery food orders are always merged in
+ * alongside ride/send jobs (see fetchReadyFoodDeliveries above).
  */
 export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null) {
   if ((mode === 'driver' || mode === 'technician') && driverPos?.lat != null && driverPos?.lng != null) {
@@ -47,7 +71,11 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
       max_results: 20,
     });
     if (error) throw new Error(`fetchPendingOrders (nearby) failed: ${error.message}`);
-    return data || [];
+    const nearby = data || [];
+    if (mode === 'driver') {
+      return [...nearby, ...(await fetchReadyFoodDeliveries(supabaseClient))];
+    }
+    return nearby;
   }
 
   let query = supabaseClient
@@ -58,6 +86,9 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
 
   if (mode === 'driver') {
     query = query.in('service_type', DRIVER_SERVICE_TYPES).is('driver_id', null);
+    const { data, error } = await query;
+    if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
+    return [...(data || []), ...(await fetchReadyFoodDeliveries(supabaseClient))];
   } else if (mode === 'technician') {
     query = query.in('service_type', TECHNICIAN_SERVICE_TYPES).is('driver_id', null);
   } else if (mode === 'merchant' && filterId) {
@@ -69,6 +100,29 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
   const { data, error } = await query;
   if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
   return data || [];
+}
+
+/**
+ * Atomically claim a food order that's ready for delivery (merchant has
+ * already prepared it). Distinct from acceptOrder: the source status is
+ * 'ready', not 'pending', and the destination status is 'picking_up'
+ * (heading to the restaurant) rather than 'accepted', since 'accepted' was
+ * already consumed earlier in this same order's lifecycle by the merchant.
+ */
+export async function claimDeliveryOrder(supabaseClient, orderId, driverId) {
+  const { data, error } = await supabaseClient
+    .from('orders')
+    .update({ status: OrderStatus.PICKING_UP, driver_id: driverId })
+    .eq('id', orderId)
+    .eq('status', OrderStatus.READY)
+    .is('driver_id', null)
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(`claimDeliveryOrder failed: order was already claimed or not found (${error ? error.message : 'no rows updated'})`);
+  }
+  return data;
 }
 
 /**
@@ -119,7 +173,10 @@ const VALID_TRANSITIONS = {
   [OrderStatus.PICKING_UP]: [OrderStatus.IN_TRIP, OrderStatus.CANCELLED],
   [OrderStatus.IN_TRIP]: [OrderStatus.COMPLETED],
   [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
-  [OrderStatus.READY]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  // COMPLETED intentionally removed: a ready food order must go through a
+  // courier now (READY -> PICKING_UP happens via claimDeliveryOrder, not
+  // this generic transition check - see migration 0028).
+  [OrderStatus.READY]: [OrderStatus.PICKING_UP, OrderStatus.CANCELLED],
   [OrderStatus.ON_THE_WAY]: [OrderStatus.WORKING, OrderStatus.CANCELLED],
   [OrderStatus.WORKING]: [OrderStatus.COMPLETED],
   [OrderStatus.COMPLETED]: [],
@@ -227,6 +284,22 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
           order && order.status === OrderStatus.PENDING && !order.driver_id &&
           DRIVER_SERVICE_TYPES.includes(order.service_type) &&
           isWithinNearbyRadius(order, getDriverPos)
+        ) {
+          onOrder(order);
+        }
+      }
+    )
+    .on(
+      // A food order becomes a driver-visible job on an UPDATE (merchant
+      // marking it ready), not an INSERT - it already existed as a
+      // merchant-only order before this point.
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders' },
+      (payload) => {
+        const order = payload.new;
+        if (
+          order && order.status === OrderStatus.READY && !order.driver_id &&
+          FOOD_DELIVERY_SERVICE_TYPES.includes(order.service_type)
         ) {
           onOrder(order);
         }

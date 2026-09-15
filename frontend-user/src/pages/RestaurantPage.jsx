@@ -137,8 +137,9 @@ export default function RestaurantPage() {
         serviceType: 'food',
         merchantId: rest.id, // ID Restoran!
         title: rest.name,
-        details: itemsSummary,
+        details: `${itemsSummary} — Antar ke: ${deliveryAddress}`,
         price: grandTotal,
+        deliveryFee: deliveryFee,
         paymentMethod: paymentMethod,
       });
 

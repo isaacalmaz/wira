@@ -9,7 +9,19 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
-import { fetchPendingOrders, acceptOrder, updateOrderStatus, subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus, subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters } from '../../services/orderService';
+
+/** JSON.parse that never throws - ride/send's `details` is a JSON blob,
+ * but food/villa/service's is a plain string, and a driver's incoming-order
+ * queue can now show either shape. */
+function tryParseJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    return null;
+  }
+}
 
 // Driver dianggap "sudah sampai" (tombol konfirmasi menyala) dalam radius ini.
 // Tidak memblokir tombol di luar radius - hanya penanda visual, driver tetap
@@ -199,7 +211,12 @@ const DriverHomePage = () => {
   const handleAcceptOrder = async () => {
     if (!incomingOrder || !user) return;
     try {
-      const accepted = await acceptOrder(supabase, incomingOrder.id, user.id, 'driver');
+      // A food order surfaces to drivers already 'ready' (merchant handed
+      // it off) rather than 'pending' (customer just placed it) - claim it
+      // through the dedicated function instead of the generic accept path.
+      const accepted = incomingOrder.status === OrderStatus.READY
+        ? await claimDeliveryOrder(supabase, incomingOrder.id, user.id)
+        : await acceptOrder(supabase, incomingOrder.id, user.id, 'driver');
       setActiveOrder(accepted);
       setIncomingOrder(null);
       toast.success('Berhasil mengambil pesanan!');
@@ -256,14 +273,8 @@ const DriverHomePage = () => {
     return null;
   };
 
-  let orderDetails = null;
-  if (activeOrder && activeOrder.details) {
-    try {
-      orderDetails = JSON.parse(activeOrder.details);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+  const orderDetails = activeOrder ? tryParseJson(activeOrder.details) : null;
+  const isFoodDelivery = !!activeOrder?.merchant_id;
 
   const mapCenter = orderDetails?.pickup ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng } : { lat: mataramPos[0], lng: mataramPos[1] };
   const mapMarkers = orderDetails
@@ -362,7 +373,7 @@ const DriverHomePage = () => {
                 <span className="text-primary">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
               </div>
 
-              {legTarget && (
+              {legTarget ? (
                 <div className={`text-center text-xs font-semibold py-2 rounded-lg ${hasArrived ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}>
                   {hasArrived
                     ? `✅ Anda sudah sampai di ${legTarget.label}`
@@ -370,7 +381,17 @@ const DriverHomePage = () => {
                       ? `📍 ~${legDistance < 1000 ? Math.round(legDistance) + ' m' : (legDistance / 1000).toFixed(1) + ' km'} menuju ${legTarget.label}`
                       : 'Mencari sinyal GPS...'}
                 </div>
-              )}
+              ) : isFoodDelivery ? (
+                // Restoran/merchant tidak punya koordinat sama sekali (lihat
+                // migrations/0028), jadi tidak ada peta/jarak untuk food -
+                // alamat teks apa adanya adalah satu-satunya panduan.
+                <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 rounded-lg p-2.5">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">
+                    {activeOrder.status === OrderStatus.PICKING_UP ? `Ambil di: ${activeOrder.title || 'Restoran'}` : 'Menuju alamat pelanggan'}
+                  </p>
+                  <p>{activeOrder.details}</p>
+                </div>
+              ) : null}
 
               <div className="flex gap-2">
                 {legTarget && (
@@ -412,15 +433,22 @@ const DriverHomePage = () => {
               <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
                 <BellRing size={32} className="animate-bounce" />
               </div>
-              <Badge variant="primary" className="mb-2 capitalize">{incomingOrder.service_type}</Badge>
+              <Badge variant="primary" className="mb-2 capitalize">
+                {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : incomingOrder.service_type}
+              </Badge>
               <h2 className="text-2xl font-bold">Rp {incomingOrder.total_price.toLocaleString('id-ID')}</h2>
-              {incomingOrder.details && (
-                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                  <p className="font-semibold text-primary">{JSON.parse(incomingOrder.details).pickup?.name || 'Lokasi Jemput'}</p>
-                  <p className="text-xs">menuju</p>
-                  <p className="font-semibold text-red-500">{JSON.parse(incomingOrder.details).dropoff?.name || 'Tujuan'}</p>
-                </div>
-              )}
+              {incomingOrder.details && (() => {
+                const incomingDetails = tryParseJson(incomingOrder.details);
+                return incomingDetails ? (
+                  <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                    <p className="font-semibold text-primary">{incomingDetails.pickup?.name || 'Lokasi Jemput'}</p>
+                    <p className="text-xs">menuju</p>
+                    <p className="font-semibold text-red-500">{incomingDetails.dropoff?.name || 'Tujuan'}</p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{incomingOrder.details}</p>
+                );
+              })()}
               <p className="text-slate-500 text-xs mt-3">Ketuk 'Terima' untuk melihat peta lengkap</p>
             </div>
             

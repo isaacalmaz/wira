@@ -123,6 +123,7 @@ export const OrderProvider = ({ children }) => {
             pickup_lng: orderData.pickupLng ?? null,
             dropoff_lat: orderData.dropoffLat ?? null,
             dropoff_lng: orderData.dropoffLng ?? null,
+            delivery_fee: orderData.deliveryFee ?? 0,
           },
         ]).select().single();
 

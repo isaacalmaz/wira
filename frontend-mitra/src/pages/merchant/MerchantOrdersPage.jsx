@@ -117,7 +117,13 @@ const MerchantOrdersPage = () => {
                     ) : order.status === OrderStatus.PREPARING ? (
                       <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
                     ) : order.status === OrderStatus.READY ? (
-                      <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                      <div className="flex-1 text-center text-sm font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 py-2.5 rounded-lg">
+                        Menunggu kurir mengambil pesanan...
+                      </div>
+                    ) : order.status === OrderStatus.PICKING_UP || order.status === OrderStatus.IN_TRIP ? (
+                      <div className="flex-1 text-center text-sm font-medium text-primary bg-primary/10 py-2.5 rounded-lg">
+                        Kurir sedang mengantar
+                      </div>
                     ) : null}
                     <Button variant="outline" className="px-3 flex items-center gap-1.5" onClick={() => openChat(order)}>
                       <MessageCircle size={16} /> Chat
