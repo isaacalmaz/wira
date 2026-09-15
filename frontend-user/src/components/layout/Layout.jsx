@@ -25,7 +25,7 @@ export default function Layout() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
+        {!isFullScreenPage && <TopBar />}
         <main className={`flex-1 overflow-y-auto pb-16 md:pb-0 ${isFullScreenPage ? '' : 'p-4'}`}>
           <div className={isFullScreenPage ? 'h-full w-full' : 'max-w-4xl mx-auto'}>
             <Outlet />
