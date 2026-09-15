@@ -40,6 +40,8 @@ const compressImage = (file) => {
   });
 };
 
+const ROLE_LABEL = { driver: 'Driver', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
+
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('driver');
@@ -54,7 +56,6 @@ const RegisterPage = () => {
     password: '',
     vehicle: '',
     plate: '',
-    businessType: 'food',
     restaurantName: '',
     address: '',
     specialization: 'ac',
@@ -124,9 +125,9 @@ const RegisterPage = () => {
         vehicle: role === 'driver' ? formData.vehicle : null,
         plate: role === 'driver' ? formData.plate : null,
         sim_photo: formData.simPhoto || null,
-        restaurant_name: role === 'merchant' ? formData.restaurantName : null,
-        address: role === 'merchant' ? formData.address : null,
-        service_type: role === 'merchant' ? formData.businessType : null,
+        restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
+        address: (role === 'merchant' || role === 'villa') ? formData.address : null,
+        service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : null,
         specialization: role === 'technician' ? formData.specialization : null,
         experience: role === 'technician' ? formData.experience : null,
         status: 'Pending',
@@ -213,7 +214,8 @@ const RegisterPage = () => {
               <h2 className="font-bold text-lg dark:text-white">Pilih Jenis Mitra</h2>
               {[
                 { id: 'driver', title: 'Driver (Ojek & Mobil)', desc: 'Antar penumpang & makanan di Lombok' },
-                { id: 'merchant', title: 'Merchant (Restoran/Warung)', desc: 'Jual makanan khas Lombok di WiraFood' },
+                { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
+                { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
                 { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
               ].map((r) => (
                 <label
@@ -285,7 +287,7 @@ const RegisterPage = () => {
           {step === 3 && (
             <div className="space-y-4">
               <h2 className="font-bold text-lg dark:text-white">
-                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : 'Keahlian'}
+                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
               </h2>
               {role === 'driver' && (
                 <>
@@ -357,40 +359,14 @@ const RegisterPage = () => {
                   </div>
                 </>
               )}
-              {role === 'merchant' && (
+              {(role === 'merchant' || role === 'villa') && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: 'food', title: 'Restoran / Warung', desc: 'Jual makanan di WiraFood' },
-                      { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
-                    ].map((t) => (
-                      <label
-                        key={t.id}
-                        className={`block p-3 border rounded-xl cursor-pointer transition-all ${
-                          formData.businessType === t.id
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
-                            : 'border-slate-200 dark:border-slate-700'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="businessType"
-                          value={t.id}
-                          checked={formData.businessType === t.id}
-                          onChange={handleChange}
-                          className="hidden"
-                        />
-                        <span className="font-bold block text-sm dark:text-white">{t.title}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</span>
-                      </label>
-                    ))}
-                  </div>
                   <input
                     type="text"
                     name="restaurantName"
                     value={formData.restaurantName}
                     onChange={handleChange}
-                    placeholder={formData.businessType === 'villa' ? 'Nama Villa / Penginapan' : 'Nama Restoran / Rumah Makan'}
+                    placeholder={role === 'villa' ? 'Nama Villa / Penginapan' : 'Nama Restoran / Rumah Makan'}
                     className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     required
                   />
@@ -438,7 +414,7 @@ const RegisterPage = () => {
             <div className="space-y-4 py-4 dark:text-white">
               <h2 className="font-bold text-xl text-center">Konfirmasi Pendaftaran</h2>
               <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl space-y-2 text-sm">
-                <p><span className="text-slate-500">Peran:</span> <strong className="capitalize">{role}</strong></p>
+                <p><span className="text-slate-500">Peran:</span> <strong>{ROLE_LABEL[role] || role}</strong></p>
                 <p><span className="text-slate-500">Nama:</span> <strong>{formData.name}</strong></p>
                 <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
                 <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
@@ -453,11 +429,8 @@ const RegisterPage = () => {
                     )}
                   </>
                 )}
-                {role === 'merchant' && (
-                  <>
-                    <p><span className="text-slate-500">Jenis Usaha:</span> <strong>{formData.businessType === 'villa' ? 'Villa / Penginapan' : 'Restoran / Warung'}</strong></p>
-                    <p><span className="text-slate-500">Nama:</span> <strong>{formData.restaurantName}</strong></p>
-                  </>
+                {(role === 'merchant' || role === 'villa') && (
+                  <p><span className="text-slate-500">Nama:</span> <strong>{formData.restaurantName}</strong></p>
                 )}
                 {role === 'technician' && (
                   <p><span className="text-slate-500">Keahlian:</span> <strong>{formData.specialization} ({formData.experience} thn)</strong></p>

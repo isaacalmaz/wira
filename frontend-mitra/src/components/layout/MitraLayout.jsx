@@ -1,7 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight } from 'lucide-react';
+import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2 } from 'lucide-react';
+
+// The underlying mitra_access value for the restaurant portal is still the
+// literal string 'merchant' (kept as-is so existing accounts/routes don't
+// break), but it's displayed everywhere else as "Restoran" now that Villa
+// is a separate portal - this keeps the sidebar label consistent with that.
+const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess } = useAuth();
@@ -24,6 +30,10 @@ const MitraLayout = ({ children }) => {
       base.push({ to: `/merchant/menu`, icon: MenuIcon, label: 'Menu' });
     }
 
+    if (activeRole === 'villa') {
+      base.push({ to: `/villa/listing`, icon: Building2, label: 'Listing' });
+    }
+
     if (activeRole === 'technician') {
       base.push({ to: `/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
     }
@@ -44,7 +54,7 @@ const MitraLayout = ({ children }) => {
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 shadow-lg h-screen sticky top-0">
         <div className="p-6">
           <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
-          <p className="text-sm text-slate-500 capitalize">{activeRole}</p>
+          <p className="text-sm text-slate-500">{ROLE_DISPLAY_LABEL[activeRole] || activeRole}</p>
         </div>
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => (

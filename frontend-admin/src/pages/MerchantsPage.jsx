@@ -85,8 +85,13 @@ const MerchantsPage = () => {
             const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
             if (profileErr) throw profileErr;
 
+            // Villa is now its own login portal, separate from merchant
+            // (Restoran) - grant the matching mitra_access value so the
+            // account actually lands in the right portal.
+            const isVilla = pending.service_type === 'villa' || pending.service_type === 'WiraVilla';
+            const grantRole = isVilla ? 'villa' : 'merchant';
             let currentAccess = userProfile?.mitra_access || [];
-            if (!currentAccess.includes('merchant')) currentAccess.push('merchant');
+            if (!currentAccess.includes(grantRole)) currentAccess.push(grantRole);
 
             if (userProfile) {
               const { error: updateErr, data: updatedUser } = await supabase.from('users').update({

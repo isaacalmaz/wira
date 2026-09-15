@@ -95,7 +95,26 @@ function App() {
             </Routes>
           </ProtectedRoute>
         } />
-        
+
+        {/* Villa is its own login portal now, separate from Restoran (merchant) -
+            reuses the same Home/Orders/Earnings/Profile components as merchant,
+            since they already branch on merchants.service_type internally (see
+            isVillaOrder() in each) - only the "Menu" slot differs, pointing at
+            VillaListingPage (single-row listing edit) instead of MerchantMenuPage
+            (products CRUD list), which villa merchants don't need. */}
+        <Route path="/villa/*" element={
+          <ProtectedRoute allowedRole="villa">
+            <Routes>
+              <Route path="/" element={<MerchantHomePage />} />
+              <Route path="orders" element={<MerchantOrdersPage />} />
+              <Route path="listing" element={<VillaListingPage />} />
+              <Route path="earnings" element={<MerchantEarningsPage />} />
+              <Route path="profile" element={<MerchantProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Routes>
+          </ProtectedRoute>
+        } />
+
         <Route path="/technician/*" element={
           <ProtectedRoute allowedRole="technician">
             <Routes>

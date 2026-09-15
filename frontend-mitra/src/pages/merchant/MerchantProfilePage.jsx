@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card, Button, StarRating } from '../../components/shared/UIComponents';
 import { Store, MapPin, Clock, CreditCard, Settings, UtensilsCrossed, Home } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,11 @@ import { supabase } from '../../config/supabase';
 const MerchantProfilePage = () => {
   const { user, logout } = useAuth();
   const [merchant, setMerchant] = useState(null);
+  // This component is reused under both /merchant/* (Restoran) and /villa/*
+  // portals - link targets must follow whichever root the caller is
+  // actually on, not be hardcoded to one.
+  const { pathname } = useLocation();
+  const basePath = pathname.startsWith('/villa') ? '/villa' : '/merchant';
 
   useEffect(() => {
     const fetchMerchant = async () => {
@@ -64,13 +69,13 @@ const MerchantProfilePage = () => {
           </div>
         </div>
         <Link
-          to={isVilla ? '/merchant/listing' : '/merchant/menu'}
+          to={isVilla ? `${basePath}/listing` : `${basePath}/menu`}
           className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           {isVilla ? <Home className="text-slate-400" /> : <UtensilsCrossed className="text-slate-400" />}
           <span className="font-medium">{isVilla ? 'Kelola Listing Villa' : 'Kelola Menu'}</span>
         </Link>
-        <Link to="/merchant/settings" className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+        <Link to={`${basePath}/settings`} className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
           <Settings className="text-slate-400" />
           <span className="font-medium">Pengaturan Akun</span>
         </Link>
