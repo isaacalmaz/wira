@@ -9,10 +9,47 @@ const DRIVER_SERVICE_TYPES = ['ride', 'send', 'WiraRide', 'WiraSend'];
 const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
 
+const NEARBY_RADIUS_METERS = 15000;
+
+/**
+ * Haversine distance in meters. Used client-side for the realtime path,
+ * where Supabase's postgres_changes filter can't run PostGIS math.
+ */
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /**
  * Fetch pending orders matching a mitra mode and service types.
+ *
+ * `driverPos` ({lat, lng}), when given for mode 'driver'/'technician', scopes
+ * the result to orders within NEARBY_RADIUS_METERS via the get_nearby_pending_orders
+ * RPC - orders with no pickup coordinates yet (send/service/pool) are still
+ * always included (see migration 0018 for why). Without driverPos (GPS not
+ * yet available), falls back to the old unscoped query so mitra aren't left
+ * with an empty list while location is still resolving.
  */
-export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null) {
+export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null) {
+  if ((mode === 'driver' || mode === 'technician') && driverPos?.lat != null && driverPos?.lng != null) {
+    const serviceTypes = mode === 'driver' ? DRIVER_SERVICE_TYPES : TECHNICIAN_SERVICE_TYPES;
+    const { data, error } = await supabaseClient.rpc('get_nearby_pending_orders', {
+      driver_lat: driverPos.lat,
+      driver_lng: driverPos.lng,
+      target_service_types: serviceTypes,
+      radius_meters: NEARBY_RADIUS_METERS,
+      max_results: 20,
+    });
+    if (error) throw new Error(`fetchPendingOrders (nearby) failed: ${error.message}`);
+    return data || [];
+  }
+
   let query = supabaseClient
     .from('orders')
     .select('*')
@@ -158,9 +195,27 @@ export async function completeOrder(supabaseClient, orderId) {
 }
 
 /**
- * Subscribe to realtime pending driver orders
+ * Realtime INSERT payloads can't be filtered by distance server-side
+ * (postgres_changes only supports simple column=eq.value filters), so this
+ * checks it client-side. `getDriverPos` is called fresh on every event (not
+ * captured once) so it always reflects the driver's latest known position.
+ * Orders with no pickup coordinates, or when the driver's position isn't
+ * known yet, are always passed through (see migration 0018's rationale).
  */
-export function subscribeToDriverOrders(supabaseClient, onOrder) {
+function isWithinNearbyRadius(order, getDriverPos) {
+  if (!getDriverPos) return true;
+  const pos = getDriverPos();
+  if (!pos || pos.lat == null || pos.lng == null) return true;
+  if (order.pickup_lat == null || order.pickup_lng == null) return true;
+  return distanceMeters(pos.lat, pos.lng, order.pickup_lat, order.pickup_lng) <= NEARBY_RADIUS_METERS;
+}
+
+/**
+ * Subscribe to realtime pending driver orders. `getDriverPos` (optional) is
+ * a `() => {lat, lng} | null` used to filter out-of-radius orders - see
+ * isWithinNearbyRadius.
+ */
+export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null) {
   const channel = supabaseClient
     .channel('driver-orders-stream')
     .on(
@@ -168,7 +223,11 @@ export function subscribeToDriverOrders(supabaseClient, onOrder) {
       { event: 'INSERT', schema: 'public', table: 'orders' },
       (payload) => {
         const order = payload.new;
-        if (order && order.status === OrderStatus.PENDING && !order.driver_id && DRIVER_SERVICE_TYPES.includes(order.service_type)) {
+        if (
+          order && order.status === OrderStatus.PENDING && !order.driver_id &&
+          DRIVER_SERVICE_TYPES.includes(order.service_type) &&
+          isWithinNearbyRadius(order, getDriverPos)
+        ) {
           onOrder(order);
         }
       }

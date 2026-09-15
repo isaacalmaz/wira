@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, BellRing, Target, Activity } from 'lucide-react';
 import { Card, Button, Badge } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
@@ -24,6 +24,12 @@ const DriverHomePage = () => {
   const [completedTrips, setCompletedTrips] = useState(0);
 
   const mataramPos = [-8.5833, 116.1167];
+
+  // Posisi GPS terkini driver, dipakai untuk membatasi pesanan yang muncul ke
+  // yang berjarak dekat saja (lihat useEffect pelacakan GPS di bawah). Ref,
+  // bukan state, karena hanya dibaca saat query/realtime callback jalan -
+  // tidak perlu memicu render ulang setiap detik.
+  const driverPosRef = useRef(null);
 
   // Fetch real stats
   useEffect(() => {
@@ -74,7 +80,7 @@ const DriverHomePage = () => {
     const checkPendingOrders = async () => {
       if (activeOrder) return; // Jangan cari jika sedang sibuk
       try {
-        const pending = await fetchPendingOrders(supabase, 'driver');
+        const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current);
         const latest = pending[0];
 
         if (latest) {
@@ -100,12 +106,16 @@ const DriverHomePage = () => {
     }, 10000);
 
     // Dengarkan orderan baru dari tabel 'orders' via Realtime
-    const unsubscribe = subscribeToDriverOrders(supabase, (order) => {
-      if (!activeOrder) {
-        setIncomingOrder(order);
-        toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
-      }
-    });
+    const unsubscribe = subscribeToDriverOrders(
+      supabase,
+      (order) => {
+        if (!activeOrder) {
+          setIncomingOrder(order);
+          toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
+        }
+      },
+      () => driverPosRef.current
+    );
 
     return () => {
       clearInterval(interval);
@@ -125,6 +135,8 @@ const DriverHomePage = () => {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        driverPosRef.current = { lat: position.coords.latitude, lng: position.coords.longitude };
+
         const now = Date.now();
         if (now - lastSentAt < 8000) return; // throttle: kirim maksimal tiap ~8 detik
         lastSentAt = now;
