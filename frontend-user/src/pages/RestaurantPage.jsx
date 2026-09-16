@@ -92,12 +92,21 @@ export default function RestaurantPage() {
             setTrackingStage(1);
             toast.success(`Pesanan Anda diterima oleh restoran!`, { icon: '🍲' });
           }
-          else if (newStatus === 'preparing' || newStatus === 'ready') {
+          else if (newStatus === 'preparing') {
             setTrackingStage(2);
-            if (newStatus === 'preparing') toast.success('Restoran mulai menyiapkan pesanan Anda!', { icon: '🍳' });
+            toast.success('Restoran mulai menyiapkan pesanan Anda!', { icon: '🍳' });
+          }
+          else if (newStatus === 'ready') {
+            // Distinct from 'preparing' - the food is cooked, but no driver
+            // has claimed it for delivery yet. Previously these two statuses
+            // collapsed into the same "Sedang Dimasak" stage, so a customer
+            // had no way to tell "still cooking" from "cooked, waiting for a
+            // courier."
+            setTrackingStage(3);
+            toast.success('Pesanan Anda siap, menunggu kurir mengambil!', { icon: '📦' });
           }
           else if (newStatus === 'completed') {
-            setTrackingStage(3);
+            setTrackingStage(4);
             handleCompleteFood();
           }
         }
@@ -572,6 +581,14 @@ export default function RestaurantPage() {
             <div className="flex items-start gap-3">
               <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 3 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
               <div>
+                <p className="font-bold text-slate-900 dark:text-white">Siap, Menunggu Kurir</p>
+                <p className="text-slate-500">Pesanan sudah matang, mencari driver terdekat</p>
+              </div>
+            </div>
+            <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
+            <div className="flex items-start gap-3">
+              <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 4 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+              <div>
                 <p className="font-bold text-slate-900 dark:text-white">Pesanan Selesai</p>
                 <p className="text-slate-500">{deliveryAddress}</p>
               </div>
@@ -579,7 +596,7 @@ export default function RestaurantPage() {
           </div>
 
           <div className="flex gap-2">
-            {trackingStage < 3 ? (
+            {trackingStage < 4 ? (
               <>
                 <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
                   Menunggu update dari restoran...
