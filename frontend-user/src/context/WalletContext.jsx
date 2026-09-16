@@ -100,8 +100,29 @@ export const WalletProvider = ({ children }) => {
     }
   };
 
+  const refund = async (amount, desc = 'Refund Layanan') => {
+    const numAmount = Number(amount);
+    try {
+      const { data, error } = await supabase.rpc('wallet_refund', {
+        p_amount: numAmount,
+        p_description: desc,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Refund gagal.');
+        throw error;
+      }
+
+      await fetchWallet();
+      return true;
+    } catch (err) {
+      console.error('Refund failed:', err);
+      throw err;
+    }
+  };
+
   return (
-    <WalletContext.Provider value={{ balance, transactions, transfer, pay }}>
+    <WalletContext.Provider value={{ balance, transactions, transfer, pay, refund }}>
       {children}
     </WalletContext.Provider>
   );

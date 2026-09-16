@@ -26,8 +26,8 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 
 export default function RidePage() {
-  const { balance, pay } = useWallet();
-  const { addOrder } = useOrders();
+  const { balance, pay, refund } = useWallet();
+  const { addOrder, updateOrderStatus } = useOrders();
 
   const [step, setStep] = useState('input'); // input, vehicle, searching, tracking, completed
   const [pickup, setPickup] = useState('');
@@ -299,7 +299,13 @@ export default function RidePage() {
             setStep('tracking');
             setTripStage(0);
             toast.success(`Driver Ditemukan!`, { icon: '🛵', duration: 4000 });
-          } 
+          }
+          else if (newStatus === 'picking_up') {
+            setTripStage(1);
+          }
+          else if (newStatus === 'in_trip') {
+            setTripStage(2);
+          }
           else if (newStatus === 'completed') {
             handleCompleteTrip();
           }
@@ -339,18 +345,7 @@ export default function RidePage() {
     };
   }, [assignedDriverId, step]);
 
-  // Simulasi Tahapan Perjalanan jika sudah accepted (bisa dikontrol realtime juga nanti, untuk sekarang kita simulasikan)
-  useEffect(() => {
-    if (step === 'tracking') {
-      if (tripStage === 0) {
-        const t1 = setTimeout(() => setTripStage(1), 5000);
-        return () => clearTimeout(t1);
-      } else if (tripStage === 1) {
-        const t2 = setTimeout(() => setTripStage(2), 5000);
-        return () => clearTimeout(t2);
-      }
-    }
-  }, [step, tripStage]);
+
 
   const handleCompleteTrip = () => {
     // Payment already happened up-front in handleStartBooking now - calling
@@ -594,7 +589,19 @@ export default function RidePage() {
               variant="outline"
               size="sm"
               className="text-red-500 border-red-200 hover:bg-red-50"
-              onClick={() => setStep('vehicle')}
+              onClick={async () => {
+                try {
+                  if (paymentMethod === 'WiraPay' && selectedVehicle) {
+                    await refund(selectedVehicle.price, 'Refund Batal WiraRide');
+                  }
+                  if (activeOrderId) {
+                    await updateOrderStatus(activeOrderId, 'cancelled');
+                  }
+                  setStep('vehicle');
+                } catch (err) {
+                  toast.error(`Gagal membatalkan: ${err.message}`);
+                }
+              }}
             >
               Batalkan Pencarian
             </Button>
