@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Badge, Button, StarRating } from '../../components/shared/UIComponents';
-import { User, ShieldCheck, Car, FileText, Settings } from 'lucide-react';
+import { User, ShieldCheck, Car, FileText, Settings, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 
@@ -9,15 +9,14 @@ const DriverProfilePage = () => {
   const { user, logout } = useAuth();
   const [vehicle, setVehicle] = useState('Memuat data...');
   const [plate, setPlate] = useState('');
+  
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(5.0);
 
   useEffect(() => {
     const fetchRegData = async () => {
       const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
       if (data && data.features) {
-        // A pre-existing pending/approved registration row may still say
-        // role: 'courier' (from before the Driver/Kurir portal merge) -
-        // matched defensively alongside 'driver' so historical registration
-        // data for an already-active account still resolves.
         const myReg = data.features.find(f => f.auth_id === user?.id && (f.role === 'driver' || f.role === 'courier'));
         if (myReg) {
           setVehicle(myReg.vehicle || 'Kendaraan Mitra');
@@ -27,7 +26,30 @@ const DriverProfilePage = () => {
         }
       }
     };
-    if (user) fetchRegData();
+    
+    const fetchReviews = async () => {
+      const { data, error } = await supabase
+        .from('driver_reviews')
+        .select(`
+          id, rating, comment, created_at,
+          customer:users!driver_reviews_customer_id_fkey(name)
+        `)
+        .eq('driver_id', user?.id)
+        .order('created_at', { ascending: false });
+        
+      if (data && !error) {
+        setReviews(data);
+        if (data.length > 0) {
+          const total = data.reduce((sum, r) => sum + r.rating, 0);
+          setAvgRating((total / data.length).toFixed(1));
+        }
+      }
+    };
+
+    if (user) {
+      fetchRegData();
+      fetchReviews();
+    }
   }, [user]);
   
   return (
@@ -44,8 +66,8 @@ const DriverProfilePage = () => {
           <h1 className="text-2xl font-bold capitalize">{user?.name || 'Driver Wira'}</h1>
           <p className="text-slate-500">{user?.phone || 'Belum mengatur nomor HP'}</p>
           <div className="flex items-center gap-2 mt-1">
-            <StarRating rating={5.0} />
-            <span className="text-sm font-medium">5.0</span>
+            <StarRating rating={parseFloat(avgRating)} />
+            <span className="text-sm font-medium">{avgRating} ({reviews.length} Ulasan)</span>
           </div>
         </div>
       </div>
@@ -70,6 +92,40 @@ const DriverProfilePage = () => {
           <span className="font-medium">Pengaturan Akun</span>
         </Link>
       </Card>
+      
+      {/* SECTION ULASAN PELANGGAN */}
+      <h3 className="font-bold text-lg pt-2">Ulasan Pelanggan</h3>
+      {reviews.length === 0 ? (
+        <div className="text-center p-6 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+          <MessageSquare className="mx-auto text-slate-300 mb-2" size={32} />
+          <p className="text-sm text-slate-500">Belum ada ulasan dari pelanggan.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {reviews.slice(0, 5).map((rev) => (
+            <Card key={rev.id} className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-semibold text-sm">{rev.customer?.name || 'Pelanggan'}</span>
+                <div className="flex items-center text-amber-400 text-xs font-bold">
+                  <Star size={12} className="fill-amber-400 mr-1" />
+                  {rev.rating}
+                </div>
+              </div>
+              {rev.comment && (
+                <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg italic">
+                  "{rev.comment}"
+                </p>
+              )}
+              <p className="text-[10px] text-slate-400 mt-2 text-right">
+                {new Date(rev.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </Card>
+          ))}
+          {reviews.length > 5 && (
+            <p className="text-center text-xs text-slate-500 pt-2">Menampilkan 5 ulasan terbaru</p>
+          )}
+        </div>
+      )}
       
       <Button variant="outline" className="w-full text-red-500 border-red-500 hover:bg-red-500 hover:text-white" onClick={logout}>Keluar Akun</Button>
     </div>

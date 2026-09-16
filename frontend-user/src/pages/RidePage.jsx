@@ -697,25 +697,18 @@ export default function RidePage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Driver:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {driverInfo?.name || 'Driver Wira'} ({driverInfo?.plate || 'DR WIRA'})
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
-                <span className="text-slate-500 font-bold">Total Tarif:</span>
-                <span className="font-extrabold text-sm text-primary">
-                  {formatRupiah(selectedVehicle?.price || 15000)} ({paymentMethod})
+                <span className="text-slate-400">Total Biaya:</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {formatRupiah(selectedVehicle?.price || 15000)}
                 </span>
               </div>
             </div>
 
-            {/* Beri Bintang Rating Driver */}
-            <div>
+            <div className="pt-2">
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
                 Beri Nilai Driver:
               </p>
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center gap-2 mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -723,7 +716,7 @@ export default function RidePage() {
                     className="p-1 transition hover:scale-125"
                   >
                     <Star
-                      size={24}
+                      size={32}
                       className={
                         star <= rating
                           ? 'text-amber-400 fill-amber-400'
@@ -733,15 +726,41 @@ export default function RidePage() {
                   </button>
                 ))}
               </div>
+              
+              <textarea
+                id="reviewComment"
+                placeholder="Bagaimana pelayanan driver kami? (Opsional)"
+                className="w-full bg-slate-50 dark:bg-slate-800 text-sm p-3 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary h-20 resize-none"
+              ></textarea>
             </div>
 
             <Button
               className="w-full py-3 font-bold"
-              onClick={() => {
+              onClick={async () => {
+                if (rating > 0 && assignedDriverId) {
+                  const comment = document.getElementById('reviewComment')?.value || '';
+                  const { error } = await supabase.from('driver_reviews').insert({
+                    order_id: activeOrderId,
+                    driver_id: assignedDriverId,
+                    customer_id: user.id,
+                    rating: rating,
+                    comment: comment
+                  });
+                  if (!error) {
+                    toast.success('Terima kasih atas penilaian Anda!');
+                  }
+                }
                 setStep('input');
                 setPickup('');
                 setDropoff('');
-                toast.success('Terima kasih atas penilaian Anda!');
+                setActiveOrderId(null);
+                setAssignedDriverId(null);
+                setRating(0);
+                setMapState(prev => ({
+                  ...prev,
+                  route: null,
+                  markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]
+                }));
               }}
             >
               Kembali ke Beranda
