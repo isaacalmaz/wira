@@ -126,6 +126,7 @@ export default function SendPage() {
         price: currentPkg.price,
         status: 'pending',
         paymentMethod: paymentMethod,
+        packageSize: selectedPackage,
       });
 
       if (order?.id) setActiveOrderId(order.id);
