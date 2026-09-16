@@ -179,6 +179,7 @@ export default function RidePage() {
   };
 
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [assignedDriverId, setAssignedDriverId] = useState(null);
   const [nearbyDriverCount, setNearbyDriverCount] = useState(null);
 
   const handleStartBooking = async () => {
@@ -239,11 +240,12 @@ export default function RidePage() {
         dropoffLat,
         dropoffLng,
       });
+      
       setActiveOrderId(order.id);
       setStep('searching');
-
+      
       if (driverCount === 0) {
-        toast('Belum ada driver online di sekitar Anda, tapi pesanan tetap dicari...', { icon: '⏳', duration: 5000 });
+        toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });
       } else {
         toast.success('Mencari driver di sekitar Anda...');
       }
@@ -267,6 +269,8 @@ export default function RidePage() {
           if (newStatus === 'accepted') {
             // Ambil data asli Driver dari database
             if (payload.new.driver_id) {
+              setAssignedDriverId(payload.new.driver_id);
+              
               const { data: driverUser } = await supabase.from('users').select('name, phone, email').eq('id', payload.new.driver_id).maybeSingle();
               const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
               let regInfo = null;
@@ -280,6 +284,16 @@ export default function RidePage() {
                 plate: regInfo?.plate || 'DR WIRA',
                 rating: 5.0,
               });
+
+              // Ambil koordinat awal driver agar langsung muncul di peta
+              const { data: driverLoc } = await supabase.from('drivers').select('lat, lng').eq('id', payload.new.driver_id).maybeSingle();
+              if (driverLoc && driverLoc.lat && driverLoc.lng) {
+                setMapState(prev => {
+                  const newMarkers = [...prev.markers];
+                  newMarkers[2] = { lat: driverLoc.lat, lng: driverLoc.lng, type: 'driver', label: 'Driver Anda' };
+                  return { ...prev, markers: newMarkers };
+                });
+              }
             }
 
             setStep('tracking');
@@ -297,6 +311,33 @@ export default function RidePage() {
       supabase.removeChannel(channel);
     };
   }, [activeOrderId]);
+
+  // Efek Real-time untuk melacak pergerakan GPS Driver (Tracking)
+  useEffect(() => {
+    if (!assignedDriverId || step !== 'tracking') return;
+
+    const channel = supabase
+      .channel(`driver_track_${assignedDriverId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'drivers', filter: `id=eq.${assignedDriverId}` },
+        (payload) => {
+          const { lat, lng } = payload.new;
+          if (lat && lng) {
+            setMapState(prev => {
+              const newMarkers = [...prev.markers];
+              newMarkers[2] = { lat, lng, type: 'driver', label: 'Driver Anda' };
+              return { ...prev, markers: newMarkers };
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [assignedDriverId, step]);
 
   // Simulasi Tahapan Perjalanan jika sudah accepted (bisa dikontrol realtime juga nanti, untuk sekarang kita simulasikan)
   useEffect(() => {
