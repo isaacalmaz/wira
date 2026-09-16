@@ -9,7 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 
 const SettingsPage = () => {
-  const { user, mitraAccess } = useAuth();
+  const { user, mitraAccess, refreshProfile } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -73,14 +73,15 @@ const SettingsPage = () => {
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
 
-      toast.success('Preferensi layanan berhasil disimpan! Memuat ulang...');
-      // vehicle_type/job_type_preferences live on AuthContext's user object,
-      // populated from the session's profile fetch - a plain DB write here
-      // doesn't refresh it on its own, so reload to pick up the change
-      // immediately (same pattern used across this file already).
-      setTimeout(() => window.location.reload(), 600);
+      toast.success('Preferensi layanan berhasil disimpan!');
+      // vehicle_type/job_type_preferences live on AuthContext's user object -
+      // a plain DB write here doesn't refresh it on its own. refreshProfile()
+      // re-fetches it in place (no full page reload, same helper
+      // DriverHomePage.jsx's quick-toggle widget uses).
+      await refreshProfile();
     } catch (err) {
       toast.error(`Gagal menyimpan: ${err.message}`);
+    } finally {
       setIsSavingDriverPrefs(false);
     }
   };

@@ -80,8 +80,19 @@ export const AuthProvider = ({ children }) => {
     setMitraAccess([]);
   };
 
+  // Re-fetches the current session's profile and updates `user`/`mitraAccess`
+  // in place, without the full `window.location.reload()` several screens
+  // use today after writing something that affects the profile (e.g. a
+  // preference toggle) - useful on pages like DriverHomePage.jsx where a
+  // full reload would be disruptive (drops GPS watch/map state) for what's
+  // meant to be a quick, frequent action.
+  const refreshProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return handleSession(session);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, mitraAccess, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, mitraAccess, login, logout, loading, refreshProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );

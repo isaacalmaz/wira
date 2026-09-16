@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck } from 'lucide-react';
+import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Package, Utensils, Loader2 } from 'lucide-react';
 import { Card, Button, Badge, Modal, StatTile } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import EarningsCard from '../../components/shared/EarningsCard';
@@ -34,7 +34,7 @@ function tryParseJson(value) {
 const ARRIVAL_RADIUS_METERS = 150;
 
 const DriverHomePage = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   // One unified Driver portal now (the separate /courier portal is gone) -
   // which incoming orders this driver may actually receive is entirely
@@ -43,6 +43,7 @@ const DriverHomePage = () => {
   // (eligibleServiceTypesForDriver/isOrderEligibleForDriver - "Option B",
   // see its doc comment) rather than which URL root they're mounted under.
   const driverPrefs = { vehicle_type: user?.vehicle_type, job_type_preferences: user?.job_type_preferences };
+  const [isSavingJobType, setIsSavingJobType] = useState(null); // which job type is mid-save, if any
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
@@ -243,6 +244,40 @@ const DriverHomePage = () => {
     setIsOnline(next);
   };
 
+  // Quick-access version of SettingsPage.jsx's job-type preference toggles,
+  // right on Beranda where a driver actually decides what to receive before
+  // going online - requested so they don't have to dig into Settings every
+  // time. Writes straight to the same users.job_type_preferences column
+  // Settings does (single source of truth, no separate local-only state to
+  // drift out of sync), then refreshes AuthContext's profile in place
+  // (refreshProfile) instead of a full page reload, since reloading here
+  // would drop the GPS watcher / map state for what's meant to be a quick,
+  // frequent toggle. 'food' is never offered for a mobil driver - matches
+  // Settings' same hard restriction (migrations/0033).
+  const jobTypePrefs = Array.isArray(user?.job_type_preferences) ? user.job_type_preferences : [];
+  const isMobilDriver = user?.vehicle_type === 'mobil';
+
+  const handleToggleJobType = async (jobType) => {
+    if (!user) return;
+    setIsSavingJobType(jobType);
+    try {
+      const next = jobTypePrefs.includes(jobType)
+        ? jobTypePrefs.filter((t) => t !== jobType)
+        : [...jobTypePrefs, jobType];
+      // RLS trap (see AGENTS.md): an update blocked by RLS returns
+      // error:null with 0 rows, which looks like success unless the
+      // response array length is checked.
+      const { error, data } = await supabase.from('users').update({ job_type_preferences: next }).eq('id', user.id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
+      await refreshProfile();
+    } catch (err) {
+      toast.error(`Gagal memperbarui preferensi: ${err.message}`);
+    } finally {
+      setIsSavingJobType(null);
+    }
+  };
+
   const handleAcceptOrder = async () => {
     if (!incomingOrder || !user) return;
     try {
@@ -393,6 +428,37 @@ const DriverHomePage = () => {
         <div className="max-w-2xl mx-auto pointer-events-auto mt-10">
           {!activeOrder ? (
             <div className="space-y-4">
+              {!isOnline && (
+                <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-3.5 shadow-lg">
+                  <p className="text-xs font-semibold text-slate-500 mb-2">Layanan yang Diterima</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'ride', label: 'Ride', icon: Car, color: 'blue' },
+                      { id: 'send', label: isMobilDriver ? 'Kurir (Besar)' : 'Kurir', icon: Package, color: 'rose' },
+                      ...(isMobilDriver ? [] : [{ id: 'food', label: 'Makanan', icon: Utensils, color: 'amber' }]),
+                    ].map((jt) => {
+                      const active = jobTypePrefs.includes(jt.id);
+                      const Icon = jt.icon;
+                      return (
+                        <button
+                          key={jt.id}
+                          type="button"
+                          disabled={isSavingJobType === jt.id}
+                          onClick={() => handleToggleJobType(jt.id)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                            active
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
+                          }`}
+                        >
+                          {isSavingJobType === jt.id ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
+                          {jt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-1 shadow-lg">
                 <EarningsCard today={todayEarnings} week={weekEarnings} progress={completedTrips > 0 ? 100 : 0} />
               </div>
