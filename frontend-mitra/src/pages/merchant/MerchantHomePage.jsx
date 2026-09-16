@@ -6,7 +6,8 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { fetchPendingOrders, acceptOrder, completeOrder, subscribeToMerchantOrders } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount } from '../../services/orderService';
+import { OrderStatus } from '../../constants/orderStatus';
 
 const MerchantHomePage = () => {
   const { user } = useAuth();
@@ -32,13 +33,18 @@ const MerchantHomePage = () => {
         setMerchantId(merchantData.id);
         const { data } = await supabase
           .from('orders')
-          .select('total_price, status')
+          .select('total_price, delivery_fee, status')
           .eq('merchant_id', merchantData.id)
-          .gte('created_at', new Date().toISOString().split('T')[0]); 
-        
+          .gte('created_at', new Date().toISOString().split('T')[0]);
+
         if (data) {
           setTodayOrders(data.length);
-          const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + (d.total_price || 0), 0);
+          // Real merchant share per migrations/0028's payout trigger, not
+          // raw total_price (which for food also includes the delivery fee
+          // the driver earns, and for either order type includes the 20%
+          // platform commission the merchant never sees) - see
+          // merchantEarnedAmount's doc comment in orderService.js.
+          const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + merchantEarnedAmount(d), 0);
           setTodayEarnings(earnings);
         }
       }
@@ -108,11 +114,35 @@ const MerchantHomePage = () => {
   const handleCompleteOrder = async () => {
     if (!activeOrder) return;
     try {
-      await completeOrder(supabase, activeOrder.id);
-      setActiveOrder(null);
-      toast.success(isVillaOrder(activeOrder) ? 'Reservasi Selesai!' : 'Pesanan Selesai / Diserahkan ke Driver!');
-      setTodayOrders(prev => prev + 1);
-      setTodayEarnings(prev => prev + (activeOrder.total_price || 0));
+      if (isVillaOrder(activeOrder)) {
+        // Villa reservations have no prep/delivery leg - ACCEPTED -> COMPLETED
+        // directly is correct here, and the DB payout trigger credits the
+        // merchant right away on this same transition.
+        await completeOrder(supabase, activeOrder.id);
+        setActiveOrder(null);
+        toast.success('Reservasi Selesai!');
+        setTodayOrders(prev => prev + 1);
+        // Villa's delivery_fee is always 0, so merchantEarnedAmount here is
+        // just total_price * 0.8 (the trigger's real commission-adjusted
+        // share) - not the raw total_price this used to add.
+        setTodayEarnings(prev => prev + merchantEarnedAmount(activeOrder));
+      } else {
+        // Food: this button means "I've finished preparing it," NOT "hand
+        // it to a driver" - a driver hasn't picked it up yet. Route through
+        // PREPARING -> READY (VALID_TRANSITIONS requires PREPARING as an
+        // intermediate hop) so the order actually becomes visible to
+        // drivers, instead of jumping straight to COMPLETED and skipping
+        // the driver leg entirely.
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING);
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY);
+        setActiveOrder(null);
+        toast.success('Pesanan Siap! Menunggu driver mengambil.');
+        setTodayOrders(prev => prev + 1);
+        // No earnings bump here: the order hasn't reached 'completed' (no
+        // driver has delivered it yet), so the DB payout trigger hasn't
+        // credited the merchant anything yet either - adding to
+        // todayEarnings now would be both premature and the wrong amount.
+      }
     } catch (err) {
       toast.error('Gagal menyelesaikan pesanan');
     }

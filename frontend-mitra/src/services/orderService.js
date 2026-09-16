@@ -272,6 +272,26 @@ export async function completeOrder(supabaseClient, orderId) {
 }
 
 /**
+ * These mirror migrations/0028_mitra_payout_system.sql's
+ * credit_payout_on_order_completed trigger EXACTLY (20% platform commission,
+ * i.e. mitra keep 80%) - keep them in sync if that trigger's math ever
+ * changes. Earnings screens across the mitra app must show what the trigger
+ * actually credited, not raw order.total_price (which double-counts: for a
+ * food order, total_price is the whole meal+delivery bill, but the merchant
+ * only ever earns the food portion and the driver only the delivery-fee
+ * portion of it - summing full total_price for both would imply the
+ * platform paid out more than the customer paid).
+ */
+export function driverEarnedAmount(order) {
+  if (order.merchant_id) return (order.delivery_fee || 0) * 0.8; // food: driver earns the delivery fee only
+  return (order.total_price || 0) * 0.8; // ride/send/service/pool: driver earns the whole thing
+}
+
+export function merchantEarnedAmount(order) {
+  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * 0.8;
+}
+
+/**
  * Realtime INSERT payloads can't be filtered by distance server-side
  * (postgres_changes only supports simple column=eq.value filters), so this
  * checks it client-side. `getDriverPos` is called fresh on every event (not

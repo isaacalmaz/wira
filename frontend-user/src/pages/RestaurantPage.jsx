@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
@@ -29,11 +30,13 @@ import { toast } from 'react-hot-toast';
 
 export default function RestaurantPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [rest, setRest] = useState(null);
-  
+
   const { cart, addItem, removeItem, total, clearCart } = useCart();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
+  const { user } = useAuth();
 
   const [step, setStep] = useState('menu'); // 'menu', 'checkout', 'tracking'
   const [deliveryAddress, setDeliveryAddress] = useState('Jl. Pejanggik No. 8, Mataram');
@@ -172,6 +175,19 @@ export default function RestaurantPage() {
       toast.error('Keranjang Anda masih kosong');
       return;
     }
+    // RestaurantPage is already mounted under Layout, which redirects any
+    // unauthenticated visitor to /login before this page can even render -
+    // so this is defense-in-depth (e.g. a session expiring mid-checkout
+    // without a reload) rather than the primary guard. Without it, a
+    // session-less request would fall through to ecosystemService.js's
+    // guest-fallback insert, which drops merchant_id/dropoff coordinates/
+    // delivery_fee entirely and produces an order no merchant or driver can
+    // ever see or act on.
+    if (!user) {
+      toast.error('Silakan login terlebih dahulu untuk memesan makanan');
+      navigate('/login');
+      return;
+    }
     if (paymentMethod === 'WiraPay' && balance < grandTotal) {
       toast.error('Saldo WiraPay Anda tidak mencukupi untuk pembayaran ini');
       return;
@@ -180,6 +196,19 @@ export default function RestaurantPage() {
     setLoading(true);
     try {
       const itemsSummary = cart.items.map((i) => `${i.qty}x ${i.name}`).join(', ');
+
+      // Debit the wallet BEFORE creating the order, not after delivery
+      // completes - previously the debit only ran in handleCompleteFood,
+      // which depends on this browser tab staying open with an active
+      // realtime subscription all the way to 'completed'. If the tab closed
+      // early, the merchant/driver still got paid via the DB trigger but
+      // the customer's wallet was never actually charged. pay() throws on
+      // insufficient funds/RPC error and shows its own toast, so a failure
+      // here aborts before the order (and the merchant/driver-facing
+      // commitment) is ever created.
+      if (paymentMethod === 'WiraPay') {
+        await pay(grandTotal, `WiraFood - ${rest.name}`);
+      }
 
       const order = await addOrder({
         serviceType: 'food',
@@ -206,16 +235,12 @@ export default function RestaurantPage() {
 
   
   
-  const handleCompleteFood = async () => {
-    try {
-      if (paymentMethod === 'WiraPay') {
-        await pay(grandTotal, `WiraFood - ${rest.name}`);
-      }
-      setStep('menu');
-      toast.success('Makanan telah diterima. Selamat menikmati!');
-    } catch (err) {
-      toast.error('Gagal menyelesaikan pembayaran WiraPay');
-    }
+  const handleCompleteFood = () => {
+    // Payment already happened up-front in handleConfirmOrder now - calling
+    // pay() here again would double-charge the customer. This is just UI
+    // reset once the order reaches 'completed'.
+    setStep('menu');
+    toast.success('Makanan telah diterima. Selamat menikmati!');
   };
 
   return (
