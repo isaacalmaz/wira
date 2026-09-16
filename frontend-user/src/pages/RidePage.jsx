@@ -215,6 +215,19 @@ export default function RidePage() {
         route: mapState.route
       });
 
+      // Debit the wallet BEFORE creating the order, not after the trip
+      // completes - previously the debit only ran in handleCompleteTrip,
+      // which depends on this browser tab staying open with an active
+      // realtime subscription all the way to 'completed'. If the tab
+      // closed early, the driver still got paid via the DB payout trigger
+      // but the customer's wallet was never actually charged (same bug
+      // class fixed for WiraFood in RestaurantPage.jsx). pay() throws on
+      // insufficient funds/RPC error and shows its own toast, so a failure
+      // here aborts before the order is ever created.
+      if (paymentMethod === 'WiraPay') {
+        await pay(selectedVehicle.price, `WiraRide ke ${dropoff}`);
+      }
+
       const order = await addOrder({
         serviceType: 'ride',
         title: `Perjalanan ke ${dropoff}`,
@@ -298,16 +311,12 @@ export default function RidePage() {
     }
   }, [step, tripStage]);
 
-  const handleCompleteTrip = async () => {
-    try {
-      if (paymentMethod === 'WiraPay') {
-        await pay(selectedVehicle.price, `WiraRide ke ${dropoff}`);
-      }
-      setStep('completed');
-      toast.success('Perjalanan Anda telah selesai!');
-    } catch (err) {
-      toast.error(err.message || 'Terjadi kesalahan pembayaran');
-    }
+  const handleCompleteTrip = () => {
+    // Payment already happened up-front in handleStartBooking now - calling
+    // pay() here again would double-charge the customer. This is just UI
+    // reset once the order reaches 'completed'.
+    setStep('completed');
+    toast.success('Perjalanan Anda telah selesai!');
   };
 
   return (
