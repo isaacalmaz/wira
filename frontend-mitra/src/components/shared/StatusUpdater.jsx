@@ -2,14 +2,14 @@ import React from 'react';
 import { Button } from './UIComponents';
 import { OrderStatus } from '../../constants/orderStatus';
 
-const StatusUpdater = ({ currentStatus, role, onUpdate }) => {
+const StatusUpdater = ({ currentStatus, role, onUpdate, isFoodDelivery = false }) => {
   let nextStatus = '';
   let buttonText = '';
   let variant = 'primary';
 
   if (role === 'driver') {
     if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PICKING_UP; buttonText = 'Menuju Lokasi'; }
-    else if (currentStatus === OrderStatus.PICKING_UP) { nextStatus = OrderStatus.IN_TRIP; buttonText = 'Sudah Di Jemput'; }
+    else if (currentStatus === OrderStatus.PICKING_UP) { nextStatus = OrderStatus.IN_TRIP; buttonText = isFoodDelivery ? 'Sudah Ambil di Resto' : 'Sudah Di Jemput'; }
     else if (currentStatus === OrderStatus.IN_TRIP) { nextStatus = OrderStatus.COMPLETED; buttonText = 'Selesaikan Pesanan'; variant = 'success'; }
   } else if (role === 'merchant') {
     if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PREPARING; buttonText = 'Mulai Siapkan'; }

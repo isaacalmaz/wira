@@ -6,7 +6,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES } from '../../services/orderService';
+import { RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES, driverEarnedAmount } from '../../services/orderService';
 
 const DriverEarningsPage = () => {
   const { user } = useAuth();
@@ -27,7 +27,7 @@ const DriverEarningsPage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('total_price, created_at')
+        .select('total_price, delivery_fee, merchant_id, created_at')
         .eq('driver_id', user.id)
         .in('service_type', myOrderServiceTypes)
         .eq('status', 'completed');
@@ -54,8 +54,10 @@ const DriverEarningsPage = () => {
         data.forEach(order => {
           const orderDate = new Date(order.created_at);
           const orderDateStr = orderDate.toLocaleDateString('id-ID');
-          const price = order.total_price || 0;
-          
+          // Real driver share per migrations/0028's payout trigger, not raw
+          // total_price - see driverEarnedAmount's doc comment.
+          const price = driverEarnedAmount(order);
+
           if (orderDateStr === todayStr) {
             totalToday += price;
           }

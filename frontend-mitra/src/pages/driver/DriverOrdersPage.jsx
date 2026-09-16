@@ -7,7 +7,7 @@ import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, MapPin, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
-import { updateOrderStatus, RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES } from '../../services/orderService';
+import { updateOrderStatus, RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES, driverEarnedAmount } from '../../services/orderService';
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
@@ -75,7 +75,7 @@ const DriverOrdersPage = () => {
               </div>
             </div>
             
-            <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} />
+            <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} isFoodDelivery={!!activeOrder.merchant_id} />
           </div>
         </Card>
       ) : (
@@ -98,7 +98,7 @@ const DriverOrdersPage = () => {
                 <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</p>
               </div>
               <div className="text-right">
-                <p className="font-bold text-green-600">Rp {(order.total_price || 0).toLocaleString('id-ID')}</p>
+                <p className="font-bold text-green-600">Rp {driverEarnedAmount(order).toLocaleString('id-ID')}</p>
               </div>
             </Card>
           ))}

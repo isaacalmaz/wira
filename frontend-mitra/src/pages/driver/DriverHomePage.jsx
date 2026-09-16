@@ -13,7 +13,7 @@ import { OrderStatus } from '../../constants/orderStatus';
 import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
   subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
-  RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES,
+  RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES, driverEarnedAmount,
 } from '../../services/orderService';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
@@ -88,7 +88,9 @@ const DriverHomePage = () => {
         let wEarn = 0;
 
         completed.forEach(c => {
-          const price = c.total_price || 0;
+          // Real driver share per migrations/0028's payout trigger, not raw
+          // total_price - see driverEarnedAmount's doc comment.
+          const price = driverEarnedAmount(c);
           if (new Date(c.created_at).toLocaleDateString('id-ID') === todayStr) {
             tEarn += price;
           }
@@ -294,14 +296,31 @@ const DriverHomePage = () => {
   const orderDetails = activeOrder ? tryParseJson(activeOrder.details) : null;
   const isFoodDelivery = !!activeOrder?.merchant_id;
 
-  const mapCenter = orderDetails?.pickup ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng } : { lat: mataramPos[0], lng: mataramPos[1] };
+  // Food orders' `details` is a plain string, not JSON (see tryParseJson's
+  // doc comment above), so orderDetails is always null for food - but
+  // activeOrder.dropoff_lat/lng ARE real coordinates for food orders
+  // (unlike pickup, since a restaurant has no GPS data at all). Fall back to
+  // those instead of collapsing straight to the generic Mataram pin, so the
+  // in-app map is just as map-driven for the food delivery-to-customer leg
+  // as it already is for ride/send - matching the "Navigasi" button below,
+  // which already uses these same coordinates.
+  const mapCenter = orderDetails?.pickup
+    ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng }
+    : (activeOrder?.dropoff_lat != null
+        ? { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng }
+        : { lat: mataramPos[0], lng: mataramPos[1] });
   const mapMarkers = orderDetails
     ? [
         { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng, type: 'pickup', label: 'Jemputan' },
         { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng, type: 'dropoff', label: 'Tujuan' },
         ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }] : []),
       ]
-    : [{ lat: mataramPos[0], lng: mataramPos[1] }];
+    : (activeOrder?.dropoff_lat != null
+        ? [
+            { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng, type: 'dropoff', label: 'Tujuan Pelanggan' },
+            ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }] : []),
+          ]
+        : [{ lat: mataramPos[0], lng: mataramPos[1] }]);
 
   const legTarget = getCurrentLegTarget();
   const legDistance = legTarget && driverPos

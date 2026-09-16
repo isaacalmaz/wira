@@ -5,6 +5,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { merchantEarnedAmount } from '../../services/orderService';
 
 const MerchantEarningsPage = () => {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ const MerchantEarningsPage = () => {
 
       const { data } = await supabase
         .from('orders')
-        .select('total_price, created_at, title')
+        .select('total_price, delivery_fee, created_at, title')
         .eq('merchant_id', merchantData.id)
         .eq('status', 'completed');
 
@@ -51,7 +52,9 @@ const MerchantEarningsPage = () => {
         data.forEach(o => {
           const oDate = new Date(o.created_at);
           const oDateStr = oDate.toLocaleDateString('id-ID');
-          const amount = o.total_price || 0;
+          // Real merchant share per migrations/0028's payout trigger, not
+          // raw total_price - see merchantEarnedAmount's doc comment.
+          const amount = merchantEarnedAmount(o);
 
           if (oDateStr === todayStr) todaySum += amount;
           weekSum += amount;
