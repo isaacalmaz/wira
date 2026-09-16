@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Car, Package, Ban, CheckCircle, Eye } from 'lucide-react';
+import { Car, Package, Utensils, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 
-// Ride (mitra_access 'driver') and Send (mitra_access 'courier') are now two
-// distinct roles that both live on this one page, same as WiraFood/WiraVilla
-// both live on MerchantsPage.jsx - see migrations/0031 for why they're not
-// mutually exclusive like merchant/villa are (one real driver can hold both).
+// Driver is now one unified mitra_access role covering Ride/Kurir/Makanan
+// together (migrations/0033 collapsed the earlier 'driver'/'courier' split
+// back into one) - which of those job types a given driver actually
+// receives is decided by their own job_type_preferences, not by a second
+// mitra_access tag anymore.
 const hasAccess = (mitraAccess, role) => {
   if (!mitraAccess) return false;
   if (Array.isArray(mitraAccess)) return mitraAccess.includes(role);
   if (typeof mitraAccess === 'string') return mitraAccess.includes(role);
   return false;
 };
+
+const hasJobType = (jobTypePreferences, jobType) => Array.isArray(jobTypePreferences) && jobTypePreferences.includes(jobType);
 
 const DriversPage = () => {
   const [drivers, setDrivers] = useState([]);
@@ -28,20 +31,18 @@ const DriversPage = () => {
       const { data: allUsers, error: activeErr } = await supabase.from('users').select('*').order('created_at', { ascending: false });
       if (activeErr) throw activeErr;
       if (allUsers) {
-        const activeMitras = allUsers.filter(u => hasAccess(u.mitra_access, 'driver') || hasAccess(u.mitra_access, 'courier'));
+        const activeMitras = allUsers.filter(u => hasAccess(u.mitra_access, 'driver'));
         setDrivers(activeMitras);
       }
 
       const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
       if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
       if (flagsData && Array.isArray(flagsData.features)) {
-        // RegisterPage.jsx's step-1 Kurir choice writes the pending
-        // registration's role as the literal 'courier' (not 'driver'), now
-        // that it's its own top-level radio option separate from Driver -
-        // matching only 'driver' here would repeat the exact bug just fixed
-        // for Villa (see MerchantsPage.jsx / commit 1476fc0): a brand-new
-        // Kurir registration would be written to feature_flags but never
-        // show up in any admin approval queue.
+        // The merged registration form (RegisterPage.jsx) only ever writes
+        // role: 'driver' now - 'courier' is matched defensively here purely
+        // for any pending registration submitted before this migration
+        // shipped tonight, so it still surfaces in the approval queue
+        // instead of silently vanishing.
         const p = flagsData.features.filter(m => (m.role === 'driver' || m.role === 'courier') && m.status === 'Pending');
         setPendingDrivers(p);
       }
@@ -63,18 +64,29 @@ const DriversPage = () => {
           const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
           if (profileErr) throw profileErr;
 
-          // Grant exactly the role this applicant registered for - never
-          // both. Getting the other one later (e.g. a Driver who also wants
-          // Kurir jobs) is the intentional self-service path in
-          // SettingsPage.jsx's dual-capability toggle, not something an
-          // approval here should pre-grant.
-          const grantRole = pending.role === 'courier' ? 'courier' : 'driver';
+          // Always grant the single unified 'driver' role now (migrations/0033
+          // collapsed the earlier driver/courier split) - a pre-existing
+          // pending record from before tonight's change may still literally
+          // say role: 'courier', but it still grants 'driver' access, not a
+          // separate 'courier' tag that no longer means anything.
           let currentAccess = userProfile?.mitra_access || [];
-          if (!currentAccess.includes(grantRole)) currentAccess.push(grantRole);
+          if (!currentAccess.includes('driver')) currentAccess.push('driver');
+
+          // Carry vehicle_type/job_type_preferences from the registration
+          // payload into the granted user row - only set them if the
+          // account doesn't already have a value (an existing driver who
+          // self-served a preference change in Settings before approval,
+          // e.g. re-registering, should not be silently reset).
+          const grantedVehicleType = userProfile?.vehicle_type || pending.vehicle_type || 'motor';
+          const grantedJobPrefs = (Array.isArray(userProfile?.job_type_preferences) && userProfile.job_type_preferences.length > 0)
+            ? userProfile.job_type_preferences
+            : (Array.isArray(pending.job_type_preferences) ? pending.job_type_preferences : ['ride', 'send', 'food']);
 
           if (userProfile) {
             const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
               mitra_access: currentAccess,
+              vehicle_type: grantedVehicleType,
+              job_type_preferences: grantedJobPrefs,
               status: 'Aktif'
             }).eq('id', pending.auth_id).select();
             if (updateErr) throw updateErr;
@@ -89,12 +101,14 @@ const DriversPage = () => {
               phone: pending.phone,
               role: 'mitra',
               status: 'Aktif',
-              mitra_access: currentAccess
+              mitra_access: currentAccess,
+              vehicle_type: grantedVehicleType,
+              job_type_preferences: grantedJobPrefs
             }]);
             if (insertErr) throw insertErr;
           }
         }
-        toast.success(pending?.role === 'courier' ? 'Kurir berhasil disetujui!' : 'Driver berhasil disetujui!');
+        toast.success('Driver berhasil disetujui!');
       } else {
         toast.success('Pendaftaran ditolak.');
       }
@@ -153,8 +167,8 @@ const DriversPage = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-slate-800">{pending.name}</p>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${pending.role === 'courier' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {pending.role === 'courier' ? 'Kurir' : 'Ride'}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                      Driver{pending.vehicle_type === 'mobil' ? ' (Mobil)' : ''}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500">{pending.vehicle} - {pending.plate}</p>
@@ -190,16 +204,24 @@ const DriversPage = () => {
                   <td className="px-6 py-4 font-semibold">{d.name}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-1.5">
-                      {hasAccess(d.mitra_access, 'driver') && (
+                      {hasJobType(d.job_type_preferences, 'ride') && (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
                           <Car size={11} /> Ride
                         </span>
                       )}
-                      {hasAccess(d.mitra_access, 'courier') && (
+                      {hasJobType(d.job_type_preferences, 'send') && (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">
                           <Package size={11} /> Kurir
                         </span>
                       )}
+                      {hasJobType(d.job_type_preferences, 'food') && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                          <Utensils size={11} /> Makanan
+                        </span>
+                      )}
+                      <span className="flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                        {d.vehicle_type === 'mobil' ? 'Mobil' : 'Motor'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500">{d.email}</td>

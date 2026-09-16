@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Car, Package, Store, Home, Wrench } from 'lucide-react';
+import { LogOut, Car, Store, Home, Wrench } from 'lucide-react';
 import { Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
@@ -25,8 +25,8 @@ const UnauthorizedPage = () => {
       name: user.name || user.email,
       phone: user.phone || '',
       email: user.email,
-      vehicle: (role === 'driver' || role === 'courier') ? formData.vehicle : null,
-      plate: (role === 'driver' || role === 'courier') ? formData.plate : null,
+      vehicle: role === 'driver' ? formData.vehicle : null,
+      plate: role === 'driver' ? formData.plate : null,
       sim_photo: formData.simPhoto || null,
       restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
       address: (role === 'merchant' || role === 'villa') ? formData.address : null,
@@ -70,16 +70,15 @@ const UnauthorizedPage = () => {
         <Card className="w-full max-w-lg p-6">
           <h1 className="text-2xl font-bold text-center text-primary mb-6">Daftar Menjadi Mitra</h1>
           
-          <div className="grid grid-cols-3 gap-2 mb-6">
+          <div className="grid grid-cols-2 gap-2 mb-6">
             <button onClick={() => setRole('driver')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'driver' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Car size={18} className="mx-auto mb-1"/> Driver</button>
-            <button onClick={() => setRole('courier')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'courier' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Package size={18} className="mx-auto mb-1"/> Kurir</button>
             <button onClick={() => setRole('merchant')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'merchant' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Store size={18} className="mx-auto mb-1"/> Restoran</button>
             <button onClick={() => setRole('villa')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'villa' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Home size={18} className="mx-auto mb-1"/> Villa</button>
             <button onClick={() => setRole('technician')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'technician' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Wrench size={18} className="mx-auto mb-1"/> Teknisi</button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {(role === 'driver' || role === 'courier') && (
+            {role === 'driver' && (
               <>
                 <div>
                   <label className="block text-sm font-medium mb-1">Kendaraan (Merek & Tipe)</label>

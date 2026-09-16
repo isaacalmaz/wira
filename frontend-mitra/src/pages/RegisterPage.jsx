@@ -40,7 +40,15 @@ const compressImage = (file) => {
   });
 };
 
-const ROLE_LABEL = { driver: 'Driver (Ojek/Ride)', courier: 'Kurir (Antar Barang/Send)', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
+const ROLE_LABEL = { driver: 'Driver (Ride/Kurir/Makanan)', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
+
+// Sensible defaults per vehicle type - motor can do all three job types,
+// mobil never sees 'food' as an option at all (hard restriction, not a
+// toggle - see migrations/0033), so its default preference set omits it.
+const DEFAULT_JOB_PREFS_BY_VEHICLE = {
+  motor: ['ride', 'send', 'food'],
+  mobil: ['ride', 'send'],
+};
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
@@ -56,6 +64,8 @@ const RegisterPage = () => {
     password: '',
     vehicle: '',
     plate: '',
+    vehicleType: 'motor',
+    jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE.motor,
     restaurantName: '',
     address: '',
     specialization: 'ac',
@@ -66,6 +76,26 @@ const RegisterPage = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleVehicleTypeChange = (vehicleType) => {
+    // Switching vehicle type resets job-type preferences to that vehicle's
+    // sensible default, instead of leaving a stale 'food' selection checked
+    // for a mobil driver who just switched from motor (food must never be
+    // selectable for mobil at all - not just default-off).
+    setFormData((prev) => ({ ...prev, vehicleType, jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE[vehicleType] }));
+  };
+
+  const toggleJobTypePreference = (jobType) => {
+    setFormData((prev) => {
+      const has = prev.jobTypePreferences.includes(jobType);
+      return {
+        ...prev,
+        jobTypePreferences: has
+          ? prev.jobTypePreferences.filter((t) => t !== jobType)
+          : [...prev.jobTypePreferences, jobType],
+      };
+    });
   };
 
   const handleFileUpload = async (e) => {
@@ -122,8 +152,10 @@ const RegisterPage = () => {
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
-        vehicle: (role === 'driver' || role === 'courier') ? formData.vehicle : null,
-        plate: (role === 'driver' || role === 'courier') ? formData.plate : null,
+        vehicle: role === 'driver' ? formData.vehicle : null,
+        plate: role === 'driver' ? formData.plate : null,
+        vehicle_type: role === 'driver' ? formData.vehicleType : null,
+        job_type_preferences: role === 'driver' ? formData.jobTypePreferences : null,
         sim_photo: formData.simPhoto || null,
         restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
         address: (role === 'merchant' || role === 'villa') ? formData.address : null,
@@ -213,8 +245,7 @@ const RegisterPage = () => {
             <div className="space-y-4">
               <h2 className="font-bold text-lg dark:text-white">Pilih Jenis Mitra</h2>
               {[
-                { id: 'driver', title: 'Driver (Ojek/Ride)', desc: 'Antar penumpang keliling Lombok' },
-                { id: 'courier', title: 'Kurir (Antar Barang/Send)', desc: 'Antar paket & barang di Lombok' },
+                { id: 'driver', title: 'Driver (Ride/Kurir/Makanan)', desc: 'Antar penumpang, paket, dan/atau makanan keliling Lombok - pilih layanan yang Anda mau di langkah berikutnya' },
                 { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
                 { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
                 { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
@@ -288,9 +319,9 @@ const RegisterPage = () => {
           {step === 3 && (
             <div className="space-y-4">
               <h2 className="font-bold text-lg dark:text-white">
-                {(role === 'driver' || role === 'courier') ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
+                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
               </h2>
-              {(role === 'driver' || role === 'courier') && (
+              {role === 'driver' && (
                 <>
                   <input
                     type="text"
@@ -310,6 +341,66 @@ const RegisterPage = () => {
                     className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     required
                   />
+
+                  {/* Kategori kendaraan - menentukan layanan apa saja yang
+                      bisa dipilih di bawah (mobil tidak pernah bisa Antar
+                      Makanan, dan Kurir untuk mobil hanya paket besar). */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'motor', label: 'Motor' },
+                        { id: 'mobil', label: 'Mobil' },
+                      ].map((v) => (
+                        <label
+                          key={v.id}
+                          className={`p-3 border rounded-xl cursor-pointer text-center font-semibold text-sm transition-all ${
+                            formData.vehicleType === v.id
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="vehicleType"
+                            value={v.id}
+                            checked={formData.vehicleType === v.id}
+                            onChange={() => handleVehicleTypeChange(v.id)}
+                            className="hidden"
+                          />
+                          {v.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Preferensi layanan - defaultnya sudah dicentang sesuai
+                      kategori kendaraan, bisa diubah di sini atau nanti di
+                      Pengaturan Akun. Antar Makanan tidak pernah muncul untuk
+                      mobil - bukan sekadar default-off, tapi memang tidak
+                      tersedia sama sekali (lihat migrations/0033). */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">Layanan yang Ingin Diterima</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input type="checkbox" checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
+                        <span className="text-sm dark:text-white">Ride (Antar Penumpang)</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input type="checkbox" checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')} />
+                        <span className="text-sm dark:text-white">
+                          Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
+                        </span>
+                      </label>
+                      {formData.vehicleType !== 'mobil' && (
+                        <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')} />
+                          <span className="text-sm dark:text-white">Antar Makanan (WiraFood)</span>
+                        </label>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">Bisa diubah kapan saja lewat Pengaturan Akun setelah disetujui.</p>
+                  </div>
                   {/* Upload Foto SIM & STNK */}
                   <div>
                     <input
@@ -419,9 +510,17 @@ const RegisterPage = () => {
                 <p><span className="text-slate-500">Nama:</span> <strong>{formData.name}</strong></p>
                 <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
                 <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
-                {(role === 'driver' || role === 'courier') && (
+                {role === 'driver' && (
                   <>
-                    <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate})</strong></p>
+                    <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate}) - {formData.vehicleType === 'mobil' ? 'Mobil' : 'Motor'}</strong></p>
+                    <p>
+                      <span className="text-slate-500">Layanan:</span>{' '}
+                      <strong>
+                        {formData.jobTypePreferences
+                          .map((t) => ({ ride: 'Ride', send: 'Kurir', food: 'Antar Makanan' }[t] || t))
+                          .join(', ') || '-'}
+                      </strong>
+                    </p>
                     {formData.simPhoto && (
                       <div className="pt-2 flex items-center gap-3">
                         <span className="text-slate-500">Foto Dokumen:</span>

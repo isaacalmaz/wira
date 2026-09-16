@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck } from 'lucide-react';
 import { Card, Button, Badge, Modal, StatTile } from '../../components/shared/UIComponents';
 import OnlineToggle from '../../components/shared/OnlineToggle';
@@ -13,7 +13,7 @@ import { OrderStatus } from '../../constants/orderStatus';
 import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
   subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
-  RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES, driverEarnedAmount,
+  driverEarnedAmount,
 } from '../../services/orderService';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
@@ -35,17 +35,14 @@ const ARRIVAL_RADIUS_METERS = 150;
 
 const DriverHomePage = () => {
   const { user } = useAuth();
-  // This component is reused under both /driver ("Ride") and /courier
-  // ("Kurir"/Send) portals - which service types count as "my jobs" must
-  // follow whichever root it's actually mounted under, not be hardcoded to
-  // the old undifferentiated ride+send list. Food-delivery jobs (merchant
-  // marks an order 'ready') stay visible under BOTH roots on purpose - see
-  // orderService.js's fetchPendingOrders/subscribeToDriverOrders doc
-  // comments for why.
-  const { pathname } = useLocation();
-  const basePath = pathname.startsWith('/courier') ? '/courier' : '/driver';
-  const scopedServiceTypes = basePath === '/courier' ? SEND_SERVICE_TYPES : RIDE_SERVICE_TYPES;
-  const myOrderServiceTypes = [...scopedServiceTypes, ...FOOD_DELIVERY_SERVICE_TYPES];
+  const navigate = useNavigate();
+  // One unified Driver portal now (the separate /courier portal is gone) -
+  // which incoming orders this driver may actually receive is entirely
+  // driven by their own stored preferences (vehicle_type/job_type_preferences
+  // on their users row), via orderService.js's single eligibility function
+  // (eligibleServiceTypesForDriver/isOrderEligibleForDriver - "Option B",
+  // see its doc comment) rather than which URL root they're mounted under.
+  const driverPrefs = { vehicle_type: user?.vehicle_type, job_type_preferences: user?.job_type_preferences };
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
@@ -69,15 +66,17 @@ const DriverHomePage = () => {
   // secara live tanpa re-render setiap detik.
   const [driverPos, setDriverPos] = useState(null);
 
-  // Fetch real stats
+  // Fetch real stats. Not eligibility-filtered - these are orders already
+  // assigned to this driver (driver_id = user.id), regardless of which job
+  // type they were when accepted, so a preference toggled off later doesn't
+  // hide past earnings/trip history.
   useEffect(() => {
     const fetchDriverStats = async () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('driver_id', user.id)
-        .in('service_type', myOrderServiceTypes);
+        .eq('driver_id', user.id);
 
       if (data) {
         const completed = data.filter(d => d.status === 'completed');
@@ -135,7 +134,7 @@ const DriverHomePage = () => {
     const checkPendingOrders = async () => {
       if (activeOrder) return; // Jangan cari jika sedang sibuk
       try {
-        const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current, scopedServiceTypes);
+        const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current, driverPrefs);
         const latest = pending[0];
 
         if (latest) {
@@ -170,14 +169,15 @@ const DriverHomePage = () => {
         }
       },
       () => driverPosRef.current,
-      scopedServiceTypes
+      driverPrefs
     );
 
     return () => {
       clearInterval(interval);
       unsubscribe();
     };
-  }, [isOnline, activeOrder]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, activeOrder, user?.vehicle_type, user?.job_type_preferences]);
 
   // Lacak lokasi GPS driver secara live ke public.drivers selama online, agar
   // pencarian driver terdekat (PostGIS) punya data nyata untuk dicari - tanpa
@@ -227,6 +227,21 @@ const DriverHomePage = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // vehicle_type must be set before a driver can go online - job-type
+  // eligibility (which orders they even see) depends on it, and there's no
+  // safe "unknown vehicle" default to match orders against. Existing
+  // pre-migration drivers are backfilled to 'motor' so this almost never
+  // blocks anyone real; it only bites a brand-new/edge-case account that
+  // hasn't set it yet, and points them straight at where to fix it.
+  const handleOnlineToggle = (next) => {
+    if (next && !user?.vehicle_type) {
+      toast.error('Pilih kategori kendaraan Anda di Pengaturan Akun sebelum Online.');
+      navigate('/driver/settings');
+      return;
+    }
+    setIsOnline(next);
+  };
 
   const handleAcceptOrder = async () => {
     if (!incomingOrder || !user) return;
@@ -364,7 +379,7 @@ const DriverHomePage = () => {
           </div>
           {!activeOrder && (
             <div className="flex flex-col items-end">
-              <OnlineToggle isOnline={isOnline} onChange={setIsOnline} />
+              <OnlineToggle isOnline={isOnline} onChange={handleOnlineToggle} />
               <span className={`text-xs mt-1 font-medium ${isOnline ? 'text-green-500' : 'text-slate-400'}`}>
                 {isOnline ? 'ONLINE' : 'OFFLINE'}
               </span>

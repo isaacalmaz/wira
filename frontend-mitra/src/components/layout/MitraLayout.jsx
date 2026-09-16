@@ -1,14 +1,16 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2, Car, Package, Store, Wrench } from 'lucide-react';
+import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2, Car, Store, Wrench } from 'lucide-react';
 
 // The underlying mitra_access value for the restaurant portal is still the
 // literal string 'merchant' (kept as-is so existing accounts/routes don't
 // break), but it's displayed everywhere else as "Restoran" now that Villa
 // is a separate portal - this keeps the sidebar label consistent with that.
-const ROLE_DISPLAY_LABEL = { driver: 'Driver', courier: 'Kurir', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
-const ROLE_ICON = { driver: Car, courier: Package, merchant: Store, villa: Building2, technician: Wrench };
+// 'courier' no longer exists as its own portal (see migrations/0033) - Driver
+// now covers Ride/Kurir/Makanan together via Settings preferences.
+const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
+const ROLE_ICON = { driver: Car, merchant: Store, villa: Building2, technician: Wrench };
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess } = useAuth();

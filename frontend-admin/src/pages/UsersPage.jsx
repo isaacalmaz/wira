@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Users, Search, Ban, CheckCircle, Car, Package, Store, Wrench } from 'lucide-react';
+import { Users, Search, Ban, CheckCircle, Car, Store, Wrench } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// 'courier' is no longer a separate mitra_access role - Driver now covers
+// Ride/Kurir/Makanan together via self-service preferences (migrations/0033).
 const MITRA_ROLES = [
   { key: 'driver', label: 'Driver', icon: Car },
-  { key: 'courier', label: 'Kurir', icon: Package },
   { key: 'merchant', label: 'Merchant', icon: Store },
   { key: 'technician', label: 'Teknisi', icon: Wrench },
 ];

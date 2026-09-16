@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, Badge, Button, StarRating } from '../../components/shared/UIComponents';
 import { User, ShieldCheck, Car, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -7,11 +7,6 @@ import { supabase } from '../../config/supabase';
 
 const DriverProfilePage = () => {
   const { user, logout } = useAuth();
-  // This component is reused under both /driver (Ride) and /courier
-  // (Kurir/Send) portals - link targets must follow whichever root the
-  // caller is actually on, same pattern as MerchantProfilePage.jsx.
-  const { pathname } = useLocation();
-  const basePath = pathname.startsWith('/courier') ? '/courier' : '/driver';
   const [vehicle, setVehicle] = useState('Memuat data...');
   const [plate, setPlate] = useState('');
 
@@ -19,10 +14,10 @@ const DriverProfilePage = () => {
     const fetchRegData = async () => {
       const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
       if (data && data.features) {
-        // Vehicle/plate are the same physical motorbike for both roles, so
-        // match either registration - a dual-capability user who activated
-        // 'courier' via the Settings toggle (rather than registering for it
-        // separately) only ever has a 'driver' registration row on file.
+        // A pre-existing pending/approved registration row may still say
+        // role: 'courier' (from before the Driver/Kurir portal merge) -
+        // matched defensively alongside 'driver' so historical registration
+        // data for an already-active account still resolves.
         const myReg = data.features.find(f => f.auth_id === user?.id && (f.role === 'driver' || f.role === 'courier'));
         if (myReg) {
           setVehicle(myReg.vehicle || 'Kendaraan Mitra');
@@ -70,7 +65,7 @@ const DriverProfilePage = () => {
           </div>
           <Badge variant="success">Terverifikasi</Badge>
         </div>
-        <Link to={`${basePath}/settings`} className="p-4 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+        <Link to="/driver/settings" className="p-4 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
           <Settings className="text-slate-400" />
           <span className="font-medium">Pengaturan Akun</span>
         </Link>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
@@ -7,16 +6,13 @@ import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, MapPin, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
-import { updateOrderStatus, RIDE_SERVICE_TYPES, SEND_SERVICE_TYPES, FOOD_DELIVERY_SERVICE_TYPES, driverEarnedAmount } from '../../services/orderService';
+import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
-  // Reused under /driver (Ride) and /courier (Kurir/Send) - see
-  // DriverHomePage.jsx's identical comment for why food-delivery types are
-  // included on both sides.
-  const { pathname } = useLocation();
-  const basePath = pathname.startsWith('/courier') ? '/courier' : '/driver';
-  const myOrderServiceTypes = [...(basePath === '/courier' ? SEND_SERVICE_TYPES : RIDE_SERVICE_TYPES), ...FOOD_DELIVERY_SERVICE_TYPES];
+  // One unified Driver portal - shows every order ever assigned to this
+  // driver regardless of service type, not scoped by any URL basePath
+  // anymore (see DriverHomePage.jsx's identical rationale).
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +23,6 @@ const DriverOrdersPage = () => {
       .from('orders')
       .select('*')
       .eq('driver_id', user.id)
-      .in('service_type', myOrderServiceTypes)
       .order('created_at', { ascending: false });
 
     setOrders(data || []);

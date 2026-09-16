@@ -3,7 +3,7 @@ import { Card, Button } from '../../components/shared/UIComponents';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Loader2 } from 'lucide-react';
+import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Utensils, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
@@ -25,48 +25,63 @@ const SettingsPage = () => {
   const [merchant, setMerchant] = useState(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
-  // A single real driver with one motorbike can legitimately do both ride
-  // and delivery jobs - unlike Restoran/Villa, this isn't mutually
-  // exclusive. Someone who registered for only one of Driver/Kurir can
-  // self-activate the other here without a second admin review (they're
-  // already a vetted mitra) - see migrations/0031's header for the full
-  // rationale. Only offered when they hold exactly one of the two.
-  const hasDriver = !!mitraAccess?.includes('driver');
-  const hasCourier = !!mitraAccess?.includes('courier');
-  const missingDualRole = hasDriver && !hasCourier ? 'courier' : (hasCourier && !hasDriver ? 'driver' : null);
-  const [isActivatingDual, setIsActivatingDual] = useState(false);
+  // Driver is now one unified portal (Ride/Kurir/Makanan) instead of two
+  // separate logins - a driver picks which job types they want here,
+  // constrained by their vehicle type, rather than the app assigning access
+  // via mitra_access role tags (see migrations/0033). vehicle_type is
+  // required before a driver can go online (enforced in DriverHomePage.jsx),
+  // since which job types are even selectable depends on it.
+  const isDriver = !!mitraAccess?.includes('driver');
+  const [vehicleType, setVehicleType] = useState('motor');
+  const [jobTypePrefs, setJobTypePrefs] = useState([]);
+  const [isSavingDriverPrefs, setIsSavingDriverPrefs] = useState(false);
 
-  const handleActivateDualRole = async () => {
-    if (!missingDualRole || !user) return;
-    setIsActivatingDual(true);
+  useEffect(() => {
+    if (!isDriver || !user) return;
+    setVehicleType(user.vehicle_type || 'motor');
+    setJobTypePrefs(Array.isArray(user.job_type_preferences) ? user.job_type_preferences : []);
+  }, [isDriver, user]);
+
+  const handleVehicleTypeChange = (nextType) => {
+    setVehicleType(nextType);
+    if (nextType === 'mobil') {
+      // Antar Makanan is a hard restriction for mobil, not a toggle - strip
+      // it immediately rather than leaving a stale selection the UI no
+      // longer even shows a control for.
+      setJobTypePrefs((prev) => prev.filter((t) => t !== 'food'));
+    }
+  };
+
+  const toggleJobTypePreference = (jobType) => {
+    setJobTypePrefs((prev) => (prev.includes(jobType) ? prev.filter((t) => t !== jobType) : [...prev, jobType]));
+  };
+
+  const handleSaveDriverPrefs = async () => {
+    if (!user) return;
+    setIsSavingDriverPrefs(true);
     try {
-      const currentAccess = Array.isArray(mitraAccess) ? mitraAccess : [];
-      const nextAccess = [...currentAccess, missingDualRole];
+      const finalPrefs = vehicleType === 'mobil' ? jobTypePrefs.filter((t) => t !== 'food') : jobTypePrefs;
       // RLS trap (see AGENTS.md): an update blocked by RLS returns
       // error:null with 0 rows, which looks like success unless the
       // response array length is checked.
       const { error, data } = await supabase
         .from('users')
-        .update({ mitra_access: nextAccess })
+        .update({ vehicle_type: vehicleType, job_type_preferences: finalPrefs })
         .eq('id', user.id)
         .select();
 
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
 
-      toast.success(
-        missingDualRole === 'courier'
-          ? 'Berhasil diaktifkan sebagai Kurir! Memuat ulang...'
-          : 'Berhasil diaktifkan sebagai Driver! Memuat ulang...'
-      );
-      // mitraAccess lives in AuthContext state, populated from the session's
-      // profile fetch - a plain DB write here doesn't refresh it on its own,
-      // so reload to pick up the new role and unlock the /driver or
-      // /courier route immediately instead of requiring a manual re-login.
-      setTimeout(() => window.location.reload(), 800);
+      toast.success('Preferensi layanan berhasil disimpan! Memuat ulang...');
+      // vehicle_type/job_type_preferences live on AuthContext's user object,
+      // populated from the session's profile fetch - a plain DB write here
+      // doesn't refresh it on its own, so reload to pick up the change
+      // immediately (same pattern used across this file already).
+      setTimeout(() => window.location.reload(), 600);
     } catch (err) {
-      toast.error(`Gagal mengaktifkan: ${err.message}`);
-      setIsActivatingDual(false);
+      toast.error(`Gagal menyimpan: ${err.message}`);
+      setIsSavingDriverPrefs(false);
     }
   };
 
@@ -195,29 +210,83 @@ const SettingsPage = () => {
         </Card>
       )}
 
-      {missingDualRole && (
-        <Card className="p-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            {missingDualRole === 'courier' ? <Package size={22} /> : <Car size={22} />}
+      {isDriver && (
+        <Card className="p-6 space-y-5">
+          <div>
+            <h2 className="font-bold text-base">Preferensi Layanan Driver</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Pilih kategori kendaraan dan layanan yang ingin Anda terima.</p>
           </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">
-              {missingDualRole === 'courier' ? 'Terima juga pesanan Kurir?' : 'Terima juga pesanan Driver?'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {missingDualRole === 'courier'
-                ? 'Aktifkan untuk mulai menerima antar barang (Send) dengan kendaraan yang sama, tanpa perlu verifikasi ulang.'
-                : 'Aktifkan untuk mulai menerima antar penumpang (Ride) dengan kendaraan yang sama, tanpa perlu verifikasi ulang.'}
-            </p>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[{ id: 'motor', label: 'Motor' }, { id: 'mobil', label: 'Mobil' }].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleVehicleTypeChange(v.id)}
+                  className={`p-3 border rounded-xl text-center font-semibold text-sm transition-all ${
+                    vehicleType === v.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary text-primary'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            {!user?.vehicle_type && (
+              <p className="text-[11px] text-amber-600 mt-1.5 font-medium">
+                Wajib dipilih dan disimpan sebelum Anda bisa mulai Online.
+              </p>
+            )}
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Layanan yang Diterima</label>
+
+            <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
+              <span className="flex items-center gap-2.5">
+                <Car size={18} className="text-blue-600 shrink-0" />
+                <span className="text-sm font-medium">Ride (Antar Penumpang)</span>
+              </span>
+              <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
+            </label>
+
+            <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
+              <span className="flex items-center gap-2.5">
+                <Package size={18} className="text-rose-600 shrink-0" />
+                <span className="text-sm font-medium">
+                  Kurir (Antar Barang)
+                  {vehicleType === 'mobil' && <span className="block text-[11px] font-normal text-slate-400">Khusus paket sedang &amp; besar</span>}
+                </span>
+              </span>
+              <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('send')} onChange={() => toggleJobTypePreference('send')} />
+            </label>
+
+            {vehicleType === 'mobil' ? (
+              <p className="text-[11px] text-slate-400 px-1">
+                Antar Makanan tidak tersedia untuk kendaraan Mobil.
+              </p>
+            ) : (
+              <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
+                <span className="flex items-center gap-2.5">
+                  <Utensils size={18} className="text-amber-600 shrink-0" />
+                  <span className="text-sm font-medium">Antar Makanan (WiraFood)</span>
+                </span>
+                <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('food')} onChange={() => toggleJobTypePreference('food')} />
+              </label>
+            )}
+          </div>
+
           <Button
             variant="primary"
-            className="shrink-0 flex items-center gap-1.5 text-xs px-3 py-2"
-            onClick={handleActivateDualRole}
-            disabled={isActivatingDual}
+            className="w-full flex items-center justify-center gap-1.5 text-sm py-2.5"
+            onClick={handleSaveDriverPrefs}
+            disabled={isSavingDriverPrefs}
           >
-            {isActivatingDual ? <Loader2 size={14} className="animate-spin" /> : null}
-            {missingDualRole === 'courier' ? 'Aktifkan Kurir' : 'Aktifkan Driver'}
+            {isSavingDriverPrefs ? <Loader2 size={14} className="animate-spin" /> : <Save size={16} />}
+            Simpan Preferensi
           </Button>
         </Card>
       )}
