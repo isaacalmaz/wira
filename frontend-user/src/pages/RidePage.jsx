@@ -616,8 +616,8 @@ export default function RidePage() {
               <div className="flex items-center gap-2.5">
                 <span className="animate-pulse w-3 h-3 rounded-full bg-green-500"></span>
                 <span className="text-xs sm:text-sm font-bold text-primary dark:text-primary-light">
-                  {tripStage === 0 && 'Driver Sedang Menuju Titik Jemput (3 min)'}
-                  {tripStage === 1 && 'Driver Telah Sampai di Titik Jemput!'}
+                  {tripStage === 0 && 'Menunggu driver mulai bergerak...'}
+                  {tripStage === 1 && 'Driver Sedang Menuju Titik Jemput'}
                   {tripStage === 2 && 'Dalam Perjalanan Menuju Tujuan'}
                 </span>
               </div>

@@ -98,7 +98,7 @@ export default function PayoutPanel() {
           <Wallet size={16} /> Saldo Bisa Dicairkan
         </div>
       </div>
-      <p className="text-2xl font-bold mb-3">Rp {balance.toLocaleString('id-ID')}</p>
+      <p className="text-2xl font-bold mb-3">Rp {Math.floor(balance).toLocaleString('id-ID')}</p>
       <Button variant="primary" className="w-full py-3" onClick={() => setModalOpen(true)} disabled={balance <= 0}>
         Tarik Saldo
       </Button>
@@ -133,7 +133,7 @@ export default function PayoutPanel() {
             <h3 className="font-bold text-lg mb-4">Tarik Saldo</h3>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Nominal (maks. Rp {balance.toLocaleString('id-ID')})</label>
+                <label className="text-xs font-semibold text-slate-500 block mb-1">Nominal (maks. Rp {Math.floor(balance).toLocaleString('id-ID')})</label>
                 <input
                   type="number"
                   value={amount}
@@ -141,7 +141,7 @@ export default function PayoutPanel() {
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900"
                   placeholder="Contoh: 100000"
                   min="1"
-                  max={balance}
+                  max={Math.floor(balance)}
                   required
                 />
               </div>
