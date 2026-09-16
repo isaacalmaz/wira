@@ -5,23 +5,122 @@
  */
 import { OrderStatus } from '../constants/orderStatus';
 
-const DRIVER_SERVICE_TYPES = ['ride', 'send', 'WiraRide', 'WiraSend'];
 const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
 const FOOD_DELIVERY_SERVICE_TYPES = ['food', 'WiraFood'];
-
-// Ride ('driver' portal) and Send ('courier' portal) split - mirrors the
-// Restoran/Villa mitra_access split, but DRIVER_SERVICE_TYPES above (both
-// combined) is deliberately kept as the default for any caller that doesn't
-// pass an explicit override, so nothing outside frontend-mitra's /driver and
-// /courier route roots changes behavior. Exported so DriverHomePage.jsx /
-// DriverOrdersPage.jsx / DriverEarningsPage.jsx can scope their queries to
-// exactly one of these per basePath instead of importing a hand-copied list.
-export const RIDE_SERVICE_TYPES = ['ride', 'WiraRide'];
-export const SEND_SERVICE_TYPES = ['send', 'WiraSend'];
+const RIDE_SERVICE_TYPES = ['ride', 'WiraRide'];
+const SEND_SERVICE_TYPES = ['send', 'WiraSend'];
 export { FOOD_DELIVERY_SERVICE_TYPES };
 
 const NEARBY_RADIUS_METERS = 15000;
+
+// A driver's job_type_preferences entries map onto these real orders.service_type
+// values - the one place this mapping is defined (see eligibleServiceTypesForDriver).
+const JOB_TYPE_SERVICE_TYPES = {
+  ride: RIDE_SERVICE_TYPES,
+  send: SEND_SERVICE_TYPES,
+  food: FOOD_DELIVERY_SERVICE_TYPES,
+};
+
+// mobil drivers may only receive Send jobs whose package is one of these tiers.
+const SEND_LARGE_PACKAGE_SIZES = ['sedang', 'besar'];
+
+/**
+ * ============================================================================
+ * OPTION B - THE single JS implementation of driver job-type eligibility.
+ * ============================================================================
+ * Every call site that needs to know "which orders can this driver receive"
+ * (fetchPendingOrders' nearby-RPC path, its unscoped-fallback path, and
+ * subscribeToDriverOrders' realtime path) goes through this function (or
+ * isOrderEligibleForDriver below, which is built on top of it) rather than
+ * re-deriving the rule locally - this was a deliberate choice to avoid the
+ * exact rule-drift bug class (a rule changed in one place, missed in
+ * another) that bit this codebase earlier tonight. The SQL side has exactly
+ * one mirroring implementation: is_order_eligible_for_driver() in migration
+ * 0033 - keep the two in sync if this rule ever changes.
+ *
+ * Rule:
+ *   - motor: eligible for whatever's in job_type_preferences (ride/send/food,
+ *     any combination), unrestricted.
+ *   - mobil: eligible for whatever's in job_type_preferences, EXCEPT:
+ *       - 'food' is filtered out unconditionally, even if it's somehow
+ *         present in the stored preferences (defense in depth against a bug
+ *         or manual DB edit) - food is a hard, permanent restriction for
+ *         mobil, never a toggle.
+ *       - 'send' is additionally restricted to large packages only - see
+ *         sendPackageSizes below, applied by the caller against an order's
+ *         actual package_size (this function alone can't decide that; it
+ *         only knows which service_type values are eligible AT ALL).
+ *
+ * `driver` is a driver-shaped object with `vehicle_type` ('motor'/'mobil')
+ * and `job_type_preferences` (array of 'ride'/'send'/'food'). Missing/null
+ * fields default to the least-privileged-but-backward-compatible reading:
+ * vehicle_type defaults to 'motor', job_type_preferences defaults to [].
+ *
+ * Returns { serviceTypes, sendPackageSizes }:
+ *   - serviceTypes: the real orders.service_type values this driver may
+ *     receive at all (before any package_size check).
+ *   - sendPackageSizes: null (no restriction) or an array of package_size
+ *     values - when non-null, an order whose service_type is a Send type is
+ *     eligible only if its package_size is in this array.
+ */
+export function eligibleServiceTypesForDriver(driver) {
+  const prefs = Array.isArray(driver?.job_type_preferences) ? driver.job_type_preferences : [];
+  const vehicleType = driver?.vehicle_type || 'motor';
+  const isMobil = vehicleType === 'mobil';
+
+  const allowedJobTypes = prefs.filter((jobType) => JOB_TYPE_SERVICE_TYPES[jobType] && !(isMobil && jobType === 'food'));
+  const serviceTypes = allowedJobTypes.flatMap((jobType) => JOB_TYPE_SERVICE_TYPES[jobType]);
+
+  return {
+    serviceTypes,
+    sendPackageSizes: isMobil ? SEND_LARGE_PACKAGE_SIZES : null,
+  };
+}
+
+/**
+ * Full eligibility check for one concrete order (service_type AND, for Send
+ * orders, package_size) - used by the realtime subscription path, where a
+ * single order payload needs a yes/no answer rather than a list of allowed
+ * types. Built directly on eligibleServiceTypesForDriver so the two can
+ * never disagree.
+ */
+export function isOrderEligibleForDriver(order, driver) {
+  if (!order) return false;
+  const { serviceTypes, sendPackageSizes } = eligibleServiceTypesForDriver(driver);
+  if (!serviceTypes.includes(order.service_type)) return false;
+  if (sendPackageSizes && SEND_SERVICE_TYPES.includes(order.service_type)) {
+    return sendPackageSizes.includes(order.package_size);
+  }
+  return true;
+}
+
+/**
+ * Applies an eligibility result (from eligibleServiceTypesForDriver) to a
+ * Supabase query builder. Needed because the package_size restriction only
+ * applies to Send orders - a plain `.in('service_type', serviceTypes)` can't
+ * express "this type unconditionally, that type only when package_size is
+ * also in this other list", so when sendPackageSizes is set this builds a
+ * PostgREST `.or()` clause instead.
+ */
+function applyEligibilityFilter(query, eligibility) {
+  const { serviceTypes, sendPackageSizes } = eligibility;
+  if (serviceTypes.length === 0) {
+    // No eligible types at all - match nothing rather than falling through
+    // to an unfiltered query.
+    return query.in('service_type', ['__none_eligible__']);
+  }
+  if (!sendPackageSizes) {
+    return query.in('service_type', serviceTypes);
+  }
+  const sendTypes = serviceTypes.filter((t) => SEND_SERVICE_TYPES.includes(t));
+  const otherTypes = serviceTypes.filter((t) => !SEND_SERVICE_TYPES.includes(t));
+  const orParts = [];
+  if (otherTypes.length) orParts.push(`service_type.in.(${otherTypes.join(',')})`);
+  if (sendTypes.length) orParts.push(`and(service_type.in.(${sendTypes.join(',')}),package_size.in.(${sendPackageSizes.join(',')}))`);
+  if (orParts.length === 0) return query.in('service_type', ['__none_eligible__']);
+  return query.or(orParts.join(','));
+}
 
 /**
  * Haversine distance in meters. Used client-side for the realtime path,
@@ -68,34 +167,57 @@ async function fetchReadyFoodDeliveries(supabaseClient) {
  * yet available), falls back to the old unscoped query so mitra aren't left
  * with an empty list while location is still resolving.
  *
- * For mode 'driver', ready-for-delivery food orders are always merged in
- * alongside ride/send jobs (see fetchReadyFoodDeliveries above) - this stays
- * true regardless of `serviceTypesOverride` below, so a food-delivery job
- * still reaches both the /driver and /courier portals rather than silently
- * disappearing from one of them the moment the ride/send split ships.
- *
- * `serviceTypesOverride` (optional array) lets a caller narrow mode
- * 'driver''s combined ride+send list to just one of RIDE_SERVICE_TYPES or
- * SEND_SERVICE_TYPES - used by DriverHomePage.jsx to scope the incoming-job
- * queue to whichever of /driver ("Ride") or /courier ("Kurir") it's mounted
- * under. Falls back to the full DRIVER_SERVICE_TYPES (both) when omitted.
+ * `driver` (mode 'driver' only) is the logged-in driver's own {vehicle_type,
+ * job_type_preferences} - passed through eligibleServiceTypesForDriver (see
+ * its doc comment for the full rule) to decide which service types, and for
+ * Send orders which package sizes, this driver may receive. Ready-for-
+ * delivery food orders (fetchReadyFoodDeliveries) are only merged in when
+ * 'food' is actually part of this driver's eligible service types - a driver
+ * who has toggled Antar Makanan off, or a mobil driver (food is never
+ * eligible for mobil, see eligibleServiceTypesForDriver), stops seeing them.
  */
-export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null, serviceTypesOverride = null) {
-  if ((mode === 'driver' || mode === 'technician') && driverPos?.lat != null && driverPos?.lng != null) {
-    const serviceTypes = serviceTypesOverride || (mode === 'driver' ? DRIVER_SERVICE_TYPES : TECHNICIAN_SERVICE_TYPES);
+export async function fetchPendingOrders(supabaseClient, mode = 'driver', filterId = null, driverPos = null, driver = null) {
+  if (mode === 'driver') {
+    const eligibility = eligibleServiceTypesForDriver(driver);
+    const canReceiveFood = eligibility.serviceTypes.some((t) => FOOD_DELIVERY_SERVICE_TYPES.includes(t));
+
+    if (driverPos?.lat != null && driverPos?.lng != null) {
+      const { data, error } = await supabaseClient.rpc('get_nearby_pending_orders', {
+        driver_lat: driverPos.lat,
+        driver_lng: driverPos.lng,
+        target_service_types: null,
+        radius_meters: NEARBY_RADIUS_METERS,
+        max_results: 20,
+        driver_vehicle_type: driver?.vehicle_type || 'motor',
+        driver_job_type_preferences: driver?.job_type_preferences || [],
+      });
+      if (error) throw new Error(`fetchPendingOrders (nearby) failed: ${error.message}`);
+      const nearby = data || [];
+      return canReceiveFood ? [...nearby, ...(await fetchReadyFoodDeliveries(supabaseClient))] : nearby;
+    }
+
+    let driverQuery = supabaseClient
+      .from('orders')
+      .select('*')
+      .eq('status', OrderStatus.PENDING)
+      .is('driver_id', null)
+      .order('created_at', { ascending: false });
+    driverQuery = applyEligibilityFilter(driverQuery, eligibility);
+    const { data, error } = await driverQuery;
+    if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
+    return canReceiveFood ? [...(data || []), ...(await fetchReadyFoodDeliveries(supabaseClient))] : (data || []);
+  }
+
+  if (mode === 'technician' && driverPos?.lat != null && driverPos?.lng != null) {
     const { data, error } = await supabaseClient.rpc('get_nearby_pending_orders', {
       driver_lat: driverPos.lat,
       driver_lng: driverPos.lng,
-      target_service_types: serviceTypes,
+      target_service_types: TECHNICIAN_SERVICE_TYPES,
       radius_meters: NEARBY_RADIUS_METERS,
       max_results: 20,
     });
     if (error) throw new Error(`fetchPendingOrders (nearby) failed: ${error.message}`);
-    const nearby = data || [];
-    if (mode === 'driver') {
-      return [...nearby, ...(await fetchReadyFoodDeliveries(supabaseClient))];
-    }
-    return nearby;
+    return data || [];
   }
 
   let query = supabaseClient
@@ -104,12 +226,7 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
     .eq('status', OrderStatus.PENDING)
     .order('created_at', { ascending: false });
 
-  if (mode === 'driver') {
-    query = query.in('service_type', serviceTypesOverride || DRIVER_SERVICE_TYPES).is('driver_id', null);
-    const { data, error } = await query;
-    if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
-    return [...(data || []), ...(await fetchReadyFoodDeliveries(supabaseClient))];
-  } else if (mode === 'technician') {
+  if (mode === 'technician') {
     query = query.in('service_type', TECHNICIAN_SERVICE_TYPES).is('driver_id', null);
   } else if (mode === 'merchant' && filterId) {
     query = query.in('service_type', MERCHANT_SERVICE_TYPES).eq('merchant_id', filterId);
@@ -310,15 +427,15 @@ function isWithinNearbyRadius(order, getDriverPos) {
 /**
  * Subscribe to realtime pending driver orders. `getDriverPos` (optional) is
  * a `() => {lat, lng} | null` used to filter out-of-radius orders - see
- * isWithinNearbyRadius. `serviceTypesOverride` (optional) narrows which
- * service types trigger `onOrder` - RIDE_SERVICE_TYPES under /driver,
- * SEND_SERVICE_TYPES under /courier - falling back to the combined
- * DRIVER_SERVICE_TYPES when omitted. The food-ready UPDATE listener below is
- * intentionally NOT scoped by this override (see fetchPendingOrders' doc
- * comment - food delivery stays visible to both portals).
+ * isWithinNearbyRadius. `driver` (the logged-in driver's own {vehicle_type,
+ * job_type_preferences}) is run through isOrderEligibleForDriver - the same
+ * Option B eligibility function fetchPendingOrders uses - for BOTH the
+ * INSERT listener (new ride/send orders) and the UPDATE listener (a food
+ * order the merchant just marked ready), so a driver who has toggled a job
+ * type off, or a mobil driver food/small-package-send is never eligible for,
+ * never sees it appear here either.
  */
-export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null, serviceTypesOverride = null) {
-  const relevantTypes = serviceTypesOverride || DRIVER_SERVICE_TYPES;
+export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null, driver = null) {
   const channel = supabaseClient
     .channel('driver-orders-stream')
     .on(
@@ -328,7 +445,7 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
         const order = payload.new;
         if (
           order && order.status === OrderStatus.PENDING && !order.driver_id &&
-          relevantTypes.includes(order.service_type) &&
+          isOrderEligibleForDriver(order, driver) &&
           isWithinNearbyRadius(order, getDriverPos)
         ) {
           onOrder(order);
@@ -345,7 +462,8 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
         const order = payload.new;
         if (
           order && order.status === OrderStatus.READY && !order.driver_id &&
-          FOOD_DELIVERY_SERVICE_TYPES.includes(order.service_type)
+          FOOD_DELIVERY_SERVICE_TYPES.includes(order.service_type) &&
+          isOrderEligibleForDriver(order, driver)
         ) {
           onOrder(order);
         }
