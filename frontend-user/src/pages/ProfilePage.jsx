@@ -1,6 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
+import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { toast } from "react-hot-toast";
@@ -51,6 +52,19 @@ export default function ProfilePage() {
             </div>
             <span className="text-sm bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded">{lang === 'id' ? 'Indonesia' : 'English'}</span>
           </div>
+        </Card>
+
+        {/* Pusat Bantuan & Legal */}
+        <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+          <Link to="/contact" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
+            <span className="font-medium dark:text-white">Pusat Bantuan & Kontak</span>
+          </Link>
+          <Link to="/terms" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
+            <span className="font-medium dark:text-white">Syarat & Ketentuan</span>
+          </Link>
+          <Link to="/refund" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
+            <span className="font-medium dark:text-white">Kebijakan Pengembalian Dana</span>
+          </Link>
         </Card>
 
         <Button variant="outline" className="w-full text-red-500 border-red-200 hover:bg-red-50" onClick={logout}>

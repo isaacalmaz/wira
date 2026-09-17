@@ -181,33 +181,57 @@ export default function WalletPage() {
   const handleTopUpConfirm = async () => {
     if (loading) return;
 
-    // If viewing an already created pending request, avoid duplicate insertions
-    if (viewingPendingId) {
-      toast.success('Permintaan Top Up ini sudah tercatat dan sedang menunggu verifikasi admin.');
-      setModalType(null);
-      setViewingPendingId(null);
-      setTopUpStep(1);
-      return;
-    }
-
     if (!user) {
       toast.error('Silakan login terlebih dahulu');
       return;
     }
     setLoading(true);
     try {
-      const created = await createTopUpRequest(supabase, {
-        userId: user.id,
-        amount: finalAmount,
+      // Panggil backend API kita (asumsikan backend berjalan di URL/Port yang sesuai, untuk dev bisa localhost:5000)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/midtrans/charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          amount: finalAmount,
+          customer_name: user.name || 'Wira User',
+          customer_email: user.email || 'user@wira.com',
+          customer_phone: user.phone || '08123456789'
+        })
       });
-      const recordedAmount = created?.amount ? Number(created.amount) : finalAmount;
-      toast.success(`Permintaan Top Up Rp ${recordedAmount.toLocaleString('id-ID')} berhasil. Menunggu verifikasi admin.`);
-      setModalType(null);
-      setViewingPendingId(null);
-      setTopUpStep(1);
-      await loadPendingTopUps();
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Gagal menghubungi server pembayaran');
+
+      // Tampilkan popup Snap Midtrans
+      window.snap.pay(data.token, {
+        onSuccess: function(result){
+          toast.success('Pembayaran berhasil! Saldo WiraPay akan masuk sebentar lagi.');
+          setModalType(null);
+          setTopUpStep(1);
+          loadPendingTopUps();
+        },
+        onPending: function(result){
+          toast.success('Menunggu pembayaran diselesaikan.');
+          setModalType(null);
+          setTopUpStep(1);
+          loadPendingTopUps();
+        },
+        onError: function(result){
+          toast.error('Pembayaran gagal atau dibatalkan.');
+          setModalType(null);
+          setTopUpStep(1);
+        },
+        onClose: function(){
+          toast.error('Anda menutup popup pembayaran.');
+          setModalType(null);
+          setTopUpStep(1);
+        }
+      });
+
     } catch (err) {
-      toast.error(err.message || 'Gagal membuat permintaan top up');
+      toast.error(err.message || 'Gagal memulai pembayaran Midtrans');
     } finally {
       setLoading(false);
     }

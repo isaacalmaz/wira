@@ -28,6 +28,9 @@ const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
+const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
+const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
+const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
 
 export default function Root() {
   return (
@@ -64,6 +67,11 @@ export default function Root() {
                             <Route path="/villa" element={<VillaPage />} />
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />
+                            
+                            {/* Legal & Bantuan */}
+                            <Route path="/contact" element={<ContactPage />} />
+                            <Route path="/terms" element={<TermsPage />} />
+                            <Route path="/refund" element={<RefundPage />} />
                           </Route>
                         </Routes>
                       </Suspense>
