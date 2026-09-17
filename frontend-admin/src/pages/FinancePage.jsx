@@ -226,22 +226,7 @@ const FinancePage = () => {
                     <td className="px-4 py-3">
                       {t.status === 'pending' && (
                         <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleApprove(t.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition"
-                            title="Setujui"
-                          >
-                            <CheckCircle size={18}/>
-                          </button>
-                          <button 
-                            onClick={() => handleReject(t.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition"
-                            title="Tolak"
-                          >
-                            <XCircle size={18}/>
-                          </button>
+                           <span className="text-xs text-slate-400 italic">Otomatis via Midtrans</span>
                         </div>
                       )}
                     </td>

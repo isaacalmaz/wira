@@ -141,30 +141,13 @@ export default function WalletPage() {
     }
   };
 
-  const handleProceedToPayment = async () => {
-    if (loading) return;
-    if (!user) {
-      toast.error('Silakan login terlebih dahulu untuk melakukan Top Up');
-      return;
-    }
+  const handleProceedToPayment = () => {
     if (!baseAmount || Number(baseAmount) < 10000) {
       toast.error('Minimal top up adalah Rp 10.000');
       return;
     }
-    setLoading(true);
-    try {
-      const code = await getAvailableUniqueCode(supabase, baseAmount);
-      const calc = calculateUniqueTopUpAmount(baseAmount, code);
-      setBaseAmount(calc.baseAmount);
-      setUniqueCode(calc.uniqueCode);
-      setFinalAmount(calc.totalAmount);
-      setViewingPendingId(null);
-      setTopUpStep(2);
-    } catch (err) {
-      toast.error(err.message || 'Nominal tidak valid');
-    } finally {
-      setLoading(false);
-    }
+    setFinalAmount(Number(baseAmount));
+    handleTopUpConfirm();
   };
 
   const handleCopyNominal = async () => {
@@ -194,7 +177,7 @@ export default function WalletPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: user.id,
-          amount: finalAmount,
+          amount: baseAmount,
           customer_name: user.name || 'Wira User',
           customer_email: user.email || 'user@wira.com',
           customer_phone: user.phone || '08123456789'
@@ -499,7 +482,6 @@ export default function WalletPage() {
               <X size={20} />
             </button>
 
-            {topUpStep === 1 ? (
               <>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
