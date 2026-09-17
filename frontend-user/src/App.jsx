@@ -69,6 +69,7 @@ export default function Root() {
                             <Route path="/pool" element={<PoolPage />} />
                             
                             {/* Legal & Bantuan */}
+                            <Route path="/support" element={<SupportPage />} />
                             <Route path="/contact" element={<ContactPage />} />
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/refund" element={<RefundPage />} />

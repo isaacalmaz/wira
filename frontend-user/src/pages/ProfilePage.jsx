@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { toast } from "react-hot-toast";
-import { User, Settings, LogOut, Heart, MapPin, Moon, Sun } from 'lucide-react';
+import { User, Settings, MessageSquare, LogOut, Heart, MapPin, Moon, Sun } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -56,6 +56,13 @@ export default function ProfilePage() {
 
         {/* Pusat Bantuan & Legal */}
         <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+          <Link to="/support" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
+            <div className="flex items-center gap-4">
+              <MessageSquare className="text-slate-500" />
+              <span className="font-medium dark:text-white">Bantuan & Komplain</span>
+            </div>
+            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold">Baru</span>
+          </Link>
           <Link to="/contact" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
             <span className="font-medium dark:text-white">Pusat Bantuan & Kontak</span>
           </Link>

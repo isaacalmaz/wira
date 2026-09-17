@@ -12,7 +12,7 @@ import {
   Home, 
   Wallet,
   Ticket,
-  MessageCircle,
+  MessageCircle, MessageSquare,
   Settings,
   Tag
 } from 'lucide-react';
@@ -91,7 +91,7 @@ const AdminSidebar = ({ isCollapsed }) => {
     { name: 'Harga & Kendaraan', icon: Tag, path: '/pricing', roles: ['Superadmin', 'Admin Ops'] },
     { name: 'Keuangan', icon: Wallet, path: '/finance', roles: ['Superadmin', 'Admin Keuangan'] },
     { name: 'Promo', icon: Ticket, path: '/promos', roles: ['Superadmin', 'Admin Ops'] },
-    { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: ['Superadmin', 'CS'] },
+    { name: 'WhatsApp', icon: MessageCircle, MessageSquare, path: '/whatsapp', roles: ['Superadmin', 'CS'] },
     { name: 'Settings', icon: Settings, path: '/settings', roles: ['Superadmin'] },
   ];
 
