@@ -182,6 +182,45 @@ export default function RidePage() {
   const [assignedDriverId, setAssignedDriverId] = useState(null);
   const [nearbyDriverCount, setNearbyDriverCount] = useState(null);
 
+  
+  const handleCheckPromo = async () => {
+    if (!promoCode.trim()) return;
+    setCheckingPromo(true);
+    setPromoError('');
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single();
+      
+      if (error || !data) throw new Error('Kode promo tidak ditemukan');
+      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
+      if (data.service_type && data.service_type !== 'ride') throw new Error('Promo tidak berlaku untuk layanan ini');
+      
+      setActivePromo(data);
+      toast.success('Promo berhasil digunakan!');
+    } catch (err) {
+      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setActivePromo(null);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
+  
+  const calculateFinalPrice = () => {
+    const basePrice = selectedVehicle?.price || 15000;
+    if (!activePromo) return basePrice;
+    
+    if (activePromo.type === 'Percentage') {
+      const discount = (basePrice * activePromo.discount) / 100;
+      return Math.max(0, basePrice - discount);
+    } else {
+      return Math.max(0, basePrice - activePromo.discount);
+    }
+  };
+
   const handleStartBooking = async () => {
     if (paymentMethod === 'WiraPay' && balance < selectedVehicle.price) {
       toast.error('Saldo WiraPay tidak cukup, silakan gunakan Tunai atau Top Up dulu');
@@ -558,7 +597,7 @@ export default function RidePage() {
                 className="flex-1 font-bold text-xs sm:text-sm"
                 onClick={handleStartBooking}
               >
-                Pesan Sekarang • {formatRupiah(selectedVehicle?.price || 15000)}
+                Pesan Sekarang • {formatRupiah(calculateFinalPrice())}
               </Button>
             </div>
           </div>

@@ -179,6 +179,33 @@ export default function RestaurantPage() {
   };
 
   
+  
+  const handleCheckPromo = async () => {
+    if (!promoCode.trim()) return;
+    setCheckingPromo(true);
+    setPromoError('');
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single();
+      
+      if (error || !data) throw new Error('Kode promo tidak ditemukan');
+      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
+      if (data.service_type && data.service_type !== 'food') throw new Error('Promo tidak berlaku untuk restoran');
+      
+      setActivePromo(data);
+      toast.success('Promo berhasil digunakan!');
+    } catch (err) {
+      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setActivePromo(null);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
+
   const handleConfirmOrder = async () => {
     if (cart.items.length === 0) {
       toast.error('Keranjang Anda masih kosong');
