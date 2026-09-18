@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { requestForToken } from '../config/firebase';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -24,7 +25,24 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+  
+  useEffect(() => {
+    const updateFCM = async () => {
+      if (user) {
+        try {
+          const token = await requestForToken();
+          if (token) {
+            await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
+          }
+        } catch (err) {
+          console.error("FCM update error:", err);
+        }
+      }
+    };
+    updateFCM();
+  }, [user]);
+
+  return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email, password) => {
@@ -64,6 +82,23 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error.message);
     }
   };
+
+
+  useEffect(() => {
+    const updateFCM = async () => {
+      if (user) {
+        try {
+          const token = await requestForToken();
+          if (token) {
+            await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
+          }
+        } catch (err) {
+          console.error("FCM update error:", err);
+        }
+      }
+    };
+    updateFCM();
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, loading, login, register, logout }}>

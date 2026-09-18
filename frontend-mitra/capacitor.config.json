@@ -1,6 +1,6 @@
 {
   "appId": "com.wira.mitra",
-  "appName": "WiraMitra",
+  "appName": "Wira Mitra",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

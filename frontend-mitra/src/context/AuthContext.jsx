@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { requestForToken } from '../config/firebase';
 
 const AuthContext = createContext();
 
@@ -17,7 +18,24 @@ export const AuthProvider = ({ children }) => {
       await handleSession(session);
     });
 
-    return () => subscription.unsubscribe();
+  
+  useEffect(() => {
+    const updateFCM = async () => {
+      if (user) {
+        try {
+          const token = await requestForToken();
+          if (token) {
+            await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
+          }
+        } catch (err) {
+          console.error("FCM update error:", err);
+        }
+      }
+    };
+    updateFCM();
+  }, [user]);
+
+  return () => subscription.unsubscribe();
   }, []);
 
   // Returns the resolved profile (or null) so callers like login() can act
@@ -90,6 +108,23 @@ export const AuthProvider = ({ children }) => {
     const { data: { session } } = await supabase.auth.getSession();
     return handleSession(session);
   };
+
+
+  useEffect(() => {
+    const updateFCM = async () => {
+      if (user) {
+        try {
+          const token = await requestForToken();
+          if (token) {
+            await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
+          }
+        } catch (err) {
+          console.error("FCM update error:", err);
+        }
+      }
+    };
+    updateFCM();
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, mitraAccess, login, logout, loading, refreshProfile }}>
