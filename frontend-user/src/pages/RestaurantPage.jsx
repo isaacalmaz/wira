@@ -45,6 +45,9 @@ export default function RestaurantPage() {
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [activePromo, setActivePromo] = useState(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
   const [loading, setLoading] = useState(false);
   const [trackingStage, setTrackingStage] = useState(1);
   const [merchantCoords, setMerchantCoords] = useState(null);
@@ -197,17 +200,10 @@ export default function RestaurantPage() {
     }
   };
 
-  const handleApplyPromo = () => {
-    if (promoCode.toUpperCase() === 'WIRALOMBOK' || promoCode.toUpperCase() === 'DISKON10') {
-      setDiscount(10000);
-      toast.success('Voucher WIRALOMBOK Berhasil Digunakan! Diskon Rp 10.000', { icon: '🎉' });
-    } else {
-      toast.error('Kode promo tidak valid');
-    }
-  };
-
-  
-  
+  // Real, DB-backed promo check against the promos table - replaces a
+  // previous hardcoded 'WIRALOMBOK'/'DISKON10' string-match stub that gave
+  // a flat Rp10.000 discount and completely bypassed the promos table (no
+  // expiry, status, or per-service validation, no usage tracking).
   const handleCheckPromo = async () => {
     if (!promoCode.trim()) return;
     setCheckingPromo(true);
@@ -218,20 +214,32 @@ export default function RestaurantPage() {
         .select('*')
         .eq('code', promoCode.toUpperCase().trim())
         .single();
-      
+
       if (error || !data) throw new Error('Kode promo tidak ditemukan');
       if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
       if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
       if (data.service_type && data.service_type !== 'food') throw new Error('Promo tidak berlaku untuk restoran');
-      
+
       setActivePromo(data);
+      const promoDiscount = data.type === 'Percentage'
+        ? Math.round((subtotal * Number(data.discount)) / 100)
+        : Number(data.discount) || 0;
+      setDiscount(Math.max(0, Math.min(promoDiscount, subtotal)));
       toast.success('Promo berhasil digunakan!');
     } catch (err) {
       setPromoError(err.message || 'Gagal memverifikasi promo');
       setActivePromo(null);
+      setDiscount(0);
     } finally {
       setCheckingPromo(false);
     }
+  };
+
+  const handleRemovePromo = () => {
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
+    setDiscount(0);
   };
 
   const handleConfirmOrder = async () => {
@@ -289,9 +297,19 @@ export default function RestaurantPage() {
         metadata: { items: cart.items, subtotal: subtotal, discount: discount }
       });
 
+      // Only count the promo as "used" once it's actually attached to a
+      // real, created order - not just when the code was validated - so a
+      // promo can't be reserved by someone who never completes checkout.
+      if (activePromo?.id) {
+        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
+          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
+        });
+      }
+
       setActiveOrderId(order.id);
       clearCart();
-      setStep('tracking'); 
+      handleRemovePromo(); // don't let a used promo silently discount the next order
+      setStep('tracking');
       setTrackingStage(0); // 0 = Menunggu Konfirmasi Restoran
       toast.success('Menunggu konfirmasi dari restoran...');
     } catch (err) {
@@ -523,17 +541,37 @@ export default function RestaurantPage() {
             </div>
 
             {/* Input Promo */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex gap-2">
-              <input
-                type="text"
-                placeholder="Kode Promo: WIRALOMBOK"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
-              />
-              <Button size="sm" variant="outline" onClick={handleApplyPromo}>
-                Pakai
-              </Button>
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+              {activePromo ? (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <Tag size={12} /> Promo "{activePromo.code}" diterapkan
+                  </span>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-red-500 font-semibold"
+                    onClick={handleRemovePromo}
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Kode Promo: WIRALOMBOK"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
+                  />
+                  <Button size="sm" variant="outline" onClick={handleCheckPromo} disabled={checkingPromo || !promoCode.trim()}>
+                    {checkingPromo ? '...' : 'Pakai'}
+                  </Button>
+                </div>
+              )}
+              {promoError && (
+                <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+              )}
             </div>
 
             {/* Hitung Rincian */}

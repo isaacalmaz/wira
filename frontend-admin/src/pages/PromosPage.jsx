@@ -12,16 +12,20 @@ const PromosPage = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
 
-  const [formData, setFormData] = useState({
+  const emptyFormData = {
     title: '',
+    description: '',
     code: '',
+    service_type: '',
     type: 'Percentage',
     discount: '20',
     validUntil: '',
-    status: 'Active'
-  });
+    status: 'Active',
+    usage_limit: ''
+  };
+  const [formData, setFormData] = useState(emptyFormData);
 
-    const fetchPromos = async () => {
+  const fetchPromos = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -39,7 +43,31 @@ const PromosPage = () => {
     }
   };
 
+  useEffect(() => {
+    fetchPromos();
+  }, []);
 
+  const handleOpenAdd = () => {
+    setSelectedPromo(null);
+    setFormData(emptyFormData);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (promo) => {
+    setSelectedPromo(promo);
+    setFormData({
+      title: promo.title || '',
+      description: promo.description || '',
+      code: promo.code || '',
+      service_type: promo.service_type || '',
+      type: promo.type || 'Percentage',
+      discount: String(promo.discount ?? 0),
+      validUntil: promo.validUntil || '',
+      status: promo.status || 'Active',
+      usage_limit: promo.usage_limit != null ? String(promo.usage_limit) : ''
+    });
+    setIsModalOpen(true);
+  };
 
   const handleSavePromo = async (e) => {
     e.preventDefault();
@@ -48,54 +76,80 @@ const PromosPage = () => {
       return;
     }
 
-    let updated;
-    if (selectedPromo) {
-      updated = promos.map(p => 
-        p.id === selectedPromo.id 
-          ? {
-              ...p,
-              title: formData.title,
-              code: formData.code.toUpperCase().replace(/\s+/g, ''),
-              type: formData.type,
-              discount: Number(formData.discount) || 0,
-              validUntil: formData.validUntil,
-              status: formData.status
-            }
-          : p
-      );
-      toast.success('Promo berhasil diperbarui');
-    } else {
-      const newPromo = {
-        id: 'promo_' + Date.now(),
-        title: formData.title,
-        code: formData.code.toUpperCase().replace(/\s+/g, ''),
-        type: formData.type,
-        discount: Number(formData.discount) || 0,
-        validUntil: formData.validUntil,
-        usage: 0,
-        status: formData.status
-      };
-      updated = [newPromo, ...promos];
-      toast.success('Promo baru berhasil dibuat');
-    }
+    const payload = {
+      title: formData.title.trim(),
+      description: formData.description?.trim() || null,
+      code: formData.code.toUpperCase().replace(/\s+/g, ''),
+      service_type: formData.service_type?.trim() || null,
+      type: formData.type,
+      discount: Number(formData.discount) || 0,
+      validUntil: formData.validUntil || null,
+      status: formData.status,
+      usage_limit: formData.usage_limit === '' ? null : Number(formData.usage_limit),
+    };
 
-    await savePromosToCloud(updated);
-    setIsModalOpen(false);
+    try {
+      if (selectedPromo) {
+        const { data, error } = await supabase
+          .from('promos')
+          .update(payload)
+          .eq('id', selectedPromo.id)
+          .select();
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Akses ditolak atau promo tidak ditemukan.');
+        toast.success('Promo berhasil diperbarui');
+      } else {
+        const { data, error } = await supabase
+          .from('promos')
+          .insert([{ ...payload, usage: 0 }])
+          .select();
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Akses ditolak saat membuat promo.');
+        toast.success('Promo baru berhasil dibuat');
+      }
+      setIsModalOpen(false);
+      fetchPromos();
+    } catch (err) {
+      console.error('Error saving promo:', err);
+      toast.error(err.message || 'Gagal menyimpan promo');
+    }
   };
 
-  const toggleStatus = async (id) => {
-    const updated = promos.map(p => 
-      p.id === id ? { ...p, status: p.status === 'Active' ? 'Inactive' : 'Active' } : p
-    );
-    await savePromosToCloud(updated);
-    toast.success('Status promo diubah');
+  const toggleStatus = async (promo) => {
+    try {
+      const newStatus = promo.status === 'Active' ? 'Inactive' : 'Active';
+      const { data, error } = await supabase
+        .from('promos')
+        .update({ status: newStatus })
+        .eq('id', promo.id)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak.');
+      setPromos(prev => prev.map(p => (p.id === promo.id ? { ...p, status: newStatus } : p)));
+      toast.success('Status promo diubah');
+    } catch (err) {
+      console.error('Error toggling promo status:', err);
+      toast.error(err.message || 'Gagal mengubah status promo');
+    }
   };
 
   const handleDelete = async () => {
-    const updated = promos.filter(p => p.id !== selectedPromo.id);
-    await savePromosToCloud(updated);
-    toast.success('Promo berhasil dihapus');
-    setIsDeleteOpen(false);
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .delete()
+        .eq('id', selectedPromo.id)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau promo tidak ditemukan.');
+      setPromos(prev => prev.filter(p => p.id !== selectedPromo.id));
+      toast.success('Promo berhasil dihapus');
+    } catch (err) {
+      console.error('Error deleting promo:', err);
+      toast.error(err.message || 'Gagal menghapus promo');
+    } finally {
+      setIsDeleteOpen(false);
+    }
   };
 
   const filtered = promos.filter(p => 
@@ -173,10 +227,12 @@ const PromosPage = () => {
                       {p.type === 'Percentage' ? `${p.discount}%` : `Rp ${Number(p.discount).toLocaleString('id-ID')}`}
                     </td>
                     <td className="px-6 py-4 text-slate-500">{p.validUntil || '-'}</td>
-                    <td className="px-6 py-4">{p.usage || 0}x dipakai</td>
                     <td className="px-6 py-4">
-                      <button 
-                        onClick={() => toggleStatus(p.id)} 
+                      {p.usage || 0}{p.usage_limit != null ? ` / ${p.usage_limit}` : ''}x dipakai
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => toggleStatus(p)}
                         className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
                           p.status === 'Active' 
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200' 
@@ -289,6 +345,39 @@ const PromosPage = () => {
                     <option value="Active">Aktif</option>
                     <option value="Inactive">Nonaktif</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Layanan (opsional)
+                  </label>
+                  <select
+                    value={formData.service_type}
+                    onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    <option value="">Semua Layanan</option>
+                    <option value="ride">WiraRide</option>
+                    <option value="food">WiraFood</option>
+                    <option value="send">WiraSend</option>
+                    <option value="villa">WiraVilla</option>
+                    <option value="service">WiraService</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Batas Pemakaian (kosongkan = tanpa batas)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.usage_limit}
+                    onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value })}
+                    placeholder="Tanpa batas"
+                    className="input-field w-full"
+                  />
                 </div>
               </div>
 

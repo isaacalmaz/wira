@@ -186,7 +186,16 @@ export default function RidePage() {
   const [assignedDriverId, setAssignedDriverId] = useState(null);
   const [nearbyDriverCount, setNearbyDriverCount] = useState(null);
 
-  
+  // Promo/kupon state for the vehicle-selection step. These were previously
+  // referenced (handleCheckPromo, calculateFinalPrice) without ever being
+  // declared, which crashed every render of the 'vehicle' step in
+  // production (calculateFinalPrice() is called unconditionally on line
+  // ~600's "Pesan Sekarang" button).
+  const [promoCode, setPromoCode] = useState('');
+  const [activePromo, setActivePromo] = useState(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
+
   const handleCheckPromo = async () => {
     if (!promoCode.trim()) return;
     setCheckingPromo(true);
@@ -226,7 +235,8 @@ export default function RidePage() {
   };
 
   const handleStartBooking = async () => {
-    if (paymentMethod === 'WiraPay' && balance < selectedVehicle.price) {
+    const finalPrice = calculateFinalPrice();
+    if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error('Saldo WiraPay tidak cukup, silakan gunakan Tunai atau Top Up dulu');
       return;
     }
@@ -269,13 +279,13 @@ export default function RidePage() {
       // insufficient funds/RPC error and shows its own toast, so a failure
       // here aborts before the order is ever created.
       if (paymentMethod === 'WiraPay') {
-        await pay(selectedVehicle.price, `WiraRide ke ${dropoff}`);
+        await pay(finalPrice, `WiraRide ke ${dropoff}`);
       }
 
       const order = await addOrder({
         serviceType: 'ride',
         title: `Perjalanan ke ${dropoff}`,
-        price: selectedVehicle.price,
+        price: finalPrice,
         paymentMethod: paymentMethod,
         details: orderDetails,
         pickupLat,
@@ -283,10 +293,19 @@ export default function RidePage() {
         dropoffLat,
         dropoffLng,
       });
-      
+
+      // Only count the promo as "used" once it's actually attached to a
+      // real, created order - not just when the code was validated - so a
+      // promo can't be reserved by someone who never completes checkout.
+      if (activePromo?.id) {
+        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
+          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
+        });
+      }
+
       setActiveOrderId(order.id);
       setStep('searching');
-      
+
       if (driverCount === 0) {
         toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });
       } else {
@@ -556,6 +575,49 @@ export default function RidePage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Kode Promo */}
+            <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl space-y-2">
+              {activePromo ? (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    Promo "{activePromo.code}" diterapkan
+                  </span>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-red-500 font-semibold"
+                    onClick={() => {
+                      setActivePromo(null);
+                      setPromoCode('');
+                      setPromoError('');
+                    }}
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Kode Promo (opsional)"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
+                  />
+                  <Button
+                    variant="outline"
+                    className="text-xs px-3"
+                    onClick={handleCheckPromo}
+                    disabled={checkingPromo || !promoCode.trim()}
+                  >
+                    {checkingPromo ? '...' : 'Pakai'}
+                  </Button>
+                </div>
+              )}
+              {promoError && (
+                <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+              )}
             </div>
 
             {/* Metode Pembayaran */}
