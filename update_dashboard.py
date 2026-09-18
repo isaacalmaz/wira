@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import re
+
+content = """import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { Users, Car, Store, ArrowUpRight, TrendingUp, DollarSign, Activity } from 'lucide-react';
@@ -132,7 +134,7 @@ const DashboardPage = () => {
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 12, fill: '#64748b' }}
-                  tickFormatter={(val) => `Rp ${val/1000}k`}
+                  tickFormatter={(val) => \`Rp ${val/1000}k\`}
                 />
                 <RechartsTooltip 
                   formatter={(value) => ['Rp ' + value.toLocaleString('id-ID'), 'Pendapatan']}
@@ -194,3 +196,8 @@ const StatCard = ({ title, value, icon, trend, color }) => {
 };
 
 export default DashboardPage;
+"""
+
+with open('frontend-admin/src/pages/DashboardPage.jsx', 'w') as f:
+    f.write(content)
+
