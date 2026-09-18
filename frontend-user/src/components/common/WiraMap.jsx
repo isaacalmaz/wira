@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline, useM
 import { LocateFixed, MapPin, Navigation } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
 import 'leaflet/dist/leaflet.css';
+import AnimatedMarker from './AnimatedMarker';
 import L from 'leaflet';
 
 // Custom Icons
@@ -129,12 +130,16 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
           else if (m.type === 'driver') icon = driverIcon;
           else if (idx === 1) icon = dropoffIcon; // fallback based on index if type not provided
           
+          // Use AnimatedMarker for drivers for smooth live tracking, regular marker for static points
+          const MarkerComponent = m.type === 'driver' ? AnimatedMarker : LeafletMarker;
+
           return (
-            <LeafletMarker 
+            <MarkerComponent 
               key={idx} 
               position={[m.lat, m.lng]} 
               icon={icon}
-              draggable={!!onMarkerDragEnd}
+              draggable={!!onMarkerDragEnd && m.type !== 'driver'}
+              duration={3000} // Smooth 3-second glide for driver GPS updates
               eventHandlers={{
                 dragend: (e) => {
                   if (onMarkerDragEnd) {
@@ -145,7 +150,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
               }}
             >
               <Popup>{m.label || (idx === 0 ? 'Pickup' : 'Dropoff')}</Popup>
-            </LeafletMarker>
+            </MarkerComponent>
           )
         })}
         {route && (
