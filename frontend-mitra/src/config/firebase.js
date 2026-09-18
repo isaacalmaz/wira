@@ -1,14 +1,19 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
+// Same Firebase project (wira-455d1) as frontend-user - FCM tokens from both
+// apps write to the same public.users.fcm_token column in the same Supabase
+// project. Hardcoded fallbacks mirror frontend-user/src/config/firebase.js
+// (fixed there in c7cee17) so frontend-mitra doesn't white-screen if its own
+// Vercel project is missing these env vars too.
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAgX_LaIszGizE10NPivNZOyxU5Lb01VJU",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "wira-455d1.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "wira-455d1",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "wira-455d1.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "975569594019",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:975569594019:web:3c789ddb3d0fd43adb4116",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-ES59FLZEZY"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -25,9 +30,13 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 export const requestForToken = async () => {
   if (!messaging) return null;
   try {
-    const currentToken = await getToken(messaging, { 
-      // Replace with your VAPID key later if you want web push on standard browsers
-      // vapidKey: "YOUR_VAPID_KEY"
+    const currentToken = await getToken(messaging, {
+      // Generate this in Firebase Console > Project Settings > Cloud Messaging
+      // > Web configuration > Web Push certificates, then set it as
+      // VITE_FIREBASE_VAPID_KEY in this app's Vercel project env vars.
+      // Without it, getToken() reliably fails/returns null on standard
+      // browsers and fcm_token never gets populated.
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     });
     if (currentToken) {
       console.log('Current token for client: ', currentToken);

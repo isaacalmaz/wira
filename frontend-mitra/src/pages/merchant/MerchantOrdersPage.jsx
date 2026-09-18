@@ -8,6 +8,7 @@ import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
+import API_BASE_URL from '../../config/api';
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
@@ -61,10 +62,43 @@ const MerchantOrdersPage = () => {
     fetchOrders();
   }, [user]);
 
-  const updateStatus = async (id, newStatus) => {
+  // Fires the real push-notification pipeline (backend's POST
+  // /api/notifications/order-alert, see notification.routes.js) the moment
+  // this merchant marks a food order 'ready' - the customer is the one
+  // single, always-known target at this point (the driver who'll pick it up
+  // isn't assigned yet). Best-effort: a failure here (no fcm_token saved yet,
+  // no VAPID key configured client-side, network hiccup) must never block or
+  // roll back the actual order-status update above it.
+  const notifyOrderReady = async (order) => {
+    if (!order?.user_id) return;
     try {
-      await updateOrderStatus(supabase, id, newStatus);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      await fetch(`${API_BASE_URL}/notifications/order-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: order.user_id,
+          title: 'Pesanan Anda Siap!',
+          body: 'Pesanan WiraFood Anda sudah siap dan sedang menunggu kurir untuk diantar.',
+          data: { orderId: order.id, type: 'order_ready' },
+        }),
+      });
+    } catch (err) {
+      console.error('notifyOrderReady failed:', err);
+    }
+  };
+
+  const updateStatus = async (order, newStatus) => {
+    try {
+      await updateOrderStatus(supabase, order.id, newStatus);
       toast.success('Status pesanan diperbarui');
+      if (newStatus === OrderStatus.READY) {
+        notifyOrderReady(order);
+      }
       fetchOrders();
     } catch (err) {
       toast.error(err.message || 'Gagal memperbarui status pesanan');
@@ -107,17 +141,17 @@ const MerchantOrdersPage = () => {
             {tab === 'active' && (
               <div className="flex gap-2">
                 {order.status === OrderStatus.PENDING ? (
-                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
+                  <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
                 ) : (
                   <>
                     {isVilla ? (
                       order.status === OrderStatus.ACCEPTED && (
-                        <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order.id, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                        <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
                       )
                     ) : order.status === OrderStatus.ACCEPTED ? (
-                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
+                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
                     ) : order.status === OrderStatus.PREPARING ? (
-                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order.id, OrderStatus.READY)}>Siap Diambil</Button>
+                      <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.READY)}>Siap Diambil</Button>
                     ) : order.status === OrderStatus.READY ? (
                       <div className="flex-1 text-center text-sm font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 py-2.5 rounded-lg">
                         Menunggu kurir mengambil pesanan...

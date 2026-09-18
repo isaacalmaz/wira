@@ -18,24 +18,7 @@ export const AuthProvider = ({ children }) => {
       await handleSession(session);
     });
 
-  
-  useEffect(() => {
-    const updateFCM = async () => {
-      if (user) {
-        try {
-          const token = await requestForToken();
-          if (token) {
-            await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
-          }
-        } catch (err) {
-          console.error("FCM update error:", err);
-        }
-      }
-    };
-    updateFCM();
-  }, [user]);
-
-  return () => subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   // Returns the resolved profile (or null) so callers like login() can act
