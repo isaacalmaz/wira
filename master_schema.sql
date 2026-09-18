@@ -61,6 +61,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS driver_id UUID REFERENCES pub
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS merchant_id UUID REFERENCES public.merchants(id) ON DELETE SET NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public full access on orders" ON public.orders;

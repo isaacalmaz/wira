@@ -43,12 +43,9 @@ export const CartProvider = ({ children }) => {
   const setRestaurant = (rest) => dispatch({ type: 'SET_RESTAURANT', payload: rest });
 
   const subtotal = state.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const deliveryFee = 10000;
-  const serviceFee = 2000;
-  const total = subtotal + deliveryFee + serviceFee;
 
   return (
-    <CartContext.Provider value={{ cart: state, addItem, removeItem, updateQty, clearCart, setRestaurant, subtotal, deliveryFee, serviceFee, total }}>
+    <CartContext.Provider value={{ cart: state, addItem, removeItem, updateQty, clearCart, setRestaurant, subtotal }}>
       {children}
     </CartContext.Provider>
   );

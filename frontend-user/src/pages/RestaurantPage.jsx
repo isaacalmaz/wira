@@ -26,6 +26,7 @@ import {
   LocateFixed,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
+import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
 
 export default function RestaurantPage() {
@@ -33,7 +34,7 @@ export default function RestaurantPage() {
   const navigate = useNavigate();
   const [rest, setRest] = useState(null);
 
-  const { cart, addItem, removeItem, total, clearCart } = useCart();
+  const { cart, addItem, removeItem, updateQty, subtotal, clearCart } = useCart();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
   const { user } = useAuth();
@@ -46,6 +47,9 @@ export default function RestaurantPage() {
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [trackingStage, setTrackingStage] = useState(1);
+  const [merchantCoords, setMerchantCoords] = useState(null);
+  const [distance, setDistance] = useState(0);
+  const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState(5000);
 
   useEffect(() => {
     const fetchRest = async () => {
@@ -68,11 +72,36 @@ export default function RestaurantPage() {
           deliveryTime: merchantData.delivery_time,
           menuItems: productsData || []
         });
+
+        let mCoords = { lat: -8.5833, lng: 116.1167 };
+        if (merchantData.lat && merchantData.lng) {
+          mCoords = { lat: parseFloat(merchantData.lat), lng: parseFloat(merchantData.lng) };
+        } else if (merchantData.address) {
+          const coords = await fetchCoordinates(merchantData.address);
+          if (coords) mCoords = coords;
+        }
+        setMerchantCoords(mCoords);
       }
     };
     if (id) fetchRest();
   }, [id]);
 
+
+  useEffect(() => {
+    if (merchantCoords && deliveryCoords) {
+      const getRoute = async () => {
+        const res = await fetchRoute(merchantCoords, deliveryCoords);
+        if (res && res.distance) {
+          const distKm = res.distance / 1000;
+          setDistance(distKm);
+          setDynamicDeliveryFee(5000 + (Math.ceil(distKm) * 2000));
+        } else {
+          setDynamicDeliveryFee(8000);
+        }
+      };
+      getRoute();
+    }
+  }, [merchantCoords, deliveryCoords]);
 
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -122,8 +151,7 @@ export default function RestaurantPage() {
     return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
   }
 
-  const deliveryFee = 8000;
-  const grandTotal = Math.max(0, total + deliveryFee - discount);
+  const grandTotal = Math.max(0, subtotal + dynamicDeliveryFee - discount);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
@@ -248,14 +276,17 @@ export default function RestaurantPage() {
 
       const order = await addOrder({
         serviceType: 'food',
-        merchantId: rest.id, // ID Restoran!
+        merchantId: rest.id,
         title: rest.name,
         details: `${itemsSummary} — Antar ke: ${deliveryAddress}`,
         price: grandTotal,
-        deliveryFee: deliveryFee,
+        deliveryFee: dynamicDeliveryFee,
         dropoffLat: deliveryCoords.lat,
         dropoffLng: deliveryCoords.lng,
+        pickupLat: merchantCoords?.lat,
+        pickupLng: merchantCoords?.lng,
         paymentMethod: paymentMethod,
+        metadata: { items: cart.items, subtotal: subtotal, discount: discount }
       });
 
       setActiveOrderId(order.id);
@@ -371,7 +402,13 @@ export default function RestaurantPage() {
                   {!isAvailable ? null : inCart ? (
                     <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => {
+                          if (inCart.qty > 1) {
+                            updateQty(item.id, inCart.qty - 1);
+                          } else {
+                            removeItem(item.id);
+                          }
+                        }}
                         className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-sm"
                       >
                         <Minus size={14} />
@@ -417,7 +454,7 @@ export default function RestaurantPage() {
                 <p className="text-xs text-slate-300 font-medium">
                   {cart.items.reduce((acc, curr) => acc + curr.qty, 0)} Item Dipilih
                 </p>
-                <p className="font-extrabold text-base">{formatRupiah(total)}</p>
+                <p className="font-extrabold text-base">{formatRupiah(subtotal)}</p>
               </div>
             </div>
             <Button
@@ -503,12 +540,18 @@ export default function RestaurantPage() {
             <div className="pt-2 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500">
                 <span>Subtotal Makanan:</span>
-                <span>{formatRupiah(total)}</span>
+                <span>{formatRupiah(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
                 <span>Ongkos Kirim:</span>
-                <span>{formatRupiah(deliveryFee)}</span>
+                <span>{formatRupiah(dynamicDeliveryFee)}</span>
               </div>
+              {distance > 0 && (
+                <div className="flex justify-between text-[10px] text-slate-400 -mt-1">
+                  <span>Jarak Pengantaran:</span>
+                  <span>{distance.toFixed(1)} km</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-bold">
                   <span>Diskon Promo:</span>
