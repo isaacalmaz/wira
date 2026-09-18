@@ -24,9 +24,10 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import API_BASE_URL from '../config/api';
 
 export default function RidePage() {
-  const { balance, pay, refund } = useWallet();
+  const { balance, pay, refund, refundMatchedRide } = useWallet();
   const { addOrder, updateOrderStatus } = useOrders();
 
   const [step, setStep] = useState('input'); // input, vehicle, searching, tracking, completed
@@ -39,6 +40,10 @@ export default function RidePage() {
   // concurrent refund() calls - see migrations/0040_wallet_refund_rpc.sql
   // for the matching server-side idempotency guard.
   const [isCancelling, setIsCancelling] = useState(false);
+  // Same double-click guard, for the separate "Batalkan Perjalanan" button
+  // in the tracking step (step === 'tracking', after a driver has already
+  // been matched) - see migrations/0047_cancel_matched_ride_refund_rpc.sql.
+  const [isCancellingTrip, setIsCancellingTrip] = useState(false);
 
   // Status perjalanan aktif
   const [tripStage, setTripStage] = useState(0); 
@@ -250,7 +255,11 @@ export default function RidePage() {
       // Cek ketersediaan driter terdekat secara real (PostGIS nearest-neighbor),
       // hanya untuk memberi info jujur ke pelanggan - tidak memblokir pemesanan,
       // karena driver baru bisa online kapan saja setelah ini.
+      // `nearbyDrivers` is kept (not just the count) so the push-notification
+      // fan-out below can reuse this exact same lookup as its target list -
+      // no second nearest-driver query.
       let driverCount = null;
+      let nearbyDrivers = [];
       if (pickupLat != null && pickupLng != null) {
         const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
           user_lat: pickupLat,
@@ -260,6 +269,7 @@ export default function RidePage() {
           max_results: 5
         });
         driverCount = nearby?.length || 0;
+        nearbyDrivers = nearby || [];
       }
       setNearbyDriverCount(driverCount);
 
@@ -305,6 +315,43 @@ export default function RidePage() {
 
       setActiveOrderId(order.id);
       setStep('searching');
+
+      // Notify nearby available drivers a new Ride order exists, reusing
+      // `nearbyDrivers` computed above (no second lookup) - fired only now,
+      // after the order actually exists, so a driver never gets alerted
+      // about an order that failed to create (e.g. pay() throwing on
+      // insufficient balance, aborted before this point). The single-target
+      // /api/notifications/order-alert endpoint (backend/routes/
+      // notification.routes.js) only notifies one user per call, but a new
+      // ride is potentially relevant to several nearby drivers at once - so
+      // this loops it once per driver in nearbyDrivers (already capped to 5
+      // by max_results above, so this can't turn into a notification storm).
+      // A dedicated fan-out endpoint that does its own nearby-driver lookup
+      // server-side would be cleaner, but reusing the existing single-target
+      // endpoint from the client is the appropriately-scoped choice for
+      // tonight given it's a one-line loop over data already in hand.
+      // Best-effort: failures here (missing fcm_token, network hiccup) must
+      // never surface as an error to the customer or affect their booking.
+      if (nearbyDrivers.length > 0) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.access_token) return;
+          nearbyDrivers.forEach((d) => {
+            fetch(`${API_BASE_URL}/notifications/order-alert`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                userId: d.id,
+                title: 'Pesanan WiraRide Baru!',
+                body: `Ada penumpang di dekat Anda menuju ${dropoff}.`,
+                data: { orderId: order.id, type: 'new_ride_order' },
+              }),
+            }).catch((err) => console.error('order-alert (nearby driver) failed:', err));
+          });
+        });
+      }
 
       if (driverCount === 0) {
         toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });
@@ -415,6 +462,40 @@ export default function RidePage() {
     // reset once the order reaches 'completed'.
     setStep('completed');
     toast.success('Perjalanan Anda telah selesai!');
+  };
+
+  // Cancels an already-matched ride (driver accepted, tripStage 0 or 1 -
+  // i.e. order.status 'accepted'/'picking_up') via the SECURITY DEFINER
+  // wallet_refund_matched_ride RPC - see
+  // migrations/0047_cancel_matched_ride_refund_rpc.sql for the full
+  // eligibility/refund policy. Guarded by isCancellingTrip the same way
+  // "Batalkan Pencarian" is guarded by isCancelling above, against a
+  // double-click firing two concurrent RPC calls (the RPC itself is also
+  // idempotent server-side, but the UI guard avoids a redundant second
+  // network round-trip / confusing double error toast).
+  const handleCancelTrip = async () => {
+    if (isCancellingTrip || !activeOrderId) return;
+    setIsCancellingTrip(true);
+    try {
+      await refundMatchedRide(activeOrderId, 'Refund Pembatalan Perjalanan (Sudah Matched)');
+      toast.success('Perjalanan dibatalkan.');
+      setStep('input');
+      setActiveOrderId(null);
+      setAssignedDriverId(null);
+      setDriverInfo(null);
+      setPickup('');
+      setDropoff('');
+      setRouteInfo(null);
+      setMapState(prev => ({
+        ...prev,
+        route: null,
+        markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]
+      }));
+    } catch (err) {
+      toast.error(`Gagal membatalkan perjalanan: ${err.message}`);
+    } finally {
+      setIsCancellingTrip(false);
+    }
   };
 
   return (
@@ -788,6 +869,23 @@ export default function RidePage() {
             >
               Konfirmasi Tiba di Tujuan
             </Button>
+
+            {/* Batalkan Perjalanan - hanya sebelum driver benar-benar
+                menjemput (tripStage 0/1, order.status 'accepted'/
+                'picking_up'). Setelah IN_TRIP (tripStage 2) RPC-nya menolak
+                (lihat migrations/0047), jadi tombolnya disembunyikan di
+                titik itu daripada memunculkan aksi yang pasti gagal. */}
+            {tripStage < 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isCancellingTrip}
+                className="w-full text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
+                onClick={handleCancelTrip}
+              >
+                {isCancellingTrip ? 'Membatalkan...' : 'Batalkan Perjalanan'}
+              </Button>
+            )}
           </div>
         )}
 

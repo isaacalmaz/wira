@@ -38,6 +38,16 @@ etc.) have been left in place for now; they were the source material for
 this reconstruction and should only be deleted once someone has verified
 this `migrations/` folder is complete and correct.
 
+## Log of new migrations added going forward
+
+- **`0047_cancel_matched_ride_refund_rpc.sql`** (2026-09-19) — adds
+  `wallet_refund_matched_ride(p_order_id, p_description)`, letting a
+  customer or their assigned driver cancel an already-matched ride
+  (`status IN ('accepted','picking_up')`) with a full refund to the
+  customer's wallet if paid via WiraPay. Refused once `status = 'in_trip'`
+  (trip physically underway) or later. See the file's header comment for
+  the full cancellation-fee/eligibility policy reasoning.
+
 `backend/database/schema.sql` and `backend/database/seed.sql` were **not**
 used as a source and were **not** modified. They describe a schema that
 diverges significantly from what's actually live (separate `wallets` table,

@@ -327,6 +327,42 @@ const DriverHomePage = () => {
     }
   };
 
+  // Guards against a double-click firing two concurrent RPC calls, same
+  // pattern as RidePage.jsx's isCancelling/isCancellingTrip on the customer
+  // side.
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+
+  // Lets the driver cancel a ride they've already accepted but not yet
+  // started (ACCEPTED/PICKING_UP only - the button is hidden once IN_TRIP,
+  // same "can't back out once the trip has actually started" rule as the
+  // customer side). Routes through the same wallet_refund_matched_ride RPC
+  // RidePage.jsx's "Batalkan Perjalanan" uses (see
+  // migrations/0047_cancel_matched_ride_refund_rpc.sql) rather than a plain
+  // status update, so the customer is refunded atomically with the
+  // cancellation if they paid via WiraPay - a driver bailing on an accepted
+  // WiraPay ride must not leave the rider's money stuck. The RPC always
+  // credits the ORDER's customer (never the caller), so this is safe to
+  // call as the driver. Known gap (documented in the migration too): the
+  // order is simply cancelled, not auto-requeued for another nearby driver
+  // - the customer has to book again.
+  const handleCancelOrder = async () => {
+    if (!activeOrder || isCancellingOrder) return;
+    setIsCancellingOrder(true);
+    try {
+      const { error } = await supabase.rpc('wallet_refund_matched_ride', {
+        p_order_id: activeOrder.id,
+        p_description: 'Dibatalkan oleh Driver',
+      });
+      if (error) throw error;
+      toast.success('Pesanan dibatalkan.');
+      setActiveOrder(null);
+    } catch (err) {
+      toast.error(err.message || 'Gagal membatalkan pesanan');
+    } finally {
+      setIsCancellingOrder(false);
+    }
+  };
+
   // Target GPS saat ini tergantung tahap: menuju jemputan (ACCEPTED), sudah
   // di jemputan (PICKING_UP, tidak butuh jarak), atau menuju tujuan (IN_TRIP).
   const getCurrentLegTarget = () => {
@@ -529,6 +565,30 @@ const DriverHomePage = () => {
                   </Button>
                 )}
               </div>
+
+              {/* Batalkan Pesanan - hanya sebelum trip benar-benar dimulai
+                  (ACCEPTED/PICKING_UP). Setelah IN_TRIP, RPC-nya menolak
+                  (lihat migrations/0047) jadi disembunyikan di sini juga.
+                  Dibatasi ke ride/send (bukan food/isFoodDelivery) sengaja -
+                  order food yang sudah diklaim driver berarti merchant
+                  mungkin sudah mulai menyiapkan makanan; membatalkan itu
+                  adalah masalah dispatch/operasional tersendiri yang tidak
+                  dianalisis di sini, jadi scope perubahan ini tetap di
+                  ride/send seperti diminta, bukan diam-diam diperluas ke
+                  food. (Secara uang tetap aman untuk food juga - trigger
+                  payout merchant di migrations/0028 hanya jalan saat status
+                  'completed', tidak pernah tercapai di sini - tapi ini
+                  murni soal scope, bukan soal keamanan.) */}
+              {activeOrder.status !== OrderStatus.IN_TRIP && !isFoodDelivery && (
+                <Button
+                  variant="outline"
+                  disabled={isCancellingOrder}
+                  className="w-full font-bold text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
+                  onClick={handleCancelOrder}
+                >
+                  {isCancellingOrder ? 'Membatalkan...' : 'Batalkan Pesanan'}
+                </Button>
+              )}
             </Card>
           )}
         </div>

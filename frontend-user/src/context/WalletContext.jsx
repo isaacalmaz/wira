@@ -126,8 +126,40 @@ export const WalletProvider = ({ children }) => {
     }
   };
 
+  // Cancels an already-MATCHED ride/send order (status 'accepted' or
+  // 'picking_up' - a driver has already accepted) via the
+  // wallet_refund_matched_ride RPC - see
+  // migrations/0047_cancel_matched_ride_refund_rpc.sql for the full
+  // eligibility/refund-policy reasoning. Distinct from refund() above
+  // (which only covers the pre-match 'pending' case via wallet_refund):
+  // this RPC can be called by either the order's customer OR its assigned
+  // driver, always credits the customer's wallet (never the caller's), and
+  // flips the order to 'cancelled' itself - callers don't need a separate
+  // updateOrderStatus call, even for cash orders (no RLS grant exists for a
+  // customer to update their own matched order directly, so this RPC is
+  // required for the cash case too, not just the WiraPay one).
+  const refundMatchedRide = async (orderId, desc = 'Refund Pembatalan Perjalanan') => {
+    try {
+      const { data, error } = await supabase.rpc('wallet_refund_matched_ride', {
+        p_order_id: orderId,
+        p_description: desc,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Pembatalan gagal.');
+        throw error;
+      }
+
+      await fetchWallet();
+      return data;
+    } catch (err) {
+      console.error('Cancel matched ride failed:', err);
+      throw err;
+    }
+  };
+
   return (
-    <WalletContext.Provider value={{ balance, transactions, transfer, pay, refund }}>
+    <WalletContext.Provider value={{ balance, transactions, transfer, pay, refund, refundMatchedRide }}>
       {children}
     </WalletContext.Provider>
   );
