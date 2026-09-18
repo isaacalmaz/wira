@@ -1,3 +1,4 @@
+import ReviewModal from "../components/common/ReviewModal";
 import { useState } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -23,6 +24,7 @@ export default function ActivityPage() {
   const { orders } = useOrders();
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [reviewingOrder, setReviewingOrder] = useState(null);
 
   // Helper untuk memformat details yang mungkin berisi JSON kordinat map
   const formatOrderDetails = (detailsStr) => {
@@ -230,17 +232,46 @@ export default function ActivityPage() {
                   {formatRupiah(selectedOrder.price)}
                 </span>
               </div>
+
             </div>
+
+            {selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name && (
+              <Button
+                className="w-full py-2.5 font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={() => {
+                  setReviewingOrder(selectedOrder);
+                  setSelectedOrder(null);
+                }}
+              >
+                ⭐ Beri Ulasan & Tip
+              </Button>
+            )}
 
             <Button
               className="w-full py-2.5 font-bold text-xs"
               onClick={() => setSelectedOrder(null)}
+
             >
               Tutup Rincian
             </Button>
           </div>
+
         </div>
+      )}
+
+      {reviewingOrder && (
+        <ReviewModal 
+          order={reviewingOrder} 
+          onClose={() => setReviewingOrder(null)}
+          onSuccess={() => {
+            // Optimistically update order context is ideal, 
+            // but for now it'll fetch again on next mount/socket
+            setReviewingOrder(null);
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );
 }
+

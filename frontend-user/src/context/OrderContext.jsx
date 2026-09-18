@@ -35,12 +35,17 @@ export const OrderProvider = ({ children }) => {
       date: new Date(o.created_at || Date.now()).toLocaleDateString('id-ID'),
       status: formattedStatus,
       price: o.total_price || 0,
+
       rawStatus: o.status,
       details: o.details,
       driver_name: o.driver_name,
+      driver_id: o.driver_id,
+      merchant_id: o.merchant_id,
+      is_reviewed: o.is_reviewed,
       ...o
     };
   };
+
 
   useEffect(() => {
     const abortController = new AbortController();
