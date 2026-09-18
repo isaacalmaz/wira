@@ -704,9 +704,6 @@ export default function WalletPage() {
                     <X size={14} />
                     <span>Batalkan Permintaan Top Up Ini</span>
                   </button>
-                )}
-              </>
-            )}
           </div>
         </div>
       )}

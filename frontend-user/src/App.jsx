@@ -17,6 +17,8 @@ const WalletPage = lazy(() => import('./pages/WalletPage'));
 const FoodPage = lazy(() => import('./pages/FoodPage'));
 const RestaurantPage = lazy(() => import('./pages/RestaurantPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const SavedAddressesPage = lazy(() => import('./pages/SavedAddressesPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const OTPPage = lazy(() => import('./pages/OTPPage'));
@@ -60,6 +62,8 @@ export default function Root() {
                             <Route path="/food" element={<FoodPage />} />
                             <Route path="/restaurant/:id" element={<RestaurantPage />} />
                             <Route path="/profile" element={<ProfilePage />} />
+                            <Route path="/profile/edit" element={<EditProfilePage />} />
+                            <Route path="/profile/addresses" element={<SavedAddressesPage />} />
                             <Route path="/notifications" element={<NotificationsPage />} />
                             <Route path="/activity" element={<ActivityPage />} />
                             <Route path="/send" element={<SendPage />} />
@@ -69,7 +73,6 @@ export default function Root() {
                             <Route path="/pool" element={<PoolPage />} />
                             
                             {/* Legal & Bantuan */}
-                            <Route path="/support" element={<SupportPage />} />
                             <Route path="/contact" element={<ContactPage />} />
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/refund" element={<RefundPage />} />
