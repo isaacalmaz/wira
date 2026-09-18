@@ -6,12 +6,20 @@ node_modules/
 dist/
 */dist/
 
-# Environment files
+# Environment files - any .env.* variant, anywhere in the tree, except the
+# checked-in .env.example template. Broadened after backend/.env.firebase (a
+# real Firebase Admin service-account private key) was committed to this
+# public repo on 2026-09-17 - the old patterns below only matched .env.local
+# and .env.*.local, not a plain .env.firebase.
 .env
 .env.local
 .env.*.local
+.env.firebase
 */.env
 */.env.local
+*/.env.firebase
+**/.env.*
+!**/.env.example
 
 # OS files
 .DS_Store
