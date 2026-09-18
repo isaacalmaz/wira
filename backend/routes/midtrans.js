@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const midtransClient = require('midtrans-client');
-const { supabaseAdmin } = require('../database/supabase');
+const supabaseAdmin = require('../config/supabase');
 
 // Initialize Snap Client
 // The server key should ideally come from env vars. We'll use a placeholder/env.

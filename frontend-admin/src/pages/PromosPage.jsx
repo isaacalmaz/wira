@@ -21,81 +21,25 @@ const PromosPage = () => {
     status: 'Active'
   });
 
-  const fetchPromos = async () => {
+    const fetchPromos = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('feature_flags')
+        .from('promos')
         .select('*')
-        .eq('region', 'promos_catalog')
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data && Array.isArray(data.features)) {
-        setPromos(data.features);
-      } else {
-        setPromos([]);
-      }
+      if (error) throw error;
+      setPromos(data || []);
     } catch (err) {
       console.error('Error fetching promos:', err);
-      const cached = localStorage.getItem('wira_promos_catalog');
-      if (cached) {
-        setPromos(JSON.parse(cached));
-      } else {
-        setPromos([]);
-      }
+      toast.error('Gagal memuat promo');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchPromos();
-  }, []);
 
-  const savePromosToCloud = async (updated) => {
-    setPromos(updated);
-    localStorage.setItem('wira_promos_catalog', JSON.stringify(updated));
-
-    try {
-      await supabase
-        .from('feature_flags')
-        .upsert({
-          region: 'promos_catalog',
-          features: updated,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'region' });
-    } catch (err) {
-      console.warn('Could not sync promos with cloud:', err);
-    }
-  };
-
-  const handleOpenAdd = () => {
-    setSelectedPromo(null);
-    setFormData({
-      title: '',
-      code: '',
-      type: 'Percentage',
-      discount: '20',
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'Active'
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (promo) => {
-    setSelectedPromo(promo);
-    setFormData({
-      title: promo.title,
-      code: promo.code,
-      type: promo.type,
-      discount: String(promo.discount),
-      validUntil: promo.validUntil || '',
-      status: promo.status
-    });
-    setIsModalOpen(true);
-  };
 
   const handleSavePromo = async (e) => {
     e.preventDefault();
