@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Gift } from 'lucide-react';
 import { Card } from '../../components/shared/UIComponents';
 import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
@@ -16,6 +17,33 @@ const DriverEarningsPage = () => {
   const [earningsData, setEarningsData] = useState([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);
+
+  // Tips (migrations/0039/0041's submit_review_and_tip) land in
+  // wallet_balance, NOT payable_balance - they're WiraPay spending balance,
+  // separate from the order-completion payout PayoutPanel already shows.
+  // Nothing in frontend-mitra read wallet_balance/transactions at all
+  // before this, so a driver had no way to even know a tip arrived.
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [recentTips, setRecentTips] = useState([]);
+
+  useEffect(() => {
+    const fetchWalletAndTips = async () => {
+      if (!user) return;
+      const [{ data: userRow }, { data: txRows }] = await Promise.all([
+        supabase.from('users').select('wallet_balance').eq('id', user.id).single(),
+        supabase
+          .from('transactions')
+          .select('id, amount, description, created_at')
+          .eq('user_id', user.id)
+          .eq('type', 'transfer_in')
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
+      if (userRow) setWalletBalance(Number(userRow.wallet_balance) || 0);
+      if (txRows) setRecentTips(txRows);
+    };
+    fetchWalletAndTips();
+  }, [user]);
 
   useEffect(() => {
     const fetchEarnings = async () => {
@@ -91,6 +119,31 @@ const DriverEarningsPage = () => {
             <Bar dataKey="amount" fill="#0891B2" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </Card>
+
+      {/* Saldo WiraPay & Tip dari Pelanggan */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Gift size={18} className="text-primary" /> Saldo WiraPay & Tip
+          </h3>
+          <span className="font-bold text-primary">Rp {walletBalance.toLocaleString('id-ID')}</span>
+        </div>
+        {recentTips.length === 0 ? (
+          <p className="text-sm text-slate-500">Belum ada tip dari pelanggan.</p>
+        ) : (
+          <div className="space-y-2">
+            {recentTips.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between text-sm border-b border-slate-100 dark:border-slate-700 last:border-0 pb-2 last:pb-0">
+                <div>
+                  <p className="text-slate-700 dark:text-slate-300">{tx.description || 'Tip dari Pelanggan'}</p>
+                  <p className="text-xs text-slate-400">{new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                </div>
+                <span className="font-bold text-green-600">+Rp {Number(tx.amount).toLocaleString('id-ID')}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <PayoutPanel />

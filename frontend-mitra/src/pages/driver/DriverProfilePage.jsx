@@ -28,15 +28,22 @@ const DriverProfilePage = () => {
     };
     
     const fetchReviews = async () => {
+      // Reads from public.reviews (migrations/0039/0041) - the single
+      // canonical review/rating table, written by both RidePage.jsx's
+      // immediate post-trip prompt and Aktivitas/ReviewModal.jsx, so every
+      // rating a customer gives actually shows up here. The older
+      // public.driver_reviews table (migrations/0034) is deprecated and
+      // was confirmed to hold 0 rows when this was switched over - nothing
+      // to backfill.
       const { data, error } = await supabase
-        .from('driver_reviews')
+        .from('reviews')
         .select(`
-          id, rating, comment, created_at,
-          customer:users!driver_reviews_customer_id_fkey(name)
+          id, rating, review_text, created_at,
+          customer:users!reviews_user_id_fkey(name)
         `)
         .eq('driver_id', user?.id)
         .order('created_at', { ascending: false });
-        
+
       if (data && !error) {
         setReviews(data);
         if (data.length > 0) {
@@ -111,9 +118,9 @@ const DriverProfilePage = () => {
                   {rev.rating}
                 </div>
               </div>
-              {rev.comment && (
+              {rev.review_text && (
                 <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg italic">
-                  "{rev.comment}"
+                  "{rev.review_text}"
                 </p>
               )}
               <p className="text-[10px] text-slate-400 mt-2 text-right">

@@ -35,6 +35,10 @@ export default function RidePage() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('WiraPay'); // 'WiraPay' or 'Tunai'
   const [rating, setRating] = useState(5);
+  // Guards the "Batalkan Pencarian" button against a double-click firing two
+  // concurrent refund() calls - see migrations/0040_wallet_refund_rpc.sql
+  // for the matching server-side idempotency guard.
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Status perjalanan aktif
   const [tripStage, setTripStage] = useState(0); 
@@ -627,22 +631,34 @@ export default function RidePage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-500 border-red-200 hover:bg-red-50"
+              disabled={isCancelling}
+              className="text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
               onClick={async () => {
+                if (isCancelling) return; // guard against a double-click firing two concurrent refund() calls
+                setIsCancelling(true);
                 try {
-                  if (paymentMethod === 'WiraPay' && selectedVehicle) {
-                    await refund(selectedVehicle.price, 'Refund Batal WiraRide');
-                  }
-                  if (activeOrderId) {
+                  if (paymentMethod === 'WiraPay' && activeOrderId) {
+                    // wallet_refund now takes the order id and computes the
+                    // refund amount server-side from orders.total_price
+                    // (which already reflects any promo discount applied at
+                    // booking time via finalPrice/calculateFinalPrice) -
+                    // see migrations/0040_wallet_refund_rpc.sql. It also
+                    // marks the order 'cancelled' itself, atomically with
+                    // the credit, so the updateOrderStatus call below is
+                    // only needed for the cash-payment path.
+                    await refund(activeOrderId, 'Refund Batal WiraRide');
+                  } else if (activeOrderId) {
                     await updateOrderStatus(activeOrderId, 'cancelled');
                   }
                   setStep('vehicle');
                 } catch (err) {
                   toast.error(`Gagal membatalkan: ${err.message}`);
+                } finally {
+                  setIsCancelling(false);
                 }
               }}
             >
-              Batalkan Pencarian
+              {isCancelling ? 'Membatalkan...' : 'Batalkan Pencarian'}
             </Button>
           </div>
         )}
@@ -776,17 +792,30 @@ export default function RidePage() {
             <Button
               className="w-full py-3 font-bold"
               onClick={async () => {
-                if (rating > 0 && assignedDriverId) {
+                if (rating > 0 && assignedDriverId && activeOrderId) {
                   const comment = document.getElementById('reviewComment')?.value || '';
-                  const { error } = await supabase.from('driver_reviews').insert({
-                    order_id: activeOrderId,
-                    driver_id: assignedDriverId,
-                    customer_id: user.id,
-                    rating: rating,
-                    comment: comment
+                  // Writes through the same submit_review_and_tip RPC as
+                  // ActivityPage/ReviewModal.jsx instead of inserting into
+                  // the old, disconnected driver_reviews table - keeps this
+                  // immediate post-trip prompt as one of two entry points
+                  // into ONE review system (public.reviews), so a rating
+                  // given here also sets orders.is_reviewed and actually
+                  // counts toward the driver's displayed average rating.
+                  // No tip field in this quick prompt (ReviewModal already
+                  // offers that from Aktivitas), so tip amount is always 0.
+                  const { error } = await supabase.rpc('submit_review_and_tip', {
+                    p_order_id: activeOrderId,
+                    p_rating: rating,
+                    p_review_text: comment,
+                    p_tip_amount: 0,
                   });
                   if (!error) {
                     toast.success('Terima kasih atas penilaian Anda!');
+                  } else if (error.message?.includes('already been reviewed')) {
+                    // Already reviewed via Aktivitas/ReviewModal in the
+                    // meantime - not an error from the customer's POV.
+                  } else {
+                    toast.error(error.message || 'Gagal mengirim ulasan');
                   }
                 }
                 setStep('input');

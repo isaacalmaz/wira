@@ -100,11 +100,16 @@ export const WalletProvider = ({ children }) => {
     }
   };
 
-  const refund = async (amount, desc = 'Refund Layanan') => {
-    const numAmount = Number(amount);
+  // Takes the order id (not a raw amount) so the RPC can verify server-side
+  // that this order actually belongs to the caller and is still in a
+  // refundable state - see migrations/0040_wallet_refund_rpc.sql. This also
+  // makes the call naturally idempotent: a second call against the same
+  // order (e.g. a double-click) is rejected by the RPC instead of crediting
+  // twice.
+  const refund = async (orderId, desc = 'Refund Layanan') => {
     try {
       const { data, error } = await supabase.rpc('wallet_refund', {
-        p_amount: numAmount,
+        p_order_id: orderId,
         p_description: desc,
       });
 
