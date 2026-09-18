@@ -172,11 +172,23 @@ export default function WalletPage() {
     try {
       // Panggil backend API kita (asumsikan backend berjalan di URL/Port yang sesuai, untuk dev bisa localhost:5000)
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+      // /api/midtrans/charge now requires a valid Supabase session (it
+      // derives the authenticated user server-side instead of trusting a
+      // client-supplied user_id) - attach the access token the same way the
+      // backend's auth middleware expects it everywhere else.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Sesi login tidak ditemukan, silakan login ulang');
+      }
+
       const response = await fetch(`${apiUrl}/api/midtrans/charge`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
-          user_id: user.id,
           amount: baseAmount,
           customer_name: user.name || 'Wira User',
           customer_email: user.email || 'user@wira.com',
