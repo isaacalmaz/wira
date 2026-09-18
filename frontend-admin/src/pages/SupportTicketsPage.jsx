@@ -42,12 +42,20 @@ export default function SupportTicketsPage() {
         updates.admin_response = response;
       }
       
-      const { error } = await supabase
+      // Chain .select() and check the returned row count — under RLS, an
+      // update blocked by policy returns { error: null, data: [] } (0 rows
+      // affected), which looks identical to success unless checked. See
+      // migrations/0040_support_tickets_admin_update_rls.sql.
+      const { data, error } = await supabase
         .from('support_tickets')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Akses ditolak atau tiket tidak ditemukan (0 baris diperbarui).');
+      }
       toast.success('Status tiket berhasil diperbarui');
       
       if (selectedTicket && selectedTicket.id === id) {

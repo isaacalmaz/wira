@@ -4,13 +4,28 @@ import { toast } from 'react-hot-toast';
 import { Users, Car, Store, ArrowUpRight, TrendingUp, DollarSign, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 
+// Platform commission on every completed order — 20%, mitras (merchant+driver
+// combined, or driver alone for non-food services) keep the other 80%. This
+// must match `credit_payout_on_order_completed()` in
+// migrations/0028_mitra_payout_system.sql exactly, or this dashboard and the
+// real payout ledger will disagree about how much Wira actually earns.
+// For a food order (merchant_id set): platform keeps 20% of total_price
+// (merchant gets 80% of total_price-delivery_fee, driver gets 80% of
+// delivery_fee — together that's 80% of total_price either way).
+// For a non-food order (merchant_id null): platform keeps 20% of
+// total_price, driver keeps the other 80%.
+// So the commission is a flat 20% of total_price for every completed order,
+// regardless of service type.
+const PLATFORM_COMMISSION_RATE = 0.20;
+
 const DashboardPage = () => {
   const [stats, setStats] = useState({
     users: 0,
     drivers: 0,
     merchants: 0,
     transactions: 0,
-    revenue: 0
+    revenue: 0,
+    gmv: 0
   });
   
   const [chartData, setChartData] = useState([]);
@@ -25,7 +40,7 @@ const DashboardPage = () => {
           supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
           supabase.from('users').select('*'),
           supabase.from('merchants').select('*', { count: 'exact', head: true }),
-          supabase.from('orders').select('total_price, status, created_at, type')
+          supabase.from('orders').select('total_price, status, created_at, service_type')
         ]);
 
         if (usersRes.error) throw usersRes.error;
@@ -47,14 +62,20 @@ const DashboardPage = () => {
           return false;
         }).length : 0;
 
-        const totalRev = completedOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
-        
+        // GMV = raw gross transaction value (what customers paid). Real
+        // platform income is only the 20% commission — see
+        // PLATFORM_COMMISSION_RATE above — summing raw total_price and
+        // calling it "Pendapatan" overstates actual platform revenue ~5x.
+        const totalGMV = completedOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+        const totalRev = totalGMV * PLATFORM_COMMISSION_RATE;
+
         setStats({
           users: users || 0,
           drivers: drivers || 0,
           merchants: merchants || 0,
           transactions: completedOrders.length,
-          revenue: totalRev
+          revenue: totalRev,
+          gmv: totalGMV
         });
 
         // Generate Chart Data (Last 7 Days)
@@ -66,17 +87,17 @@ const DashboardPage = () => {
 
         const dailyRevenue = last7Days.map(date => {
           const dayOrders = completedOrders.filter(o => o.created_at && o.created_at.startsWith(date));
-          const rev = dayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+          const dayGMV = dayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
           return {
             name: new Date(date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
-            Pendapatan: rev
+            Pendapatan: dayGMV * PLATFORM_COMMISSION_RATE
           };
         });
         setChartData(dailyRevenue);
 
         // Service Type Data
-        const rideCount = allOrders.filter(o => o.type === 'ride').length;
-        const foodCount = allOrders.filter(o => o.type === 'food').length;
+        const rideCount = allOrders.filter(o => o.service_type === 'ride').length;
+        const foodCount = allOrders.filter(o => o.service_type === 'food').length;
         
         setServiceData([
           { name: 'WiraRide', Pesanan: rideCount, fill: '#3b82f6' },
@@ -105,11 +126,12 @@ const DashboardPage = () => {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Total Pengguna" value={stats.users} icon={<Users size={20} />} trend="Aktif" color="blue" />
         <StatCard title="Total Driver" value={stats.drivers} icon={<Car size={20} />} trend="Aktif" color="indigo" />
         <StatCard title="Total Merchant" value={stats.merchants} icon={<Store size={20} />} trend="Aktif" color="amber" />
         <StatCard title="Transaksi Berhasil" value={stats.transactions} icon={<Activity size={20} />} trend="Selesai" color="emerald" />
+        <StatCard title="Volume Transaksi (GMV)" value={stats.gmv} icon={<TrendingUp size={20} />} trend="Kotor" color="rose" isCurrency />
       </div>
 
       {/* Charts Row */}
@@ -118,8 +140,9 @@ const DashboardPage = () => {
         <div className="card lg:col-span-2">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-lg font-bold">Total Pendapatan (7 Hari Terakhir)</h2>
+              <h2 className="text-lg font-bold">Pendapatan Platform (Komisi 20%)</h2>
               <p className="text-2xl font-extrabold text-slate-800 dark:text-white mt-1">Rp {stats.revenue.toLocaleString('id-ID')}</p>
+              <p className="text-xs text-slate-400 mt-0.5">dari Rp {stats.gmv.toLocaleString('id-ID')} volume transaksi (GMV)</p>
             </div>
             <div className="p-2 bg-green-100 text-green-700 rounded-lg"><DollarSign size={20}/></div>
           </div>
@@ -134,8 +157,8 @@ const DashboardPage = () => {
                   tick={{ fontSize: 12, fill: '#64748b' }}
                   tickFormatter={(val) => `Rp ${val/1000}k`}
                 />
-                <RechartsTooltip 
-                  formatter={(value) => ['Rp ' + value.toLocaleString('id-ID'), 'Pendapatan']}
+                <RechartsTooltip
+                  formatter={(value) => ['Rp ' + value.toLocaleString('id-ID'), 'Komisi Platform']}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Line type="monotone" dataKey="Pendapatan" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
@@ -167,12 +190,13 @@ const DashboardPage = () => {
   );
 };
 
-const StatCard = ({ title, value, icon, trend, color }) => {
+const StatCard = ({ title, value, icon, trend, color, isCurrency }) => {
   const colorMap = {
     blue: 'bg-blue-100 text-blue-600',
     indigo: 'bg-indigo-100 text-indigo-600',
     amber: 'bg-amber-100 text-amber-600',
     emerald: 'bg-emerald-100 text-emerald-600',
+    rose: 'bg-rose-100 text-rose-600',
   };
 
   return (
@@ -187,7 +211,7 @@ const StatCard = ({ title, value, icon, trend, color }) => {
       </div>
       <div>
         <h3 className="text-sm font-medium text-slate-500 mb-1">{title}</h3>
-        <h4 className="text-2xl font-bold text-slate-800 dark:text-white">{value.toLocaleString('id-ID')}</h4>
+        <h4 className="text-2xl font-bold text-slate-800 dark:text-white">{isCurrency ? `Rp ${value.toLocaleString('id-ID')}` : value.toLocaleString('id-ID')}</h4>
       </div>
     </div>
   );
