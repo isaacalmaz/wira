@@ -12,6 +12,18 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    
+    // Auto-reload once if the error is a missing chunk (common on Vercel after new deploys)
+    const isChunkLoadError = error?.name === 'ChunkLoadError' || 
+      (error?.message && error.message.includes('Failed to fetch dynamically imported module'));
+      
+    if (isChunkLoadError) {
+      if (!sessionStorage.getItem('chunk_reloaded')) {
+        sessionStorage.setItem('chunk_reloaded', 'true');
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   render() {
@@ -23,9 +35,14 @@ export default class ErrorBoundary extends React.Component {
               ⚠️
             </div>
             <h1 className="text-xl font-black text-slate-900 mb-2">Terjadi Sedikit Kendala</h1>
-            <p className="text-sm text-slate-500 mb-6">
+            <p className="text-sm text-slate-500 mb-2">
               Aplikasi mengalami kendala saat memuat data. Silakan muat ulang halaman.
             </p>
+            {this.state.error && (
+              <div className="text-xs text-left text-red-500 bg-red-50 p-2 rounded mb-4 overflow-auto max-h-32">
+                {this.state.error.toString()}
+              </div>
+            )}
             <button
               onClick={() => {
                 this.setState({ hasError: false });

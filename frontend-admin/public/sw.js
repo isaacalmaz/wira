@@ -15,7 +15,8 @@
 const CACHE_NAME = 'wira-admin-cache-v1';
 const urlsToCache = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/manifest.json'
 ];
 
 // Install Service Worker
