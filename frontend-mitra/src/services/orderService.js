@@ -429,11 +429,10 @@ function isWithinNearbyRadius(order, getDriverPos) {
  * a `() => {lat, lng} | null` used to filter out-of-radius orders - see
  * isWithinNearbyRadius. `driver` (the logged-in driver's own {vehicle_type,
  * job_type_preferences}) is run through isOrderEligibleForDriver - the same
- * Option B eligibility function fetchPendingOrders uses - for BOTH the
- * INSERT listener (new ride/send orders) and the UPDATE listener (a food
- * order the merchant just marked ready), so a driver who has toggled a job
- * type off, or a mobil driver food/small-package-send is never eligible for,
- * never sees it appear here either.
+ * Option B eligibility function fetchPendingOrders uses - for every branch
+ * below, so a driver who has toggled a job type off, or a mobil driver
+ * food/small-package-send is never eligible for, never sees it appear here
+ * either.
  */
 export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null, driver = null) {
   const channel = supabaseClient
@@ -453,17 +452,40 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
       }
     )
     .on(
-      // A food order becomes a driver-visible job on an UPDATE (merchant
-      // marking it ready), not an INSERT - it already existed as a
-      // merchant-only order before this point.
+      // Two distinct "this order just became visible again" cases share one
+      // UPDATE listener, since both are an existing row changing, never a
+      // new INSERT: (1) a food order the merchant just marked ready
+      // (READY, unchanged from before), and (2) a ride/send order whose
+      // driver just cancelled - wallet_refund_matched_ride's driver branch
+      // (migrations/0048_driver_cancel_requeues_ride.sql) resets it to
+      // PENDING/driver_id=NULL instead of CANCELLED, specifically so it
+      // reaches this same eligibility/matching machinery a second time.
+      // Without this, only the 10s polling fallback (checkPendingOrders in
+      // DriverHomePage.jsx) would ever pick up case (2) - confirmed by
+      // reading this subscription before this migration: it only had an
+      // INSERT listener plus this narrower READY-only UPDATE listener,
+      // neither of which would have matched a same-row PENDING update.
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'orders' },
       (payload) => {
         const order = payload.new;
+        if (!order || order.driver_id) return;
+
+        const isReadyFoodDelivery =
+          order.status === OrderStatus.READY &&
+          FOOD_DELIVERY_SERVICE_TYPES.includes(order.service_type);
+        if (isReadyFoodDelivery && isOrderEligibleForDriver(order, driver)) {
+          onOrder(order);
+          return;
+        }
+
+        const isRequeuedRideOrSend =
+          order.status === OrderStatus.PENDING &&
+          (RIDE_SERVICE_TYPES.includes(order.service_type) || SEND_SERVICE_TYPES.includes(order.service_type));
         if (
-          order && order.status === OrderStatus.READY && !order.driver_id &&
-          FOOD_DELIVERY_SERVICE_TYPES.includes(order.service_type) &&
-          isOrderEligibleForDriver(order, driver)
+          isRequeuedRideOrSend &&
+          isOrderEligibleForDriver(order, driver) &&
+          isWithinNearbyRadius(order, getDriverPos)
         ) {
           onOrder(order);
         }

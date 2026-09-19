@@ -338,13 +338,15 @@ const DriverHomePage = () => {
   // customer side). Routes through the same wallet_refund_matched_ride RPC
   // RidePage.jsx's "Batalkan Perjalanan" uses (see
   // migrations/0047_cancel_matched_ride_refund_rpc.sql) rather than a plain
-  // status update, so the customer is refunded atomically with the
-  // cancellation if they paid via WiraPay - a driver bailing on an accepted
-  // WiraPay ride must not leave the rider's money stuck. The RPC always
-  // credits the ORDER's customer (never the caller), so this is safe to
-  // call as the driver. Known gap (documented in the migration too): the
-  // order is simply cancelled, not auto-requeued for another nearby driver
-  // - the customer has to book again.
+  // status update, so this stays one consistent code path for both sides.
+  // As of migrations/0048_driver_cancel_requeues_ride.sql, a DRIVER calling
+  // this RPC no longer just cancels the order outright - it resets it to
+  // pending/driver_id=NULL so another nearby driver can pick it up, and the
+  // customer's payment (if any) is left exactly as-is rather than refunded
+  // (see that migration's header for the full reasoning: the ride isn't
+  // actually cancelled, just re-matching). RidePage.jsx's realtime handler
+  // picks up that status change on the customer's side and shows them a
+  // "searching for a new driver" state instead of a dead order.
   const handleCancelOrder = async () => {
     if (!activeOrder || isCancellingOrder) return;
     setIsCancellingOrder(true);
@@ -354,7 +356,7 @@ const DriverHomePage = () => {
         p_description: 'Dibatalkan oleh Driver',
       });
       if (error) throw error;
-      toast.success('Pesanan dibatalkan.');
+      toast.success('Pesanan dibatalkan, dicarikan driver lain untuk penumpang.');
       setActiveOrder(null);
     } catch (err) {
       toast.error(err.message || 'Gagal membatalkan pesanan');

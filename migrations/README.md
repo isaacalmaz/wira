@@ -48,6 +48,23 @@ this `migrations/` folder is complete and correct.
   (trip physically underway) or later. See the file's header comment for
   the full cancellation-fee/eligibility policy reasoning.
 
+- **`0048_driver_cancel_requeues_ride.sql`** (2026-09-19) — re-creates
+  `wallet_refund_matched_ride()` from 0047 so a DRIVER-initiated
+  cancellation re-opens the order (`status = 'pending'`, `driver_id = NULL`)
+  instead of destroying it (`status = 'cancelled'`), closing 0047's own
+  documented "known gap". Customer-initiated cancellation is unchanged
+  (still full cancel + refund). The driver-cancel/requeue branch
+  deliberately leaves `payment_status`/`wallet_balance` untouched — payment
+  already happens up front at booking time, before any driver match, so a
+  requeued order is simply returned to the exact paid-and-pending state it
+  was already in before its first driver ever accepted; refunding here with
+  no matching re-pay step anywhere in the accept flow would let a second
+  driver complete an unpaid trip. See the file's header for the full
+  reasoning, and `frontend-mitra/src/services/orderService.js`'s
+  `subscribeToDriverOrders` (extended in the same commit) for how a
+  requeued ride/send order reaches other drivers' realtime subscriptions,
+  not just the 10s polling fallback.
+
 `backend/database/schema.sql` and `backend/database/seed.sql` were **not**
 used as a source and were **not** modified. They describe a schema that
 diverges significantly from what's actually live (separate `wallets` table,

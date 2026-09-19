@@ -17,10 +17,12 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
+import { fetchCoordinates } from '../utils/osmHelpers';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import API_BASE_URL from '../config/api';
 
 export default function SendPage() {
   const { balance, pay } = useWallet();
@@ -32,6 +34,13 @@ export default function SendPage() {
   const [loading, setLoading] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx's
+  // handleCheckPromo/activePromo/calculateFinalPrice.
+  const [promoCode, setPromoCode] = useState('');
+  const [activePromo, setActivePromo] = useState(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
 
   // Form State
   const [senderName, setSenderName] = useState('');
@@ -55,6 +64,48 @@ export default function SendPage() {
   ];
 
   const currentPkg = packages.find((p) => p.id === selectedPackage) || packages[1];
+
+  const handleCheckPromo = async () => {
+    if (!promoCode.trim()) return;
+    setCheckingPromo(true);
+    setPromoError('');
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single();
+
+      if (error || !data) throw new Error('Kode promo tidak ditemukan');
+      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
+      if (data.service_type && data.service_type !== 'send') throw new Error('Promo tidak berlaku untuk layanan ini');
+
+      setActivePromo(data);
+      toast.success('Promo berhasil digunakan!');
+    } catch (err) {
+      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setActivePromo(null);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
+  };
+
+  const calculateFinalPrice = () => {
+    const basePrice = currentPkg.price;
+    if (!activePromo) return basePrice;
+    if (activePromo.type === 'Percentage') {
+      const discount = (basePrice * activePromo.discount) / 100;
+      return Math.max(0, basePrice - discount);
+    }
+    return Math.max(0, basePrice - activePromo.discount);
+  };
 
   // Efek Real-time untuk mendengarkan perubahan status kurir
   useEffect(() => {
@@ -106,7 +157,8 @@ export default function SendPage() {
       return;
     }
 
-    if (paymentMethod === 'WiraPay' && balance < currentPkg.price) {
+    const finalPrice = calculateFinalPrice();
+    if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error('Saldo WiraPay Anda tidak mencukupi');
       return;
     }
@@ -115,8 +167,64 @@ export default function SendPage() {
     try {
       const resi = 'WRS-' + Math.floor(100000 + Math.random() * 900000);
 
+      // Best-effort geocode of the pickup address so nearby couriers can be
+      // notified (mirrors RestaurantPage.jsx geocoding a merchant's address)
+      // - SendPage previously had no coordinates at all, only free-text
+      // addresses. A failed/empty geocode just means no nearby-courier
+      // notification fires below; it must never block the booking itself.
+      let pickupLat = null;
+      let pickupLng = null;
+      let dropoffLat = null;
+      let dropoffLng = null;
+      try {
+        const [pickupCoords, dropoffCoords] = await Promise.all([
+          fetchCoordinates(senderAddress),
+          fetchCoordinates(receiverAddress),
+        ]);
+        if (pickupCoords) {
+          pickupLat = pickupCoords.lat;
+          pickupLng = pickupCoords.lng;
+        }
+        if (dropoffCoords) {
+          dropoffLat = dropoffCoords.lat;
+          dropoffLng = dropoffCoords.lng;
+        }
+      } catch (geoErr) {
+        console.error('Gagal geocode alamat WiraSend:', geoErr);
+      }
+
+      // Nearest-driver lookup, reused as the notification fan-out target the
+      // same way RidePage.jsx does. NOTE on eligibility: not every driver
+      // can take a Send job (migrations/0033 - requires 'send' in
+      // job_type_preferences, and for a 'mobil' driver additionally
+      // package_size IN ('sedang','besar')). get_nearest_drivers only
+      // filters by vehicle type/online status, not job-type preferences, so
+      // this can notify some drivers who aren't actually eligible to claim
+      // this particular Send job. A proper client-side eligibility filter
+      // was considered (querying users.job_type_preferences for the nearby
+      // ids) but public.users' RLS (migrations/0025/0026) only lets a
+      // customer read a driver's row once that driver is actually assigned
+      // to one of their orders - it can't be read for an unmatched nearby
+      // candidate without a new SECURITY DEFINER RPC, which is out of scope
+      // tonight. Per the task's own guidance this is low-severity noise (an
+      // ineligible driver just can't claim it), so option (a) - notify
+      // plain nearest drivers - is used here, same as Ride.
+      let nearbyDrivers = [];
+      if (pickupLat != null && pickupLng != null) {
+        const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
+          user_lat: pickupLat,
+          user_lng: pickupLng,
+          target_vehicle_type: null,
+          only_online: true,
+          max_results: 5,
+        });
+        nearbyDrivers = nearby || [];
+      }
+
+      // Debit up-front, same reasoning as Ride/Food: don't depend on the tab
+      // staying open until completion to actually charge the customer.
       if (paymentMethod === 'WiraPay') {
-        await pay(currentPkg.price, `WiraSend Paket ke ${receiverName}`);
+        await pay(finalPrice, `WiraSend Paket ke ${receiverName}`);
       }
 
       const order = await addOrder({
@@ -124,13 +232,48 @@ export default function SendPage() {
         serviceType: 'send',
         title: `Kirim Paket ke ${receiverName}`,
         details: `No. Resi: ${resi} • ${currentPkg.name} (${senderAddress} ➔ ${receiverAddress})`,
-        price: currentPkg.price,
+        price: finalPrice,
         status: 'pending',
         paymentMethod: paymentMethod,
         packageSize: selectedPackage,
+        pickupLat,
+        pickupLng,
+        dropoffLat,
+        dropoffLng,
       });
 
+      // Only counted as "used" once the order actually exists - see
+      // migrations/0046's increment_promo_usage.
+      if (activePromo?.id) {
+        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
+          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
+        });
+      }
+
       if (order?.id) setActiveOrderId(order.id);
+
+      // Best-effort nearby-courier push, fired only after the order exists,
+      // never blocking or surfacing an error to the customer's booking flow.
+      if (nearbyDrivers.length > 0 && order?.id) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.access_token) return;
+          nearbyDrivers.forEach((d) => {
+            fetch(`${API_BASE_URL}/notifications/order-alert`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                userId: d.id,
+                title: 'Pesanan WiraSend Baru!',
+                body: `Ada paket ${currentPkg.name} menunggu dijemput di dekat Anda.`,
+                data: { orderId: order.id, type: 'new_send_order' },
+              }),
+            }).catch((err) => console.error('order-alert (nearby courier) failed:', err));
+          });
+        });
+      }
 
       setTrackingData({
         resi: resi,
@@ -141,9 +284,10 @@ export default function SendPage() {
         from: senderAddress,
         to: receiverAddress,
         pkgName: currentPkg.name,
-        price: currentPkg.price,
+        price: finalPrice,
       });
 
+      handleRemovePromo(); // don't let a used promo silently discount the next Send order
       setStep('tracking');
       setDeliveryStage(0);
       toast.success('Mencari kurir terdekat...');
@@ -280,6 +424,46 @@ export default function SendPage() {
             </div>
           </Card>
 
+          {/* Kode Promo */}
+          <Card className="p-4 border border-slate-200 dark:border-slate-700 space-y-2">
+            {activePromo ? (
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-green-600 dark:text-green-400">
+                  Promo "{activePromo.code}" diterapkan
+                </span>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-red-500 font-semibold"
+                  onClick={handleRemovePromo}
+                >
+                  Hapus
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Kode Promo (opsional)"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-xs px-3"
+                  onClick={handleCheckPromo}
+                  disabled={checkingPromo || !promoCode.trim()}
+                >
+                  {checkingPromo ? '...' : 'Pakai'}
+                </Button>
+              </div>
+            )}
+            {promoError && (
+              <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+            )}
+          </Card>
+
           {/* Metode Pembayaran */}
           <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
             <div>
@@ -316,12 +500,19 @@ export default function SendPage() {
             </div>
           </div>
 
+          {activePromo && (
+            <div className="flex justify-between items-center text-xs px-1">
+              <span className="text-slate-500">Harga Paket:</span>
+              <span className="text-slate-500 line-through">{formatRupiah(currentPkg.price)}</span>
+            </div>
+          )}
+
           <Button
             type="submit"
             className="w-full py-3.5 text-sm font-bold shadow-lg"
             disabled={loading}
           >
-            {loading ? 'Memesan Kurir...' : `Pesan Kurir Sekarang • ${formatRupiah(currentPkg.price)}`}
+            {loading ? 'Memesan Kurir...' : `Pesan Kurir Sekarang • ${formatRupiah(calculateFinalPrice())}`}
           </Button>
         </form>
       ) : (

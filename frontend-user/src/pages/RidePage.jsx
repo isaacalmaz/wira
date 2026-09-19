@@ -419,6 +419,74 @@ export default function RidePage() {
           else if (newStatus === 'completed') {
             handleCompleteTrip();
           }
+          else if (newStatus === 'pending' && !payload.new.driver_id) {
+            // Driver-initiated cancel-and-requeue
+            // (migrations/0048_driver_cancel_requeues_ride.sql):
+            // wallet_refund_matched_ride's driver branch resets the order to
+            // pending/driver_id=NULL instead of destroying it, so this SAME
+            // order can be picked up by another nearby driver instead of
+            // forcing the customer to book again. This UPDATE can only ever
+            // arrive here as "my driver bailed" - the order's initial
+            // pending state is set by an INSERT at booking time (never seen
+            // by this handler, which only listens for UPDATE events), and
+            // every other status transition in this app moves forward
+            // (pending -> accepted -> picking_up -> in_trip -> completed) or
+            // sideways to 'cancelled', never back to 'pending' any other
+            // way. No `step` check is needed to disambiguate it - and
+            // checking the `step` state variable here would be unreliable
+            // anyway, since this effect only re-subscribes when
+            // activeOrderId changes, so its closure holds whatever `step`
+            // was at that moment, not the live value.
+            setStep('searching');
+            setTripStage(0);
+            setAssignedDriverId(null);
+            setDriverInfo(null);
+            // Drop the driver marker (index 2) added by the 'accepted'
+            // branch above - pickup/dropoff markers (0/1) stay put so the
+            // map doesn't reset while a new driver is searched.
+            setMapState(prev => ({ ...prev, markers: prev.markers.slice(0, 2) }));
+            toast.error('Driver membatalkan perjalanan Anda, sedang mencari driver baru...', { icon: '🔄', duration: 6000 });
+
+            // Re-notify nearby drivers that this order is open again,
+            // reusing the exact same get_nearest_drivers + POST
+            // /notifications/order-alert fan-out handleStartBooking already
+            // uses for a brand-new booking (see its comment further up this
+            // file) - fired from here (the customer's browser, which
+            // already has API_BASE_URL/session context in this exact shape)
+            // rather than from the cancelling driver's app, per this
+            // feature's design: the driver who just bailed shouldn't be the
+            // one re-broadcasting the order to their peers.
+            const requeuedOrder = payload.new;
+            if (requeuedOrder.pickup_lat != null && requeuedOrder.pickup_lng != null) {
+              const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
+                user_lat: requeuedOrder.pickup_lat,
+                user_lng: requeuedOrder.pickup_lng,
+                target_vehicle_type: selectedVehicle?.id || null,
+                only_online: true,
+                max_results: 5,
+              });
+              if (nearby?.length > 0) {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                  if (!session?.access_token) return;
+                  nearby.forEach((d) => {
+                    fetch(`${API_BASE_URL}/notifications/order-alert`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                      body: JSON.stringify({
+                        userId: d.id,
+                        title: 'Pesanan WiraRide Menunggu Driver Baru!',
+                        body: `Penumpang di dekat Anda butuh driver baru menuju ${dropoff}.`,
+                        data: { orderId: requeuedOrder.id, type: 'requeued_ride_order' },
+                      }),
+                    }).catch((err) => console.error('order-alert (requeue nearby driver) failed:', err));
+                  });
+                });
+              }
+            }
+          }
         }
       )
       .subscribe();
