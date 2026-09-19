@@ -1,0 +1,177 @@
+# Wira — Project Handoff & Continuation Guide
+
+**Untuk**: agent AI (Antigravity atau lainnya) yang melanjutkan pekerjaan di project ini.
+**Terakhir diperbarui**: 2026-09-20 (menggantikan versi 2026-09-19 — banyak yang berubah sejak itu, baca ulang dari awal, jangan cuma diff mental dari versi lama).
+**Repo**: `github.com/isaacalmaz/wira` (public), branch `main`.
+
+---
+
+## 0. Cara pakai dokumen ini (baca dulu sebelum bagian lain)
+
+Dokumen ini ditulis supaya dua agent AI yang berbeda (Claude di sesi ini, dan agent lain seperti Antigravity di sesi lain) bisa **saling lempar pekerjaan** (ping-pong) tanpa kehilangan konteks, tanpa saling menimpa pekerjaan, dan tanpa mengulang kesalahan yang sudah pernah ditemukan dan diperbaiki.
+
+Aturan main ping-pong:
+1. **Sebelum mulai kerja apa pun**: baca dokumen ini penuh, lalu `git log --oneline -20` dan `ls migrations/ | tail -20` untuk konfirmasi keadaan nyata — dokumen ini bisa saja sudah sedikit basi dibanding commit terbaru.
+2. **Setelah selesai kerja apa pun yang signifikan** (fitur baru, migration baru, perbaikan bug nyata): **update dokumen ini** — tambah baris di §3 (status), pindahkan item dari §5 (gap) ke §3 kalau sudah selesai, tambah pelajaran baru ke §6 kalau menemukan pola kegagalan baru. Jangan biarkan agent berikutnya menemukan ulang hal yang sudah kamu tahu.
+3. **Jangan percaya status "✅ Berfungsi" di dokumen manapun tanpa verifikasi ulang ke kode/database asli** kalau kamu akan membangun sesuatu di atasnya — lihat §6.1, ini bukan teori, sudah beberapa kali terbukti status di dokumen tidak sama dengan kenyataan di database live.
+4. **Migration yang sudah ditulis (file `.sql` ada di `migrations/`) belum tentu sudah dijalankan ke database production.** Selalu tanya user atau verifikasi langsung (lihat §2.4) sebelum berasumsi sebuah tabel/kolom/RPC/trigger benar-benar ada.
+
+---
+
+## 1. Apa itu project ini
+
+Wira adalah super-app gaya Gojek/Grab untuk Lombok/Mataram, Indonesia — mencakup Ride (ojek), Send (kurir paket), Food (delivery makanan), Villa (penginapan), Service (jasa tukang/AC/dll), dan Pool (perawatan kolam renang). Live production dengan pengguna nyata dan uang sungguhan (WiraPay wallet).
+
+**Struktur monorepo** (npm workspaces):
+- `frontend-user/` — aplikasi pelanggan (React + Vite), deploy: `wira-user` di Vercel
+- `frontend-mitra/` — aplikasi driver/merchant/teknisi (React + Vite), deploy: `wira-mitra`
+- `frontend-admin/` — dashboard admin internal (React + Vite), deploy: `wira-admin`
+- `backend/` — Express API (dipakai terbatas — sebagian besar frontend bicara LANGSUNG ke Supabase; backend hanya untuk hal yang butuh service-role/secret: Midtrans, Mutasiku webhook, FCM), deploy: `wira-backend` (juga di Vercel, sebagai serverless functions, BUKAN server terpisah)
+- `migrations/` — SEMUA perubahan skema database, bernomor urut, **satu-satunya sumber kebenaran skema** (tapi baca §0 poin 4 — file ada ≠ sudah dijalankan)
+- Database: Supabase Postgres (RLS, RPC/`SECURITY DEFINER` functions, Realtime, Storage)
+
+Domain produksi backend saat ini: `https://wira-backend-seven.vercel.app` (bukan `wira-backend.vercel.app` — nama polos itu punya proyek Vercel orang lain, cek lewat MCP Vercel `list_deployments`/`get_deployment` kalau berubah lagi).
+
+---
+
+## 2. Aturan Keras — Jangan Dilanggar
+
+### 2.1 Jangan pernah masukkan password ke form login siapapun
+Untuk menguji alur yang butuh login, mint sesi asli tanpa password:
+```js
+const { data } = await supabaseAdmin.auth.admin.generateLink({ type: 'magiclink', email });
+const { data: session } = await supabaseAnon.auth.verifyOtp({
+  email, token: data.properties.email_otp, type: 'email'
+});
+```
+Session hasilnya bisa dipakai langsung di script Node (pasang sebagai header `Authorization: Bearer <access_token>` di client Supabase), atau di-inject ke `localStorage` browser dengan key `sb-<project-ref>-auth-token`.
+
+### 2.2 Semua pergerakan uang lewat RPC terpusat — JANGAN buat jalur baru
+- `wallet_pay(p_amount, p_description)` — debit dompet
+- `wallet_transfer(...)` — transfer antar user (by phone)
+- `wallet_refund(p_order_id, p_description)` — refund order yang masih `pending`
+- `wallet_refund_matched_ride(p_order_id, p_description)` — batalkan ride yang sudah dapat driver, refund penuh, bisa dipanggil pelanggan ATAU driver
+- `submit_review_and_tip(p_order_id, p_rating, p_review_text, p_tip_amount)` — review + tip sekaligus
+- `credit_wallet_balance_atomic(p_user_id, p_amount)` — **service_role-only**, dipakai webhook top-up (Midtrans/Mutasiku), jangan panggil dari client manapun
+
+Semua RPC di atas: `SECURITY DEFINER`, pakai `FOR UPDATE` row lock sebelum cek/ubah saldo, idempotent. Kalau butuh pola baru yang mirip (mis. "kredit saldo dari webhook baru"), **buat RPC baru yang sesempit mungkin scope-nya dan REVOKE dari `anon`/`authenticated`**, jangan reuse RPC lama dengan cara yang melonggarkan siapa yang boleh memanggilnya.
+
+### 2.3 "RLS trap" — WAJIB dicek di SETIAP `.update()`/`.delete()`
+Update/delete yang diblokir RLS mengembalikan `error: null` dengan **0 baris** — terlihat seperti berhasil kalau tidak dicek row count. Pola wajib:
+```js
+const { data, error } = await supabase.from('x').update({...}).eq('id', id).select();
+if (error) throw error;
+if (!data || data.length === 0) throw new Error('Akses ditolak atau data tidak ditemukan.');
+```
+**Perluasan penting dari sesi ini**: jebakan yang sama berlaku kalau KAMU sendiri yang menulis skrip verifikasi keamanan — pernah terjadi skrip audit sendiri melaporkan "FAIL" palsu (dan bisa juga sebaliknya, "PASS" palsu) karena cuma mengecek `!!error`, bukan benar-benar membandingkan state sebelum/sesudah di database. **Saat menguji apakah sesuatu terblokir, selalu baca ulang row-nya dari database (pakai service-role client) sebelum dan sesudah percobaan, jangan cuma percaya ada/tidaknya `error`.**
+
+### 2.4 Migration = satu-satunya sumber kebenaran skema — TAPI file ada ≠ sudah jalan
+- Format: `migrations/00XX_deskripsi.sql`, nomor urut, header comment berisi ALASAN (bukan cuma "apa").
+- **Agent AI tidak punya akses eksekusi DDL langsung** — migration harus dijalankan MANUAL oleh user lewat Supabase SQL Editor.
+- **Selalu cek nomor migration tertinggi yang ada SEBELUM menulis migration baru**: `ls migrations/ | grep -E '^00[0-9]{2}_' | sort | tail -5`.
+- Update `migrations/README.md` dengan baris baru untuk setiap migration baru.
+- **BARU, penting**: di sesi ini ditemukan berkali-kali bahwa migration yang sudah "dijalankan" ternyata sebagian statement-nya tidak benar-benar tereksekusi (lihat §6.2 dan §6.3) — dan bahwa `orders.metadata` (migration 0034, ditulis JAUH sebelum sesi ini) ternyata tidak pernah benar-benar diterapkan meski tercatat "applied" di README. **Jangan pernah anggap sebuah kolom/tabel/RPC/trigger pasti ada di database live hanya karena file migration-nya ada dan README bilang sudah jalan** — kalau kode baru bergantung padanya, verifikasi langsung dulu (`select()` kolom itu lewat service-role client, cek errornya) sebelum membangun di atasnya, atau minimal beri tahu user untuk konfirmasi.
+- **Setelah migration dijalankan, JANGAN cuma percaya "sudah saya jalankan" dari user** — selalu jalankan skenario verifikasi nyata (buat data uji, coba eksploitasi/aksi yang seharusnya diblokir/berhasil, cek state sebelum-sesudah, bersihkan data uji). Ini sudah terbukti berkali-kali menemukan migration yang gagal sebagian tanpa ada yang sadar.
+
+### 2.5 RLS policy bisa ada di luar riwayat migration — tidak bisa ditemukan lewat grep
+Ditemukan di sesi ini: ada kebijakan RLS bernama `"Public feature_flags"` (`FOR ALL USING (true)`) di tabel `feature_flags` yang **tidak cocok dengan `CREATE POLICY` manapun di seluruh riwayat `migrations/`** — kemungkinan besar dibuat manual lewat Supabase Studio UI di masa lalu, di luar jalur migration sama sekali. Ini membuat semua perbaikan RLS yang ditulis lewat migration (walau secara logika benar) tetap tidak berefek, karena kebijakan permisif lama itu di-OR-kan dengan kebijakan baru.
+
+**Pelajaran**: `pg_policies` tidak bisa di-query lewat PostgREST (hanya lewat SQL Editor langsung oleh user) — kalau curiga ada kebijakan siluman seperti ini (misal: perbaikan RLS sudah ditulis benar tapi tetap tidak berefek saat diverifikasi live), minta user menjalankan:
+```sql
+SELECT policyname, cmd, qual, with_check FROM pg_policies WHERE tablename = '<nama_tabel>';
+```
+dan baca hasilnya baris demi baris — jangan asumsikan cuma kebijakan yang kamu tulis sendiri yang ada di tabel itu.
+
+### 2.6 Vercel ada di plan Hobby — limit 100 deploy/hari
+Setiap `git push` ke `main` men-deploy ke **4** project Vercel sekaligus sekarang (`wira-user`, `wira-mitra`, `wira-admin`, `wira-backend` — backend juga sudah pindah ke Vercel serverless, bukan lagi asumsi server terpisah). 1 push = 4 deploy. **Gabungkan perubahan jadi commit yang lebih sedikit dan besar**, jangan push setiap perbaikan kecil satu-satu.
+
+### 2.7 Kerja paralel (kalau pakai banyak agent/subagent sekaligus)
+- Batasi file yang boleh disentuh masing-masing agent dengan jelas dan eksplisit di prompt-nya.
+- Kalau sebuah sub-agent gagal di tengah jalan karena rate limit sesi (bukan karena error di kodenya sendiri) — **lanjutkan agent yang sama** (kalau tool-nya mendukung, mis. `SendMessage` ke agent id-nya) alih-alih langsung membuat agent baru dari nol; itu menghemat context yang sudah dibangun DAN mengurangi risiko dua agent menyentuh file yang sama secara bersamaan. Sebelum melanjutkan, cek dulu apakah agent yang gagal itu sempat meninggalkan efek samping nyata yang belum dibereskan (misal: mengubah data akun asli untuk testing) — jangan asumsikan otomatis sudah di-revert.
+- Kalau lingkungan menolak sebuah aksi dengan alasan seperti "Credential Materialization" (mencoba menulis secret/API key ke file baru) — **jangan cari cara untuk mengakalinya**. Itu pengaman yang disengaja. Cari cara verifikasi lain (misal: minta user menjalankan query/perintah tertentu sendiri dan kirim hasilnya balik) alih-alih memaksa jalan yang diblokir.
+
+---
+
+## 3. Status Saat Ini (2026-09-20)
+
+Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **0001–0060 sudah dikonfirmasi dijalankan dan sebagian besar sudah diverifikasi live** (lihat catatan khusus di baris masing-masing). Selalu cek `ls migrations/` untuk nomor real-time terbaru — dokumen ini bisa tertinggal.
+
+| Area | Status |
+|---|---|
+| Ride, Food, Send, Villa, Service, Pool (order lifecycle dasar) | ✅ Berfungsi |
+| **Harga order dihitung ulang di server** (bukan lagi dipercaya dari client) | ✅ Baru selesai sesi ini (migrations 0057–0060), diverifikasi live untuk 10 skenario per jenis layanan |
+| **Admin bisa ubah harga APAPUN kapan saja** (Ride via `vehicles`, Send/Service/Pool/ongkir Food via `pricing_rules` baru) — satu halaman `/pricing` "Manajemen Harga" | ✅ Baru selesai sesi ini, diuji live edit-simpan-verifikasi |
+| Wallet (top-up manual QRIS, pay, transfer, refund) | ✅ Berfungsi |
+| **Top-up QRIS terverifikasi OTOMATIS via webhook Mutasiku** (mutasi bank DANA) | ✅ Baru sesi ini — `backend/routes/mutasiku.js`, tidak perlu admin approve manual lagi untuk top-up manual |
+| Midtrans (top-up alternatif) | ✅ Kode benar (signature verification, idempotent), **kredensial asli masih belum diisi** (lihat §4) — QRIS manual + Mutasiku sekarang jalur utama yang live |
+| **Keamanan menyeluruh** (self-escalation admin, fabrikasi order/payout, RLS terbuka di beberapa tabel) | ✅ Diaudit penuh dan diperbaiki sesi ini (migrations 0050–0056) — lihat §6.2 untuk detail apa yang ditemukan dan kenapa itu penting dibaca sebelum menyentuh RLS/RPC manapun |
+| Panel admin (`frontend-admin`) role-gating | ✅ Semua route sekarang butuh role admin (dulu cuma satu halaman yang dijaga), role dibaca dari `public.users` bukan dari JWT yang bisa diset user sendiri |
+| Pembagian pendapatan mitra (komisi 20% platform) | ✅ Berfungsi, trigger di migration 0028, sekarang dilindungi dari fabrikasi (0051/0054) |
+| Split portal Driver/Restoran/Villa/Teknisi | ✅ Berfungsi, order update sekarang di-scope ke kepemilikan asli (0053/security-fix frontend-mitra) |
+| Rating & Tipping | ✅ Berfungsi, race condition disave (0053) |
+| Refund order pending DAN order yang sudah dapat driver | ✅ Berfungsi |
+| Sistem promo/kupon (Ride + Food + **sekarang juga Send/Service/Pool**) | ✅ Berfungsi, harga promo sekarang diverifikasi ulang di server juga (bukan cuma dipercaya dari client) |
+| Push notification (FCM) | ✅ Kode berfungsi untuk beberapa event order, **endpoint `/order-alert` sekarang dibatasi cuma pihak sah di order yang boleh saling kirim** (dulu siapa saja bisa kirim notif ke siapa saja) |
+| PWA (user + mitra installable) | ✅ Berfungsi |
+| Dashboard admin (analytics real) | ✅ Berfungsi |
+
+---
+
+## 4. Tindakan Manual yang Masih Ditunggu dari User (bukan kode)
+
+1. **Rotasi Firebase Admin service-account key** — key lama sempat ter-commit ke repo public (masih di riwayat git lama, sudah di-untrack ke depan). Firebase Console → Project Settings → Service Accounts.
+2. **Generate VAPID key** untuk web push — tanpa ini `getToken()` FCM gagal di browser standar.
+3. **Isi kredensial asli Midtrans** kalau akun merchant-nya sudah disetujui — saat ini QRIS manual + Mutasiku adalah jalur top-up utama yang live, Midtrans masih placeholder/sandbox.
+4. **(Opsional, disarankan)** Jalankan sekali audit `pg_policies` menyeluruh untuk tabel-tabel lain yang belum pernah dicek (lihat §2.5) — sesi ini sudah cek `users/orders/merchants/drivers/reviews/notifications/operational_zones/topup_requests` dan bersih, tapi belum semua tabel di skema.
+5. **`topup_requests`'s kebijakan "Anyone can check pending amounts"** sedikit longgar (bisa expose `user_id` topup pending orang lain kalau client `select('*')`, bukan cuma `amount`) — bukan mendesak, tapi layak dirapikan suatu saat.
+
+---
+
+## 5. Gap yang Sengaja Belum Dikerjakan (didokumentasikan, bukan lupa)
+
+- **Send/Service/Pool masih flat-fee**, tidak berbasis jarak seperti Ride — keputusan produk kalau mau diubah jadi berbasis jarak, bukan bug.
+- **Order yang dibatalkan driver** sudah di-requeue otomatis (sudah selesai, HAPUS dari daftar gap versi lama — ini FITUR yang SUDAH ADA, migration 0048).
+- **Notifikasi push** belum menutupi semua event/semua service_type — masih ada celah cakupan (bukan celah keamanan, cuma belum lengkap).
+- **`frontend-admin` sengaja tidak dibuat installable (PWA penuh)** — dianggap tooling internal staff.
+- **Villa `nights`/`guests` masih sebagian di `details` (teks bebas)** — sudah ada kolom `nights` terstruktur sekarang (migration 0058) dan dipakai untuk verifikasi harga, tapi `guests` belum punya kolom sendiri kalau suatu saat perlu diverifikasi juga.
+
+---
+
+## 6. Cara Kerja yang Terbukti Efektif — dan Kegagalan Nyata yang Sudah Ditemukan
+
+### 6.1 Audit dulu, baru perbaiki — jangan percaya laporan/dokumentasi begitu saja
+Selalu verifikasi ke kode dan database ASLI sebelum bertindak atau melapor selesai. Dokumen status (termasuk dokumen ini!) bisa basi.
+
+### 6.2 Kerahkan agent paralel untuk audit besar, tapi review manual sebelum eksekusi
+Sesi ini mengerahkan 5 agent paralel untuk audit keamanan menyeluruh (backend, RLS/RPC database, alur uang, frontend-user, frontend-mitra+admin), lalu 5 agent lagi untuk memperbaiki semua temuan. Pola ini efektif — TAPI migration SQL kritis (terutama yang menyangkut RLS/trigger/uang) tetap direview manual baris-per-baris sebelum diminta user menjalankannya, bukan langsung dipercaya dari laporan agent. Salah satu agent bahkan mengoreksi instruksi saya sendiri yang ternyata salah (`merchant_id` bukan user id) setelah dia baca kode asli — bukti kenapa agent perlu diberi kebebasan mengecek ulang, bukan cuma ikut instruksi buta.
+
+### 6.3 Migration bisa "berhasil dijalankan" tapi sebagian tidak berefek
+Ditemukan berkali-kali di sesi ini:
+- `credit_wallet_balance_atomic` RPC sempat masih bisa dipanggil user biasa meski migration yang membatasinya sudah "dijalankan" — baru ketahuan setelah tes live dengan akun non-admin sungguhan.
+- Kebijakan RLS `feature_flags` sempat masih longgar dua kali berturut-turut meski sudah ditambal dua migration berbeda — akar masalahnya kebijakan siluman (§2.5), bukan migration yang salah tulis.
+
+**Jangan pernah anggap migration selesai hanya karena user bilang "sudah dijalankan" dan tidak ada pesan error yang dilaporkan.** Selalu jalankan uji skenario nyata sesudahnya.
+
+### 6.4 Uji nyata untuk hal berisiko (uang, akses lintas-user, harga)
+Buktikan dengan skenario konkret: kirim harga yang sengaja salah dari client, pastikan server yang menang; coba klaim order sebagai driver padahal bukan; coba akses data user lain; dst. Selalu bersihkan data uji setelahnya (hapus baris test, kembalikan saldo yang sempat berubah).
+
+### 6.5 Build ketiga/keempat workspace setelah perubahan apapun, cek output PENUH
+`npm run build --workspace=X` — **jangan pernah** cuma cek `| tail -N`. Sesi sebelumnya pernah error build nyata tersembunyi di tengah output dan luput semalaman karena cuma cek beberapa baris terakhir.
+
+### 6.6 Commit dengan pesan yang menjelaskan KENAPA, bukan cuma APA
+Keputusan kebijakan bisnis/keamanan didokumentasikan di header migration karena itu keputusan produk/keamanan, bukan cuma catatan teknis — agent berikutnya (atau manusia) butuh alasan itu untuk tidak mengulang kesalahan yang sama.
+
+### 6.7 Jujur soal yang tidak sempat diuji
+Kalau ada bagian yang tidak bisa diverifikasi (mis. kredensial sandbox tidak ada), katakan dengan jelas, jangan diam-diam diasumsikan berhasil.
+
+---
+
+## 7. File/Lokasi Penting untuk Orientasi Cepat
+
+- `migrations/README.md` — riwayat lengkap semua migration dengan alasan masing-masing. **Baca entri 0050–0060 kalau mau paham keputusan keamanan & harga terbaru** — ditulis sangat detail termasuk kegagalan yang ditemukan di tengah jalan.
+- `migrations/0059_orders_server_side_price_computation.sql` — jantung sistem harga baru, baca headernya kalau mau ubah rumus harga jenis layanan manapun.
+- `frontend-mitra/src/services/orderService.js` — logika inti routing order antar driver/merchant/teknisi (`eligibleServiceTypesForDriver`), SATU-SATUNYA tempat aturan "motor vs mobil boleh terima order apa" — jangan duplikasi di tempat lain.
+- `migrations/0028_mitra_payout_system.sql` — rumus pembagian komisi 20% platform, sekarang dilindungi trigger `enforce_orders_state_machine` (0051/0054) dari fabrikasi.
+- `backend/routes/mutasiku.js` — webhook verifikasi top-up otomatis, baca komentarnya untuk paham skema signature Mutasiku.
+- `frontend-admin/src/pages/VehiclesPricingPage.jsx` + `PricingRulesSection.jsx` — satu halaman admin untuk semua harga.
+- `backend/.env`, `frontend-*/.env` — kredensial lokal (tidak di-commit).
