@@ -8,6 +8,7 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import ChatModal from '../components/common/ChatModal';
+import API_BASE_URL from '../config/api';
 
 export default function VillaPage() {
   const { balance, pay } = useWallet();
@@ -30,6 +31,7 @@ export default function VillaPage() {
       if (data) {
         setVillas(data.map(v => ({
           id: v.id,
+          ownerId: v.owner_id,
           name: v.name,
           area: v.address || 'Lombok',
           rating: v.rating || 5.0,
@@ -61,9 +63,56 @@ export default function VillaPage() {
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
+  const [promoCode, setPromoCode] = useState('');
+  const [activePromo, setActivePromo] = useState(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
+
   const filtered = area === 'Semua' ? villas : villas.filter((v) => v.area.toLowerCase().includes(area.toLowerCase()));
 
-  const totalPrice = selectedVilla ? selectedVilla.pricePerNight * nights : 0;
+  const subtotalPrice = selectedVilla ? selectedVilla.pricePerNight * nights : 0;
+
+  const handleCheckPromo = async () => {
+    if (!promoCode.trim()) return;
+    setCheckingPromo(true);
+    setPromoError('');
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single();
+
+      if (error || !data) throw new Error('Kode promo tidak ditemukan');
+      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
+      if (data.service_type && data.service_type !== 'villa') throw new Error('Promo tidak berlaku untuk layanan ini');
+
+      setActivePromo(data);
+      toast.success('Promo berhasil digunakan!');
+    } catch (err) {
+      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setActivePromo(null);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
+  };
+
+  const totalPrice = (() => {
+    if (!activePromo) return subtotalPrice;
+    if (activePromo.type === 'Percentage') {
+      const discount = (subtotalPrice * activePromo.discount) / 100;
+      return Math.max(0, subtotalPrice - discount);
+    }
+    return Math.max(0, subtotalPrice - activePromo.discount);
+  })();
 
   // Dengarkan konfirmasi/penolakan dari pemilik villa (mitra) secara realtime
   useEffect(() => {
@@ -119,6 +168,14 @@ export default function VillaPage() {
         paymentMethod: paymentMethod,
       });
 
+      // Only counted as "used" once the order actually exists - see
+      // migrations/0046's increment_promo_usage.
+      if (activePromo?.id) {
+        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
+          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
+        });
+      }
+
       setActiveOrderId(order.id);
       setBookingPending({
         code: bookingCode,
@@ -130,6 +187,31 @@ export default function VillaPage() {
         area: selectedVilla.area,
       });
 
+      // A villa booking is relevant to exactly ONE recipient - the villa's
+      // owning merchant (merchants.owner_id, captured on `selectedVilla`
+      // above) - unlike Ride/Send this is never a nearby-drivers fan-out.
+      // Single order-alert call, best-effort/fire-and-forget so a missing
+      // fcm_token or network hiccup never blocks the customer's booking.
+      if (selectedVilla.ownerId && order?.id) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.access_token) return;
+          fetch(`${API_BASE_URL}/notifications/order-alert`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              userId: selectedVilla.ownerId,
+              title: 'Reservasi WiraVilla Baru!',
+              body: `${selectedVilla.name} dipesan untuk ${nights} malam mulai ${checkIn}.`,
+              data: { orderId: order.id, type: 'new_villa_order' },
+            }),
+          }).catch((err) => console.error('order-alert (villa owner) failed:', err));
+        });
+      }
+
+      handleRemovePromo(); // don't let a used promo silently discount the next booking
       toast.success('Permintaan reservasi terkirim, menunggu konfirmasi pemilik villa.');
     } catch (err) {
       toast.error(err.message || 'Reservasi gagal');
@@ -176,6 +258,9 @@ export default function VillaPage() {
               setBookingPending(null);
               setBookingSuccess(null);
               setActiveOrderId(null);
+              setActivePromo(null);
+              setPromoCode('');
+              setPromoError('');
             }}
             className="overflow-hidden cursor-pointer hover:shadow-xl hover:border-primary/50 transition-all p-0 border border-slate-200 dark:border-slate-700 group flex flex-col"
           >
@@ -340,10 +425,53 @@ export default function VillaPage() {
                   </div>
                 </div>
 
+                {/* Kode Promo */}
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl space-y-2">
+                  {activePromo ? (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        Promo "{activePromo.code}" diterapkan
+                      </span>
+                      <button
+                        type="button"
+                        className="text-slate-400 hover:text-red-500 font-semibold"
+                        onClick={handleRemovePromo}
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Kode Promo (opsional)"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="text-xs px-3"
+                        onClick={handleCheckPromo}
+                        disabled={checkingPromo || !promoCode.trim()}
+                      >
+                        {checkingPromo ? '...' : 'Pakai'}
+                      </Button>
+                    </div>
+                  )}
+                  {promoError && (
+                    <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+                  )}
+                </div>
+
                 {/* Total Biaya */}
                 <div className="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-2xl flex justify-between items-center text-xs">
                   <div>
                     <p className="text-slate-500">Total Reservasi ({nights} malam):</p>
+                    {activePromo && (
+                      <p className="text-[10px] text-slate-400 line-through">{formatRupiah(subtotalPrice)}</p>
+                    )}
                     <p className="text-lg font-extrabold text-primary">{formatRupiah(totalPrice)}</p>
                   </div>
                   <ShieldCheck size={24} className="text-green-500" />
