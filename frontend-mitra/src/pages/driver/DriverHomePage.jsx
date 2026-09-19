@@ -314,7 +314,7 @@ const DriverHomePage = () => {
     const step = STAGE_FLOW[activeOrder.status];
     if (!step) return;
     try {
-      const updated = await updateOrderStatus(supabase, activeOrder.id, step.next);
+      const updated = await updateOrderStatus(supabase, activeOrder.id, step.next, user.id, 'driver');
       if (step.next === OrderStatus.COMPLETED) {
         toast.success('Perjalanan diselesaikan!');
         setActiveOrder(null);

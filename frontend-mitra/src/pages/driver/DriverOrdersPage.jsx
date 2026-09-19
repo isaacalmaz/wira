@@ -39,7 +39,7 @@ const DriverOrdersPage = () => {
   const updateStatus = async (newStatus) => {
     if(activeOrder) {
       try {
-        await updateOrderStatus(supabase, activeOrder.id, newStatus);
+        await updateOrderStatus(supabase, activeOrder.id, newStatus, user.id, 'driver');
         fetchOrders();
         toast.success(`Status diperbarui ke: ${getDisplayStatus(newStatus)}`);
       } catch (err) {

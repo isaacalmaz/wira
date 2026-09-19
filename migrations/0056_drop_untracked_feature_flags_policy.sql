@@ -1,0 +1,54 @@
+-- =============================================================================
+-- Migration 0056: drop an untracked, wide-open feature_flags policy that
+-- 0053/0055 never knew existed (CRITICAL)
+-- =============================================================================
+--
+-- 0053 and 0055 both dropped every "Allow public full access on
+-- feature_flags" / "Allow updates on feature_flags" name found by grepping
+-- 0003/0012's CREATE POLICY statements, and recreated proper region-scoped
+-- policies — yet live testing after applying 0055 still showed a plain
+-- authenticated (non-admin) test session could UPDATE *and* DELETE a real
+-- `region = 'features_config'` row.
+--
+-- Root cause found by having the user run
+--   SELECT policyname, cmd, qual, with_check FROM pg_policies
+--   WHERE tablename = 'feature_flags';
+-- directly in the Supabase SQL Editor (the only way to see this — pg_policies
+-- isn't reachable through PostgREST, so no migration-writing agent could
+-- have discovered it by grepping tracked .sql files or querying the anon/
+-- service-role REST API). It surfaced a policy named exactly "Public
+-- feature_flags" — `FOR ALL USING (true)`, `WITH CHECK` NULL — that does not
+-- match any CREATE POLICY statement anywhere in migrations/0001-0055. It was
+-- almost certainly created by hand via the Supabase Studio UI at some point,
+-- entirely outside this migration history, which is exactly why every
+-- previous grep-based fix missed it: there was nothing in any tracked file
+-- to find.
+--
+-- Permissive RLS policies for the same command are OR'd together, so this
+-- one `USING (true)` policy alone was enough to make every 0053/0055
+-- restriction irrelevant for this table, regardless of how correctly they
+-- were written.
+-- =============================================================================
+
+DROP POLICY IF EXISTS "Public feature_flags" ON public.feature_flags;
+
+-- ============================================================
+-- Verification — run after applying
+-- ============================================================
+-- 1. Re-run: SELECT policyname, cmd, qual, with_check FROM pg_policies
+--    WHERE tablename = 'feature_flags'; — "Public feature_flags" should no
+--    longer appear; only feature_flags_select_public/insert/update/
+--    delete_admin should remain.
+-- 2. As a plain non-admin authenticated session: update or delete a
+--    region='features_config' row — both should now affect 0 rows.
+-- 3. Regression: mitra self-registration (region='mitra_registrations') and
+--    an admin session editing features_config should both still work.
+--
+-- Given this table had an untracked manual policy, it's worth the user
+-- spot-checking a few OTHER security-sensitive tables the same way
+-- (`SELECT policyname, cmd, qual, with_check FROM pg_policies WHERE
+-- tablename IN ('users','orders','merchants','drivers','reviews',
+-- 'operational_zones','notifications','topup_requests');`) to rule out
+-- another hand-created policy lurking somewhere else that no grep-based
+-- audit could ever have found.
+-- =============================================================================

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const midtransClient = require('midtrans-client');
 const supabaseAdmin = require('../config/supabase');
 const auth = require('../middleware/auth');
+const { webhookLimiter, userFacingLimiter } = require('../middleware/rateLimit');
 
 // The server key should ideally come from env vars. We'll use a placeholder/env.
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-YOUR_SERVER_KEY';
@@ -24,7 +25,7 @@ const snap = new midtransClient.Snap({
 // authenticated route in this backend uses) so the topup_requests row is
 // always created for the actual logged-in user, never an arbitrary
 // client-supplied user_id.
-router.post('/charge', auth, async (req, res) => {
+router.post('/charge', userFacingLimiter, auth, async (req, res) => {
   try {
     const { amount, customer_name, customer_email, customer_phone } = req.body;
     const authenticatedUserId = req.user.id;
@@ -38,8 +39,25 @@ router.post('/charge', auth, async (req, res) => {
     }
     const user_id = authenticatedUserId;
 
-    if (!amount) {
-      return res.status(400).json({ error: 'Amount is required' });
+    // Amount must be a finite, positive, whole-Rupiah number within a
+    // sane ceiling. `amount` flows straight into both the topup_requests
+    // insert and the Midtrans gross_amount, so anything non-numeric,
+    // fractional (Midtrans/IDR has no sub-unit in this app's flow), zero,
+    // negative, or absurdly large (NaN/Infinity injection, fat-finger, or
+    // an attempt to abuse downstream numeric handling) must be rejected
+    // before it ever reaches the DB or the Midtrans API.
+    const numericAmount = Number(amount);
+    const MAX_TOPUP_AMOUNT = 1_000_000_000; // IDR - well above any real top-up
+    if (
+      amount === undefined ||
+      amount === null ||
+      amount === '' ||
+      !Number.isFinite(numericAmount) ||
+      !Number.isInteger(numericAmount) ||
+      numericAmount <= 0 ||
+      numericAmount > MAX_TOPUP_AMOUNT
+    ) {
+      return res.status(400).json({ error: 'Amount tidak valid. Harus berupa angka bulat positif (maks. Rp 1.000.000.000)' });
     }
 
     // Create a pending transaction record in Supabase
@@ -53,7 +71,7 @@ router.post('/charge', auth, async (req, res) => {
       .from('topup_requests')
       .insert({
         user_id,
-        amount,
+        amount: numericAmount,
         method: 'midtrans',
         status: 'pending'
       })
@@ -91,7 +109,7 @@ router.post('/charge', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Midtrans Charge Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -115,7 +133,7 @@ router.post('/charge', auth, async (req, res) => {
 // status = 'pending' and only credit the wallet if that UPDATE actually
 // affected a row (mirrors this codebase's established RLS-affected-row-count
 // discipline, applied here to prevent double-processing instead of RLS).
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', webhookLimiter, async (req, res) => {
   try {
     const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body;
 
@@ -128,7 +146,16 @@ router.post('/webhook', async (req, res) => {
       .update(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`)
       .digest('hex');
 
-    if (expectedSignature !== signature_key) {
+    // Constant-time comparison (mirrors routes/mutasiku.js's webhook check) -
+    // a plain `!==` string comparison short-circuits on the first differing
+    // byte, which is a (small, but real) timing side-channel against a
+    // secret-derived value.
+    const signatureBuf = Buffer.from(String(signature_key));
+    const expectedBuf = Buffer.from(expectedSignature);
+    const validSignature =
+      signatureBuf.length === expectedBuf.length && crypto.timingSafeEqual(signatureBuf, expectedBuf);
+
+    if (!validSignature) {
       console.error('Midtrans Webhook: signature mismatch, rejecting', { order_id });
       return res.status(401).json({ error: 'Invalid signature' });
     }
@@ -197,24 +224,20 @@ router.post('/webhook', async (req, res) => {
 
       const approvedReq = updatedRows[0];
 
-      // Credit balance and record the ledger entry. wallet_balance is read
-      // immediately after the guarded UPDATE above succeeded for us
-      // specifically, so at most one webhook delivery reaches this point
-      // per topup_requests row.
-      const { data: user, error: userFetchErr } = await supabaseAdmin
-        .from('users')
-        .select('wallet_balance')
-        .eq('id', approvedReq.user_id)
-        .single();
-      if (userFetchErr) throw userFetchErr;
-
-      const newBalance = (user?.wallet_balance || 0) + approvedReq.amount;
-
-      const { error: balErr } = await supabaseAdmin
-        .from('users')
-        .update({ wallet_balance: newBalance })
-        .eq('id', approvedReq.user_id);
-      if (balErr) throw balErr;
+      // Credit balance atomically. Previously this did a SELECT
+      // wallet_balance -> compute newBalance in JS -> UPDATE as two
+      // separate round trips with no row lock held across them, which is a
+      // classic lost-update race: if a wallet spend (the `wallet_pay` RPC,
+      // which IS atomic) lands in the window between our SELECT and UPDATE,
+      // our later write silently overwrites/undoes that spend's decrement.
+      // credit_wallet_balance_atomic does `wallet_balance = wallet_balance +
+      // p_amount` as a single UPDATE ... RETURNING inside Postgres, so it's
+      // race-free regardless of what else touches this row concurrently.
+      const { error: creditErr } = await supabaseAdmin.rpc('credit_wallet_balance_atomic', {
+        p_user_id: approvedReq.user_id,
+        p_amount: approvedReq.amount,
+      });
+      if (creditErr) throw creditErr;
 
       const { error: txErr } = await supabaseAdmin
         .from('transactions')
@@ -240,7 +263,7 @@ router.post('/webhook', async (req, res) => {
     res.status(200).send('OK');
   } catch (error) {
     console.error('Midtrans Webhook Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

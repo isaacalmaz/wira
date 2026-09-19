@@ -18,6 +18,10 @@ const MerchantMenuPage = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [merchantId, setMerchantId] = useState(null);
   const [loading, setLoading] = useState(true);
+  // True once fetchMenu has run for a logged-in user and found no
+  // merchants row owned by them - distinct from merchantId simply being
+  // null because we haven't checked yet (see fetchMenu).
+  const [profileNotLinked, setProfileNotLinked] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -53,21 +57,25 @@ const MerchantMenuPage = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Dapatkan ID Merchant dari owner_id
+      // Dapatkan ID Merchant dari owner_id. Sebelumnya ada fallback yang
+      // mengambil baris `merchants` PERTAMA di seluruh tabel bila owner_id
+      // belum terikat (mis. saat akun masih menunggu persetujuan admin
+      // setelah mendaftar - lihat RegisterPage.jsx, pendaftaran mitra masuk
+      // ke `mitra_registrations`/`feature_flags` dengan status 'Pending' dan
+      // baris `merchants` baru dibuat belakangan, bukan saat itu juga) -
+      // itu bisa diam-diam menempelkan akun mitra ini ke etalase toko orang
+      // lain (menampilkan menu mereka, dan insert produk baru ke toko
+      // mereka). Dihapus: bila belum terikat, tampilkan status error yang
+      // jelas alih-alih fallback ke toko sembarang.
       const { data: mData } = await supabase
         .from('merchants')
         .select('id')
         .eq('owner_id', user.id)
         .maybeSingle();
 
-      let targetMerchantId = mData?.id;
-      if (!targetMerchantId) {
-        // Fallback jika belum terikat owner_id, ambil merchant pertama
-        const { data: firstM } = await supabase.from('merchants').select('id').limit(1).maybeSingle();
-        targetMerchantId = firstM?.id;
-      }
-
+      const targetMerchantId = mData?.id || null;
       setMerchantId(targetMerchantId);
+      setProfileNotLinked(!targetMerchantId);
 
       if (targetMerchantId) {
         const { data: products } = await supabase
@@ -151,7 +159,7 @@ const MerchantMenuPage = () => {
       } else {
         // Add mode di Supabase
         if (!merchantId) {
-          toast.error('Restoran belum terdaftar di database.');
+          toast.error('Profil merchant Anda belum terdaftar/terhubung.');
           return;
         }
 
@@ -215,6 +223,38 @@ const MerchantMenuPage = () => {
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (activeCategory === 'all' || item.category === activeCategory)
   );
+
+  // Akun ini belum terikat ke baris `merchants` manapun (owner_id belum
+  // diisi) - dulu di sini ada fallback diam-diam ke toko orang lain, lihat
+  // komentar di fetchMenu. Tampilkan status yang jelas dan hentikan di sini
+  // daripada merender menu/tombol tambah yang tidak seharusnya bisa dipakai.
+  if (!loading && profileNotLinked) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto pb-12">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+          Manajemen Menu Makanan
+        </h1>
+        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <UtensilsCrossed size={40} className="mx-auto text-slate-300 mb-3" />
+          <h2 className="font-bold text-slate-700 dark:text-slate-200 mb-1">
+            Profil Merchant Anda Belum Terdaftar
+          </h2>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            Akun ini belum terhubung ke toko manapun. Jika Anda baru saja
+            mendaftar, pendaftaran mitra masih menunggu persetujuan admin -
+            silakan cek kembali nanti atau hubungi dukungan Wira jika ini
+            berlangsung lebih dari 1x24 jam.
+          </p>
+          <button
+            onClick={fetchMenu}
+            className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"
+          >
+            <RefreshCw size={14} /> Coba Muat Ulang
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">

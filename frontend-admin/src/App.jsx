@@ -32,11 +32,32 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    // NOTE: this used to bounce to "/dashboard" as a softer fallback than
+    // "/login", back when /dashboard itself had no role check. Now that
+    // every admin route (including /dashboard) is gated, redirecting a
+    // role-check failure to /dashboard would self-redirect forever for any
+    // authenticated-but-non-admin user (e.g. a publicly self-registered
+    // account) landing on /dashboard. /login is the only always-reachable,
+    // unrestricted route, so it's the safe universal fallback here.
+    return <Navigate to="/login" replace />;
   }
 
   return children;
 };
+
+// This is the same admin-role set enforced server-side by Postgres RLS
+// policies and RPCs across the project (see e.g. migrations/0022, 0024,
+// 0025, 0026: `role IN ('admin', 'Superadmin', 'superadmin', 'Admin Ops')`).
+// AdminSidebar.jsx's menuItems array defines a finer per-item `roles`
+// tiering ('Admin Keuangan', 'CS', ...) purely for hiding/showing nav
+// links, but none of those finer roles are ever checked by any RLS policy
+// or RPC - only this 4-value set is a real, server-enforced admin
+// boundary. Gating routes on the sidebar's cosmetic tiers instead would
+// (a) lock real 'Admin Ops' admins out of pages the backend already lets
+// them use (e.g. /finance, /whatsapp), and (b) let 'Admin Keuangan'/'CS'
+// users past the route gate only to be rejected by the RPC anyway. So
+// every admin route below uses this uniform, backend-matching set.
+const ADMIN_ROLES = ['admin', 'Superadmin', 'superadmin', 'Admin Ops'];
 
 function App() {
   return (
@@ -53,27 +74,75 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            
+            <Route path="dashboard" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <DashboardPage />
+              </ProtectedRoute>
+            } />
+
             {/* Fitur yang bisa diakses Superadmin & Admin Ops */}
             <Route path="features" element={
               <ProtectedRoute allowedRoles={['Superadmin', 'Admin Ops']}>
                 <FeatureFlagsPage />
               </ProtectedRoute>
             } />
-            
-            <Route path="users" element={<UsersPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="drivers" element={<DriversPage />} />
-            <Route path="merchants" element={<MerchantsPage />} />
-            <Route path="technicians" element={<TechniciansPage />} />
-            <Route path="villas" element={<VillasPage />} />
-            <Route path="pricing" element={<VehiclesPricingPage />} />
-            <Route path="finance" element={<FinancePage />} />
-            <Route path="promos" element={<PromosPage />} />
-            <Route path="whatsapp" element={<WhatsAppPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            
+
+            <Route path="users" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="orders" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <OrdersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="drivers" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <DriversPage />
+              </ProtectedRoute>
+            } />
+            <Route path="merchants" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <MerchantsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="technicians" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <TechniciansPage />
+              </ProtectedRoute>
+            } />
+            <Route path="villas" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <VillasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="pricing" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <VehiclesPricingPage />
+              </ProtectedRoute>
+            } />
+            <Route path="finance" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <FinancePage />
+              </ProtectedRoute>
+            } />
+            <Route path="promos" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <PromosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="whatsapp" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <WhatsAppPage />
+              </ProtectedRoute>
+            } />
+            <Route path="settings" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+
           </Route>
         </Routes>
       </Suspense>

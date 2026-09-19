@@ -16,7 +16,8 @@ const authMiddleware = async (req, res, next) => {
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) {
-      return response.error(res, 'Sesi telah berakhir, silakan login kembali', 401, error);
+      if (error) console.error('Auth middleware: token verification failed', error);
+      return response.error(res, 'Sesi telah berakhir, silakan login kembali', 401);
     }
 
     // Ambil data profil dari tabel users

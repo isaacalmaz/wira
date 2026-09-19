@@ -323,8 +323,24 @@ const VALID_TRANSITIONS = {
 /**
  * Update order status (preparing, ready, picking_up, in_trip, on_the_way,
  * working, etc.), enforcing the canonical transition graph.
+ *
+ * `partnerId` (the current logged-in mitra's own id) and `mode` are
+ * REQUIRED, not just for bookkeeping - they scope the actual UPDATE to rows
+ * this mitra owns, the same ownership-guard pattern acceptOrder/
+ * claimDeliveryOrder already use elsewhere in this file. Drivers and
+ * technicians are both stored under orders.driver_id (see
+ * TechOrdersPage.jsx's fetchOrders, which queries driver_id for a
+ * technician's own jobs too), so mode 'driver'/'technician' both filter on
+ * driver_id; mode 'merchant' filters on merchant_id. Without this, any
+ * logged-in mitra account could transition an order it doesn't own just by
+ * knowing/guessing its id - this is defense-in-depth (final enforcement
+ * should also live in Postgres RLS), not a replacement for it.
  */
-export async function updateOrderStatus(supabaseClient, orderId, nextStatus) {
+export async function updateOrderStatus(supabaseClient, orderId, nextStatus, partnerId, mode = 'driver') {
+  if (!partnerId) {
+    throw new Error('updateOrderStatus requires the current mitra\'s own id (partnerId) to scope the update to orders they own.');
+  }
+
   const currentOrder = await getOrderById(supabaseClient, orderId);
   if (!currentOrder) throw new Error(`Order ${orderId} not found`);
 
@@ -333,14 +349,18 @@ export async function updateOrderStatus(supabaseClient, orderId, nextStatus) {
     throw new Error(`Invalid status transition: Cannot transition order ${orderId} from '${currentOrder.status}' to '${nextStatus}'`);
   }
 
-  const { data, error } = await supabaseClient
+  const ownsViaDriverId = mode === 'driver' || mode === 'technician';
+  let query = supabaseClient
     .from('orders')
     .update({ status: nextStatus })
-    .eq('id', orderId)
-    .select()
-    .single();
+    .eq('id', orderId);
+  query = ownsViaDriverId ? query.eq('driver_id', partnerId) : query.eq('merchant_id', partnerId);
 
-  if (error) throw new Error(`updateOrderStatus failed: ${error.message}`);
+  const { data, error } = await query.select().single();
+
+  if (error || !data) {
+    throw new Error(`updateOrderStatus failed: order not found or not owned by this account (${error ? error.message : 'no rows updated'})`);
+  }
   return data;
 }
 
@@ -384,8 +404,8 @@ export async function setDriverOffline(supabaseClient, driverId) {
 /**
  * Complete an order
  */
-export async function completeOrder(supabaseClient, orderId) {
-  return updateOrderStatus(supabaseClient, orderId, OrderStatus.COMPLETED);
+export async function completeOrder(supabaseClient, orderId, partnerId, mode = 'driver') {
+  return updateOrderStatus(supabaseClient, orderId, OrderStatus.COMPLETED, partnerId, mode);
 }
 
 /**
@@ -425,6 +445,28 @@ function isWithinNearbyRadius(order, getDriverPos) {
 }
 
 /**
+ * Builds a Realtime `filter` string that narrows a postgres_changes
+ * subscription to "unassigned orders (driver_id IS NULL) whose service_type
+ * is one this mitra could ever care about". Supabase Realtime's filter
+ * option is AND-only (no OR across columns - see Supabase's Aug 2026
+ * "Postgres Changes gets AND filters" release, which is what makes the
+ * `is.null` + `in.()` combination below possible at all; confirmed live
+ * against this project's own Supabase Cloud instance, not just docs), so
+ * this can't also narrow to "OR this row is already assigned to me" in the
+ * same clause - every event subscribeToDriverOrders/subscribeToTechnicianOrders
+ * actually react to below only ever fires for driver_id IS NULL rows anyway
+ * (new pending orders, a food order going READY, a requeued ride/send), so
+ * that's not a gap in practice for this function. If `serviceTypes` is
+ * empty (this mitra is eligible for nothing right now), the filter is built
+ * to match no real row rather than omitting the filter and falling back to
+ * platform-wide broadcast.
+ */
+function buildUnassignedServiceTypeFilter(serviceTypes) {
+  const types = serviceTypes.length ? serviceTypes : ['__none_eligible__'];
+  return `driver_id=is.null,service_type=in.(${types.join(',')})`;
+}
+
+/**
  * Subscribe to realtime pending driver orders. `getDriverPos` (optional) is
  * a `() => {lat, lng} | null` used to filter out-of-radius orders - see
  * isWithinNearbyRadius. `driver` (the logged-in driver's own {vehicle_type,
@@ -432,14 +474,25 @@ function isWithinNearbyRadius(order, getDriverPos) {
  * Option B eligibility function fetchPendingOrders uses - for every branch
  * below, so a driver who has toggled a job type off, or a mobil driver
  * food/small-package-send is never eligible for, never sees it appear here
- * either.
+ * either. It's ALSO now used to build a server-side Realtime `filter` (see
+ * buildUnassignedServiceTypeFilter) so this driver's client no longer
+ * receives the full row (customer id, price, pickup coordinates, package
+ * info) for every order placed platform-wide - only for unassigned orders
+ * whose service_type this driver could possibly be eligible for. The
+ * client-side isOrderEligibleForDriver/isWithinNearbyRadius checks below
+ * stay in place unchanged: geo radius and the Send package-size rule still
+ * can't be expressed in a Realtime filter, and they're cheap defense-in-depth
+ * against the filter ever being wrong.
  */
 export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = null, driver = null) {
+  const { serviceTypes } = eligibleServiceTypesForDriver(driver);
+  const filter = buildUnassignedServiceTypeFilter(serviceTypes);
+
   const channel = supabaseClient
     .channel('driver-orders-stream')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'orders' },
+      { event: 'INSERT', schema: 'public', table: 'orders', filter },
       (payload) => {
         const order = payload.new;
         if (
@@ -466,7 +519,7 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
       // INSERT listener plus this narrower READY-only UPDATE listener,
       // neither of which would have matched a same-row PENDING update.
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders' },
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter },
       (payload) => {
         const order = payload.new;
         if (!order || order.driver_id) return;
@@ -497,14 +550,21 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
 }
 
 /**
- * Subscribe to realtime pending technician jobs
+ * Subscribe to realtime pending technician jobs. Narrowed with the same
+ * driver_id-IS-NULL + service_type-IN Realtime filter as
+ * subscribeToDriverOrders (see buildUnassignedServiceTypeFilter) - a
+ * technician's eligible set is the static TECHNICIAN_SERVICE_TYPES list
+ * (service/pool jobs are unfiltered by specialization on purpose, see
+ * TechOrdersPage.jsx's isPoolOrder comment), so there's no per-technician
+ * eligibility to compute here, just this fixed list.
  */
 export function subscribeToTechnicianOrders(supabaseClient, onOrder) {
+  const filter = buildUnassignedServiceTypeFilter(TECHNICIAN_SERVICE_TYPES);
   const channel = supabaseClient
     .channel('technician-orders-stream')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'orders' },
+      { event: 'INSERT', schema: 'public', table: 'orders', filter },
       (payload) => {
         const order = payload.new;
         if (order && order.status === OrderStatus.PENDING && !order.driver_id && TECHNICIAN_SERVICE_TYPES.includes(order.service_type)) {

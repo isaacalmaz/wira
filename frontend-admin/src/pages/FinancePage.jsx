@@ -74,23 +74,7 @@ const FinancePage = () => {
     setActionLoading(true);
     try {
       const { data, error } = await supabase.rpc('reject_topup_request', { request_id: id });
-      if (error) {
-        // Safe fallback to direct update if RPC is not yet registered
-        const { data: updateData, error: updateErr } = await supabase
-          .from('topup_requests')
-          .update({ status: 'rejected', updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .eq('status', 'pending')
-          .select();
-        if (updateErr) throw updateErr;
-        if (!updateData || updateData.length === 0) {
-          toast.error('Gagal menolak, status permintaan sudah berubah');
-        } else {
-          toast.success('Top-up berhasil ditolak');
-          fetchData();
-        }
-        return;
-      }
+      if (error) throw error;
       if (data) {
         toast.success('Top-up berhasil ditolak');
         fetchData();

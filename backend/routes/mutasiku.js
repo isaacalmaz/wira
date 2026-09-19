@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const supabaseAdmin = require('../config/supabase');
+const { webhookLimiter } = require('../middleware/rateLimit');
 
 // Generated from Mutasiku dashboard: Integrasi > Webhooks > (webhook you add).
 // Required to verify X-Webhook-Signature - without this check, anyone who
@@ -33,7 +34,7 @@ const MUTASIKU_ACCOUNT_ID = process.env.MUTASIKU_ACCOUNT_ID || '';
 // a real DB constraint too - migrations/0045 added a partial UNIQUE INDEX on
 // (amount) WHERE status = 'pending' AND method != 'midtrans', so at most one
 // manual-flow pending row can ever match a given amount at a time.
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', webhookLimiter, async (req, res) => {
   try {
     const signature = req.headers['x-webhook-signature'];
     const { type, data } = req.body || {};
@@ -78,12 +79,23 @@ router.post('/webhook', async (req, res) => {
       return res.status(200).json({ received: true, skipped: true, reason: 'invalid_amount' });
     }
 
+    // Only match a pending manual top-up that was created recently. Without
+    // this, an abandoned pending request could sit around indefinitely and
+    // later get matched by an unrelated incoming mutation of the same
+    // nominal (e.g. two different customers both topping up Rp 50.000 hours
+    // apart) - the amount-based match alone doesn't distinguish them. 2
+    // hours comfortably covers a real QRIS payment (usually completed in
+    // minutes) while still expiring genuinely stale/abandoned requests.
+    const TOPUP_MATCH_WINDOW_MS = 2 * 60 * 60 * 1000;
+    const matchWindowStart = new Date(Date.now() - TOPUP_MATCH_WINDOW_MS).toISOString();
+
     const { data: pendingReq, error: findErr } = await supabaseAdmin
       .from('topup_requests')
       .select('id, user_id, amount, status')
       .eq('amount', notifiedAmount)
       .eq('status', 'pending')
       .eq('method', 'manual')
+      .gte('created_at', matchWindowStart)
       .maybeSingle();
 
     if (findErr) throw findErr;
@@ -113,20 +125,16 @@ router.post('/webhook', async (req, res) => {
 
     const approvedReq = updatedRows[0];
 
-    const { data: user, error: userFetchErr } = await supabaseAdmin
-      .from('users')
-      .select('wallet_balance')
-      .eq('id', approvedReq.user_id)
-      .single();
-    if (userFetchErr) throw userFetchErr;
-
-    const newBalance = (user?.wallet_balance || 0) + approvedReq.amount;
-
-    const { error: balErr } = await supabaseAdmin
-      .from('users')
-      .update({ wallet_balance: newBalance })
-      .eq('id', approvedReq.user_id);
-    if (balErr) throw balErr;
+    // Credit balance atomically (same fix and reasoning as
+    // routes/midtrans.js's webhook: a SELECT-then-UPDATE from JS is a
+    // lost-update race against the atomic `wallet_pay` RPC). A single
+    // `wallet_balance = wallet_balance + p_amount` UPDATE inside Postgres
+    // can't lose a concurrent spend's decrement.
+    const { error: creditErr } = await supabaseAdmin.rpc('credit_wallet_balance_atomic', {
+      p_user_id: approvedReq.user_id,
+      p_amount: approvedReq.amount,
+    });
+    if (creditErr) throw creditErr;
 
     const { error: txErr } = await supabaseAdmin
       .from('transactions')
@@ -147,7 +155,7 @@ router.post('/webhook', async (req, res) => {
     return res.status(200).json({ received: true, matched: true, approved: true });
   } catch (error) {
     console.error('Mutasiku Webhook Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

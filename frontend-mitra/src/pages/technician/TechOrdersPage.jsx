@@ -61,7 +61,7 @@ const TechOrdersPage = () => {
   const updateStatus = async (newStatus) => {
     if (activeOrder) {
       try {
-        await updateOrderStatus(supabase, activeOrder.id, newStatus);
+        await updateOrderStatus(supabase, activeOrder.id, newStatus, user.id, 'technician');
         toast.success(`Status pekerjaan diubah ke: ${newStatus}`);
         fetchOrders();
       } catch (err) {

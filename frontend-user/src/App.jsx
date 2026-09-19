@@ -29,7 +29,6 @@ const PulsaPage = lazy(() => import('./pages/PulsaPage'));
 const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
-const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
@@ -52,7 +51,6 @@ export default function Root() {
                           <Route path="/login" element={<LoginPage />} />
                           <Route path="/register" element={<RegisterPage />} />
                           <Route path="/otp" element={<OTPPage />} />
-                          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
                           {/* Pelanggan (User) Main Layout & Services */}
                           <Route element={<Layout />}>

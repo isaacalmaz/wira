@@ -94,7 +94,7 @@ const MerchantOrdersPage = () => {
 
   const updateStatus = async (order, newStatus) => {
     try {
-      await updateOrderStatus(supabase, order.id, newStatus);
+      await updateOrderStatus(supabase, order.id, newStatus, merchantId, 'merchant');
       toast.success('Status pesanan diperbarui');
       if (newStatus === OrderStatus.READY) {
         notifyOrderReady(order);

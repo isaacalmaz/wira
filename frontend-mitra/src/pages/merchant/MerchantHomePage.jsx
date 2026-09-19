@@ -118,7 +118,7 @@ const MerchantHomePage = () => {
         // Villa reservations have no prep/delivery leg - ACCEPTED -> COMPLETED
         // directly is correct here, and the DB payout trigger credits the
         // merchant right away on this same transition.
-        await completeOrder(supabase, activeOrder.id);
+        await completeOrder(supabase, activeOrder.id, merchantId, 'merchant');
         setActiveOrder(null);
         toast.success('Reservasi Selesai!');
         setTodayOrders(prev => prev + 1);
@@ -133,8 +133,8 @@ const MerchantHomePage = () => {
         // intermediate hop) so the order actually becomes visible to
         // drivers, instead of jumping straight to COMPLETED and skipping
         // the driver leg entirely.
-        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING);
-        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY);
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING, merchantId, 'merchant');
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY, merchantId, 'merchant');
         setActiveOrder(null);
         toast.success('Pesanan Siap! Menunggu driver mengambil.');
         setTodayOrders(prev => prev + 1);
