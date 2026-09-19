@@ -65,6 +65,14 @@ this `migrations/` folder is complete and correct.
   requeued ride/send order reaches other drivers' realtime subscriptions,
   not just the 10s polling fallback.
 
+- **`0049_send_service_pool_promos.sql`** (2026-09-19) — seeds one real,
+  `service_type`-scoped promo code each for WiraSend (`SENDHEMAT`),
+  WiraService (`SERVICEDISKON`), and WiraPool (`POOLBERSIH`), bringing them
+  to parity with Ride/Food/Villa's existing promo codes now that
+  SendPage.jsx/ServicePage.jsx/PoolPage.jsx/VillaPage.jsx all validate and
+  redeem promos through the same `handleCheckPromo`/`increment_promo_usage`
+  flow as RidePage.jsx/RestaurantPage.jsx.
+
 `backend/database/schema.sql` and `backend/database/seed.sql` were **not**
 used as a source and were **not** modified. They describe a schema that
 diverges significantly from what's actually live (separate `wallets` table,
