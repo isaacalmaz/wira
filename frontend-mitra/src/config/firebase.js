@@ -30,6 +30,15 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 export const requestForToken = async () => {
   if (!messaging) return null;
   try {
+    // Explicitly register the FCM service worker in its own scope, distinct
+    // from sw.js's '/' scope (registered in main.jsx). Without this, calling
+    // getToken() with no serviceWorkerRegistration makes Firebase silently
+    // auto-register firebase-messaging-sw.js at the default '/' scope, which
+    // races with sw.js for control of that scope and can clobber whichever
+    // registration loses. Mirrors the fix in frontend-user/src/config/firebase.js.
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/firebase-cloud-messaging-push-scope',
+    });
     const currentToken = await getToken(messaging, {
       // Generate this in Firebase Console > Project Settings > Cloud Messaging
       // > Web configuration > Web Push certificates, then set it as
@@ -37,6 +46,7 @@ export const requestForToken = async () => {
       // Without it, getToken() reliably fails/returns null on standard
       // browsers and fcm_token never gets populated.
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: swReg,
     });
     if (currentToken) {
       console.log('Current token for client: ', currentToken);

@@ -19,6 +19,48 @@
         "--workspace=frontend-mitra"
       ],
       "port": 5173
+    },
+    {
+      "name": "user-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--workspace=frontend-user",
+        "--",
+        "--port",
+        "4101",
+        "--strictPort"
+      ],
+      "port": 4101
+    },
+    {
+      "name": "mitra-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--workspace=frontend-mitra",
+        "--",
+        "--port",
+        "4102",
+        "--strictPort"
+      ],
+      "port": 4102
+    },
+    {
+      "name": "admin-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--workspace=frontend-admin",
+        "--",
+        "--port",
+        "4103",
+        "--strictPort"
+      ],
+      "port": 4103
     }
   ]
 }

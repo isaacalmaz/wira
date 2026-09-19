@@ -1,11 +1,11 @@
 {
-  "name": "Wira App",
-  "short_name": "Wira",
-  "description": "Aplikasi layanan WiraRide dan WiraFood",
+  "name": "Wira Mitra",
+  "short_name": "Wira Mitra",
+  "description": "Dashboard mitra Wira untuk driver, merchant, dan teknisi",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#F8FAFC",
+  "theme_color": "#0891B2",
   "orientation": "portrait",
   "icons": [
     {
