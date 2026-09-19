@@ -141,13 +141,37 @@ export default function WalletPage() {
     }
   };
 
-  const handleProceedToPayment = () => {
+  // Restored to the pre-Midtrans QRIS-manual flow (2026-09-19) - Midtrans's
+  // merchant account isn't approved yet, so the automatic charge path below
+  // (handleMidtransCharge) can't actually process a real payment right now.
+  // This generates a unique 3-digit-suffix amount (getAvailableUniqueCode/
+  // calculateUniqueTopUpAmount) and moves to step 2 (static QRIS + manual
+  // admin verification via topup_requests), exactly as it worked before
+  // Midtrans was wired in.
+  const handleProceedToPayment = async () => {
+    if (loading) return;
+    if (!user) {
+      toast.error('Silakan login terlebih dahulu untuk melakukan Top Up');
+      return;
+    }
     if (!baseAmount || Number(baseAmount) < 10000) {
       toast.error('Minimal top up adalah Rp 10.000');
       return;
     }
-    setFinalAmount(Number(baseAmount));
-    handleTopUpConfirm();
+    setLoading(true);
+    try {
+      const code = await getAvailableUniqueCode(supabase, baseAmount);
+      const calc = calculateUniqueTopUpAmount(baseAmount, code);
+      setBaseAmount(calc.baseAmount);
+      setUniqueCode(calc.uniqueCode);
+      setFinalAmount(calc.totalAmount);
+      setViewingPendingId(null);
+      setTopUpStep(2);
+    } catch (err) {
+      toast.error(err.message || 'Nominal tidak valid');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopyNominal = async () => {
@@ -161,7 +185,54 @@ export default function WalletPage() {
     }
   };
 
+  // The manual QRIS confirmation button ("Saya Sudah Transfer") calls this -
+  // creates a pending topup_requests row for an admin to manually verify
+  // and approve/reject (FinancePage.jsx), exactly as it worked before
+  // Midtrans. Does NOT touch wallet_balance itself - only
+  // approve_topup_request (migrations/0015/0022) does that, after a human
+  // admin confirms the transfer actually arrived.
   const handleTopUpConfirm = async () => {
+    if (loading) return;
+
+    // If viewing an already-created pending request, avoid duplicate
+    // insertions - they're just re-opening the QRIS screen to re-scan/
+    // re-copy the nominal, not making a second request.
+    if (viewingPendingId) {
+      toast.success('Permintaan Top Up ini sudah tercatat dan sedang menunggu verifikasi admin.');
+      setModalType(null);
+      setViewingPendingId(null);
+      setTopUpStep(1);
+      return;
+    }
+
+    if (!user) {
+      toast.error('Silakan login terlebih dahulu');
+      return;
+    }
+    setLoading(true);
+    try {
+      const created = await createTopUpRequest(supabase, {
+        userId: user.id,
+        amount: finalAmount,
+      });
+      const recordedAmount = created?.amount ? Number(created.amount) : finalAmount;
+      toast.success(`Permintaan Top Up Rp ${recordedAmount.toLocaleString('id-ID')} berhasil. Menunggu verifikasi admin.`);
+      setModalType(null);
+      setViewingPendingId(null);
+      setTopUpStep(1);
+      await loadPendingTopUps();
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat permintaan top up');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Kept intact, deliberately NOT wired to any button right now - Midtrans's
+  // merchant account isn't approved yet. Re-wire handleProceedToPayment (or
+  // add a second payment-method option) to call this once it is, instead of
+  // deleting this working integration.
+  const handleMidtransCharge = async () => {
     if (loading) return;
 
     if (!user) {
@@ -494,6 +565,7 @@ export default function WalletPage() {
               <X size={20} />
             </button>
 
+            {topUpStep === 1 ? (
               <>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
