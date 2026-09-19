@@ -295,7 +295,14 @@ export default function RestaurantPage() {
         pickupLat: merchantCoords?.lat,
         pickupLng: merchantCoords?.lng,
         paymentMethod: paymentMethod,
-        metadata: { items: cart.items, subtotal: subtotal, discount: discount }
+        metadata: { items: cart.items, subtotal: subtotal, discount: discount },
+        // `distance` state holds the route distance in km (see the
+        // merchantCoords/deliveryCoords effect above, which derives it from
+        // fetchRoute's res.distance in meters) - convert back to meters for
+        // the 0059 trigger's food delivery_fee recomputation, reusing the
+        // exact same route fetch rather than calling fetchRoute again.
+        distanceMeters: distance > 0 ? Math.round(distance * 1000) : null,
+        promoCode: activePromo?.code || null,
       });
 
       // Only count the promo as "used" once it's actually attached to a

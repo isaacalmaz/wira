@@ -303,6 +303,13 @@ export default function RidePage() {
         pickupLng,
         dropoffLat,
         dropoffLng,
+        // Structured pricing inputs for the server-side trigger
+        // (migrations/0059): rateCode must equal vehicles.type - the
+        // vehicles fetch above maps `id: v.type`, so selectedVehicle.id IS
+        // vehicles.type (e.g. 'motor'/'mobil'), not a UI label.
+        rateCode: selectedVehicle?.id || null,
+        distanceMeters: routeInfo?.distance ?? null,
+        promoCode: activePromo?.code || null,
       });
 
       // Only count the promo as "used" once it's actually attached to a

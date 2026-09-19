@@ -131,6 +131,14 @@ export const OrderProvider = ({ children }) => {
             delivery_fee: orderData.deliveryFee ?? 0,
             package_size: orderData.packageSize ?? null,
             metadata: orderData.metadata ?? null,
+            // Structured pricing inputs for the 0059 server-side price
+            // trigger (migrations/0058_orders_pricing_input_columns.sql) -
+            // the trigger recomputes total_price itself from these rather
+            // than trusting total_price above, per service_type.
+            rate_code: orderData.rateCode ?? null,
+            distance_meters: orderData.distanceMeters ?? null,
+            nights: orderData.nights ?? null,
+            promo_code: orderData.promoCode ?? null,
           },
         ]).select().single();
 

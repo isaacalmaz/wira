@@ -88,7 +88,7 @@ const AdminSidebar = ({ isCollapsed }) => {
     { name: 'Merchants', icon: Store, path: '/merchants', roles: ['Superadmin', 'Admin Ops'], countKey: 'merchant' },
     { name: 'Technicians', icon: Wrench, path: '/technicians', roles: ['Superadmin', 'Admin Ops'], countKey: 'technician' },
     { name: 'Villas', icon: Home, path: '/villas', roles: ['Superadmin', 'Admin Ops'] },
-    { name: 'Harga & Kendaraan', icon: Tag, path: '/pricing', roles: ['Superadmin', 'Admin Ops'] },
+    { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: ['Superadmin', 'Admin Ops'] },
     { name: 'Keuangan', icon: Wallet, path: '/finance', roles: ['Superadmin', 'Admin Keuangan'] },
     { name: 'Promo', icon: Ticket, path: '/promos', roles: ['Superadmin', 'Admin Ops'] },
     { name: 'WhatsApp', icon: MessageCircle, MessageSquare, path: '/whatsapp', roles: ['Superadmin', 'CS'] },

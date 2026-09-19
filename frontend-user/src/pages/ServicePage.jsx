@@ -187,6 +187,11 @@ export default function ServicePage() {
         details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`,
         price: finalPrice,
         paymentMethod: paymentMethod,
+        // selectedService.id matches pricing_rules.code for
+        // service_type='service' ('AC' | 'Listrik' | 'Plumbing' | 'Tukang'),
+        // per the categories array above and migrations/0057's seed.
+        rateCode: selectedService?.id || null,
+        promoCode: activePromo?.code || null,
       });
 
       // Only counted as "used" once the order actually exists - see

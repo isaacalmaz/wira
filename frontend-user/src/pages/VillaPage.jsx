@@ -166,6 +166,8 @@ export default function VillaPage() {
         details: `Kode: ${bookingCode} • ${nights} Malam (${checkIn}) • ${guests} Tamu`,
         price: totalPrice,
         paymentMethod: paymentMethod,
+        nights,
+        promoCode: activePromo?.code || null,
       });
 
       // Only counted as "used" once the order actually exists - see

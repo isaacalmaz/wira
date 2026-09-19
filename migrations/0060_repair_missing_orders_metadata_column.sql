@@ -1,0 +1,44 @@
+-- =============================================================================
+-- Migration 0060: repair - public.orders.metadata was never actually applied
+-- =============================================================================
+-- Discovered while live-verifying 0059's food price computation:
+-- `admin.from('orders').select('metadata')` failed with a real Postgres
+-- 42703 ("column orders.metadata does not exist"), not a PostgREST schema-
+-- cache staleness issue (confirmed by retrying in isolation and by checking
+-- every other expected orders column individually - metadata was the only
+-- one missing; delivery_fee/package_size/pickup_lat/pickup_lng/dropoff_lat/
+-- dropoff_lng/is_reviewed/rate_code/distance_meters/nights/promo_code all
+-- exist correctly).
+--
+-- migrations/0034_orders_metadata.sql does `ALTER TABLE public.orders ADD
+-- COLUMN IF NOT EXISTS metadata JSONB;` and is listed as applied in
+-- migrations/README.md, but was evidently never actually run against this
+-- database - the same class of gap this project has hit before (e.g.
+-- wallet_refund() being written but never applied, confirmed via a
+-- PGRST202 function-not-found probe, documented in the 0038 README entry).
+--
+-- Real-world impact: frontend-user/src/pages/RestaurantPage.jsx has been
+-- sending `metadata: { items, subtotal, discount }` on every WiraFood order
+-- insert for a while (unrelated to this session's pricing work) - meaning
+-- every WiraFood checkout attempt has likely been failing outright with
+-- this exact error, independent of anything built in this session. Worth
+-- the user separately confirming whether WiraFood orders have actually been
+-- reaching real customers or silently failing - out of scope for this
+-- migration to investigate further, just flagging it since it was found as
+-- a side effect of unrelated work.
+--
+-- Idempotent re-run of 0034's own statement - safe regardless of whether
+-- 0034 partially applied or not at all.
+-- =============================================================================
+
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS metadata JSONB;
+
+-- ============================================================
+-- Verification — run after applying
+-- ============================================================
+-- SELECT column_name FROM information_schema.columns WHERE table_schema =
+-- 'public' AND table_name = 'orders' AND column_name = 'metadata'; should
+-- return one row. Then re-test a WiraFood order insert with a real
+-- metadata.items payload - should succeed and 0059's price trigger should
+-- correctly recompute total_price/delivery_fee from it.
+-- =============================================================================

@@ -173,6 +173,11 @@ export default function PoolPage() {
         details: `Ukuran: ${poolSize} • Lokasi: ${address} • Kunjungan: ${visitDate}`,
         price: finalPrice,
         paymentMethod: paymentMethod,
+        // selectedService.id matches pricing_rules.code for
+        // service_type='pool' ('S1' | 'S2' | 'S3' from `services`, or
+        // 'MONTHLY' from `monthlyPackage`), per migrations/0057's seed.
+        rateCode: selectedService?.id || null,
+        promoCode: activePromo?.code || null,
       });
 
       // Only counted as "used" once the order actually exists - see

@@ -240,6 +240,11 @@ export default function SendPage() {
         pickupLng,
         dropoffLat,
         dropoffLng,
+        // selectedPackage already holds the exact tier id ('dokumen' |
+        // 'kecil' | 'sedang' | 'besar'), matching pricing_rules.code for
+        // service_type='send' (migrations/0057's seed).
+        rateCode: selectedPackage,
+        promoCode: activePromo?.code || null,
       });
 
       // Only counted as "used" once the order actually exists - see

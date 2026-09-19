@@ -2,8 +2,19 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, RefreshCw, Save, X } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import PricingRulesSection from './PricingRulesSection';
 
 const emptyDraft = { name: '', type: '', service_type: 'ride', price: 0, per_km_rate: 0, capacity: 1, duration: '', is_active: true };
+
+// public.pricing_rules groups: WiraSend/Service/Pool tiers are flat fees
+// (per_km_rate is always 0 for them per migration 0057's seed), so only the
+// WiraFood delivery-fee section exposes the per-km input to avoid clutter.
+const RULE_GROUPS = [
+  { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga tiap tingkat paket kiriman.', showPerKmRate: false },
+  { key: 'service', title: 'WiraService - Tarif Layanan', description: 'Harga dasar tiap kategori jasa servis.', showPerKmRate: false },
+  { key: 'pool', title: 'WiraPool - Tarif Layanan', description: 'Harga dasar tiap layanan kolam renang.', showPerKmRate: false },
+  { key: 'food_delivery', title: 'WiraFood - Ongkos Kirim', description: 'Formula ongkos kirim: harga dasar + (tarif/km x jarak).', showPerKmRate: true },
+];
 
 const VehiclesPricingPage = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -11,6 +22,15 @@ const VehiclesPricingPage = () => {
   const [edits, setEdits] = useState({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [newDraft, setNewDraft] = useState(emptyDraft);
+
+  // public.pricing_rules (WiraSend/Service/Pool/Food delivery-fee) - kept as
+  // separate state from vehicles so a missing/errored pricing_rules table
+  // (e.g. migration 0057 not yet applied in this environment) only degrades
+  // that section instead of crashing the whole page.
+  const [pricingRules, setPricingRules] = useState([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesError, setRulesError] = useState(null);
+  const [rulesEdits, setRulesEdits] = useState({});
 
   const fetchVehicles = async () => {
     setLoading(true);
@@ -29,8 +49,30 @@ const VehiclesPricingPage = () => {
     setLoading(false);
   };
 
+  const fetchPricingRules = async () => {
+    setRulesLoading(true);
+    setRulesError(null);
+    try {
+      const { data, error } = await supabase
+        .from('pricing_rules')
+        .select('*')
+        .order('service_type', { ascending: true })
+        .order('code', { ascending: true });
+      if (error) throw error;
+      setPricingRules(data || []);
+      setRulesEdits({});
+    } catch (err) {
+      // Table not yet migrated (0057) or another fetch failure - degrade
+      // gracefully to an inline error state for this section only.
+      setPricingRules([]);
+      setRulesError(err.message || 'Gagal memuat data tarif layanan.');
+    }
+    setRulesLoading(false);
+  };
+
   useEffect(() => {
     fetchVehicles();
+    fetchPricingRules();
   }, []);
 
   const getField = (v, field) => (edits[v.id]?.[field] !== undefined ? edits[v.id][field] : v[field]);
@@ -90,17 +132,86 @@ const VehiclesPricingPage = () => {
     }
   };
 
+  // --- pricing_rules: same edit/save/delete/create pattern as vehicles above ---
+
+  const getRuleField = (r, field) => (rulesEdits[r.id]?.[field] !== undefined ? rulesEdits[r.id][field] : r[field]);
+
+  const setRuleField = (id, field, value) => {
+    setRulesEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
+
+  const isRuleDirty = (id) => !!rulesEdits[id];
+
+  const handleSaveRule = async (r) => {
+    const patch = rulesEdits[r.id];
+    if (!patch) return;
+    try {
+      const { error, data } = await supabase
+        .from('pricing_rules')
+        .update(patch)
+        .eq('id', r.id)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau data tidak ditemukan.');
+      toast.success(`${r.name} berhasil diperbarui`);
+      fetchPricingRules();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyimpan perubahan');
+    }
+  };
+
+  const handleDeleteRule = async (r) => {
+    if (!window.confirm(`Hapus "${r.name}" dari daftar tarif?`)) return;
+    try {
+      const { error, data } = await supabase.from('pricing_rules').delete().eq('id', r.id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau data tidak ditemukan.');
+      toast.success('Berhasil dihapus');
+      fetchPricingRules();
+    } catch (err) {
+      toast.error(err.message || 'Gagal menghapus');
+    }
+  };
+
+  const handleCreateRule = async (draft) => {
+    if (!draft.code || !draft.name) {
+      toast.error('Kode dan nama wajib diisi');
+      return false;
+    }
+    try {
+      const { error, data } = await supabase.from('pricing_rules').insert([draft]).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak saat menambahkan.');
+      toast.success('Tarif baru ditambahkan');
+      fetchPricingRules();
+      return true;
+    } catch (err) {
+      toast.error(err.message || 'Gagal menambahkan tarif');
+      return false;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Harga & Kendaraan</h1>
-          <p className="text-sm text-slate-500">Kelola tarif dasar dan tarif per-km tiap jenis layanan. Perubahan berlaku langsung ke aplikasi pelanggan.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Manajemen Harga</h1>
+          <p className="text-sm text-slate-500">Kelola tarif WiraRide, WiraSend, WiraService, WiraPool, dan ongkos kirim WiraFood. Perubahan berlaku langsung ke aplikasi pelanggan.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchVehicles} className="p-2 border rounded-xl hover:bg-slate-50 dark:border-slate-700">
-            <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+          <button
+            onClick={() => { fetchVehicles(); fetchPricingRules(); }}
+            className="p-2 border rounded-xl hover:bg-slate-50 dark:border-slate-700"
+            title="Muat ulang semua data harga"
+          >
+            <RefreshCw size={20} className={(loading || rulesLoading) ? 'animate-spin' : ''} />
           </button>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">WiraRide - Kendaraan</h2>
           <button onClick={() => setShowNewForm(v => !v)} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl">
             <Plus size={20} /> Tambah
           </button>
@@ -211,6 +322,40 @@ const VehiclesPricingPage = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="pt-2">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Tarif Layanan Lain</h2>
+        <p className="text-sm text-slate-500 mb-4">Kelola harga paket WiraSend, tarif WiraService dan WiraPool, serta ongkos kirim WiraFood.</p>
+
+        {rulesError ? (
+          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 text-sm text-amber-800 dark:text-amber-300">
+            Data tarif layanan belum bisa dimuat ({rulesError}). Bagian ini butuh tabel <code>public.pricing_rules</code> (migrasi 0057) - jalankan migrasinya lalu klik muat ulang. Data kendaraan WiraRide di atas tidak terpengaruh.
+          </div>
+        ) : rulesLoading && pricingRules.length === 0 ? (
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center text-slate-500 text-sm">
+            Memuat data tarif layanan...
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {RULE_GROUPS.map(g => (
+              <PricingRulesSection
+                key={g.key}
+                title={g.title}
+                description={g.description}
+                serviceType={g.key}
+                showPerKmRate={g.showPerKmRate}
+                rows={pricingRules.filter(r => r.service_type === g.key)}
+                getField={getRuleField}
+                setField={setRuleField}
+                isDirty={isRuleDirty}
+                onSave={handleSaveRule}
+                onDelete={handleDeleteRule}
+                onCreate={handleCreateRule}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

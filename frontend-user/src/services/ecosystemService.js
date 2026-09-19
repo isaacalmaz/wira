@@ -68,7 +68,16 @@ export const createEcosystemOrder = async (orderData) => {
     details: orderData.details || '',
     payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
     payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
-    status: 'pending'
+    status: 'pending',
+    // Same structured pricing inputs OrderContext.jsx's addOrder() sends on
+    // its own insert (migrations/0058/0059) - kept in sync here since this
+    // is a separate, still-live insert path (the guest-checkout fallback in
+    // OrderContext.jsx's addOrder(), used when there is no authenticated
+    // session), not the phantom dual-insert that comment there refers to.
+    rate_code: orderData.rateCode ?? null,
+    distance_meters: orderData.distanceMeters ?? null,
+    nights: orderData.nights ?? null,
+    promo_code: orderData.promoCode ?? null,
   };
 
   const { data, error } = await supabase
