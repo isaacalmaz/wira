@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import SavedAddressPicker from '../components/common/SavedAddressPicker';
 import ChatModal from '../components/common/ChatModal';
 import {
   MapPin,
@@ -549,13 +550,25 @@ export default function RidePage() {
                   setMapState(prev => ({ ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19 }));
                 }}
               />
-              <button
-                onClick={() => handleLocateMe(0)}
-                className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark w-full justify-end pr-1 mt-[-4px] mb-2"
-              >
-                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
-              </button>
-              
+              <div className="flex items-center justify-between pr-1 mt-[-4px] mb-2">
+                <SavedAddressPicker
+                  onSelect={({ address, lat, lng }) => {
+                    setPickup(address);
+                    setMapState(prev => {
+                      const newMarkers = [...prev.markers];
+                      newMarkers[0] = { lat, lng };
+                      return { ...prev, center: { lat, lng }, zoom: 19, markers: newMarkers };
+                    });
+                  }}
+                />
+                <button
+                  onClick={() => handleLocateMe(0)}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
+                >
+                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                </button>
+              </div>
+
               <LocationAutocomplete
                 placeholder="Mau ke mana? (cth: Epicentrum Mall / Senggigi)"
                 icon={MapPin}
@@ -570,12 +583,24 @@ export default function RidePage() {
                   });
                 }}
               />
-              <button
-                onClick={() => handleLocateMe(1)}
-                className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600 w-full justify-end pr-1 mt-[-4px]"
-              >
-                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
-              </button>
+              <div className="flex items-center justify-between pr-1 mt-[-4px]">
+                <SavedAddressPicker
+                  onSelect={({ address, lat, lng }) => {
+                    setDropoff(address);
+                    setMapState(prev => {
+                      const newMarkers = [...prev.markers];
+                      newMarkers[1] = { lat, lng };
+                      return { ...prev, center: { lat, lng }, zoom: 19, markers: newMarkers };
+                    });
+                  }}
+                />
+                <button
+                  onClick={() => handleLocateMe(1)}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600"
+                >
+                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                </button>
+              </div>
             </Card>
           </div>
         )}

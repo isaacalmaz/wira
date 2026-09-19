@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ChatModal from '../components/common/ChatModal';
+import SavedAddressPicker from '../components/common/SavedAddressPicker';
 import {
   Package,
   Truck,
@@ -198,6 +199,9 @@ export default function SendPage() {
               rows="2"
               required
             ></textarea>
+            <div className="flex justify-end">
+              <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setSenderAddress(address)} />
+            </div>
           </Card>
 
           {/* Detail Penerima */}
@@ -232,6 +236,9 @@ export default function SendPage() {
               rows="2"
               required
             ></textarea>
+            <div className="flex justify-end">
+              <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setReceiverAddress(address)} />
+            </div>
             <input
               type="text"
               placeholder="Catatan / Isi Paket (cth: Kue lapis / Dokumen sertifikat)"

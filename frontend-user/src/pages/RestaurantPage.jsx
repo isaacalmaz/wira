@@ -10,6 +10,7 @@ import Card from '../components/common/Card';
 import ChatModal from '../components/common/ChatModal';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import SavedAddressPicker from '../components/common/SavedAddressPicker';
 import {
   Star,
   Clock,
@@ -502,13 +503,21 @@ export default function RestaurantPage() {
                 onSelect={(loc) => setDeliveryCoords({ lat: loc.lat, lng: loc.lng })}
               />
             </div>
-            <button
-              type="button"
-              onClick={handleLocateMe}
-              className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark w-full justify-end -mt-1"
-            >
-              <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
-            </button>
+            <div className="flex items-center justify-between -mt-1">
+              <SavedAddressPicker
+                onSelect={({ address, lat, lng }) => {
+                  setDeliveryAddress(address);
+                  setDeliveryCoords({ lat, lng });
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
+              >
+                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+              </button>
+            </div>
             <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
               <WiraMap
                 center={deliveryCoords}
