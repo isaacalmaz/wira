@@ -8,6 +8,7 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import API_BASE_URL from '../config/api';
 
 export default function ServicePage() {
   const { balance, pay } = useWallet();
@@ -61,6 +62,17 @@ export default function ServicePage() {
   const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // The actual amount charged for the active/last order - captured at
+  // booking time so the pending/success screens keep showing the real
+  // discounted total even after activePromo is cleared post-booking (see
+  // handleRemovePromo call in handleConfirmOrder).
+  const [paidPrice, setPaidPrice] = useState(0);
+
+  // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
+  const [promoCode, setPromoCode] = useState('');
+  const [activePromo, setActivePromo] = useState(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
 
   // Dengarkan penerimaan panggilan dari teknisi secara realtime
   useEffect(() => {
@@ -104,14 +116,60 @@ export default function ServicePage() {
     setOrderPending(false);
     setOrderSuccess(false);
     setActiveOrderId(null);
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
     setIsModalOpen(true);
+  };
+
+  const handleCheckPromo = async () => {
+    if (!promoCode.trim()) return;
+    setCheckingPromo(true);
+    setPromoError('');
+    try {
+      const { data, error } = await supabase
+        .from('promos')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single();
+
+      if (error || !data) throw new Error('Kode promo tidak ditemukan');
+      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
+      if (data.service_type && data.service_type !== 'service') throw new Error('Promo tidak berlaku untuk layanan ini');
+
+      setActivePromo(data);
+      toast.success('Promo berhasil digunakan!');
+    } catch (err) {
+      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setActivePromo(null);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
+  };
+
+  const calculateFinalPrice = () => {
+    const basePrice = selectedService?.price || 0;
+    if (!activePromo) return basePrice;
+    if (activePromo.type === 'Percentage') {
+      const discount = (basePrice * activePromo.discount) / 100;
+      return Math.max(0, basePrice - discount);
+    }
+    return Math.max(0, basePrice - activePromo.discount);
   };
 
   const handleConfirmOrder = async (e) => {
     e.preventDefault();
     if (!selectedService) return;
 
-    if (paymentMethod === 'WiraPay' && balance < selectedService.price) {
+    const finalPrice = calculateFinalPrice();
+    if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error('Saldo WiraPay tidak mencukupi untuk pemesanan ini');
       return;
     }
@@ -119,7 +177,7 @@ export default function ServicePage() {
     setLoading(true);
     try {
       if (paymentMethod === 'WiraPay') {
-        await pay(selectedService.price, `WiraService - ${selectedService.name}`);
+        await pay(finalPrice, `WiraService - ${selectedService.name}`);
       }
 
       const order = await addOrder({
@@ -127,12 +185,56 @@ export default function ServicePage() {
         serviceType: 'service',
         title: selectedService.name,
         details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`,
-        price: selectedService.price,
+        price: finalPrice,
         paymentMethod: paymentMethod,
       });
 
+      // Only counted as "used" once the order actually exists - see
+      // migrations/0046's increment_promo_usage.
+      if (activePromo?.id) {
+        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
+          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
+        });
+      }
+
       setActiveOrderId(order.id);
+      setPaidPrice(finalPrice);
       setOrderPending(true);
+
+      // Relevant to nearby ONLINE technicians, not drivers - but there is no
+      // online/offline concept for technicians anywhere in this schema (no
+      // equivalent of drivers.is_online), and no get_nearest_technicians RPC
+      // (only list_technicians(), a flat SECURITY DEFINER directory - see
+      // migrations/0025/0026). Rather than invent a new online-status column
+      // for tonight, every registered technician in `technicians` is
+      // notified - the same call already made for Pool jobs by
+      // frontend-mitra/src/pages/technician/TechOrdersPage.jsx (see its
+      // isPoolOrder comment: a hard specialization filter risks stranding a
+      // job with zero eligible technicians in a small market like Lombok,
+      // so filtering stays visibility-only there too). Best-effort/
+      // fire-and-forget, never blocks or surfaces an error to the customer.
+      if (technicians.length > 0 && order?.id) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.access_token) return;
+          technicians.forEach((t) => {
+            fetch(`${API_BASE_URL}/notifications/order-alert`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                userId: t.id,
+                title: 'Panggilan WiraService Baru!',
+                body: `${selectedService.name} dibutuhkan di ${address}.`,
+                data: { orderId: order.id, type: 'new_service_order' },
+              }),
+            }).catch((err) => console.error('order-alert (technician) failed:', err));
+          });
+        });
+      }
+
+      handleRemovePromo(); // don't let a used promo silently discount the next order
       toast.success('Permintaan terkirim, menunggu teknisi menerima panggilan.');
     } catch (err) {
       toast.error(err.message || 'Pemesanan teknisi gagal');
@@ -332,11 +434,56 @@ export default function ServicePage() {
                   </div>
                 </div>
 
+                {/* Kode Promo */}
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl space-y-2">
+                  {activePromo ? (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        Promo "{activePromo.code}" diterapkan
+                      </span>
+                      <button
+                        type="button"
+                        className="text-slate-400 hover:text-red-500 font-semibold"
+                        onClick={handleRemovePromo}
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Kode Promo (opsional)"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="text-xs px-3"
+                        onClick={handleCheckPromo}
+                        disabled={checkingPromo || !promoCode.trim()}
+                      >
+                        {checkingPromo ? '...' : 'Pakai'}
+                      </Button>
+                    </div>
+                  )}
+                  {promoError && (
+                    <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+                  )}
+                </div>
+
                 <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl flex justify-between items-center text-xs">
                   <span className="text-slate-500 font-medium">Estimasi Biaya Jasa:</span>
-                  <span className="font-extrabold text-base text-primary">
-                    {formatRupiah(selectedService?.price || 0)}
-                  </span>
+                  <div className="text-right">
+                    {activePromo && (
+                      <p className="text-[10px] text-slate-400 line-through">{formatRupiah(selectedService?.price || 0)}</p>
+                    )}
+                    <span className="font-extrabold text-base text-primary">
+                      {formatRupiah(calculateFinalPrice())}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -417,7 +564,7 @@ export default function ServicePage() {
                   <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
                     <span className="text-slate-500 font-bold">Biaya Jasa:</span>
                     <span className="font-extrabold text-sm text-primary">
-                      {formatRupiah(selectedService?.price || 0)} ({paymentMethod})
+                      {formatRupiah(paidPrice)} ({paymentMethod})
                     </span>
                   </div>
                 </div>
