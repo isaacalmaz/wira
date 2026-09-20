@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Send, Phone, MessageSquare, Loader, MapPin, Navigation } from 'lucide-react';
@@ -24,6 +24,23 @@ const defaultIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
+
+
+function MapBounds({ order, driverLoc }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!order) return;
+    const bounds = L.latLngBounds([]);
+    if (order.pickup_lat && order.pickup_lng) bounds.extend([order.pickup_lat, order.pickup_lng]);
+    if (order.dropoff_lat && order.dropoff_lng) bounds.extend([order.dropoff_lat, order.dropoff_lng]);
+    if (driverLoc && driverLoc.lat && driverLoc.lng) bounds.extend([driverLoc.lat, driverLoc.lng]);
+    
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    }
+  }, [order, driverLoc, map]);
+  return null;
+}
 
 export default function ActiveOrderPage() {
   const { id } = useParams();
@@ -172,8 +189,11 @@ export default function ActiveOrderPage() {
       <div className="flex-1 overflow-y-auto flex flex-col">
         {showMap && (
           <div className="h-64 shrink-0 relative bg-gray-200">
-            <MapContainer center={driverLoc || [-8.5833, 116.1167]} zoom={14} className="h-full w-full">
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapContainer center={driverLoc || [-8.5833, 116.1167]} zoom={14} className="h-full w-full" zoomControl={false}>
+              <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+              <MapBounds order={order} driverLoc={driverLoc} />
+              {order.pickup_lat && order.pickup_lng && <Marker position={[order.pickup_lat, order.pickup_lng]} icon={defaultIcon} />}
+              {order.dropoff_lat && order.dropoff_lng && <Marker position={[order.dropoff_lat, order.dropoff_lng]} icon={defaultIcon} />}
               {driverLoc && <Marker position={[driverLoc.lat, driverLoc.lng]} icon={driverIcon} />}
             </MapContainer>
           </div>
@@ -211,27 +231,27 @@ export default function ActiveOrderPage() {
 
         <div className="flex-1 bg-white shadow-sm p-4 flex flex-col">
           <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat</h3>
-          <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-3" ref={chatRef}>
-            {messages.length === 0 && <div className="text-center text-gray-400 text-sm mt-4">Belum ada pesan</div>}
+          <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 rounded-xl" ref={chatRef}>
+            {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-gray-100 rounded-bl-none'}`}>
+                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white border border-gray-100 rounded-bl-none text-gray-800'}`}>
                   {m.text}
                 </div>
-                <span className="text-[10px] text-gray-400 mt-1">
+                <span className="text-[9px] text-gray-400 mt-0.5 px-1">
                   {new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
             ))}
           </div>
-          <form onSubmit={sendMessage} className="flex gap-2">
+          <form onSubmit={sendMessage} className="flex gap-2 shrink-0">
             <input 
               value={inputText} 
               onChange={e => setInputText(e.target.value)} 
               placeholder="Ketik pesan..." 
-              className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-primary bg-gray-50"
+              className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
             />
-            <button type="submit" className="p-2 bg-primary text-white rounded-full"><Send size={18}/></button>
+            <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 transition-colors"><Send size={16}/></button>
           </form>
         </div>
       </div>
