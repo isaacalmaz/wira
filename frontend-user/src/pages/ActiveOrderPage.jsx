@@ -181,7 +181,7 @@ export default function ActiveOrderPage() {
   const showMap = ['ride', 'send', 'food', 'service'].includes(order.service_type);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 -mx-4 md:-mx-0 -mt-4 md:-mt-0">
       <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
         <button onClick={() => navigate('/')} className="mr-3"><ArrowLeft size={24} /></button>
         <h1 className="text-lg font-bold flex-1">Status Pesanan</h1>
@@ -201,17 +201,17 @@ export default function ActiveOrderPage() {
           </div>
         )}
 
-        <div className="bg-white p-4 mb-2 shadow-sm shrink-0">
+        <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 border-b dark:border-slate-700">
           <h2 className="font-bold text-lg mb-1 capitalize">Wira {order.service_type}</h2>
-          <p className="text-gray-600 text-sm">{order.title}</p>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">{order.title}</p>
           <div className="font-bold text-primary mt-2">Rp {order.total_price?.toLocaleString('id-ID')}</div>
         </div>
 
         {order.driver && (
-          <div className="bg-white p-4 mb-2 shadow-sm shrink-0 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 flex items-center justify-between border-b dark:border-slate-700">
             <div>
               <div className="font-bold">{order.driver.name}</div>
-              <div className="text-sm text-gray-600">{order.driver.vehicle_type} • {order.driver.plate_number}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{order.driver.vehicle_type} • {order.driver.plate_number}</div>
             </div>
             <a href={`tel:${order.driver.phone}`} className="p-3 bg-green-100 text-green-600 rounded-full">
               <Phone size={20} />
@@ -220,7 +220,7 @@ export default function ActiveOrderPage() {
         )}
 
         {isCancelable() && (
-          <div className="p-4 shrink-0 bg-white shadow-sm mb-2">
+          <div className="p-4 shrink-0 bg-white dark:bg-slate-800 shadow-sm mb-2">
             <button 
               onClick={handleCancel} 
               disabled={isCancelling}
@@ -231,13 +231,13 @@ export default function ActiveOrderPage() {
           </div>
         )}
 
-        <div className="flex-1 bg-white shadow-sm p-4 flex flex-col">
+        <div className="flex-1 bg-white dark:bg-slate-800 shadow-sm p-4 flex flex-col">
           <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat</h3>
-          <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 rounded-xl" ref={chatRef}>
+          <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
             {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white border border-gray-100 rounded-bl-none text-gray-800'}`}>
+                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
                   {m.text}
                 </div>
                 <span className="text-[9px] text-gray-400 mt-0.5 px-1">
@@ -251,7 +251,7 @@ export default function ActiveOrderPage() {
               value={inputText} 
               onChange={e => setInputText(e.target.value)} 
               placeholder="Ketik pesan..." 
-              className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
+              className="flex-1 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
             />
             <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 transition-colors"><Send size={16}/></button>
           </form>

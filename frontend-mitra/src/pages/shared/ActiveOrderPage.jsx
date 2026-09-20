@@ -148,7 +148,7 @@ export default function ActiveOrderPage() {
   const hasAccess = isDriver || order.merchant?.owner_id === user.id;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 -mx-4 md:-mx-8 -mt-4 md:-mt-8">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 -mx-4 md:-mx-8 -mt-4 md:-mt-8">
       <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
         <button onClick={() => navigate(-1)} className="mr-3"><ArrowLeft size={24} /></button>
         <h1 className="text-lg font-bold flex-1">Order #{order.id.slice(0,6)}</h1>
@@ -156,14 +156,14 @@ export default function ActiveOrderPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col p-4 space-y-4">
-        <div className="bg-white p-4 shadow-sm rounded-xl">
+        <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl">
           <h2 className="font-bold text-lg mb-1 capitalize">Wira {order.service_type}</h2>
           <p className="text-gray-600 text-sm">{order.title}</p>
           <div className="font-bold text-primary mt-2">Rp {order.total_price?.toLocaleString('id-ID')}</div>
         </div>
 
         {order.customer && (
-          <div className="bg-white p-4 shadow-sm rounded-xl flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-500">Pelanggan</div>
               <div className="font-bold">{order.customer.name}</div>
@@ -182,11 +182,11 @@ export default function ActiveOrderPage() {
 
         <div className="flex-1 bg-white shadow-sm p-4 rounded-xl flex flex-col min-h-[300px]">
           <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat (Customer)</h3>
-          <div className="flex-1 overflow-y-auto mb-3 space-y-2 p-2 bg-slate-50 rounded-xl" ref={chatRef}>
+          <div className="flex-1 overflow-y-auto mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
             {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
             {messages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white border border-gray-100 rounded-bl-none text-gray-800'}`}>
+                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
                   {m.text}
                 </div>
                 <span className="text-[9px] text-gray-400 mt-0.5 px-1">
@@ -200,7 +200,7 @@ export default function ActiveOrderPage() {
               value={inputText} 
               onChange={e => setInputText(e.target.value)} 
               placeholder="Ketik pesan..." 
-              className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
+              className="flex-1 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
             />
             <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 hover:bg-primary-dark transition-colors"><Send size={16}/></button>
           </form>
