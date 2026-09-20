@@ -321,7 +321,7 @@ export default function RidePage() {
         });
       }
 
-      setActiveOrderId(order.id);
+      navigate(`/active-order/${order.id}`);
       setStep('searching');
 
       // Notify nearby available drivers a new Ride order exists, reusing

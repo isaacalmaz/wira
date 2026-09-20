@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal } from '../../components/shared/UIComponents';
 import { Store, TrendingUp, ShoppingBag, BellRing, MapPin } from 'lucide-react';
@@ -13,6 +14,7 @@ const MerchantHomePage = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
+  const navigate = useNavigate();
   const [activeOrder, setActiveOrder] = useState(null);
   const [todayOrders, setTodayOrders] = useState(0);
   const [todayEarnings, setTodayEarnings] = useState(0);

@@ -255,7 +255,7 @@ export default function SendPage() {
         });
       }
 
-      if (order?.id) setActiveOrderId(order.id);
+      if (order?.id) navigate(`/active-order/${order.id}`);
 
       // Best-effort nearby-courier push, fired only after the order exists,
       // never blocking or surfacing an error to the customer's booking flow.

@@ -178,7 +178,7 @@ export default function VillaPage() {
         });
       }
 
-      setActiveOrderId(order.id);
+      navigate(`/active-order/${order.id}`);
       setBookingPending({
         code: bookingCode,
         villaName: selectedVilla.name,

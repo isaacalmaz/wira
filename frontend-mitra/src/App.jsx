@@ -29,6 +29,7 @@ import TechEarningsPage from './pages/technician/TechEarningsPage';
 import TechProfilePage from './pages/technician/TechProfilePage';
 
 import SettingsPage from './pages/shared/SettingsPage';
+import ActiveOrderPage from './pages/shared/ActiveOrderPage';
 
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
@@ -78,6 +79,7 @@ function App() {
               <Route path="earnings" element={<DriverEarningsPage />} />
               <Route path="profile" element={<DriverProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="active-order/:id" element={<ActiveOrderPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -92,6 +94,7 @@ function App() {
               <Route path="earnings" element={<MerchantEarningsPage />} />
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="active-order/:id" element={<ActiveOrderPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -111,6 +114,7 @@ function App() {
               <Route path="earnings" element={<MerchantEarningsPage />} />
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="active-order/:id" element={<ActiveOrderPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -124,6 +128,7 @@ function App() {
               <Route path="earnings" element={<TechEarningsPage />} />
               <Route path="profile" element={<TechProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="active-order/:id" element={<ActiveOrderPage />} />
             </Routes>
           </ProtectedRoute>
         } />

@@ -202,7 +202,7 @@ export default function ServicePage() {
         });
       }
 
-      setActiveOrderId(order.id);
+      navigate(`/active-order/${order.id}`);
       setPaidPrice(finalPrice);
       setOrderPending(true);
 

@@ -188,7 +188,7 @@ export default function PoolPage() {
         });
       }
 
-      setActiveOrderId(order.id);
+      navigate(`/active-order/${order.id}`);
       setPaidPrice(finalPrice);
       setOrderPending(true);
 

@@ -554,7 +554,7 @@ const DriverHomePage = () => {
                     Navigasi
                   </Button>
                 )}
-                <Button variant="outline" className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300" onClick={() => setIsChatOpen(true)}>
+                <Button variant="outline" className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300" onClick={() => navigate('active-order/' + activeOrder.id)}>
                   Chat
                 </Button>
                 {currentStep && (

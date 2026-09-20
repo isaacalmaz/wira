@@ -314,7 +314,7 @@ export default function RestaurantPage() {
         });
       }
 
-      setActiveOrderId(order.id);
+      navigate(`/active-order/${order.id}`);
       clearCart();
       handleRemovePromo(); // don't let a used promo silently discount the next order
       setStep('tracking');
