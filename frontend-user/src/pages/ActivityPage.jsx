@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function ActivityPage() {
+  const navigate = useNavigate();
   const { orders } = useOrders();
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -117,7 +118,7 @@ export default function ActivityPage() {
           filtered.map((act) => (
             <Card
               key={act.id}
-              onClick={() => setSelectedOrder(act)}
+              onClick={() => ['pending', 'ready', 'accepted', 'menunggu'].includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
               className="p-4 hover:border-primary/60 cursor-pointer transition hover:shadow-md border border-slate-200 dark:border-slate-700"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
