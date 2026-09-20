@@ -19,24 +19,29 @@ export default function HomePage() {
   const [serviceOrder, setServiceOrder] = useState(() => {
     try {
       const saved = localStorage.getItem('serviceOrder');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {}
     return SERVICES.map(s => s.id);
   });
   const [hiddenServices, setHiddenServices] = useState(() => {
     try {
       const saved = localStorage.getItem('hiddenServices');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
   });
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
   useEffect(() => {
     const updateServices = (flags) => {
       const updatedServices = SERVICES.map(srv => {
-        const flag = flags?.find(f => f.id === srv.id);
+        const flag = Array.isArray(flags) ? flags.find(f => f.id === srv.id) : null;
         return { ...srv, enabled: flag ? flag.status : srv.enabled };
       });
       setActiveServices(updatedServices);
@@ -72,7 +77,7 @@ export default function HomePage() {
   useEffect(() => {
     const updateServices = () => {
       const updatedServices = SERVICES.map(srv => {
-        const flag = globalFlags.find(f => f.id === srv.id);
+        const flag = Array.isArray(globalFlags) ? globalFlags.find(f => f.id === srv.id) : null;
         return { ...srv, enabled: flag ? flag.status : srv.enabled };
       });
       setActiveServices(updatedServices);
