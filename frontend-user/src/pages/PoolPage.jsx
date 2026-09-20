@@ -202,26 +202,6 @@ export default function PoolPage() {
       // specialization visibility-only rather than a hard filter (avoids
       // stranding a pool job with zero eligible technicians in a small
       // market). Best-effort/fire-and-forget, never blocks the customer.
-      if (technicians.length > 0 && order?.id) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session?.access_token) return;
-          technicians.forEach((t) => {
-            fetch(`${API_BASE_URL}/notifications/order-alert`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                userId: t.id,
-                title: 'Panggilan WiraPool Baru!',
-                body: `${selectedService.name} dibutuhkan di ${address}.`,
-                data: { orderId: order.id, type: 'new_pool_order' },
-              }),
-            }).catch((err) => console.error('order-alert (technician) failed:', err));
-          });
-        });
-      }
 
       handleRemovePromo(); // don't let a used promo silently discount the next order
       toast.success('Permintaan terkirim, menunggu teknisi menerima.');

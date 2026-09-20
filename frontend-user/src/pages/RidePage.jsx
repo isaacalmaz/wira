@@ -326,24 +326,10 @@ export default function RidePage() {
       navigate(`/active-order/${order.id}`);
       setStep('searching');
 
-      // Notify nearby available drivers a new Ride order exists, reusing
-      // `nearbyDrivers` computed above (no second lookup) - fired only now,
-      // after the order actually exists, so a driver never gets alerted
-      // about an order that failed to create (e.g. pay() throwing on
-      // insufficient balance, aborted before this point). The single-target
-      // /api/notifications/order-alert endpoint (backend/routes/
-      // notification.routes.js) only notifies one user per call, but a new
-      // ride is potentially relevant to several nearby drivers at once - so
-      // this loops it once per driver in nearbyDrivers (already capped to 5
-      // by max_results above, so this can't turn into a notification storm).
-      // A dedicated fan-out endpoint that does its own nearby-driver lookup
-      // server-side would be cleaner, but reusing the existing single-target
-      // endpoint from the client is the appropriately-scoped choice for
-      // tonight given it's a one-line loop over data already in hand.
-      // Best-effort: failures here (missing fcm_token, network hiccup) must
-      // never surface as an error to the customer or affect their booking.
-      if (nearbyDrivers.length > 0) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+      // Dispatch is handled in ActiveOrderPage
+      
+      // Dispatch is handled in ActiveOrderPage
+      
           if (!session?.access_token) return;
           nearbyDrivers.forEach((d) => {
             fetch(`${API_BASE_URL}/notifications/order-alert`, {
@@ -474,26 +460,6 @@ export default function RidePage() {
                 only_online: true,
                 max_results: 5,
               });
-              if (nearby?.length > 0) {
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                  if (!session?.access_token) return;
-                  nearby.forEach((d) => {
-                    fetch(`${API_BASE_URL}/notifications/order-alert`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                      body: JSON.stringify({
-                        userId: d.id,
-                        title: 'Pesanan WiraRide Menunggu Driver Baru!',
-                        body: `Penumpang di dekat Anda butuh driver baru menuju ${dropoff}.`,
-                        data: { orderId: requeuedOrder.id, type: 'requeued_ride_order' },
-                      }),
-                    }).catch((err) => console.error('order-alert (requeue nearby driver) failed:', err));
-                  });
-                });
-              }
             }
           }
         }

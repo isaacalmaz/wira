@@ -261,26 +261,6 @@ export default function SendPage() {
 
       // Best-effort nearby-courier push, fired only after the order exists,
       // never blocking or surfacing an error to the customer's booking flow.
-      if (nearbyDrivers.length > 0 && order?.id) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session?.access_token) return;
-          nearbyDrivers.forEach((d) => {
-            fetch(`${API_BASE_URL}/notifications/order-alert`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                userId: d.id,
-                title: 'Pesanan WiraSend Baru!',
-                body: `Ada paket ${currentPkg.name} menunggu dijemput di dekat Anda.`,
-                data: { orderId: order.id, type: 'new_send_order' },
-              }),
-            }).catch((err) => console.error('order-alert (nearby courier) failed:', err));
-          });
-        });
-      }
 
       setTrackingData({
         resi: resi,

@@ -6,6 +6,7 @@ import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Send, Phone, MessageSquare, Loader, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useOrderDispatch } from '../hooks/useOrderDispatch';
 
 // Icons for map
 const driverIcon = new L.Icon({
@@ -45,7 +46,7 @@ function MapBounds({ order, driverLoc }) {
 export default function ActiveOrderPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -54,6 +55,7 @@ export default function ActiveOrderPage() {
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const { pingedCount, totalCandidates } = useOrderDispatch(order, session);
   const chatRef = useRef(null);
 
   // Fetch Order Details
