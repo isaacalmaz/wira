@@ -173,8 +173,8 @@ export default function ActiveOrderPage() {
            
            // Minimum time check (Speed max ~60km/h => 1 min per km)
            const elapsedMinutes = (Date.now() - new Date(order.updated_at).getTime()) / 60000;
-           // Fallback to 0 if distance_km is not available
-           const routeDist = order.distance_km || 0; 
+           // Fallback to 0 if distance_meters is not available
+           const routeDist = order.distance_meters ? (order.distance_meters / 1000) : 0; 
            const minTime = routeDist; // 1 min per km
            if (elapsedMinutes < minTime) {
                toast.error(`Gagal: Perjalanan terlalu singkat. Mohon tunggu ${Math.ceil(minTime - elapsedMinutes)} menit lagi.`, { id: 'gps_check' });
