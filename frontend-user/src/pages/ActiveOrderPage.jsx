@@ -144,16 +144,11 @@ export default function ActiveOrderPage() {
     if (!order) return;
     setIsCancelling(true);
     try {
-      if (order.status === 'pending') {
-        const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.rpc('wallet_refund_matched_ride', {
-          p_order_id: id,
-          p_description: 'Refund Batal Pelanggan (Dalam Grace Period)'
-        });
-        if (error) throw error;
-      }
+      const { data, error } = await supabase.rpc('wallet_refund_matched_ride', {
+        p_order_id: id,
+        p_description: 'Refund Batal Pelanggan (Dalam Grace Period)'
+      });
+      if (error) throw error;
       toast.success('Pesanan berhasil dibatalkan');
     } catch (err) {
       console.error(err);
