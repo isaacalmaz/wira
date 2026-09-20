@@ -44,7 +44,7 @@ export default function ActiveOrderPage() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, driver:driver_id(name, phone, vehicle_type, plate_number), merchant:merchant_id(name, address)')
+        .select('*, driver:driver_id(name, phone, vehicle_type), merchant:merchant_id(name, address)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -52,12 +52,13 @@ export default function ActiveOrderPage() {
 
       if (data?.driver_id) {
         // Fetch initial driver loc
-        const { data: dData } = await supabase.from('drivers').select('lat, lng').eq('id', data.driver_id).single();
+        const { data: dData } = await supabase.from('drivers').select('lat, lng, vehicle_plate').eq('id', data.driver_id).single();
+        if (dData?.vehicle_plate) data.driver.plate_number = dData.vehicle_plate;
         if (dData?.lat && dData?.lng) setDriverLoc({ lat: dData.lat, lng: dData.lng });
       }
     } catch (err) {
       console.error(err);
-      toast.error('Pesanan tidak ditemukan');
+      toast.error('Gagal memuat pesanan: ' + (err.message || err.toString()));
       navigate('/');
     } finally {
       setLoading(false);

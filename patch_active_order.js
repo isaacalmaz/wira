@@ -1,19 +1,18 @@
 const fs = require('fs');
-const path = require('path');
+const file = 'frontend-user/src/pages/ActiveOrderPage.jsx';
+let content = fs.readFileSync(file, 'utf8');
 
-const pagesDir = path.join(__dirname, 'frontend-user', 'src', 'pages');
-const pages = ['RidePage.jsx', 'FoodPage.jsx', 'PoolPage.jsx', 'RestaurantPage.jsx', 'VillaPage.jsx', 'SendPage.jsx', 'ServicePage.jsx'];
+// Fix the select query
+content = content.replace(
+  ".select('*, driver:driver_id(name, phone, vehicle_type, plate_number), merchant:merchant_id(name, address)')",
+  ".select('*, driver:driver_id(name, phone, vehicle_type), merchant:merchant_id(name, address)')"
+);
 
-for (const page of pages) {
-  const filePath = path.join(pagesDir, page);
-  if (fs.existsSync(filePath)) {
-    let content = fs.readFileSync(filePath, 'utf8');
-    
-    // Add navigate if missing
-    // All these pages already use useNavigate, so we just replace the set state
-    content = content.replace(/setActiveOrderId\(order\.id\);/g, "navigate(`/active-order/${order.id}`);");
-    
-    fs.writeFileSync(filePath, content);
-    console.log(`Patched ${page}`);
-  }
-}
+// We need to fetch vehicle_plate from drivers table
+content = content.replace(
+  "const { data: dData } = await supabase.from('drivers').select('lat, lng').eq('id', data.driver_id).single();",
+  "const { data: dData } = await supabase.from('drivers').select('lat, lng, vehicle_plate').eq('id', data.driver_id).single();\n        if (dData?.vehicle_plate) data.driver.plate_number = dData.vehicle_plate;"
+);
+
+fs.writeFileSync(file, content);
+console.log('Patched');
