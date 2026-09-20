@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck, Clock, MessageCircle } from 'lucide-react';
@@ -11,6 +12,7 @@ import ChatModal from '../components/common/ChatModal';
 import API_BASE_URL from '../config/api';
 
 export default function VillaPage() {
+  const navigate = useNavigate();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 

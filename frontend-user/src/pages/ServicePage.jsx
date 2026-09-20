@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Wrench, Star, Calendar, Clock, MapPin, CheckCircle2, X, Shield, MessageCircle } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -11,6 +12,7 @@ import { supabase } from '../config/supabase';
 import API_BASE_URL from '../config/api';
 
 export default function ServicePage() {
+  const navigate = useNavigate();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 

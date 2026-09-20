@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
@@ -28,6 +29,7 @@ import { supabase } from '../config/supabase';
 import API_BASE_URL from '../config/api';
 
 export default function RidePage() {
+  const navigate = useNavigate();
   const { balance, pay, refund, refundMatchedRide } = useWallet();
   const { addOrder, updateOrderStatus } = useOrders();
 

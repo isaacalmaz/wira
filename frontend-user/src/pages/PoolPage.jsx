@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -11,6 +12,7 @@ import ChatModal from '../components/common/ChatModal';
 import API_BASE_URL from '../config/api';
 
 export default function PoolPage() {
+  const navigate = useNavigate();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 
