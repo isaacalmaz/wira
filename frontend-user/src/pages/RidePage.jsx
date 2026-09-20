@@ -330,24 +330,6 @@ export default function RidePage() {
       
       // Dispatch is handled in ActiveOrderPage
       
-          if (!session?.access_token) return;
-          nearbyDrivers.forEach((d) => {
-            fetch(`${API_BASE_URL}/notifications/order-alert`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                userId: d.id,
-                title: 'Pesanan WiraRide Baru!',
-                body: `Ada penumpang di dekat Anda menuju ${dropoff}.`,
-                data: { orderId: order.id, type: 'new_ride_order' },
-              }),
-            }).catch((err) => console.error('order-alert (nearby driver) failed:', err));
-          });
-        });
-      }
 
       if (driverCount === 0) {
         toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });

@@ -7,6 +7,23 @@ import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, updateDriverLocation } from '../../services/orderService';
 
+
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  var R = 6371; // Radius of the earth in km
+  var dLat = deg2rad(lat2-lat1);  // deg2rad below
+  var dLon = deg2rad(lon2-lon1); 
+  var a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2); 
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  var d = R * c; // Distance in km
+  return d;
+}
+function deg2rad(deg) {
+  return deg * (Math.PI/180)
+}
+
 export default function ActiveOrderPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -17,6 +34,9 @@ export default function ActiveOrderPage() {
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const chatRef = useRef(null);
 
   const isDriver = order?.driver_id === user?.id;
@@ -127,9 +147,47 @@ export default function ActiveOrderPage() {
     return null;
   };
 
+  
   const advanceStage = async () => {
     const info = getNextStageInfo();
     if (!info) return;
+
+    // PIN Verification to start trip
+    if (info.next === 'in_trip' && ['ride', 'send', 'food', 'service'].includes(order.service_type)) {
+       setShowPinModal(true);
+       return;
+    }
+
+    // Sanity Checks to complete trip
+    if (info.next === 'completed' && ['ride', 'send', 'food'].includes(order.service_type)) {
+       try {
+           toast.loading('Memverifikasi lokasi GPS...', { id: 'gps_check' });
+           const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+           if (pos && pos.coords && order.dropoff_lat && order.dropoff_lng) {
+              const dist = getDistanceFromLatLonInKm(pos.coords.latitude, pos.coords.longitude, order.dropoff_lat, order.dropoff_lng);
+              if (dist > 0.15) { // 150 meters
+                 toast.error('Gagal: Anda harus berada di radius 150m dari lokasi tujuan untuk menyelesaikan pesanan.', { id: 'gps_check' });
+                 return;
+              }
+           }
+           
+           // Minimum time check (Speed max ~60km/h => 1 min per km)
+           const elapsedMinutes = (Date.now() - new Date(order.updated_at).getTime()) / 60000;
+           // Fallback to 0 if distance_km is not available
+           const routeDist = order.distance_km || 0; 
+           const minTime = routeDist; // 1 min per km
+           if (elapsedMinutes < minTime) {
+               toast.error(`Gagal: Perjalanan terlalu singkat. Mohon tunggu ${Math.ceil(minTime - elapsedMinutes)} menit lagi.`, { id: 'gps_check' });
+               return;
+           }
+           toast.success('Lokasi terverifikasi.', { id: 'gps_check' });
+       } catch (err) {
+           console.log("GPS check failed", err);
+           toast.error('Gagal membaca GPS. Pastikan izin lokasi aktif.', { id: 'gps_check' });
+           // return; // Uncomment to strictly block without GPS
+       }
+    }
+
     try {
       const updated = await updateOrderStatus(order.id, info.next);
       if (updated) setOrder(updated);
@@ -138,6 +196,32 @@ export default function ActiveOrderPage() {
       console.error(e);
       toast.error('Gagal update status');
     }
+  };
+
+
+  
+  const handlePinSubmit = async (e) => {
+    e.preventDefault();
+    if (pinInput.length !== 4) { toast.error("PIN harus 4 angka"); return; }
+    setIsVerifying(true);
+    try {
+       const { data, error } = await supabase.rpc('start_order_with_pin', {
+          p_order_id: order.id,
+          p_pin_input: pinInput
+       });
+       if (error) throw error;
+       if (!data.success) {
+          toast.error(data.error || 'PIN Salah!');
+       } else {
+          toast.success('PIN Benar! Pekerjaan dimulai.');
+          setOrder(prev => ({...prev, status: 'in_trip'}));
+          setShowPinModal(false);
+          setPinInput('');
+       }
+    } catch(err) {
+       toast.error(err.message);
+    }
+    setIsVerifying(false);
   };
 
   if (loading || !order) {
@@ -162,8 +246,16 @@ export default function ActiveOrderPage() {
           <div className="font-bold text-primary mt-2">Rp {order.total_price?.toLocaleString('id-ID')}</div>
         </div>
 
+        {order.merchant?.owner_id === user.id && ['ready', 'picking_up'].includes(order.status) && (
+          <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl mb-2 text-center border-b dark:border-slate-700">
+             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat penyerahan makanan:</p>
+             <div className="text-3xl font-bold tracking-[0.3em] text-primary">{order.security_pin || '----'}</div>
+          </div>
+        )}
+
         {order.customer && (
-          <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl flex items-center justify-between">
+
+        <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-500">Pelanggan</div>
               <div className="font-bold">{order.customer.name}</div>

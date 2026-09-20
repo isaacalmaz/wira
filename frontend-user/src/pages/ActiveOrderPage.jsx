@@ -201,6 +201,20 @@ export default function ActiveOrderPage() {
           </div>
         )}
 
+        {['accepted', 'picking_up'].includes(order.status) && (
+          <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
+            {order.service_type === 'food' ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Driver sedang mengambil pesanan di Restoran (PIN diverifikasi oleh Restoran)</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat bertemu:</p>
+                <div className="text-3xl font-bold tracking-[0.3em] text-primary">{order.security_pin || '----'}</div>
+              </>
+            )}
+          </div>
+        )}
+
+
         <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 border-b dark:border-slate-700">
           <h2 className="font-bold text-lg mb-1 capitalize">Wira {order.service_type}</h2>
           <p className="text-gray-600 dark:text-gray-300 text-sm">{order.title}</p>
