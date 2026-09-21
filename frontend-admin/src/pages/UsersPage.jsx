@@ -52,7 +52,7 @@ const UsersPage = () => {
     setIsSubmitting(true);
     try {
       // 1. Update wallet balance using atomic RPC
-      const { error: creditErr } = await supabase.rpc('credit_wallet_balance_atomic', {
+      const { error: creditErr } = await supabase.rpc('admin_correction_wallet_balance', {
         p_user_id: correctionModal.id,
         p_amount: amt
       });
