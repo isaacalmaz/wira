@@ -1,25 +1,27 @@
-# Helpdesk / Support Tickets Implementation
+# Evaluasi dan Revamp Sistem Keuangan (Finance)
 
-This plan will integrate the existing Support Tickets database and UI components into the actual app routing and navigation, making the Helpdesk fully functional across User, Mitra, and Admin apps.
+Berdasarkan analisis terhadap tangkapan layar yang diberikan, sistem webhook Mutasiku **berhasil bekerja dengan sempurna**, namun terjadi *Human Error* (kesalahan manusia) dalam penggunaan kode unik.
 
-## Proposed Changes
+## 🕵️‍♂️ Apa yang Sebenarnya Terjadi dengan Uang Baiq Erliana?
+1. Pada 20 September pukul 19:02, ada uang masuk dari **Baiq Erliana** sebesar **Rp 10.584** ke Mutasiku.
+2. Di detik yang sama (19:02), sistem Wira otomatis menyetujui (Approved) Top-up sebesar **Rp 10.584**.
+3. **MASALAHNYA**: Permintaan Top-up Rp 10.584 tersebut dibuat oleh akun **cobakunuser2**, BUKAN dari akun Baiq Erliana.
+4. Karena sistem QRIS Statis Mutasiku hanya mendeteksi "Nominal Transaksi" (10.584), sistem Wira langsung memasukkan saldo tersebut ke dompet **cobakunuser2**. Sistem tidak peduli siapa nama pengirim di bank (Baiq Erliana), sistem hanya peduli siapa yang *meminta* kode unik 584 di dalam aplikasi Wira.
+5. **Kesimpulan:** Baiq Erliana membayarkan kode unik tagihan milik `cobakunuser2`.
 
-### Database Layer
-- Table `support_tickets` already exists (created in 0035). No changes needed.
+## 🛠️ Solusi & Rencana Pengembangan Tab Keuangan Admin
 
-### User App (`frontend-user`)
-- Map `/support` to `SupportPage.jsx` in `App.jsx`.
-- Add a menu item "Pusat Bantuan" in `ProfilePage.jsx` linking to `/support`.
+Tab Keuangan saat ini hanya menampilkan "Permintaan Top-Up", sehingga Admin bingung jika terjadi kasus salah transfer seperti ini. Kita akan merombak tab Keuangan dan menambahkan fitur **Koreksi Saldo Manual**.
 
-### Mitra App (`frontend-mitra`)
-- Create `frontend-mitra/src/pages/shared/SupportPage.jsx` by adapting the User app's version but styled for Mitra.
-- Map `/support` to `SupportPage.jsx` in `App.jsx`.
-- Add a menu item "Pusat Bantuan" in `SettingsPage.jsx` (which acts as the Mitra profile).
+### 1. Fitur Injeksi/Koreksi Saldo Manual (Admin)
+- Menambahkan tombol "Koreksi Saldo" (Balance Correction) di halaman Admin (bisa di tab `Finance` atau `Users`).
+- Admin bisa mencari nama pengguna (misal: Baiq Erliana), memasukkan nominal (misal: +10.584), dan menuliskan catatan (misal: "Koreksi salah transfer QRIS dari cobakunuser2").
+- Sistem akan langsung menambahkan saldo ke Baiq Erliana dan mencatatnya di riwayat transaksinya.
+- Admin juga bisa menarik saldo (-10.584) dari `cobakunuser2` yang menerima saldo nyasar tersebut.
 
-### Admin App (`frontend-admin`)
-- Map `/support` to `SupportTicketsPage.jsx` in `App.jsx`.
-- Add a sidebar item "Pusat Bantuan" in `Sidebar.jsx`.
+### 2. Peningkatan Halaman Keuangan (FinancePage.jsx)
+- **Tab Baru "Semua Transaksi":** Menampilkan seluruh pergerakan uang yang ada di tabel `transactions` (Top-up, Pembayaran Pesanan, Payout, Koreksi Saldo) secara *real-time*. Admin tidak lagi hanya melihat "Permintaan Top-Up", tapi bisa melihat "Uang ini masuk ke dompet siapa dan keluar untuk apa".
+- **Desain Ulang Tabel Top-Up:** Memperjelas tampilan "Kode Unik" dan "Nominal Asli" agar Admin tahu mana yang dibayar oleh sistem secara otomatis (Mutasiku) dan mana yang manual.
 
-## Verification Plan
-- Verify routing works and users/mitras can submit tickets.
-- Verify admins can see, reply, and change ticket status.
+## Keputusan yang Dibutuhkan
+Apakah Anda setuju dengan rencana penambahan fitur "Koreksi Saldo Manual" dan perombakan tampilan "Riwayat Transaksi" di halaman Admin ini?
