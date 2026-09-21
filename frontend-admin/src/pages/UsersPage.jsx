@@ -51,22 +51,15 @@ const UsersPage = () => {
     
     setIsSubmitting(true);
     try {
-      // 1. Update wallet balance using atomic RPC
+      // Balance update + ledger entry both happen inside this one RPC call
+      // (migrations/0062) - a single DB transaction, so a correction can
+      // never leave the wallet changed with no matching transactions row.
       const { error: creditErr } = await supabase.rpc('admin_correction_wallet_balance', {
         p_user_id: correctionModal.id,
-        p_amount: amt
+        p_amount: amt,
+        p_description: correctionDesc,
       });
       if (creditErr) throw creditErr;
-
-      // 2. Insert transaction log
-      const { error: txErr } = await supabase.from('transactions').insert({
-        user_id: correctionModal.id,
-        type: amt > 0 ? 'topup' : 'payment', // using standard types so UI handles it gracefully
-        amount: Math.abs(amt),
-        description: 'KOREKSI ADMIN: ' + correctionDesc,
-        reference_id: 'admin_correction_' + Date.now()
-      });
-      if (txErr) throw txErr;
 
       toast.success('Koreksi saldo berhasil diterapkan');
       setCorrectionModal(null);
