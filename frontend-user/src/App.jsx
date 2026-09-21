@@ -33,6 +33,7 @@ const PoolPage = lazy(() => import('./pages/PoolPage'));
 const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
+const SupportPage = lazy(() => import('./pages/SupportPage'));
 
 export default function Root() {
   return (
@@ -73,6 +74,7 @@ export default function Root() {
                             <Route path="/pool" element={<PoolPage />} />
                             
                             {/* Legal & Bantuan */}
+                            <Route path="/support" element={<SupportPage />} />
                             <Route path="/contact" element={<ContactPage />} />
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/refund" element={<RefundPage />} />

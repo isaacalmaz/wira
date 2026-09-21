@@ -22,6 +22,7 @@ const FinancePage = lazy(() => import('./pages/FinancePage'));
 const PromosPage = lazy(() => import('./pages/PromosPage'));
 const WhatsAppPage = lazy(() => import('./pages/WhatsAppPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SupportTicketsPage = lazy(() => import('./pages/SupportTicketsPage'));
 
 // Komponen untuk rute yang dilindungi
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -135,6 +136,11 @@ function App() {
             <Route path="whatsapp" element={
               <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <WhatsAppPage />
+              </ProtectedRoute>
+            } />
+            <Route path="support" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <SupportTicketsPage />
               </ProtectedRoute>
             } />
             <Route path="settings" element={

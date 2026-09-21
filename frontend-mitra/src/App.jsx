@@ -30,6 +30,7 @@ import TechProfilePage from './pages/technician/TechProfilePage';
 
 import SettingsPage from './pages/shared/SettingsPage';
 import ActiveOrderPage from './pages/shared/ActiveOrderPage';
+import SupportPage from './pages/shared/SupportPage';
 
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
@@ -80,6 +81,7 @@ function App() {
               <Route path="profile" element={<DriverProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="active-order/:id" element={<ActiveOrderPage />} />
+              <Route path="support" element={<SupportPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -95,6 +97,7 @@ function App() {
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="active-order/:id" element={<ActiveOrderPage />} />
+              <Route path="support" element={<SupportPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -115,6 +118,7 @@ function App() {
               <Route path="profile" element={<MerchantProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="active-order/:id" element={<ActiveOrderPage />} />
+              <Route path="support" element={<SupportPage />} />
             </Routes>
           </ProtectedRoute>
         } />
@@ -129,6 +133,7 @@ function App() {
               <Route path="profile" element={<TechProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="active-order/:id" element={<ActiveOrderPage />} />
+              <Route path="support" element={<SupportPage />} />
             </Routes>
           </ProtectedRoute>
         } />

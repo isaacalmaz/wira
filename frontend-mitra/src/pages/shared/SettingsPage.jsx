@@ -334,6 +334,17 @@ const SettingsPage = () => {
         </form>
       </Card>
 
+
+      <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+        <Link to="../support" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
+          <div className="flex items-center gap-4">
+            <MessageSquare className="text-slate-500" />
+            <span className="font-medium dark:text-white">Pusat Bantuan & Komplain</span>
+          </div>
+          <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold">Baru</span>
+        </Link>
+      </Card>
+
       <Card className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Moon className="text-slate-400" size={20} />
