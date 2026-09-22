@@ -3,19 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
-import ChatModal from '../components/common/ChatModal';
 import {
   MapPin,
   Navigation,
-  Car,
-  Shield,
-  Phone,
-  MessageSquare,
-  Star,
-  CheckCircle2,
-  Clock,
   ArrowRight,
-  Sparkles,
   LocateFixed,
 } from 'lucide-react';
 import Card from '../components/common/Card';
@@ -30,30 +21,14 @@ import API_BASE_URL from '../config/api';
 
 export default function RidePage() {
   const navigate = useNavigate();
-  const { balance, pay, refund, refundMatchedRide } = useWallet();
-  const { addOrder, updateOrderStatus } = useOrders();
+  const { balance, pay } = useWallet();
+  const { addOrder } = useOrders();
 
-  const [step, setStep] = useState('input'); // input, vehicle, searching, tracking, completed
+  const [step, setStep] = useState('input'); // input, vehicle
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('WiraPay'); // 'WiraPay' or 'Tunai'
-  const [rating, setRating] = useState(5);
-  // Guards the "Batalkan Pencarian" button against a double-click firing two
-  // concurrent refund() calls - see migrations/0040_wallet_refund_rpc.sql
-  // for the matching server-side idempotency guard.
-  const [isCancelling, setIsCancelling] = useState(false);
-  // Same double-click guard, for the separate "Batalkan Perjalanan" button
-  // in the tracking step (step === 'tracking', after a driver has already
-  // been matched) - see migrations/0047_cancel_matched_ride_refund_rpc.sql.
-  const [isCancellingTrip, setIsCancellingTrip] = useState(false);
-
-  // Status perjalanan aktif
-  const [tripStage, setTripStage] = useState(0); 
-  // 0: Driver menuju lokasi (3 menit)
-  // 1: Driver tiba di penjemputan
-  // 2: Dalam perjalanan menuju tujuan
-  // 3: Selesai perjalanan
 
   const [vehicles, setVehicles] = useState([]);
   
@@ -81,10 +56,6 @@ export default function RidePage() {
     };
     fetchVehicles();
   }, []);
-
-  // Data Driver riil yang menerima pesanan
-  const [driverInfo, setDriverInfo] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const [mapState, setMapState] = useState({
     center: { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng },
@@ -190,10 +161,6 @@ export default function RidePage() {
     setStep('vehicle');
   };
 
-  const [activeOrderId, setActiveOrderId] = useState(null);
-  const [assignedDriverId, setAssignedDriverId] = useState(null);
-  const [nearbyDriverCount, setNearbyDriverCount] = useState(null);
-
   // Promo/kupon state for the vehicle-selection step. These were previously
   // referenced (handleCheckPromo, calculateFinalPrice) without ever being
   // declared, which crashed every render of the 'vehicle' step in
@@ -258,11 +225,7 @@ export default function RidePage() {
       // Cek ketersediaan driter terdekat secara real (PostGIS nearest-neighbor),
       // hanya untuk memberi info jujur ke pelanggan - tidak memblokir pemesanan,
       // karena driver baru bisa online kapan saja setelah ini.
-      // `nearbyDrivers` is kept (not just the count) so the push-notification
-      // fan-out below can reuse this exact same lookup as its target list -
-      // no second nearest-driver query.
       let driverCount = null;
-      let nearbyDrivers = [];
       if (pickupLat != null && pickupLng != null) {
         const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
           user_lat: pickupLat,
@@ -272,9 +235,7 @@ export default function RidePage() {
           max_results: 5
         });
         driverCount = nearby?.length || 0;
-        nearbyDrivers = nearby || [];
       }
-      setNearbyDriverCount(driverCount);
 
       const orderDetails = JSON.stringify({
         pickup: { name: pickup, lat: pickupLat, lng: pickupLng },
@@ -283,14 +244,14 @@ export default function RidePage() {
       });
 
       // Debit the wallet BEFORE creating the order, not after the trip
-      // completes - previously the debit only ran in handleCompleteTrip,
-      // which depends on this browser tab staying open with an active
-      // realtime subscription all the way to 'completed'. If the tab
-      // closed early, the driver still got paid via the DB payout trigger
-      // but the customer's wallet was never actually charged (same bug
-      // class fixed for WiraFood in RestaurantPage.jsx). pay() throws on
-      // insufficient funds/RPC error and shows its own toast, so a failure
-      // here aborts before the order is ever created.
+      // completes - previously the debit only ran once the order reached
+      // 'completed', which depended on this browser tab staying open with
+      // an active realtime subscription the whole ride. If the tab closed
+      // early, the driver still got paid via the DB payout trigger but the
+      // customer's wallet was never actually charged (same bug class fixed
+      // for WiraFood in RestaurantPage.jsx). pay() throws on insufficient
+      // funds/RPC error and shows its own toast, so a failure here aborts
+      // before the order is ever created.
       if (paymentMethod === 'WiraPay') {
         await pay(finalPrice, `WiraRide ke ${dropoff}`);
       }
@@ -323,13 +284,8 @@ export default function RidePage() {
         });
       }
 
+      // Dispatch/tracking from here on is handled by ActiveOrderPage.
       navigate(`/active-order/${order.id}`);
-      setStep('searching');
-
-      // Dispatch is handled in ActiveOrderPage
-      
-      // Dispatch is handled in ActiveOrderPage
-      
 
       if (driverCount === 0) {
         toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });
@@ -338,189 +294,6 @@ export default function RidePage() {
       }
     } catch (err) {
       toast.error(`Gagal: ${err.message}`);
-    }
-  };
-
-  // Efek Real-time untuk mendengarkan perubahan status dari Admin / Driver
-  useEffect(() => {
-    if (!activeOrderId) return;
-
-    const channel = supabase
-      .channel(`order_${activeOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        async (payload) => {
-          const newStatus = payload.new.status;
-          
-          if (newStatus === 'accepted') {
-            // Ambil data asli Driver dari database
-            if (payload.new.driver_id) {
-              setAssignedDriverId(payload.new.driver_id);
-              
-              const { data: driverUser } = await supabase.from('users').select('name, phone, email').eq('id', payload.new.driver_id).maybeSingle();
-              const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-              let regInfo = null;
-              if (flagsData && Array.isArray(flagsData.features)) {
-                regInfo = flagsData.features.find(f => f.auth_id === payload.new.driver_id || f.email === driverUser?.email);
-              }
-              setDriverInfo({
-                name: driverUser?.name || 'Mitra Driver Wira',
-                phone: driverUser?.phone || '-',
-                vehicle: regInfo?.vehicle || 'Sepeda Motor Wira',
-                plate: regInfo?.plate || 'DR WIRA',
-                rating: 5.0,
-              });
-
-              // Ambil koordinat awal driver agar langsung muncul di peta
-              const { data: driverLoc } = await supabase.from('drivers').select('lat, lng').eq('id', payload.new.driver_id).maybeSingle();
-              if (driverLoc && driverLoc.lat && driverLoc.lng) {
-                setMapState(prev => {
-                  const newMarkers = [...prev.markers];
-                  newMarkers[2] = { lat: driverLoc.lat, lng: driverLoc.lng, type: 'driver', label: 'Driver Anda' };
-                  return { ...prev, markers: newMarkers };
-                });
-              }
-            }
-
-            setStep('tracking');
-            setTripStage(0);
-            toast.success(`Driver Ditemukan!`, { icon: '🛵', duration: 4000 });
-          }
-          else if (newStatus === 'picking_up') {
-            setTripStage(1);
-          }
-          else if (newStatus === 'in_trip') {
-            setTripStage(2);
-          }
-          else if (newStatus === 'completed') {
-            handleCompleteTrip();
-          }
-          else if (newStatus === 'pending' && !payload.new.driver_id) {
-            // Driver-initiated cancel-and-requeue
-            // (migrations/0048_driver_cancel_requeues_ride.sql):
-            // wallet_refund_matched_ride's driver branch resets the order to
-            // pending/driver_id=NULL instead of destroying it, so this SAME
-            // order can be picked up by another nearby driver instead of
-            // forcing the customer to book again. This UPDATE can only ever
-            // arrive here as "my driver bailed" - the order's initial
-            // pending state is set by an INSERT at booking time (never seen
-            // by this handler, which only listens for UPDATE events), and
-            // every other status transition in this app moves forward
-            // (pending -> accepted -> picking_up -> in_trip -> completed) or
-            // sideways to 'cancelled', never back to 'pending' any other
-            // way. No `step` check is needed to disambiguate it - and
-            // checking the `step` state variable here would be unreliable
-            // anyway, since this effect only re-subscribes when
-            // activeOrderId changes, so its closure holds whatever `step`
-            // was at that moment, not the live value.
-            setStep('searching');
-            setTripStage(0);
-            setAssignedDriverId(null);
-            setDriverInfo(null);
-            // Drop the driver marker (index 2) added by the 'accepted'
-            // branch above - pickup/dropoff markers (0/1) stay put so the
-            // map doesn't reset while a new driver is searched.
-            setMapState(prev => ({ ...prev, markers: prev.markers.slice(0, 2) }));
-            toast.error('Driver membatalkan perjalanan Anda, sedang mencari driver baru...', { icon: '🔄', duration: 6000 });
-
-            // Re-notify nearby drivers that this order is open again,
-            // reusing the exact same get_nearest_drivers + POST
-            // /notifications/order-alert fan-out handleStartBooking already
-            // uses for a brand-new booking (see its comment further up this
-            // file) - fired from here (the customer's browser, which
-            // already has API_BASE_URL/session context in this exact shape)
-            // rather than from the cancelling driver's app, per this
-            // feature's design: the driver who just bailed shouldn't be the
-            // one re-broadcasting the order to their peers.
-            const requeuedOrder = payload.new;
-            if (requeuedOrder.pickup_lat != null && requeuedOrder.pickup_lng != null) {
-              const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
-                user_lat: requeuedOrder.pickup_lat,
-                user_lng: requeuedOrder.pickup_lng,
-                target_vehicle_type: selectedVehicle?.id || null,
-                only_online: true,
-                max_results: 5,
-              });
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeOrderId]);
-
-  // Efek Real-time untuk melacak pergerakan GPS Driver (Tracking)
-  useEffect(() => {
-    if (!assignedDriverId || step !== 'tracking') return;
-
-    const channel = supabase
-      .channel(`driver_track_${assignedDriverId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'drivers', filter: `id=eq.${assignedDriverId}` },
-        (payload) => {
-          const { lat, lng } = payload.new;
-          if (lat && lng) {
-            setMapState(prev => {
-              const newMarkers = [...prev.markers];
-              newMarkers[2] = { lat, lng, type: 'driver', label: 'Driver Anda' };
-              return { ...prev, markers: newMarkers };
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [assignedDriverId, step]);
-
-
-
-  const handleCompleteTrip = () => {
-    // Payment already happened up-front in handleStartBooking now - calling
-    // pay() here again would double-charge the customer. This is just UI
-    // reset once the order reaches 'completed'.
-    setStep('completed');
-    toast.success('Perjalanan Anda telah selesai!');
-  };
-
-  // Cancels an already-matched ride (driver accepted, tripStage 0 or 1 -
-  // i.e. order.status 'accepted'/'picking_up') via the SECURITY DEFINER
-  // wallet_refund_matched_ride RPC - see
-  // migrations/0047_cancel_matched_ride_refund_rpc.sql for the full
-  // eligibility/refund policy. Guarded by isCancellingTrip the same way
-  // "Batalkan Pencarian" is guarded by isCancelling above, against a
-  // double-click firing two concurrent RPC calls (the RPC itself is also
-  // idempotent server-side, but the UI guard avoids a redundant second
-  // network round-trip / confusing double error toast).
-  const handleCancelTrip = async () => {
-    if (isCancellingTrip || !activeOrderId) return;
-    setIsCancellingTrip(true);
-    try {
-      await refundMatchedRide(activeOrderId, 'Refund Pembatalan Perjalanan (Sudah Matched)');
-      toast.success('Perjalanan dibatalkan.');
-      setStep('input');
-      setActiveOrderId(null);
-      setAssignedDriverId(null);
-      setDriverInfo(null);
-      setPickup('');
-      setDropoff('');
-      setRouteInfo(null);
-      setMapState(prev => ({
-        ...prev,
-        route: null,
-        markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]
-      }));
-    } catch (err) {
-      toast.error(`Gagal membatalkan perjalanan: ${err.message}`);
-    } finally {
-      setIsCancellingTrip(false);
     }
   };
 
@@ -800,261 +573,9 @@ export default function RidePage() {
           </div>
         )}
 
-        {/* LANGKAH 3: MENCARI DRIVER */}
-        {step === 'searching' && (
-          <div className="p-8 text-center space-y-4">
-            <div className="relative w-16 h-16 mx-auto">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <span className="absolute inset-0 flex items-center justify-center text-xl">
-                {selectedVehicle?.icon || '🛵'}
-              </span>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                Mencarikan Driver Terdekat...
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                {nearbyDriverCount > 0
-                  ? `${nearbyDriverCount} driver ditemukan di sekitar lokasi jemput Anda, menunggu salah satu menerima.`
-                  : nearbyDriverCount === 0
-                  ? 'Belum ada driver online di sekitar Anda saat ini. Pesanan tetap menunggu jika ada driver yang online.'
-                  : 'Sistem Wira sedang menghubungkan pesanan Anda dengan mitra driver di sekitar Mataram.'}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isCancelling}
-              className="text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
-              onClick={async () => {
-                if (isCancelling) return; // guard against a double-click firing two concurrent refund() calls
-                setIsCancelling(true);
-                try {
-                  if (paymentMethod === 'WiraPay' && activeOrderId) {
-                    // wallet_refund now takes the order id and computes the
-                    // refund amount server-side from orders.total_price
-                    // (which already reflects any promo discount applied at
-                    // booking time via finalPrice/calculateFinalPrice) -
-                    // see migrations/0040_wallet_refund_rpc.sql. It also
-                    // marks the order 'cancelled' itself, atomically with
-                    // the credit, so the updateOrderStatus call below is
-                    // only needed for the cash-payment path.
-                    await refund(activeOrderId, 'Refund Batal WiraRide');
-                  } else if (activeOrderId) {
-                    await updateOrderStatus(activeOrderId, 'cancelled');
-                  }
-                  setStep('vehicle');
-                } catch (err) {
-                  toast.error(`Gagal membatalkan: ${err.message}`);
-                } finally {
-                  setIsCancelling(false);
-                }
-              }}
-            >
-              {isCancelling ? 'Membatalkan...' : 'Batalkan Pencarian'}
-            </Button>
-          </div>
-        )}
-
-        {/* LANGKAH 4: DRIVER DITEMUKAN & LIVE TRACKING */}
-        {step === 'tracking' && (
-          <div className="p-5 space-y-4">
-            {/* Status Perjalanan */}
-            <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-2xl flex items-center justify-between border border-primary/20">
-              <div className="flex items-center gap-2.5">
-                <span className="animate-pulse w-3 h-3 rounded-full bg-green-500"></span>
-                <span className="text-xs sm:text-sm font-bold text-primary dark:text-primary-light">
-                  {tripStage === 0 && 'Menunggu driver mulai bergerak...'}
-                  {tripStage === 1 && 'Driver Sedang Menuju Titik Jemput'}
-                  {tripStage === 2 && 'Dalam Perjalanan Menuju Tujuan'}
-                </span>
-              </div>
-              <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                {paymentMethod}
-              </span>
-            </div>
-
-            {/* Kartu Profil Driver */}
-            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-cyan-100 text-cyan-800 font-bold flex items-center justify-center text-lg shadow-sm">
-                  👨‍✈️
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1">
-                    {driverInfo?.name || 'Mitra Driver Wira'}
-                    <span className="text-[10px] text-amber-500 flex items-center font-bold">
-                      ⭐ {driverInfo?.rating || '5.0'}
-                    </span>
-                  </h4>
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {driverInfo?.plate || 'DR WIRA'}
-                  </p>
-                  <p className="text-[11px] text-slate-500">{driverInfo?.vehicle || 'Sepeda Motor'}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <a
-                  href={`tel:${driverInfo?.phone || ''}`}
-                  className="p-2.5 bg-white dark:bg-slate-800 rounded-full text-green-600 shadow-sm border border-slate-200 dark:border-slate-700 hover:scale-105 transition"
-                  title="Telepon Driver"
-                >
-                  <Phone size={16} />
-                </a>
-                <button
-                  onClick={() => setIsChatOpen(true)}
-                  className="p-2.5 bg-white dark:bg-slate-800 rounded-full text-primary shadow-sm border border-slate-200 dark:border-slate-700 hover:scale-105 transition"
-                  title="Kirim Pesan"
-                >
-                  <MessageSquare size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Tombol Konfirmasi Tiba */}
-            <Button
-              className="w-full py-3 font-bold bg-primary hover:bg-primary-dark text-white shadow-md"
-              onClick={handleCompleteTrip}
-            >
-              Konfirmasi Tiba di Tujuan
-            </Button>
-
-            {/* Batalkan Perjalanan - hanya sebelum driver benar-benar
-                menjemput (tripStage 0/1, order.status 'accepted'/
-                'picking_up'). Setelah IN_TRIP (tripStage 2) RPC-nya menolak
-                (lihat migrations/0047), jadi tombolnya disembunyikan di
-                titik itu daripada memunculkan aksi yang pasti gagal. */}
-            {tripStage < 2 && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isCancellingTrip}
-                className="w-full text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
-                onClick={handleCancelTrip}
-              >
-                {isCancellingTrip ? 'Membatalkan...' : 'Batalkan Perjalanan'}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* LANGKAH 5: SELESAI PERJALANAN & RATING */}
-        {step === 'completed' && (
-          <div className="p-6 text-center space-y-4">
-            <div className="w-14 h-14 bg-green-100 dark:bg-green-900/40 text-green-600 rounded-full mx-auto flex items-center justify-center">
-              <CheckCircle2 size={36} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Perjalanan Selesai!
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Terima kasih telah bepergian dengan Wira
-              </p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl text-left text-xs space-y-2 border border-slate-100 dark:border-slate-700">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Rute:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {pickup} ➔ {dropoff}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Biaya:</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  {formatRupiah(selectedVehicle?.price || 15000)}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
-                Beri Nilai Driver:
-              </p>
-              <div className="flex justify-center gap-2 mb-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    className="p-1 transition hover:scale-125"
-                  >
-                    <Star
-                      size={32}
-                      className={
-                        star <= rating
-                          ? 'text-amber-400 fill-amber-400'
-                          : 'text-slate-300 dark:text-slate-600'
-                      }
-                    />
-                  </button>
-                ))}
-              </div>
-              
-              <textarea
-                id="reviewComment"
-                placeholder="Bagaimana pelayanan driver kami? (Opsional)"
-                className="w-full bg-slate-50 dark:bg-slate-800 text-sm p-3 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary h-20 resize-none"
-              ></textarea>
-            </div>
-
-            <Button
-              className="w-full py-3 font-bold"
-              onClick={async () => {
-                if (rating > 0 && assignedDriverId && activeOrderId) {
-                  const comment = document.getElementById('reviewComment')?.value || '';
-                  // Writes through the same submit_review_and_tip RPC as
-                  // ActivityPage/ReviewModal.jsx instead of inserting into
-                  // the old, disconnected driver_reviews table - keeps this
-                  // immediate post-trip prompt as one of two entry points
-                  // into ONE review system (public.reviews), so a rating
-                  // given here also sets orders.is_reviewed and actually
-                  // counts toward the driver's displayed average rating.
-                  // No tip field in this quick prompt (ReviewModal already
-                  // offers that from Aktivitas), so tip amount is always 0.
-                  const { error } = await supabase.rpc('submit_review_and_tip', {
-                    p_order_id: activeOrderId,
-                    p_rating: rating,
-                    p_review_text: comment,
-                    p_tip_amount: 0,
-                  });
-                  if (!error) {
-                    toast.success('Terima kasih atas penilaian Anda!');
-                  } else if (error.message?.includes('already been reviewed')) {
-                    // Already reviewed via Aktivitas/ReviewModal in the
-                    // meantime - not an error from the customer's POV.
-                  } else {
-                    toast.error(error.message || 'Gagal mengirim ulasan');
-                  }
-                }
-                setStep('input');
-                setPickup('');
-                setDropoff('');
-                setActiveOrderId(null);
-                setAssignedDriverId(null);
-                setRating(0);
-                setMapState(prev => ({
-                  ...prev,
-                  route: null,
-                  markers: [{ lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng }]
-                }));
-              }}
-            >
-              Kembali ke Beranda
-            </Button>
-          </div>
-        )}
       </div>
 
       </div>
-      {isChatOpen && activeOrderId && (
-        <ChatModal
-          orderId={activeOrderId}
-          onClose={() => setIsChatOpen(false)}
-          receiverName={driverInfo?.name || 'Driver'}
-        />
-      )}
     </div>
   );
 }
