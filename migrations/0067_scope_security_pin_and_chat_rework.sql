@@ -31,7 +31,18 @@
 -- is fully removed from `orders`, so there's nothing to accidentally
 -- over-select), and the PIN itself is now only ever visible to whoever the
 -- RLS policy actually names.
+--
+-- ALSO FOUND while live-testing this fix (via a real magic-link driver
+-- session actually submitting a PIN through the app): `start_order_with_pin`
+-- (0063/0065/0066) sets `orders.updated_at = NOW()` in its final UPDATE, but
+-- `orders.updated_at` does not exist on the live table at all - confirmed
+-- directly (`column "updated_at" of relation "orders" does not exist"`).
+-- Unrelated to the PIN-leak issue above, but in the same function and would
+-- have kept `start_order_with_pin` failing even after every other fix in
+-- this migration and 0066. Added below.
 -- =============================================================================
+
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS public.order_security_pins (
     order_id UUID PRIMARY KEY REFERENCES public.orders(id) ON DELETE CASCADE,
