@@ -424,25 +424,20 @@ export default function RidePage() {
             setMapState(prev => ({ ...prev, markers: prev.markers.slice(0, 2) }));
             toast.error('Driver membatalkan perjalanan Anda, sedang mencari driver baru...', { icon: '🔄', duration: 6000 });
 
-            // Re-notify nearby drivers that this order is open again,
-            // reusing the exact same get_nearest_drivers + POST
-            // /notifications/order-alert fan-out handleStartBooking already
-            // uses for a brand-new booking (see its comment further up this
-            // file) - fired from here (the customer's browser, which
-            // already has API_BASE_URL/session context in this exact shape)
-            // rather than from the cancelling driver's app, per this
-            // feature's design: the driver who just bailed shouldn't be the
-            // one re-broadcasting the order to their peers.
-            const requeuedOrder = payload.new;
-            if (requeuedOrder.pickup_lat != null && requeuedOrder.pickup_lng != null) {
-              const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
-                user_lat: requeuedOrder.pickup_lat,
-                user_lng: requeuedOrder.pickup_lng,
-                target_vehicle_type: selectedVehicle?.id || null,
-                only_online: true,
-                max_results: 5,
-              });
-            }
+            // Re-dispatching to nearby drivers is NOT done here. It's
+            // handled by useOrderDispatch (frontend-user/src/hooks/
+            // useOrderDispatch.js), which runs on ActiveOrderPage and keys
+            // its effect off [order.id, order.status, order.driver_id,
+            // session.access_token] - so the moment this same order flips
+            // back to status 'pending' / driver_id null (exactly what just
+            // happened), that effect re-runs on its own and resumes
+            // sequential driver pinging with a fresh candidate fetch. A
+            // second, separate notification fan-out from here would just
+            // race/duplicate that. (A prior automated cleanup, remove_blast.js,
+            // already stripped the old shotgun-broadcast loop that used to
+            // live in this block when the codebase switched to sequential
+            // dispatch, but left a dead get_nearest_drivers call behind -
+            // removed now along with the stale comment that referenced it.)
           }
         }
       )

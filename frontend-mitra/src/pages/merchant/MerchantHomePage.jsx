@@ -203,9 +203,18 @@ const MerchantHomePage = () => {
             <span>Total Tagihan:</span>
             <span className="text-primary">Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
           </div>
-          <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
-            {isVillaOrder(activeOrder) ? 'Tandai Selesai' : 'Tandai Siap / Selesai'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+              onClick={() => navigate('active-order/' + activeOrder.id)}
+            >
+              Chat
+            </Button>
+            <Button variant="primary" className="w-full font-bold" onClick={handleCompleteOrder}>
+              {isVillaOrder(activeOrder) ? 'Tandai Selesai' : 'Tandai Siap / Selesai'}
+            </Button>
+          </div>
         </Card>
       )}
 

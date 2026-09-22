@@ -51,7 +51,12 @@ export default function ActiveOrderPage() {
   const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [driverLoc, setDriverLoc] = useState(null);
-  
+  // The real PIN, fetched separately from public.order_security_pins - the
+  // orders.security_pin column no longer exists (migration 0067). RLS on
+  // that table only returns a row to this order's real customer (or, for
+  // food, the owning merchant), so this stays null until it loads.
+  const [securityPin, setSecurityPin] = useState(null);
+
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -88,6 +93,16 @@ export default function ActiveOrderPage() {
     fetchOrder();
   }, [fetchOrder]);
 
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    supabase.from('order_security_pins').select('pin').eq('order_id', id).maybeSingle()
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) setSecurityPin(data.pin);
+      });
+    return () => { cancelled = true; };
+  }, [id]);
+
   // Order realtime tracking
   useEffect(() => {
     if (!id) return;
@@ -116,28 +131,52 @@ export default function ActiveOrderPage() {
     return () => { supabase.removeChannel(locChannel); };
   }, [order?.driver_id, order?.status]);
 
-  // Ephemeral Chat
+  // Chat - backed by the real public.messages table (migration 0019's RLS
+  // already scopes read/write to this order's real customer/driver/merchant
+  // owner/admin) instead of the old bare Broadcast channel, which had no RLS
+  // at all: anyone who knew the order id could join `chat_${id}` and read or
+  // spoof messages. Loads history on mount, then subscribes to Postgres
+  // Changes for new rows - RLS applies to that subscription the same way it
+  // applies to a normal select, so a client not authorized for this order
+  // never even receives the INSERT event.
   useEffect(() => {
     if (!id || !user) return;
-    const chatChannel = supabase.channel(`chat_${id}`, { config: { broadcast: { self: true } } });
-    chatChannel
-      .on('broadcast', { event: 'message' }, ({ payload }) => {
-        setMessages(prev => [...prev, payload]);
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('order_id', id)
+        .order('created_at', { ascending: true });
+      if (!cancelled && !error && data) setMessages(data);
+    };
+    loadMessages();
+
+    const chatChannel = supabase
+      .channel('messages_' + id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `order_id=eq.${id}` }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
         setTimeout(() => {
           if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
         }, 100);
       })
       .subscribe();
-    return () => { supabase.removeChannel(chatChannel); };
+    return () => { cancelled = true; supabase.removeChannel(chatChannel); };
   }, [id, user]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
-    const msg = { text: inputText.trim(), sender_id: user.id, sender_name: user.name, timestamp: Date.now() };
-    const chatChannel = supabase.channel(`chat_${id}`);
-    await chatChannel.send({ type: 'broadcast', event: 'message', payload: msg });
+    const text = inputText.trim();
+    if (!text || !user) return;
     setInputText('');
+    // RLS (migration 0019) already enforces that the sender must be a real
+    // participant on this order - no client-side role check needed here.
+    const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+    if (error) {
+      console.error(error);
+      toast.error('Gagal mengirim pesan');
+    }
   };
 
   const handleCancel = async () => {
@@ -200,11 +239,13 @@ export default function ActiveOrderPage() {
           <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
             {order.service_type === 'food' ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">Driver sedang mengambil pesanan di Restoran (PIN diverifikasi oleh Restoran)</p>
-            ) : (
+            ) : securityPin ? (
               <>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat bertemu:</p>
-                <div className="text-3xl font-bold tracking-[0.3em] text-primary">{order.security_pin || '----'}</div>
+                <div className="text-3xl font-bold tracking-[0.3em] text-primary">{securityPin}</div>
               </>
+            ) : (
+              <p className="text-sm text-gray-400">Memuat PIN...</p>
             )}
           </div>
         )}
@@ -244,13 +285,13 @@ export default function ActiveOrderPage() {
           <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat</h3>
           <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
             {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
-            {messages.map((m, i) => (
-              <div key={i} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
+            {messages.map((m) => (
+              <div key={m.id} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
                 <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
                   {m.text}
                 </div>
                 <span className="text-[9px] text-gray-400 mt-0.5 px-1">
-                  {new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
             ))}

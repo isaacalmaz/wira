@@ -51,14 +51,29 @@ export function useOrderDispatch(order, session) {
         if (!currentCandidates || currentCandidates.length === 0) {
           // Tidak ada driver sama sekali. Refresh candidates untuk putaran selanjutnya.
           currentCandidates = null;
+          // Reset juga daftar ping - tidak ada gunanya menyimpan riwayat ping
+          // untuk kandidat yang sudah tidak relevan.
+          pingedList = [];
+          if (isSubscribed) setPingedCount(0);
         } else {
           // 2. Find the next candidate who hasn't been pinged
           const nextCandidate = currentCandidates.find(c => !pingedList.includes(c.id));
-          
+
           if (!nextCandidate) {
             console.log("Semua kandidat telah di-ping. Mencari ulang kandidat baru...");
-            // Jika semua sudah di-ping, reset kandidat agar fetch ulang di putaran berikutnya
+            // Jika semua sudah di-ping, reset kandidat DAN daftar ping agar
+            // putaran berikutnya benar-benar mem-ping ulang semua orang -
+            // termasuk kandidat dari putaran sebelumnya yang belum merespon
+            // (mereka mungkin sudah lebih dekat/lebih available sekarang).
+            // Tanpa mereset pingedList di sini, begitu seluruh initial pool
+            // sudah di-ping sekali, setiap putaran refetch berikutnya akan
+            // mengembalikan daftar kandidat yang (hampir) sama persis, semua
+            // sudah ada di pingedList, dan tidak ada driver yang di-ping lagi
+            // selamanya - pesanan macet di 'searching' tanpa notifikasi,
+            // tanpa timeout, tanpa sinyal apa pun ke UI.
             currentCandidates = null;
+            pingedList = [];
+            if (isSubscribed) setPingedCount(0);
           } else {
             // 3. Ping the candidate
             console.log(`Dispatching order to candidate ${nextCandidate.id} (distance: ${nextCandidate.dist_km || '?'} km)`);

@@ -21,6 +21,25 @@ import {
   Receipt,
 } from 'lucide-react';
 
+// Statuses that mean an order/ride is still actually "live" (not yet
+// completed/cancelled). These should route to ActiveOrderPage for real-time
+// tracking, the PIN screen, cancel and chat - anything past this point
+// (COMPLETED/CANCELLED) is a finished record and should only open the
+// read-only receipt modal. Source of truth: constants/orderStatus.js.
+// 'menunggu' is kept for parity with the previous whitelist even though it
+// isn't one of the canonical OrderStatus values.
+const IN_PROGRESS_STATUSES = [
+  OrderStatus.PENDING,
+  OrderStatus.ACCEPTED,
+  OrderStatus.PREPARING,
+  OrderStatus.READY,
+  OrderStatus.PICKING_UP,
+  OrderStatus.IN_TRIP,
+  OrderStatus.ON_THE_WAY,
+  OrderStatus.WORKING,
+  'menunggu',
+];
+
 export default function ActivityPage() {
   const navigate = useNavigate();
   const { orders } = useOrders();
@@ -119,7 +138,7 @@ export default function ActivityPage() {
           filtered.map((act) => (
             <Card
               key={act.id}
-              onClick={() => ['pending', 'ready', 'accepted', 'menunggu'].includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
+              onClick={() => IN_PROGRESS_STATUSES.includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
               className="p-4 hover:border-primary/60 cursor-pointer transition hover:shadow-md border border-slate-200 dark:border-slate-700"
             >
               <div className="flex items-start justify-between gap-3 mb-2">

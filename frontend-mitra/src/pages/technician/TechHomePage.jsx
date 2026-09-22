@@ -17,6 +17,7 @@ const isPoolOrder = (order) => order?.service_type === 'pool' || order?.service_
 
 const TechHomePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [todayOrders, setTodayOrders] = useState([]);
@@ -126,7 +127,11 @@ const TechHomePage = () => {
         <div className="space-y-3">
           {todayOrders.length > 0 ? (
             todayOrders.map(s => (
-              <div key={s.id} className="flex gap-4 items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100">
+              <div
+                key={s.id}
+                onClick={() => navigate('active-order/' + s.id)}
+                className="flex gap-4 items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 cursor-pointer hover:border-primary transition-colors"
+              >
                 <div className="text-center min-w-[50px]">
                   <p className="font-bold text-sm text-primary">{new Date(s.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>

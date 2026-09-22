@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Send, Phone, MessageSquare, Loader } from 'lucide-react';
+import { ArrowLeft, Send, Phone, MessageSquare, Loader, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, updateDriverLocation } from '../../services/orderService';
+import { Modal } from '../../components/shared/UIComponents';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -30,12 +31,19 @@ export default function ActiveOrderPage() {
   const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+  // The real PIN, fetched separately from public.order_security_pins - the
+  // orders.security_pin column no longer exists (migration 0067). RLS on
+  // that table only returns a row for the order's real customer or, for
+  // food orders, the owning merchant - never the driver, so this simply
+  // stays null for a driver viewing their own active order.
+  const [securityPin, setSecurityPin] = useState(null);
+
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const chatRef = useRef(null);
 
@@ -64,6 +72,16 @@ export default function ActiveOrderPage() {
     fetchOrder();
   }, [fetchOrder]);
 
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    supabase.from('order_security_pins').select('pin').eq('order_id', id).maybeSingle()
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) setSecurityPin(data.pin);
+      });
+    return () => { cancelled = true; };
+  }, [id]);
+
   // Track order changes
   useEffect(() => {
     if (!id) return;
@@ -79,19 +97,38 @@ export default function ActiveOrderPage() {
     return () => { supabase.removeChannel(channel); };
   }, [id, navigate]);
 
-  // Ephemeral Chat
+  // Chat - backed by the real public.messages table (migration 0019's RLS
+  // already scopes read/write to this order's real customer/driver/merchant
+  // owner/admin) instead of the old bare Broadcast channel, which had no RLS
+  // at all: anyone who knew the order id could join `chat_${id}` and read or
+  // spoof messages. Loads history on mount, then subscribes to Postgres
+  // Changes for new rows - RLS applies to that subscription the same way it
+  // applies to a normal select, so a client not authorized for this order
+  // never even receives the INSERT event.
   useEffect(() => {
     if (!id || !user) return;
-    const chatChannel = supabase.channel(`chat_${id}`, { config: { broadcast: { self: true } } });
-    chatChannel
-      .on('broadcast', { event: 'message' }, ({ payload }) => {
-        setMessages(prev => [...prev, payload]);
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('order_id', id)
+        .order('created_at', { ascending: true });
+      if (!cancelled && !error && data) setMessages(data);
+    };
+    loadMessages();
+
+    const chatChannel = supabase
+      .channel('messages_' + id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `order_id=eq.${id}` }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
         setTimeout(() => {
           if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
         }, 100);
       })
       .subscribe();
-    return () => { supabase.removeChannel(chatChannel); };
+    return () => { cancelled = true; supabase.removeChannel(chatChannel); };
   }, [id, user]);
 
   // Send Driver GPS every 5s
@@ -114,11 +151,16 @@ export default function ActiveOrderPage() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
-    const msg = { text: inputText.trim(), sender_id: user.id, sender_name: user.name, timestamp: Date.now() };
-    const chatChannel = supabase.channel(`chat_${id}`);
-    await chatChannel.send({ type: 'broadcast', event: 'message', payload: msg });
+    const text = inputText.trim();
+    if (!text || !user) return;
     setInputText('');
+    // RLS (migration 0019) already enforces that the sender must be a real
+    // participant on this order - no client-side role check needed here.
+    const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+    if (error) {
+      console.error(error);
+      toast.error('Gagal mengirim pesan');
+    }
   };
 
   const getNextStageInfo = () => {
@@ -183,13 +225,20 @@ export default function ActiveOrderPage() {
            toast.success('Lokasi terverifikasi.', { id: 'gps_check' });
        } catch (err) {
            console.log("GPS check failed", err);
-           toast.error('Gagal membaca GPS. Pastikan izin lokasi aktif.', { id: 'gps_check' });
-           // return; // Uncomment to strictly block without GPS
+           toast.error('Tidak bisa memverifikasi lokasi Anda - aktifkan GPS dan coba lagi', { id: 'gps_check' });
+           // Fail closed: a GPS error must block the action, not silently
+           // let it through. Real server-side geofencing enforcement is a
+           // separate, larger follow-up - this only closes the client-side
+           // "GPS error lets you through" gap.
+           return;
        }
     }
 
     try {
-      const updated = await updateOrderStatus(order.id, info.next);
+      const isMerchantAdvancing = !isDriver && order.merchant?.owner_id === user.id;
+      const mode = isMerchantAdvancing ? 'merchant' : 'driver';
+      const partnerId = isMerchantAdvancing ? order.merchant_id : user.id;
+      const updated = await updateOrderStatus(supabase, order.id, info.next, partnerId, mode);
       if (updated) setOrder(updated);
       toast.success(`Status diubah ke ${info.next}`);
     } catch (e) {
@@ -204,6 +253,7 @@ export default function ActiveOrderPage() {
     e.preventDefault();
     if (pinInput.length !== 4) { toast.error("PIN harus 4 angka"); return; }
     setIsVerifying(true);
+    setPinError('');
     try {
        const { data, error } = await supabase.rpc('start_order_with_pin', {
           p_order_id: order.id,
@@ -211,17 +261,27 @@ export default function ActiveOrderPage() {
        });
        if (error) throw error;
        if (!data.success) {
+          setPinError(data.error || 'PIN Salah!');
           toast.error(data.error || 'PIN Salah!');
        } else {
           toast.success('PIN Benar! Pekerjaan dimulai.');
           setOrder(prev => ({...prev, status: 'in_trip'}));
           setShowPinModal(false);
           setPinInput('');
+          setPinError('');
        }
     } catch(err) {
+       setPinError(err.message);
        toast.error(err.message);
     }
     setIsVerifying(false);
+  };
+
+  const closePinModal = () => {
+    if (isVerifying) return;
+    setShowPinModal(false);
+    setPinInput('');
+    setPinError('');
   };
 
   if (loading || !order) {
@@ -249,7 +309,11 @@ export default function ActiveOrderPage() {
         {order.merchant?.owner_id === user.id && ['ready', 'picking_up'].includes(order.status) && (
           <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl mb-2 text-center border-b dark:border-slate-700">
              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat penyerahan makanan:</p>
-             <div className="text-3xl font-bold tracking-[0.3em] text-primary">{order.security_pin || '----'}</div>
+             {securityPin ? (
+               <div className="text-3xl font-bold tracking-[0.3em] text-primary">{securityPin}</div>
+             ) : (
+               <p className="text-sm text-gray-400">Memuat PIN...</p>
+             )}
           </div>
         )}
 
@@ -276,13 +340,13 @@ export default function ActiveOrderPage() {
           <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat (Customer)</h3>
           <div className="flex-1 overflow-y-auto mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
             {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
-            {messages.map((m, i) => (
-              <div key={i} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
+            {messages.map((m) => (
+              <div key={m.id} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
                 <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
                   {m.text}
                 </div>
                 <span className="text-[9px] text-gray-400 mt-0.5 px-1">
-                  {new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
             ))}
@@ -298,6 +362,49 @@ export default function ActiveOrderPage() {
           </form>
         </div>
       </div>
+
+      {showPinModal && (
+        <Modal isOpen={true} onClose={closePinModal} closeOnBackdrop={!isVerifying} className="max-w-sm p-6">
+          <div className="flex flex-col items-center text-center mb-4">
+            <div className="w-14 h-14 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
+              <Lock size={28} />
+            </div>
+            <h2 className="text-lg font-bold">Masukkan PIN Pesanan</h2>
+            <p className="text-sm text-slate-500 mt-1">Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.</p>
+          </div>
+          <form onSubmit={handlePinSubmit} className="space-y-3">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              autoFocus
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="----"
+              className="w-full text-center text-3xl tracking-[0.5em] font-bold border-2 border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl py-3 focus:outline-none focus:border-primary"
+            />
+            {pinError && <p className="text-sm text-red-500 text-center">{pinError}</p>}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closePinModal}
+                disabled={isVerifying}
+                className="flex-1 py-3 rounded-2xl font-bold border-2 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isVerifying || pinInput.length !== 4}
+                className="flex-1 bg-primary text-white py-3 rounded-2xl font-bold disabled:opacity-50"
+              >
+                {isVerifying ? 'Memverifikasi...' : 'Konfirmasi'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
