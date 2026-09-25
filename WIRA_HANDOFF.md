@@ -47,12 +47,14 @@ const { data: session } = await supabaseAnon.auth.verifyOtp({
 Session hasilnya bisa dipakai langsung di script Node (pasang sebagai header `Authorization: Bearer <access_token>` di client Supabase), atau di-inject ke `localStorage` browser dengan key `sb-<project-ref>-auth-token`.
 
 ### 2.2 Semua pergerakan uang lewat RPC terpusat — JANGAN buat jalur baru
-- `wallet_pay(p_amount, p_description)` — debit dompet
+- `create_order_and_pay(...)` — **SATU-SATUNYA jalan membuat order WiraPay** (migration 0070): insert order + debit `total_price` hasil hitung server + baris ledger + `payment_status='paid'` dalam satu transaksi. Sengaja `SECURITY INVOKER` (lihat §6.8). Trigger `enforce_orders_state_machine` menolak order `wallet`/`paid` dari jalur lain.
+- `wallet_pay(p_amount, p_description)` — debit dompet (sekarang hanya untuk "Bayar Merchant" di WalletPage — JANGAN dipakai untuk order)
 - `wallet_transfer(...)` — transfer antar user (by phone)
 - `wallet_refund(p_order_id, p_description)` — refund order yang masih `pending`
 - `wallet_refund_matched_ride(p_order_id, p_description)` — batalkan ride yang sudah dapat driver, refund penuh, bisa dipanggil pelanggan ATAU driver
 - `submit_review_and_tip(p_order_id, p_rating, p_review_text, p_tip_amount)` — review + tip sekaligus
-- `credit_wallet_balance_atomic(p_user_id, p_amount)` — **service_role-only**, dipakai webhook top-up (Midtrans/Mutasiku), jangan panggil dari client manapun
+- `approve_topup_and_credit(p_request_id, p_expected_amount, p_expected_method, p_description, p_reference_id)` — **service_role-only**, dipakai webhook top-up Midtrans/Mutasiku (migration 0071): approve + kredit saldo + baris ledger dalam SATU transaksi. Mengembalikan `'approved'`/`'already_processed'`/`'not_found'`.
+- `credit_wallet_balance_atomic(p_user_id, p_amount)` — **service_role-only**, tidak dipakai lagi oleh webhook sejak 0071 (dibiarkan ada); jangan panggil dari client manapun
 
 Semua RPC di atas: `SECURITY DEFINER`, pakai `FOR UPDATE` row lock sebelum cek/ubah saldo, idempotent. Kalau butuh pola baru yang mirip (mis. "kredit saldo dari webhook baru"), **buat RPC baru yang sesempit mungkin scope-nya dan REVOKE dari `anon`/`authenticated`**, jangan reuse RPC lama dengan cara yang melonggarkan siapa yang boleh memanggilnya.
 
@@ -92,7 +94,9 @@ Setiap `git push` ke `main` men-deploy ke **4** project Vercel sekaligus sekaran
 
 ---
 
-## 3. Status Saat Ini (2026-09-20)
+## 3. Status Saat Ini (2026-09-20, diperbarui 2026-09-25)
+
+**Update 2026-09-25:** migration **0070** sudah dijalankan DAN diverifikasi live (skrip verifikasi rollback-only, 8/8 lulus, frontend sudah di-merge & deploy). Menutup celah "cetak saldo WiraPay": order `wallet`/`paid` bisa dibuat tanpa bayar lalu di-refund, termasuk lewat opsi "Transfer Bank" di Pool/Villa. **0071** (webhook top-up atomik) — cek `migrations/README.md` untuk status apply-nya.
 
 Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **0001–0060 sudah dikonfirmasi dijalankan dan sebagian besar sudah diverifikasi live** (lihat catatan khusus di baris masing-masing). Selalu cek `ls migrations/` untuk nomor real-time terbaru — dokumen ini bisa tertinggal.
 
@@ -102,6 +106,7 @@ Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **000
 | **Harga order dihitung ulang di server** (bukan lagi dipercaya dari client) | ✅ Baru selesai sesi ini (migrations 0057–0060), diverifikasi live untuk 10 skenario per jenis layanan |
 | **Admin bisa ubah harga APAPUN kapan saja** (Ride via `vehicles`, Send/Service/Pool/ongkir Food via `pricing_rules` baru) — satu halaman `/pricing` "Manajemen Harga" | ✅ Baru selesai sesi ini, diuji live edit-simpan-verifikasi |
 | Wallet (top-up manual QRIS, pay, transfer, refund) | ✅ Berfungsi |
+| **Checkout WiraPay atomik** (order + debit harga server dalam satu transaksi, `create_order_and_pay`) | ✅ 2026-09-25, migration 0070, diverifikasi live. "Transfer" sekarang tersimpan sebagai `payment_method='transfer'`, `unpaid` |
 | **Top-up QRIS terverifikasi OTOMATIS via webhook Mutasiku** (mutasi bank DANA) | ✅ Baru sesi ini — `backend/routes/mutasiku.js`, tidak perlu admin approve manual lagi untuk top-up manual |
 | Midtrans (top-up alternatif) | ✅ Kode benar (signature verification, idempotent), **kredensial asli masih belum diisi** (lihat §4) — QRIS manual + Mutasiku sekarang jalur utama yang live |
 | **Keamanan menyeluruh** (self-escalation admin, fabrikasi order/payout, RLS terbuka di beberapa tabel) | ✅ Diaudit penuh dan diperbaiki sesi ini (migrations 0050–0056) — lihat §6.2 untuk detail apa yang ditemukan dan kenapa itu penting dibaca sebelum menyentuh RLS/RPC manapun |
@@ -163,6 +168,12 @@ Keputusan kebijakan bisnis/keamanan didokumentasikan di header migration karena 
 
 ### 6.7 Jujur soal yang tidak sempat diuji
 Kalau ada bagian yang tidak bisa diverifikasi (mis. kredensial sandbox tidak ada), katakan dengan jelas, jangan diam-diam diasumsikan berhasil.
+
+
+### 6.8 SECURITY DEFINER melewati trigger harga — dan uang tidak boleh dua langkah
+- Trigger harga 0059 dan pemeriksaan INSERT di `enforce_orders_state_machine` hanya jalan kalau `current_user` adalah `authenticated`/`anon`. Di dalam fungsi `SECURITY DEFINER`, `current_user` = pemilik fungsi, jadi harga dari client **dipercaya begitu saja**. Karena itu `create_order_and_pay` sengaja `SECURITY INVOKER` dan hanya bagian debit saldo (`charge_wallet_for_order`) yang DEFINER. Periksa ini setiap kali menulis RPC baru yang meng-INSERT ke `orders`.
+- Setiap alur uang yang terdiri dari beberapa panggilan terpisah dari client/backend (bayar lalu insert; approve lalu kredit) pasti punya celah: langkah pertama berhasil, langkah kedua gagal atau dilewati. Gabungkan jadi satu fungsi Postgres (satu transaksi). 0070 dan 0071 dua-duanya memperbaiki pola ini.
+- Cara verifikasi live tanpa service-role key dan tanpa jejak data: skrip `DO` di SQL Editor yang ganti identitas (`set_config('request.jwt.claims', ...)` + `SET LOCAL ROLE authenticated`), menjalankan skenario, lalu **selalu diakhiri `RAISE EXCEPTION` berisi ringkasan hasil** sehingga seluruh transaksi di-rollback. Selalu uji juga skrip itu terhadap kode LAMA untuk memastikan skripnya benar-benar bisa gagal.
 
 ---
 

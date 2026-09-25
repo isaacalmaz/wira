@@ -107,49 +107,27 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       return res.status(200).json({ received: true, matched: false });
     }
 
-    // Atomic, idempotent pending -> approved transition (same discipline as
-    // the Midtrans webhook). Only the first delivery to reach here wins;
-    // every replay after that affects zero rows and is a safe no-op.
-    const { data: updatedRows, error: updateErr } = await supabaseAdmin
-      .from('topup_requests')
-      .update({ status: 'approved', updated_at: new Date().toISOString() })
-      .eq('id', pendingReq.id)
-      .eq('status', 'pending')
-      .select();
+    // Approve + credit + ledger row in ONE DB transaction (migrations/0071),
+    // same fix as routes/midtrans.js. Previously a failed credit/ledger call
+    // after the status flip left the request 'approved' but uncredited, and
+    // Mutasiku's retry would then find no pending row to match. Replays are
+    // still safe no-ops ('already_processed').
+    const { data: outcome, error: approveErr } = await supabaseAdmin.rpc('approve_topup_and_credit', {
+      p_request_id: pendingReq.id,
+      p_expected_amount: notifiedAmount,
+      p_expected_method: 'manual',
+      p_description: 'Top-Up WiraPay via QRIS (verifikasi otomatis Mutasiku)',
+      p_reference_id: data.accountId ? `mutasiku:${data.accountId}:${data.createdAt || ''}` : null,
+    });
+    if (approveErr) throw approveErr;
 
-    if (updateErr) throw updateErr;
-
-    if (!updatedRows || updatedRows.length === 0) {
+    if (outcome !== 'approved') {
       return res.status(200).json({ received: true, matched: true, alreadyProcessed: true });
     }
 
-    const approvedReq = updatedRows[0];
-
-    // Credit balance atomically (same fix and reasoning as
-    // routes/midtrans.js's webhook: a SELECT-then-UPDATE from JS is a
-    // lost-update race against the atomic `wallet_pay` RPC). A single
-    // `wallet_balance = wallet_balance + p_amount` UPDATE inside Postgres
-    // can't lose a concurrent spend's decrement.
-    const { error: creditErr } = await supabaseAdmin.rpc('credit_wallet_balance_atomic', {
-      p_user_id: approvedReq.user_id,
-      p_amount: approvedReq.amount,
-    });
-    if (creditErr) throw creditErr;
-
-    const { error: txErr } = await supabaseAdmin
-      .from('transactions')
-      .insert({
-        user_id: approvedReq.user_id,
-        type: 'topup',
-        amount: approvedReq.amount,
-        description: 'Top-Up WiraPay via QRIS (verifikasi otomatis Mutasiku)',
-        reference_id: data.accountId ? `mutasiku:${data.accountId}:${data.createdAt || ''}` : null,
-      });
-    if (txErr) throw txErr;
-
     console.log('Mutasiku Webhook: auto-approved topup_request', {
-      requestId: approvedReq.id,
-      amount: approvedReq.amount,
+      requestId: pendingReq.id,
+      amount: pendingReq.amount,
     });
 
     return res.status(200).json({ received: true, matched: true, approved: true });
