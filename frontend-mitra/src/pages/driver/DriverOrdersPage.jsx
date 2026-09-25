@@ -7,6 +7,7 @@ import { User, MapPin, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';
+import { formatSignedRupiah } from '../../utils/formatters';
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
@@ -93,7 +94,10 @@ const DriverOrdersPage = () => {
                 <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</p>
               </div>
               <div className="text-right">
-                <p className="font-bold text-green-600">Rp {driverEarnedAmount(order).toLocaleString('id-ID')}</p>
+                <p className={`font-bold ${driverEarnedAmount(order) < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatSignedRupiah(driverEarnedAmount(order))}</p>
+                {order.payment_method === 'cash' && (
+                  <p className="text-[11px] text-slate-500">Tunai: komisi dipotong dari saldo</p>
+                )}
               </div>
             </Card>
           ))}

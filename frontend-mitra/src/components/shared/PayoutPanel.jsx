@@ -4,6 +4,7 @@ import { Card, Button, Modal } from './UIComponents';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { formatSignedRupiah } from '../../utils/formatters';
 
 const STATUS_LABEL = {
   pending: { text: 'Menunggu diproses admin', icon: Clock, cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
@@ -19,6 +20,9 @@ const STATUS_LABEL = {
  * withdrawal, and lists their past requests. Payout is manual: admin sends
  * the money externally and marks the request approved, same as top-up in
  * reverse - there's no payment-gateway integration to automate this.
+ * Since migrations/0075 the balance can be negative: a Tunai order debits
+ * the platform commission from it, and request_payout refuses any amount
+ * above the balance, so withdrawal stays unavailable until it's positive.
  */
 export default function PayoutPanel() {
   const { user } = useAuth();
@@ -98,7 +102,15 @@ export default function PayoutPanel() {
           <Wallet size={16} /> Saldo Bisa Dicairkan
         </div>
       </div>
-      <p className="text-2xl font-bold mb-3">Rp {Math.floor(balance).toLocaleString('id-ID')}</p>
+      <p className={`text-2xl font-bold mb-3 ${balance < 0 ? 'text-red-600' : ''}`}>{formatSignedRupiah(Math.floor(balance))}</p>
+      {balance < 0 && (
+        <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg p-2 mb-3">
+          Saldo minus karena komisi tunai (dipotong dari saldo): pada order Tunai uang dari pelanggan sudah Anda terima langsung, jadi komisi Wira ditagih dari saldo ini. Kekurangan ini tertutup otomatis dari pendapatan order non-tunai berikutnya. Tarik saldo belum bisa dilakukan sampai saldo kembali positif.
+        </p>
+      )}
+      {balance === 0 && (
+        <p className="text-xs text-slate-500 mb-3">Belum ada saldo yang bisa dicairkan.</p>
+      )}
       <Button variant="primary" className="w-full py-3" onClick={() => setModalOpen(true)} disabled={balance <= 0}>
         Tarik Saldo
       </Button>

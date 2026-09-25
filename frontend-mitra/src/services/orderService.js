@@ -410,33 +410,70 @@ export async function completeOrder(supabaseClient, orderId, partnerId, mode = '
 
 /**
  * These mirror migrations/0028_mitra_payout_system.sql's
- * credit_payout_on_order_completed trigger EXACTLY (20% platform commission,
- * i.e. mitra keep 80%) - keep them in sync if that trigger's math ever
- * changes. Earnings screens across the mitra app must show what the trigger
- * actually credited, not raw order.total_price (which double-counts: for a
- * food order, total_price is the whole meal+delivery bill, but the merchant
- * only ever earns the food portion and the driver only the delivery-fee
- * portion of it - summing full total_price for both would imply the
- * platform paid out more than the customer paid).
+ * credit_payout_on_order_completed trigger, as amended by
+ * migrations/0075_cash_orders_commission_debt.sql, EXACTLY (20% platform
+ * commission, i.e. mitra keep 80%) - keep them in sync if that trigger's
+ * math ever changes. Earnings screens across the mitra app must show what
+ * the trigger actually credited, not raw order.total_price (which
+ * double-counts: for a food order, total_price is the whole meal+delivery
+ * bill, but the merchant only ever earns the food portion and the driver
+ * only the delivery-fee portion of it).
+ *
+ * Cash (Tunai) orders (0075): whoever collected the cash - the assigned
+ * driver/technician, or the merchant when there is no driver (villa) - is
+ * debited the full total_price after the normal share is credited, because
+ * that money is already in their hand. The result is negative: the platform
+ * commission (and, for a courier on a cash food order, the merchant's share)
+ * owed back out of payable_balance. Each *EarnedAmount below is that net
+ * payable_balance change; cashCommissionDeduction is the owed part alone.
+ * Orders must be selected with payment_method (and driver_id for merchants).
  */
+const MITRA_SHARE = 0.8;
+
+const isCashOrder = (order) => order.payment_method === 'cash';
+
+function driverShare(order) {
+  if (order.merchant_id) return (order.delivery_fee || 0) * MITRA_SHARE; // food: driver earns the delivery fee only
+  return (order.total_price || 0) * MITRA_SHARE; // ride/send/service/pool: driver earns the whole thing
+}
+
+function merchantShare(order) {
+  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * MITRA_SHARE;
+}
+
+// The assigned driver collects the cash; only with no driver does the merchant.
+function cashCollected(order, role) {
+  if (!isCashOrder(order)) return 0;
+  if (role === 'merchant' && order.driver_id) return 0;
+  return order.total_price || 0;
+}
+
 export function driverEarnedAmount(order) {
-  if (order.merchant_id) return (order.delivery_fee || 0) * 0.8; // food: driver earns the delivery fee only
-  return (order.total_price || 0) * 0.8; // ride/send/service/pool: driver earns the whole thing
+  return driverShare(order) - cashCollected(order, 'driver');
 }
 
 export function merchantEarnedAmount(order) {
-  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * 0.8;
+  return merchantShare(order) - cashCollected(order, 'merchant');
 }
 
 /**
- * Same 20% platform commission / 80% mitra share as driverEarnedAmount and
- * merchantEarnedAmount above, applied to a technician's service/pool jobs.
- * Unlike food orders, a service/pool order's total_price is the whole job
- * price with nothing else split out of it, so the technician's share is
- * simply 80% of total_price - no delivery_fee-style carve-out needed.
+ * A technician is the order's driver_id on a service/pool job (no
+ * merchant_id, no delivery_fee carve-out), so this is the driver rule.
  */
 export function technicianEarnedAmount(order) {
-  return (order.total_price || 0) * 0.8;
+  return driverEarnedAmount(order);
+}
+
+/**
+ * For a cash order this mitra collected: how much was taken out of their
+ * payable_balance beyond their own share (always >= 0). 0 otherwise.
+ * `role` is 'driver' (also technicians) or 'merchant'.
+ */
+export function cashCommissionDeduction(order, role) {
+  const collected = cashCollected(order, role);
+  if (!collected) return 0;
+  const share = role === 'merchant' ? merchantShare(order) : driverShare(order);
+  return Math.max(collected - share, 0);
 }
 
 /**

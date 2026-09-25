@@ -5,7 +5,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { technicianEarnedAmount } from '../../services/orderService';
+import { technicianEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
 
 // Matches TechOrdersPage.jsx/TechHomePage.jsx's real filter list - previously
 // this page only queried service_type 'service', silently excluding 'pool'
@@ -17,6 +17,7 @@ const TechEarningsPage = () => {
   const { user } = useAuth();
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);
+  const [cashDeduction, setCashDeduction] = useState(0);
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const TechEarningsPage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('total_price, created_at')
+        .select('total_price, payment_method, created_at')
         .eq('driver_id', user.id)
         .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .eq('status', 'completed');
@@ -32,6 +33,7 @@ const TechEarningsPage = () => {
       if (data) {
         let tSum = 0;
         let wSum = 0;
+        let cashSum = 0;
         const now = new Date();
         const todayStr = now.toLocaleDateString('id-ID');
 
@@ -56,6 +58,7 @@ const TechEarningsPage = () => {
 
           if (oDateStr === todayStr) tSum += price;
           wSum += price;
+          cashSum += cashCommissionDeduction(o, 'driver');
 
           const dayEntry = weekDays.find(w => w.dateStr === oDateStr);
           if (dayEntry) dayEntry.amount += price;
@@ -63,6 +66,7 @@ const TechEarningsPage = () => {
 
         setTodayTotal(tSum);
         setWeekTotal(wSum);
+        setCashDeduction(cashSum);
         setChartData(weekDays);
       }
     };
@@ -72,7 +76,7 @@ const TechEarningsPage = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pendapatan Teknisi</h1>
-      <EarningsCard today={todayTotal} week={weekTotal} />
+      <EarningsCard today={todayTotal} week={weekTotal} cashDeduction={cashDeduction} />
 
       <Card className="p-4 h-72">
         <h3 className="font-semibold mb-4 text-slate-700 dark:text-slate-300">Grafik Mingguan (7 Hari Terakhir)</h3>

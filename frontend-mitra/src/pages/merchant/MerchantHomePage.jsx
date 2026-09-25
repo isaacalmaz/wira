@@ -35,7 +35,7 @@ const MerchantHomePage = () => {
         setMerchantId(merchantData.id);
         const { data } = await supabase
           .from('orders')
-          .select('total_price, delivery_fee, status')
+          .select('total_price, delivery_fee, payment_method, driver_id, status')
           .eq('merchant_id', merchantData.id)
           .gte('created_at', new Date().toISOString().split('T')[0]);
 
@@ -125,8 +125,9 @@ const MerchantHomePage = () => {
         toast.success('Reservasi Selesai!');
         setTodayOrders(prev => prev + 1);
         // Villa's delivery_fee is always 0, so merchantEarnedAmount here is
-        // just total_price * 0.8 (the trigger's real commission-adjusted
-        // share) - not the raw total_price this used to add.
+        // total_price * 0.8 (the trigger's real commission-adjusted share),
+        // or -20% of total_price for a Tunai booking the merchant collected
+        // in cash (migrations/0075) - not the raw total_price this used to add.
         setTodayEarnings(prev => prev + merchantEarnedAmount(activeOrder));
       } else {
         // Food: this button means "I've finished preparing it," NOT "hand
