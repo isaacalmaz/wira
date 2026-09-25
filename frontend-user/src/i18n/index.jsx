@@ -42,6 +42,19 @@ export function LangProvider({ children }) {
 //         t('home.greeting_morning') → "Selamat pagi"
 export function useTranslation() {
   const context = useContext(LangContext);
+  // Hooks must run unconditionally (same order every render), so compute
+  // `t` before deciding whether we are inside a provider.
+  const lang = context ? context.lang : 'id';
+
+  const t = useCallback(
+    (key) => {
+      const val = getNestedValue(translations[lang], key) || getNestedValue(translations.id, key) || key;
+      // Safety: jika hasilnya object (bukan string), kembalikan key saja
+      return (typeof val === 'string') ? val : key;
+    },
+    [lang]
+  );
+
   if (!context) {
     // Fallback jika digunakan di luar provider
     return {
@@ -52,16 +65,7 @@ export function useTranslation() {
     };
   }
 
-  const { lang, toggleLang, setLanguage } = context;
-
-  const t = useCallback(
-    (key) => {
-      const val = getNestedValue(translations[lang], key) || getNestedValue(translations.id, key) || key;
-      // Safety: jika hasilnya object (bukan string), kembalikan key saja
-      return (typeof val === 'string') ? val : key;
-    },
-    [lang]
-  );
+  const { toggleLang, setLanguage } = context;
 
   return { t, lang, toggleLang, setLanguage };
 }

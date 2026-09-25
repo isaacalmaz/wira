@@ -11,14 +11,22 @@
   "scripts": {
     "dev": "npm run dev --workspace=frontend-user",
     "build": "npm run build --workspace=frontend-user",
-    "lint": "echo 'Lint check passed'"
+    "build:all": "npm run build --workspace=frontend-user && npm run build --workspace=frontend-mitra && npm run build --workspace=frontend-admin",
+    "lint": "eslint frontend-user/src frontend-mitra/src frontend-admin/src backend"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
     "recharts": "^3.10.1",
-    "vite": "^5.2.0",
-    "@vitejs/plugin-react": "^4.2.1"
+    "vite": "^5.2.0"
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0"
   }
 }
