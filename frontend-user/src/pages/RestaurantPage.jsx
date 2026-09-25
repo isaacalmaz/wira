@@ -32,7 +32,7 @@ export default function RestaurantPage() {
   const [rest, setRest] = useState(null);
 
   const { cart, addItem, removeItem, updateQty, subtotal, clearCart } = useCart();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
   const { user } = useAuth();
 
@@ -249,20 +249,10 @@ export default function RestaurantPage() {
     try {
       const itemsSummary = cart.items.map((i) => `${i.qty}x ${i.name}`).join(', ');
 
-      // Debit the wallet BEFORE creating the order, not after delivery
-      // completes - previously the debit only ran in handleCompleteFood,
-      // which depends on this browser tab staying open with an active
-      // realtime subscription all the way to 'completed'. If the tab closed
-      // early, the merchant/driver still got paid via the DB trigger but
-      // the customer's wallet was never actually charged. pay() throws on
-      // insufficient funds/RPC error and shows its own toast, so a failure
-      // here aborts before the order (and the merchant/driver-facing
-      // commitment) is ever created.
-      if (paymentMethod === 'WiraPay') {
-        await pay(grandTotal, `WiraFood - ${rest.name}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `WiraFood - ${rest.name}`,
         serviceType: 'food',
         merchantId: rest.id,
         title: rest.name,
@@ -283,6 +273,7 @@ export default function RestaurantPage() {
         distanceMeters: distance > 0 ? Math.round(distance * 1000) : null,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only count the promo as "used" once it's actually attached to a
       // real, created order - not just when the code was validated - so a

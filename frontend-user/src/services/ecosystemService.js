@@ -60,14 +60,29 @@ export const updateOrderStatusEcosystem = async (orderId, newStatus, extraData =
   return updatedOrder;
 };
 
+// Maps a checkout page's UI payment label ('WiraPay' / 'Tunai' / 'Transfer')
+// to orders.payment_method. Only 'wallet' moves WiraPay money, and only via
+// the create_order_and_pay RPC (migrations/0070). Previously every
+// non-"tunai" label (including Pool/Villa's "Transfer Bank") became
+// 'wallet' + 'paid' with no money moved, which the refund RPCs would then
+// happily "refund".
+export const toDbPaymentMethod = (uiPaymentMethod) => {
+  const label = (uiPaymentMethod || '').toLowerCase();
+  if (label.includes('tunai') || label === 'cash') return 'cash';
+  if (label.includes('transfer')) return 'transfer';
+  return 'wallet';
+};
+
 export const createEcosystemOrder = async (orderData) => {
   const newOrder = {
     total_price: Number(orderData.price || orderData.total_price || 0),
     service_type: orderData.serviceType || orderData.service_type || 'ride',
     title: orderData.title || `Pesanan ${orderData.serviceType || 'Wira'}`,
     details: orderData.details || '',
-    payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
-    payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
+    // Guests have no wallet, so a 'wallet' order here is rejected by the DB
+    // (migrations/0070) - WiraPay checkout requires a logged-in session.
+    payment_method: toDbPaymentMethod(orderData.paymentMethod),
+    payment_status: 'unpaid',
     status: 'pending',
     // Same structured pricing inputs OrderContext.jsx's addOrder() sends on
     // its own insert (migrations/0058/0059) - kept in sync here since this

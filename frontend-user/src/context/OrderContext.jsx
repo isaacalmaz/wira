@@ -7,7 +7,8 @@ import {
   createEcosystemOrder,
   updateOrderStatusEcosystem,
   subscribeEcosystemEvent,
-  broadcastEcosystemEvent
+  broadcastEcosystemEvent,
+  toDbPaymentMethod
 } from '../services/ecosystemService';
 import { getDisplayStatus } from '../constants/orderStatus';
 
@@ -112,35 +113,55 @@ export const OrderProvider = ({ children }) => {
       let createdOrder = null;
 
       if (user || session?.user) {
-        // Try Supabase insert
-        const { data, error } = await supabase.from('orders').insert([
-          {
-            user_id: session?.user?.id || user?.id || null,
-            merchant_id: orderData.merchantId || null,
-            service_type: orderData.serviceType || 'ride',
-            status: 'pending',
-            total_price: orderData.price,
-            title: orderData.title || null,
-            details: orderData.details || null,
-            payment_method: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'cash' : 'wallet',
-            payment_status: orderData.paymentMethod?.toLowerCase().includes('tunai') ? 'unpaid' : 'paid',
-            pickup_lat: orderData.pickupLat ?? null,
-            pickup_lng: orderData.pickupLng ?? null,
-            dropoff_lat: orderData.dropoffLat ?? null,
-            dropoff_lng: orderData.dropoffLng ?? null,
-            delivery_fee: orderData.deliveryFee ?? 0,
-            package_size: orderData.packageSize ?? null,
-            metadata: orderData.metadata ?? null,
-            // Structured pricing inputs for the 0059 server-side price
-            // trigger (migrations/0058_orders_pricing_input_columns.sql) -
-            // the trigger recomputes total_price itself from these rather
-            // than trusting total_price above, per service_type.
-            rate_code: orderData.rateCode ?? null,
-            distance_meters: orderData.distanceMeters ?? null,
-            nights: orderData.nights ?? null,
-            promo_code: orderData.promoCode ?? null,
-          },
-        ]).select().single();
+        const dbPaymentMethod = toDbPaymentMethod(orderData.paymentMethod);
+        const pricingInputs = {
+          merchant_id: orderData.merchantId || null,
+          service_type: orderData.serviceType || 'ride',
+          total_price: orderData.price,
+          title: orderData.title || null,
+          details: orderData.details || null,
+          pickup_lat: orderData.pickupLat ?? null,
+          pickup_lng: orderData.pickupLng ?? null,
+          dropoff_lat: orderData.dropoffLat ?? null,
+          dropoff_lng: orderData.dropoffLng ?? null,
+          delivery_fee: orderData.deliveryFee ?? 0,
+          package_size: orderData.packageSize ?? null,
+          metadata: orderData.metadata ?? null,
+          // Structured pricing inputs for the 0059 server-side price
+          // trigger (migrations/0058_orders_pricing_input_columns.sql) -
+          // the trigger recomputes total_price itself from these rather
+          // than trusting total_price above, per service_type.
+          rate_code: orderData.rateCode ?? null,
+          distance_meters: orderData.distanceMeters ?? null,
+          nights: orderData.nights ?? null,
+          promo_code: orderData.promoCode ?? null,
+        };
+
+        let data;
+        let error;
+        if (dbPaymentMethod === 'wallet') {
+          // WiraPay: create the order AND debit its server-computed
+          // total_price in one DB transaction (migrations/0070). Never call
+          // wallet_pay() separately before this - the DB rejects any
+          // wallet order that didn't come through this RPC.
+          const rpcArgs = Object.fromEntries(
+            Object.entries(pricingInputs).map(([key, value]) => [`p_${key}`, value])
+          );
+          rpcArgs.p_payment_description = orderData.paymentDescription || orderData.title || null;
+          ({ data, error } = await supabase.rpc('create_order_and_pay', rpcArgs));
+        } else {
+          ({ data, error } = await supabase.from('orders').insert([
+            {
+              ...pricingInputs,
+              user_id: session?.user?.id || user?.id || null,
+              status: 'pending',
+              payment_method: dbPaymentMethod,
+              // Cash and bank transfer are settled outside WiraPay, so the
+              // order starts unpaid (migrations/0070 rejects anything else).
+              payment_status: 'unpaid',
+            },
+          ]).select().single());
+        }
 
         if (error) {
           throw error;
@@ -155,11 +176,14 @@ export const OrderProvider = ({ children }) => {
         }
       } else {
         // Guest user fallback (if allowed)
-        createdOrder = createEcosystemOrder({
+        createdOrder = await createEcosystemOrder({
           ...orderData,
           userId: 'usr-lombok-guest',
           customerName: 'Pelanggan Wira Lombok',
         });
+        if (!createdOrder) {
+          throw new Error('Pesanan tamu tidak dapat dibuat');
+        }
       }
 
       const uiOrder = mapDbOrderToUi(createdOrder);
@@ -168,7 +192,7 @@ export const OrderProvider = ({ children }) => {
       return uiOrder;
     } catch (err) {
       console.error('Gagal membuat pesanan:', err);
-      toast.error('Gagal membuat pesanan. Silakan coba lagi.');
+      toast.error(err?.message ? `Gagal membuat pesanan: ${err.message}` : 'Gagal membuat pesanan. Silakan coba lagi.');
       throw err; // Proper error handling instead of local fallback
     }
   };
