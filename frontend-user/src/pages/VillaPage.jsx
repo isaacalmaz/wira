@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import QrisTopUpButton from '../components/common/QrisTopUpButton';
 import { Star, MapPin, X, ShieldCheck } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
@@ -114,7 +115,7 @@ export default function VillaPage() {
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (paymentMethod === 'WiraPay' && balance < totalPrice) {
-      toast.error('Saldo WiraPay Anda tidak mencukupi untuk reservasi ini');
+      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk isi saldo terlebih dahulu.');
       return;
     }
 
@@ -360,18 +361,7 @@ export default function VillaPage() {
                       <p className="font-bold text-slate-900 dark:text-white">WiraPay</p>
                       <p className="text-[10px] text-slate-500">Saldo: {formatRupiah(balance)}</p>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('Transfer')}
-                      className={`p-3 rounded-xl border text-left text-xs transition ${
-                        paymentMethod === 'Transfer'
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : 'border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      <p className="font-bold text-slate-900 dark:text-white">Transfer Bank</p>
-                      <p className="text-[10px] text-slate-500">BCA / Mandiri</p>
-                    </button>
+                    <QrisTopUpButton price={totalPrice} balance={balance} />
                   </div>
                 </div>
 
