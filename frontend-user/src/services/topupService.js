@@ -302,7 +302,11 @@ export async function cancelTopUpRequest(supabaseClient, requestId, userId) {
 
     const { data, error } = await query.select();
     if (error) throw error;
-    return Array.isArray(data) && data.length > 0;
+    // 0 baris = diblokir RLS, bukan milik user, atau sudah tidak 'pending'
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Permintaan Top Up tidak ditemukan, sudah diproses, atau akses ditolak.');
+    }
+    return true;
   } catch (err) {
     console.error('Failed to cancel topup request:', err);
     throw err;

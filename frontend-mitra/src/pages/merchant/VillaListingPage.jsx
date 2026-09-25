@@ -56,7 +56,7 @@ export default function VillaListingPage() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('merchants')
         .update({
           name: name.trim(),
@@ -65,9 +65,11 @@ export default function VillaListingPage() {
           description: description.trim(),
           image: image.trim() || null,
         })
-        .eq('id', merchantId);
+        .eq('id', merchantId)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau villa tidak ditemukan.');
       toast.success('Listing villa berhasil diperbarui');
     } catch (err) {
       toast.error('Gagal menyimpan: ' + err.message);

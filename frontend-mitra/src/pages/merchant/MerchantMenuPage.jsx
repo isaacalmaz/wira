@@ -208,7 +208,9 @@ const MerchantMenuPage = () => {
     const newStatus = !target.isAvailable;
 
     try {
-      await supabase.from('products').update({ is_available: newStatus }).eq('id', id);
+      const { error, data } = await supabase.from('products').update({ is_available: newStatus }).eq('id', id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
       setMenuItems(prev => prev.map(m => m.id === id ? { ...m, isAvailable: newStatus } : m));
       toast(newStatus ? `Menu sekarang Tersedia` : `Menu ditandai Habis`, {
         icon: newStatus ? '✅' : '⏸️',

@@ -78,16 +78,18 @@ export default function EditProfilePage() {
       }
 
       // 2. Update Users Table
-      const { error: updateError } = await supabase
+      const { error: updateError, data: updatedRows } = await supabase
         .from('users')
         .update({
           name: profile.name,
           email: profile.email,
           avatar_url: finalAvatarPath
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
 
       if (updateError) throw updateError;
+      if (!updatedRows || updatedRows.length === 0) throw new Error('Akses ditolak atau profil tidak ditemukan.');
       
       toast.success('Profil berhasil diperbarui!');
       navigate('/profile');
