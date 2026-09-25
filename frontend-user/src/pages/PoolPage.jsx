@@ -11,7 +11,7 @@ import { supabase } from '../config/supabase';
 
 export default function PoolPage() {
   const navigate = useNavigate();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
   const [selectedService, setSelectedService] = useState(null);
@@ -122,11 +122,10 @@ export default function PoolPage() {
 
     setLoading(true);
     try {
-      if (paymentMethod === 'WiraPay') {
-        await pay(finalPrice, `WiraPool - ${selectedService.name}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `WiraPool - ${selectedService.name}`,
         service: 'WiraPool',
         serviceType: 'pool',
         title: selectedService.name,
@@ -139,6 +138,7 @@ export default function PoolPage() {
         rateCode: selectedService?.id || null,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only counted as "used" once the order actually exists - see
       // migrations/0046's increment_promo_usage.

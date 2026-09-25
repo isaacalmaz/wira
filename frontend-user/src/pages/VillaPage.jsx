@@ -12,7 +12,7 @@ import API_BASE_URL from '../config/api';
 
 export default function VillaPage() {
   const navigate = useNavigate();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
   const [villas, setVillas] = useState([]);
@@ -122,11 +122,10 @@ export default function VillaPage() {
     try {
       const bookingCode = 'VIL-' + Math.floor(10000 + Math.random() * 90000);
 
-      if (paymentMethod === 'WiraPay') {
-        await pay(totalPrice, `Reservasi Villa ${selectedVilla.name}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `Reservasi Villa ${selectedVilla.name}`,
         merchantId: selectedVilla.id,
         service: 'WiraVilla',
         serviceType: 'villa',
@@ -137,6 +136,7 @@ export default function VillaPage() {
         nights,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only counted as "used" once the order actually exists - see
       // migrations/0046's increment_promo_usage.

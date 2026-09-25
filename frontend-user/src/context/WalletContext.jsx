@@ -159,7 +159,7 @@ export const WalletProvider = ({ children }) => {
   };
 
   return (
-    <WalletContext.Provider value={{ balance, transactions, transfer, pay, refund, refundMatchedRide }}>
+    <WalletContext.Provider value={{ balance, transactions, transfer, pay, refund, refundMatchedRide, refreshWallet: fetchWallet }}>
       {children}
     </WalletContext.Provider>
   );

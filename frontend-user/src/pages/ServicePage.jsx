@@ -12,7 +12,7 @@ import API_BASE_URL from '../config/api';
 
 export default function ServicePage() {
   const navigate = useNavigate();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
   const [technicians, setTechnicians] = useState([]);
@@ -136,11 +136,10 @@ export default function ServicePage() {
 
     setLoading(true);
     try {
-      if (paymentMethod === 'WiraPay') {
-        await pay(finalPrice, `WiraService - ${selectedService.name}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `WiraService - ${selectedService.name}`,
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
@@ -153,6 +152,7 @@ export default function ServicePage() {
         rateCode: selectedService?.id || null,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only counted as "used" once the order actually exists - see
       // migrations/0046's increment_promo_usage.

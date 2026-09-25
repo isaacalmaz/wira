@@ -12,7 +12,7 @@ import { supabase } from '../config/supabase';
 
 export default function SendPage() {
   const navigate = useNavigate();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
   const [selectedPackage, setSelectedPackage] = useState('kecil');
@@ -158,13 +158,10 @@ export default function SendPage() {
         nearbyDrivers = nearby || [];
       }
 
-      // Debit up-front, same reasoning as Ride/Food: don't depend on the tab
-      // staying open until completion to actually charge the customer.
-      if (paymentMethod === 'WiraPay') {
-        await pay(finalPrice, `WiraSend Paket ke ${receiverName}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `WiraSend Paket ke ${receiverName}`,
         service: 'WiraSend',
         serviceType: 'send',
         title: `Kirim Paket ke ${receiverName}`,
@@ -183,6 +180,7 @@ export default function SendPage() {
         rateCode: selectedPackage,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only counted as "used" once the order actually exists - see
       // migrations/0046's increment_promo_usage.

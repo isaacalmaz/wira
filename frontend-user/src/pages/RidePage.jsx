@@ -21,7 +21,7 @@ import API_BASE_URL from '../config/api';
 
 export default function RidePage() {
   const navigate = useNavigate();
-  const { balance, pay } = useWallet();
+  const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
   const [step, setStep] = useState('input'); // input, vehicle - post-booking UI lives on ActiveOrderPage
@@ -248,20 +248,10 @@ export default function RidePage() {
         route: mapState.route
       });
 
-      // Debit the wallet BEFORE creating the order, not after the trip
-      // completes - previously the debit only ran in handleCompleteTrip,
-      // which depends on this browser tab staying open with an active
-      // realtime subscription all the way to 'completed'. If the tab
-      // closed early, the driver still got paid via the DB payout trigger
-      // but the customer's wallet was never actually charged (same bug
-      // class fixed for WiraFood in RestaurantPage.jsx). pay() throws on
-      // insufficient funds/RPC error and shows its own toast, so a failure
-      // here aborts before the order is ever created.
-      if (paymentMethod === 'WiraPay') {
-        await pay(finalPrice, `WiraRide ke ${dropoff}`);
-      }
-
       const order = await addOrder({
+        // WiraPay is charged by create_order_and_pay in the same DB transaction
+        // as the order insert, for the server-computed price (migrations/0070).
+        paymentDescription: `WiraRide ke ${dropoff}`,
         serviceType: 'ride',
         title: `Perjalanan ke ${dropoff}`,
         price: finalPrice,
@@ -279,6 +269,7 @@ export default function RidePage() {
         distanceMeters: routeInfo?.distance ?? null,
         promoCode: activePromo?.code || null,
       });
+      if (paymentMethod === 'WiraPay') refreshWallet();
 
       // Only count the promo as "used" once it's actually attached to a
       // real, created order - not just when the code was validated - so a
