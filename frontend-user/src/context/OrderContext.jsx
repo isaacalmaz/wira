@@ -4,7 +4,6 @@ import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import {
   getStoredOrders,
-  createEcosystemOrder,
   updateOrderStatusEcosystem,
   subscribeEcosystemEvent,
   broadcastEcosystemEvent,
@@ -110,80 +109,73 @@ export const OrderProvider = ({ children }) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
+      // Every order page sits under Layout.jsx, which redirects to /login
+      // without a session, so this only triggers if the session expired
+      // mid-page. The DB rejects anonymous inserts anyway (migrations/0074).
+      if (!user && !session?.user) {
+        throw new Error('Silakan login terlebih dahulu untuk membuat pesanan.');
+      }
+
       let createdOrder = null;
+      const dbPaymentMethod = toDbPaymentMethod(orderData.paymentMethod);
+      const pricingInputs = {
+        merchant_id: orderData.merchantId || null,
+        service_type: orderData.serviceType || 'ride',
+        total_price: orderData.price,
+        title: orderData.title || null,
+        details: orderData.details || null,
+        pickup_lat: orderData.pickupLat ?? null,
+        pickup_lng: orderData.pickupLng ?? null,
+        dropoff_lat: orderData.dropoffLat ?? null,
+        dropoff_lng: orderData.dropoffLng ?? null,
+        delivery_fee: orderData.deliveryFee ?? 0,
+        package_size: orderData.packageSize ?? null,
+        metadata: orderData.metadata ?? null,
+        // Structured pricing inputs for the 0059 server-side price
+        // trigger (migrations/0058_orders_pricing_input_columns.sql) -
+        // the trigger recomputes total_price itself from these rather
+        // than trusting total_price above, per service_type.
+        rate_code: orderData.rateCode ?? null,
+        distance_meters: orderData.distanceMeters ?? null,
+        nights: orderData.nights ?? null,
+        promo_code: orderData.promoCode ?? null,
+      };
 
-      if (user || session?.user) {
-        const dbPaymentMethod = toDbPaymentMethod(orderData.paymentMethod);
-        const pricingInputs = {
-          merchant_id: orderData.merchantId || null,
-          service_type: orderData.serviceType || 'ride',
-          total_price: orderData.price,
-          title: orderData.title || null,
-          details: orderData.details || null,
-          pickup_lat: orderData.pickupLat ?? null,
-          pickup_lng: orderData.pickupLng ?? null,
-          dropoff_lat: orderData.dropoffLat ?? null,
-          dropoff_lng: orderData.dropoffLng ?? null,
-          delivery_fee: orderData.deliveryFee ?? 0,
-          package_size: orderData.packageSize ?? null,
-          metadata: orderData.metadata ?? null,
-          // Structured pricing inputs for the 0059 server-side price
-          // trigger (migrations/0058_orders_pricing_input_columns.sql) -
-          // the trigger recomputes total_price itself from these rather
-          // than trusting total_price above, per service_type.
-          rate_code: orderData.rateCode ?? null,
-          distance_meters: orderData.distanceMeters ?? null,
-          nights: orderData.nights ?? null,
-          promo_code: orderData.promoCode ?? null,
-        };
-
-        let data;
-        let error;
-        if (dbPaymentMethod === 'wallet') {
-          // WiraPay: create the order AND debit its server-computed
-          // total_price in one DB transaction (migrations/0070). Never call
-          // wallet_pay() separately before this - the DB rejects any
-          // wallet order that didn't come through this RPC.
-          const rpcArgs = Object.fromEntries(
-            Object.entries(pricingInputs).map(([key, value]) => [`p_${key}`, value])
-          );
-          rpcArgs.p_payment_description = orderData.paymentDescription || orderData.title || null;
-          ({ data, error } = await supabase.rpc('create_order_and_pay', rpcArgs));
-        } else {
-          ({ data, error } = await supabase.from('orders').insert([
-            {
-              ...pricingInputs,
-              user_id: session?.user?.id || user?.id || null,
-              status: 'pending',
-              payment_method: dbPaymentMethod,
-              // Cash and bank transfer are settled outside WiraPay, so the
-              // order starts unpaid (migrations/0070 rejects anything else).
-              payment_status: 'unpaid',
-            },
-          ]).select().single());
-        }
-
-        if (error) {
-          throw error;
-        }
-
-        if (data) {
-          createdOrder = data;
-          // Order row is already inserted above - only broadcast the event
-          // for other open tabs/portals to pick up, don't insert a second
-          // (phantom, user_id-less) row via createEcosystemOrder.
-          broadcastEcosystemEvent('ORDER_CREATED', createdOrder);
-        }
+      let data;
+      let error;
+      if (dbPaymentMethod === 'wallet') {
+        // WiraPay: create the order AND debit its server-computed
+        // total_price in one DB transaction (migrations/0070). Never call
+        // wallet_pay() separately before this - the DB rejects any
+        // wallet order that didn't come through this RPC.
+        const rpcArgs = Object.fromEntries(
+          Object.entries(pricingInputs).map(([key, value]) => [`p_${key}`, value])
+        );
+        rpcArgs.p_payment_description = orderData.paymentDescription || orderData.title || null;
+        ({ data, error } = await supabase.rpc('create_order_and_pay', rpcArgs));
       } else {
-        // Guest user fallback (if allowed)
-        createdOrder = await createEcosystemOrder({
-          ...orderData,
-          userId: 'usr-lombok-guest',
-          customerName: 'Pelanggan Wira Lombok',
-        });
-        if (!createdOrder) {
-          throw new Error('Pesanan tamu tidak dapat dibuat');
-        }
+        ({ data, error } = await supabase.from('orders').insert([
+          {
+            ...pricingInputs,
+            user_id: session?.user?.id || user?.id || null,
+            status: 'pending',
+            payment_method: dbPaymentMethod,
+            // Cash and bank transfer are settled outside WiraPay, so the
+            // order starts unpaid (migrations/0070 rejects anything else).
+            payment_status: 'unpaid',
+          },
+        ]).select().single());
+      }
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        createdOrder = data;
+        // Order row is already inserted above - only broadcast the event
+        // for other open tabs/portals to pick up.
+        broadcastEcosystemEvent('ORDER_CREATED', createdOrder);
       }
 
       const uiOrder = mapDbOrderToUi(createdOrder);

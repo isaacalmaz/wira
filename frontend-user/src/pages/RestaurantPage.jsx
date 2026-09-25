@@ -230,11 +230,8 @@ export default function RestaurantPage() {
     // RestaurantPage is already mounted under Layout, which redirects any
     // unauthenticated visitor to /login before this page can even render -
     // so this is defense-in-depth (e.g. a session expiring mid-checkout
-    // without a reload) rather than the primary guard. Without it, a
-    // session-less request would fall through to ecosystemService.js's
-    // guest-fallback insert, which drops merchant_id/dropoff coordinates/
-    // delivery_fee entirely and produces an order no merchant or driver can
-    // ever see or act on.
+    // without a reload) rather than the primary guard; addOrder() and the
+    // DB (migrations/0074) also refuse to create an order without a login.
     if (!user) {
       toast.error('Silakan login terlebih dahulu untuk memesan makanan');
       navigate('/login');
