@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import QrisTopUpButton from '../components/common/QrisTopUpButton';
 import { Star, MapPin, X, ShieldCheck } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
@@ -115,7 +114,7 @@ export default function VillaPage() {
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (paymentMethod === 'WiraPay' && balance < totalPrice) {
-      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk isi saldo terlebih dahulu.');
+      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk bayar langsung.');
       return;
     }
 
@@ -147,7 +146,9 @@ export default function VillaPage() {
       // above) - unlike Ride/Send this is never a nearby-drivers fan-out.
       // Single order-alert call, best-effort/fire-and-forget so a missing
       // fcm_token or network hiccup never blocks the customer's booking.
-      if (selectedVilla.ownerId && order?.id) {
+      // QRIS bookings are announced by the payment webhook once paid
+      // (backend/routes/mutasiku.js), not while still unpaid.
+      if (paymentMethod !== 'QRIS' && selectedVilla.ownerId && order?.id) {
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (!session?.access_token) return;
           fetch(`${API_BASE_URL}/notifications/order-alert`, {
@@ -167,7 +168,7 @@ export default function VillaPage() {
       }
 
       handleRemovePromo(); // don't let a used promo silently discount the next booking
-      toast.success('Permintaan reservasi terkirim, menunggu konfirmasi pemilik villa.');
+      if (paymentMethod !== 'QRIS') toast.success('Permintaan reservasi terkirim, menunggu konfirmasi pemilik villa.');
     } catch (err) {
       toast.error(err.message || 'Reservasi gagal');
     } finally {
@@ -361,7 +362,18 @@ export default function VillaPage() {
                       <p className="font-bold text-slate-900 dark:text-white">WiraPay</p>
                       <p className="text-[10px] text-slate-500">Saldo: {formatRupiah(balance)}</p>
                     </button>
-                    <QrisTopUpButton price={totalPrice} balance={balance} />
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('QRIS')}
+                      className={`p-3 rounded-xl border text-left text-xs transition ${
+                        paymentMethod === 'QRIS'
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <p className="font-bold text-slate-900 dark:text-white">QRIS</p>
+                      <p className="text-[10px] text-slate-500">Scan &amp; bayar langsung</p>
+                    </button>
                   </div>
                 </div>
 

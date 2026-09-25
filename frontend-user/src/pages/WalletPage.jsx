@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Wallet,
   ArrowUpRight,
@@ -85,24 +84,6 @@ export default function WalletPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user]);
-
-  // Opened from the Pool/Villa "QRIS" payment option (QrisTopUpButton):
-  // open the QRIS top-up straight away with the order's shortfall filled in,
-  // and remember where to send the customer back once the balance arrives.
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [returnTo, setReturnTo] = useState(null);
-  useEffect(() => {
-    const prefill = Number(location.state?.topupAmount);
-    if (!prefill) return;
-    setViewingPendingId(null);
-    setModalType('topup');
-    setTopUpStep(1);
-    setBaseAmount(Math.max(10000, prefill));
-    if (location.state?.returnTo) setReturnTo(location.state.returnTo);
-    // Clear the navigation state so a refresh doesn't reopen the modal.
-    navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]);
 
   const handleCancelPending = async (requestId) => {
     if (!requestId || loading) return;
@@ -353,16 +334,6 @@ export default function WalletPage() {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto pb-12">
-      {returnTo && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-primary/30 bg-primary/5 text-xs">
-          <p className="text-slate-700 dark:text-slate-200">
-            Setelah saldo masuk (otomatis setelah pembayaran QRIS terverifikasi), lanjutkan pesanan Anda dengan WiraPay.
-          </p>
-          <Button className="shrink-0 text-xs" onClick={() => navigate(returnTo)}>
-            Kembali ke Pesanan
-          </Button>
-        </div>
-      )}
       {/* Kartu Saldo WiraPay */}
       <div className="bg-gradient-to-br from-cyan-600 via-primary to-cyan-800 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
         <div className="absolute -top-6 -right-6 p-4 opacity-15 pointer-events-none">

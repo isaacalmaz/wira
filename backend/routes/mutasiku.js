@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const supabaseAdmin = require('../config/supabase');
 const { webhookLimiter } = require('../middleware/rateLimit');
+const { sendPushNotification } = require('../services/notificationService');
 
 // Generated from Mutasiku dashboard: Integrasi > Webhooks > (webhook you add).
 // Required to verify X-Webhook-Signature - without this check, anyone who
@@ -91,7 +92,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
     const { data: pendingReq, error: findErr } = await supabaseAdmin
       .from('topup_requests')
-      .select('id, user_id, amount, status')
+      .select('id, user_id, amount, status, order_id')
       .eq('amount', notifiedAmount)
       .eq('status', 'pending')
       .eq('method', 'manual')
@@ -130,11 +131,44 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       amount: pendingReq.amount,
     });
 
+    // A top-up linked to an order (Pool/Villa "QRIS", migrations/0077) has
+    // just paid that order inside the same commit (0078). Villa bookings go
+    // to exactly one merchant owner, who is only told once it's paid; pool
+    // jobs are picked up by the server-side dispatch cron (0072).
+    if (pendingReq.order_id) {
+      await notifyVillaOwnerOfPaidOrder(pendingReq.order_id);
+    }
+
     return res.status(200).json({ received: true, matched: true, approved: true });
   } catch (error) {
     console.error('Mutasiku Webhook Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Best-effort: a failed push must never turn an approved payment into a 500
+// (Mutasiku would retry, and the retry is a no-op anyway).
+async function notifyVillaOwnerOfPaidOrder(orderId) {
+  try {
+    const { data: order } = await supabaseAdmin
+      .from('orders')
+      .select('id, status, payment_status, service_type, title, nights, merchant:merchant_id(owner_id)')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!order || order.service_type !== 'villa' || order.status !== 'pending' || order.payment_status !== 'paid') return;
+    const ownerId = order.merchant?.owner_id;
+    if (!ownerId) return;
+    const { data: owner } = await supabaseAdmin.from('users').select('fcm_token').eq('id', ownerId).maybeSingle();
+    if (!owner?.fcm_token) return;
+    await sendPushNotification(
+      owner.fcm_token,
+      'Reservasi WiraVilla Baru!',
+      `${order.title || 'Villa Anda'} dipesan untuk ${order.nights || 1} malam (sudah dibayar via QRIS).`,
+      { orderId: order.id, type: 'new_villa_order' }
+    );
+  } catch (err) {
+    console.error('Mutasiku Webhook: villa owner push failed', err);
+  }
+}
 
 module.exports = router;

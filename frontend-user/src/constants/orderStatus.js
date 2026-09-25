@@ -5,6 +5,9 @@
  * Any app writing to `orders.status` must use these exact values.
  */
 export const OrderStatus = {
+  // Pool/Villa paid by QRIS: hidden from mitra until the payment arrives
+  // (migrations/0077, 0078), then it becomes 'pending'.
+  AWAITING_PAYMENT: 'awaiting_payment',
   PENDING: 'pending',
   ACCEPTED: 'accepted',
   PREPARING: 'preparing',
@@ -18,6 +21,7 @@ export const OrderStatus = {
 };
 
 const DISPLAY_LABEL_ID = {
+  [OrderStatus.AWAITING_PAYMENT]: 'Menunggu Pembayaran',
   [OrderStatus.PENDING]: 'Sedang Mencari',
   [OrderStatus.ACCEPTED]: 'Dikonfirmasi',
   [OrderStatus.PREPARING]: 'Sedang Disiapkan',

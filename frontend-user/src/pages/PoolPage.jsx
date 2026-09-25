@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import QrisTopUpButton from '../components/common/QrisTopUpButton';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
@@ -117,7 +116,7 @@ export default function PoolPage() {
 
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
-      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk isi saldo terlebih dahulu.');
+      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk bayar langsung.');
       return;
     }
 
@@ -154,7 +153,8 @@ export default function PoolPage() {
       // market). Best-effort/fire-and-forget, never blocks the customer.
 
       handleRemovePromo(); // don't let a used promo silently discount the next order
-      toast.success('Permintaan terkirim, menunggu teknisi menerima.');
+      // QRIS: the order page shows the QR; technicians see it once it's paid.
+      if (paymentMethod !== 'QRIS') toast.success('Permintaan terkirim, menunggu teknisi menerima.');
     } catch (err) {
       toast.error(err.message || 'Pemesanan gagal');
     } finally {
@@ -319,7 +319,18 @@ export default function PoolPage() {
                       <p className="font-bold text-slate-900 dark:text-white">WiraPay</p>
                       <p className="text-[10px] text-slate-500">Saldo: {formatRupiah(balance)}</p>
                     </button>
-                    <QrisTopUpButton price={calculateFinalPrice()} balance={balance} />
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('QRIS')}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition ${
+                        paymentMethod === 'QRIS'
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <p className="font-bold text-slate-900 dark:text-white">QRIS</p>
+                      <p className="text-[10px] text-slate-500">Scan &amp; bayar langsung</p>
+                    </button>
                   </div>
                 </div>
 

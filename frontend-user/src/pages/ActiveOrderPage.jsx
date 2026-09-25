@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Send, Phone, MessageSquare, Loader, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
+import QrisOrderPayment from '../components/common/QrisOrderPayment';
+import { OrderStatus, getDisplayStatus } from '../constants/orderStatus';
 
 // Icons for map
 const driverIcon = new L.Icon({
@@ -118,6 +120,25 @@ export default function ActiveOrderPage() {
     return () => { supabase.removeChannel(channel); };
   }, [id, navigate]);
 
+  // QRIS orders: announce the payment once the DB moves the order on, and
+  // poll as a fallback in case the realtime event is missed.
+  const prevStatusRef = useRef(null);
+  useEffect(() => {
+    if (prevStatusRef.current === OrderStatus.AWAITING_PAYMENT && order?.status === OrderStatus.PENDING) {
+      toast.success('Pembayaran QRIS diterima! Pesanan diteruskan ke mitra.');
+    }
+    prevStatusRef.current = order?.status ?? null;
+  }, [order?.status]);
+
+  useEffect(() => {
+    if (order?.status !== OrderStatus.AWAITING_PAYMENT) return;
+    const timer = setInterval(async () => {
+      const { data } = await supabase.from('orders').select('status, payment_status').eq('id', id).maybeSingle();
+      if (data) setOrder(prev => ({ ...prev, ...data }));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [order?.status, id]);
+
   // Driver location tracking
   useEffect(() => {
     if (!order?.driver_id || !['accepted', 'picking_up', 'in_trip'].includes(order.status)) return;
@@ -183,10 +204,12 @@ export default function ActiveOrderPage() {
     if (!order) return;
     setIsCancelling(true);
     try {
-      const { data, error } = await supabase.rpc('wallet_refund_matched_ride', {
-        p_order_id: id,
-        p_description: 'Refund Batal Pelanggan (Dalam Grace Period)'
-      });
+      const { error } = order.status === OrderStatus.AWAITING_PAYMENT
+        ? await supabase.rpc('cancel_awaiting_qris_order', { p_order_id: id })
+        : await supabase.rpc('wallet_refund_matched_ride', {
+          p_order_id: id,
+          p_description: 'Refund Batal Pelanggan (Dalam Grace Period)'
+        });
       if (error) throw error;
       toast.success('Pesanan berhasil dibatalkan');
     } catch (err) {
@@ -219,7 +242,7 @@ export default function ActiveOrderPage() {
       <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
         <button onClick={() => navigate('/')} className="mr-3"><ArrowLeft size={24} /></button>
         <h1 className="text-lg font-bold flex-1">Status Pesanan</h1>
-        <span className="capitalize font-semibold bg-white/20 px-2 py-1 rounded text-sm">{order.status.replace('_', ' ')}</span>
+        <span className="font-semibold bg-white/20 px-2 py-1 rounded text-sm">{getDisplayStatus(order.status)}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col">
@@ -233,6 +256,10 @@ export default function ActiveOrderPage() {
               {driverLoc && <Marker position={[driverLoc.lat, driverLoc.lng]} icon={driverIcon} />}
             </MapContainer>
           </div>
+        )}
+
+        {order.status === OrderStatus.AWAITING_PAYMENT && (
+          <QrisOrderPayment order={order} onCancel={handleCancel} cancelling={isCancelling} />
         )}
 
         {order.status === 'pending' && (
