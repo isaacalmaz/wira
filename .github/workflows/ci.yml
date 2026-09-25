@@ -18,7 +18,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+: @supabase/supabase-js needs the native WebSocket that
+          # Node 20 lacks (backend load check fails with "native WebSocket not
+          # found" on 20). Matches the Node the backend runs on in production.
+          node-version: 22
           cache: npm
 
       # Matches .npmrc / vercel.json (legacy-peer-deps=true).
