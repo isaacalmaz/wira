@@ -143,12 +143,14 @@ export default function SavedAddressesPage() {
 
   const handleDelete = async (id) => {
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('saved_addresses')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
       
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau alamat tidak ditemukan.');
       toast.success('Alamat dihapus');
       fetchAddresses();
     } catch (err) {

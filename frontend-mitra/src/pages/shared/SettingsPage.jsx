@@ -112,8 +112,9 @@ const SettingsPage = () => {
     setIsUploadingAvatar(true);
     try {
       const url = await uploadImageToBucket(supabase, 'menu-images', user.id, file);
-      const { error } = await supabase.from('users').update({ avatar_url: url }).eq('id', user.id);
+      const { error, data } = await supabase.from('users').update({ avatar_url: url }).eq('id', user.id).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau profil tidak ditemukan.');
       setAvatarUrl(url);
       toast.success('Foto profil berhasil diperbarui');
     } catch (err) {
@@ -130,8 +131,9 @@ const SettingsPage = () => {
     setIsUploadingLogo(true);
     try {
       const url = await uploadImageToBucket(supabase, 'menu-images', user.id, file);
-      const { error } = await supabase.from('merchants').update({ image: url }).eq('id', merchant.id);
+      const { error, data } = await supabase.from('merchants').update({ image: url }).eq('id', merchant.id).select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau data usaha tidak ditemukan.');
       setMerchant((prev) => ({ ...prev, image: url }));
       toast.success('Logo usaha berhasil diperbarui');
     } catch (err) {

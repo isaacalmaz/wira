@@ -106,6 +106,7 @@ Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **000
 | **Harga order dihitung ulang di server** (bukan lagi dipercaya dari client) | ✅ Baru selesai sesi ini (migrations 0057–0060), diverifikasi live untuk 10 skenario per jenis layanan |
 | **Admin bisa ubah harga APAPUN kapan saja** (Ride via `vehicles`, Send/Service/Pool/ongkir Food via `pricing_rules` baru) — satu halaman `/pricing` "Manajemen Harga" | ✅ Baru selesai sesi ini, diuji live edit-simpan-verifikasi |
 | Wallet (top-up manual QRIS, pay, transfer, refund) | ✅ Berfungsi |
+| **Dispatch driver di server** (ping 1 driver tiap 15 detik, tetap jalan walau app pelanggan ditutup) | 2026-09-25, migrations 0072 (fungsi) + 0073 (pg_cron). `backend/routes/dispatch.routes.js`. Butuh secret `dispatch_cron_secret` di Supabase Vault = env `DISPATCH_CRON_SECRET` di Vercel wira-backend. Order yang lebih tua dari 30 menit tidak di-dispatch lagi. |
 | **Checkout WiraPay atomik** (order + debit harga server dalam satu transaksi, `create_order_and_pay`) | ✅ 2026-09-25, migration 0070, diverifikasi live. "Transfer" sekarang tersimpan sebagai `payment_method='transfer'`, `unpaid` |
 | **Top-up QRIS terverifikasi OTOMATIS via webhook Mutasiku** (mutasi bank DANA) | ✅ Baru sesi ini — `backend/routes/mutasiku.js`, tidak perlu admin approve manual lagi untuk top-up manual |
 | Midtrans (top-up alternatif) | ✅ Kode benar (signature verification, idempotent), **kredensial asli masih belum diisi** (lihat §4) — QRIS manual + Mutasiku sekarang jalur utama yang live |
@@ -136,6 +137,7 @@ Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **000
 
 - **Send/Service/Pool masih flat-fee**, tidak berbasis jarak seperti Ride — keputusan produk kalau mau diubah jadi berbasis jarak, bukan bug.
 - **Order yang dibatalkan driver** sudah di-requeue otomatis (sudah selesai, HAPUS dari daftar gap versi lama — ini FITUR yang SUDAH ADA, migration 0048).
+- **Dispatch hanya untuk ride/send/pool/service** (bukan food — food menunggu merchant dulu). Kandidat ride/send diambil dari `get_nearest_drivers` (tanpa filter preferensi job driver dari 0033), sama seperti loop client lama.
 - **Notifikasi push** belum menutupi semua event/semua service_type — masih ada celah cakupan (bukan celah keamanan, cuma belum lengkap).
 - **`frontend-admin` sengaja tidak dibuat installable (PWA penuh)** — dianggap tooling internal staff.
 - **Villa `nights`/`guests` masih sebagian di `details` (teks bebas)** — sudah ada kolom `nights` terstruktur sekarang (migration 0058) dan dipakai untuk verifikasi harga, tapi `guests` belum punya kolom sendiri kalau suatu saat perlu diverifikasi juga.

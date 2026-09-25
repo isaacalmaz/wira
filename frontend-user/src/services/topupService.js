@@ -277,15 +277,22 @@ export async function cancelTopUpRequest(supabaseClient, requestId, userId) {
   }
 
   // 1. Try secure RPC cancel_topup_request first
+  let rpcResult = null;
   try {
     const { data, error } = await supabaseClient.rpc('cancel_topup_request', {
       request_id: requestId,
     });
     if (!error && typeof data === 'boolean') {
-      return data;
+      rpcResult = data;
     }
   } catch (_) {
     // Fallback to direct update if RPC is not yet registered
+  }
+  if (rpcResult === true) return true;
+  if (rpcResult === false) {
+    // false = bukan milik user atau sudah tidak 'pending'. WalletPage tidak
+    // membaca nilai balik, jadi harus throw agar tidak muncul toast sukses.
+    throw new Error('Permintaan Top Up tidak ditemukan, sudah diproses, atau akses ditolak.');
   }
 
   // 2. Fallback: Direct update guarded by status = 'pending'
@@ -302,7 +309,11 @@ export async function cancelTopUpRequest(supabaseClient, requestId, userId) {
 
     const { data, error } = await query.select();
     if (error) throw error;
-    return Array.isArray(data) && data.length > 0;
+    // 0 baris = diblokir RLS, bukan milik user, atau sudah tidak 'pending'
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Permintaan Top Up tidak ditemukan, sudah diproses, atau akses ditolak.');
+    }
+    return true;
   } catch (err) {
     console.error('Failed to cancel topup request:', err);
     throw err;
