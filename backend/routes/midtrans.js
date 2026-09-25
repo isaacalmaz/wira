@@ -203,52 +203,24 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
         return res.status(400).json({ error: 'Amount mismatch' });
       }
 
-      // Atomic, idempotent pending -> approved transition. Only one caller
-      // (first delivery, or the winner of a concurrent race) can ever match
-      // this WHERE clause; every replay after that affects zero rows and is
-      // a safe no-op.
-      const { data: updatedRows, error: updateErr } = await supabaseAdmin
-        .from('topup_requests')
-        .update({ status: 'approved', updated_at: new Date().toISOString() })
-        .eq('id', dbRequestId)
-        .eq('status', 'pending')
-        .select();
-
-      if (updateErr) throw updateErr;
-
-      if (!updatedRows || updatedRows.length === 0) {
-        // Already processed by an earlier delivery (or never was pending) -
-        // acknowledge without crediting again.
-        return res.status(200).send('OK');
-      }
-
-      const approvedReq = updatedRows[0];
-
-      // Credit balance atomically. Previously this did a SELECT
-      // wallet_balance -> compute newBalance in JS -> UPDATE as two
-      // separate round trips with no row lock held across them, which is a
-      // classic lost-update race: if a wallet spend (the `wallet_pay` RPC,
-      // which IS atomic) lands in the window between our SELECT and UPDATE,
-      // our later write silently overwrites/undoes that spend's decrement.
-      // credit_wallet_balance_atomic does `wallet_balance = wallet_balance +
-      // p_amount` as a single UPDATE ... RETURNING inside Postgres, so it's
-      // race-free regardless of what else touches this row concurrently.
-      const { error: creditErr } = await supabaseAdmin.rpc('credit_wallet_balance_atomic', {
-        p_user_id: approvedReq.user_id,
-        p_amount: approvedReq.amount,
+      // Approve + credit + ledger row in ONE DB transaction
+      // (migrations/0071). Previously these were three separate calls: if
+      // the credit or ledger insert failed after the status flip committed,
+      // the gateway's retry saw a non-pending row and skipped it, so the
+      // customer paid but was never credited. Replays still no-op: the RPC
+      // returns 'already_processed' once the row is no longer pending.
+      const { data: outcome, error: approveErr } = await supabaseAdmin.rpc('approve_topup_and_credit', {
+        p_request_id: dbRequestId,
+        p_expected_amount: notifiedAmount,
+        p_expected_method: 'midtrans',
+        p_description: 'Top-Up WiraPay via Midtrans',
+        p_reference_id: orderId,
       });
-      if (creditErr) throw creditErr;
-
-      const { error: txErr } = await supabaseAdmin
-        .from('transactions')
-        .insert({
-          user_id: approvedReq.user_id,
-          type: 'topup',
-          amount: approvedReq.amount,
-          description: 'Top-Up WiraPay via Midtrans',
-          reference_id: orderId
-        });
-      if (txErr) throw txErr;
+      if (approveErr) throw approveErr;
+      if (outcome === 'not_found') {
+        return res.status(404).json({ error: 'Top up request not found' });
+      }
+      // 'approved' or 'already_processed' - both acknowledged with 200.
 
     } else if (transactionStatus === 'cancel' || transactionStatus === 'deny' || transactionStatus === 'expire') {
       // Same idempotency discipline - only flip it if it's still pending.
