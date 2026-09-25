@@ -4,6 +4,7 @@ import { Card, Badge, Button, StarRating } from '../../components/shared/UICompo
 import { User, ShieldCheck, Car, FileText, Settings, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 
 const DriverProfilePage = () => {
   const { user, logout } = useAuth();
@@ -38,13 +39,14 @@ const DriverProfilePage = () => {
       const { data, error } = await supabase
         .from('reviews')
         .select(`
-          id, rating, review_text, created_at,
-          customer:users!reviews_user_id_fkey(name)
+          id, rating, review_text, created_at, user_id
         `)
         .eq('driver_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (data && !error) {
+        const profiles = await fetchCounterpartyProfiles(supabase, data.map((r) => r.user_id));
+        data.forEach((r) => { r.customer = profiles[r.user_id] || null; });
         setReviews(data);
         if (data.length > 0) {
           const total = data.reduce((sum, r) => sum + r.rating, 0);

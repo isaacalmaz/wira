@@ -3,6 +3,7 @@ import { Card, Badge, Button, EmptyState } from '../../components/shared/UICompo
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import { Clock, MessageCircle, Wrench, Waves } from 'lucide-react';
 import { supabase } from '../../config/supabase';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
@@ -51,9 +52,9 @@ const TechOrdersPage = () => {
       return;
     }
     let cancelled = false;
-    supabase.from('users').select('name').eq('id', activeOrder.user_id).maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setCustomerName(data?.name || 'Klien');
+    fetchCounterpartyProfiles(supabase, [activeOrder.user_id])
+      .then((profiles) => {
+        if (!cancelled) setCustomerName(profiles[activeOrder.user_id]?.name || 'Klien');
       });
     return () => { cancelled = true; };
   }, [activeOrder?.user_id]);

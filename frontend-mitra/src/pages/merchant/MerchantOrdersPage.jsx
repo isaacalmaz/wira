@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
 import { Clock, RefreshCw, MessageCircle, ClipboardList } from 'lucide-react';
@@ -21,8 +22,8 @@ const MerchantOrdersPage = () => {
   const openChat = async (order) => {
     let customerName = 'Pelanggan';
     if (order.user_id) {
-      const { data } = await supabase.from('users').select('name').eq('id', order.user_id).maybeSingle();
-      if (data?.name) customerName = data.name;
+      const profiles = await fetchCounterpartyProfiles(supabase, [order.user_id]);
+      if (profiles[order.user_id]?.name) customerName = profiles[order.user_id].name;
     }
     setChatOrder({ id: order.id, customerName });
   };
