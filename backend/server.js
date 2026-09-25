@@ -16,7 +16,44 @@ app.set('trust proxy', 1);
 
 // Middleware Keamanan & Utilitas
 app.use(helmet()); // Mengamankan header HTTP
-app.use(cors()); // Mengizinkan akses dari frontend/aplikasi lain
+// CORS: only Wira's own apps may call this API from a browser. The bare
+// cors() we had before let any website script requests against it.
+//  - production URLs of the three frontends (plus their wira10 aliases);
+//  - Vercel preview/branch deploys of those three projects only
+//    (wira-{user,mitra,admin}-<hash|git-branch>-wira10.vercel.app);
+//  - the Capacitor apps (Android androidScheme "https" -> https://localhost,
+//    iOS -> capacitor://localhost);
+//  - local Vite dev servers (user 3000, admin 3001, mitra Vite default 5173);
+//  - CORS_EXTRA_ORIGINS (comma-separated) for e.g. a future custom domain.
+// Requests with no Origin header (Midtrans/Mutasiku webhooks, pg_cron's
+// pg_net call to /api/dispatch/tick, curl) are not browser cross-origin
+// requests and are allowed through. A disallowed origin gets callback(null,
+// false): no CORS headers, so the browser blocks it - not an Error, which
+// would turn every such request into a 500 via the global error handler.
+const DEV_PORTS = [3000, 3001, 5173];
+const ALLOWED_ORIGINS = new Set([
+  'https://wira-pied.vercel.app',
+  'https://wira-user-wira10.vercel.app',
+  'https://wira-zlw9.vercel.app',
+  'https://wira-mitra-wira10.vercel.app',
+  'https://wira-bj5r.vercel.app',
+  'https://wira-admin-wira10.vercel.app',
+  'https://localhost',
+  'capacitor://localhost',
+  ...DEV_PORTS.flatMap((p) => [`http://localhost:${p}`, `http://127.0.0.1:${p}`]),
+  ...(process.env.CORS_EXTRA_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
+]);
+const VERCEL_PREVIEW_ORIGIN = /^https:\/\/wira-(user|mitra|admin)-[a-z0-9-]+-wira10\.vercel\.app$/;
+
+app.use(cors({
+  origin(origin, callback) {
+    const allowed = !origin || ALLOWED_ORIGINS.has(origin) || VERCEL_PREVIEW_ORIGIN.test(origin);
+    callback(null, allowed);
+  },
+}));
 app.use(express.json()); // Parsing JSON body
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // Logging request untuk pengembangan
@@ -27,21 +64,10 @@ app.get('/', (req, res) => {
 });
 
 // Import Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/rides', require('./routes/ride.routes'));
-app.use('/api/food', require('./routes/food.routes'));
-app.use('/api/send', require('./routes/send.routes'));
-app.use('/api/wallet', require('./routes/wallet.routes'));
-app.use('/api/villas', require('./routes/villa.routes'));
-app.use('/api/services', require('./routes/service.routes'));
-app.use('/api/pool', require('./routes/pool.routes'));
-app.use('/api/pulsa', require('./routes/pulsa.routes'));
-app.use('/api/admin', require('./routes/admin.routes'));
-app.use('/api/mitra', require('./routes/mitra.routes'));
-app.use('/api/whatsapp', require('./routes/whatsapp.routes'));
+// Only endpoints that need a secret (service-role key, Midtrans server key,
+// webhook secrets, FCM credentials) live here - everything else is done by
+// the frontends directly against Supabase under RLS.
 app.use('/api/notifications', require('./routes/notification.routes'));
-app.use('/api/chat', require('./routes/chat.routes'));
 app.use('/api/midtrans', require('./routes/midtrans'));
 app.use('/api/mutasiku', require('./routes/mutasiku'));
 app.use('/api/dispatch', require('./routes/dispatch.routes'));

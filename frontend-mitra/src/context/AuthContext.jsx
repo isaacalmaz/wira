@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { requestForToken } from '../config/firebase';
 
 const AuthContext = createContext();
 
@@ -97,6 +96,9 @@ export const AuthProvider = ({ children }) => {
     const updateFCM = async () => {
       if (user) {
         try {
+          // Loaded on demand: firebase/messaging is ~150 kB+ and only needed
+          // once someone is signed in, so the login screen doesn't pay for it.
+          const { requestForToken } = await import('../config/firebase');
           const token = await requestForToken();
           if (token) {
             await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);

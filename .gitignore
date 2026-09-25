@@ -43,8 +43,5 @@ yarn-error.log*
 */android/build/
 */android/capacitor-cordova-android-plugins/build/
 
-# Agent run scratch logs
-.agents/explorer_*/
-.agents/orchestrator_*/
-.agents/spec_miner_*/
-.agents/test_writer_*/
+# Agent run scratch (removed from tracking 2026-09-25; keep out of git)
+.agents/

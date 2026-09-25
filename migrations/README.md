@@ -34,9 +34,13 @@ the repo root and run by hand. Each new migration should:
 - Contain real, reviewed SQL — not a copy-paste scratchpad.
 
 The old root-level `*.sql` files (`master_schema.sql`, `setup_wallet.sql`,
-etc.) have been left in place for now; they were the source material for
-this reconstruction and should only be deleted once someone has verified
-this `migrations/` folder is complete and correct.
+etc.) were the source material for this reconstruction. They were removed
+from the repo root on 2026-09-25, together with the one-off root-level
+`*.js`/`*.py` scratch scripts: the numbered migrations in this folder are
+the source of truth and are live. The old files remain available in git
+history (e.g. `git log --all -- setup_wallet.sql`); the "Source" column
+below and the list of excluded files further down refer to those
+historical files.
 
 ## Log of new migrations added going forward
 
@@ -73,8 +77,8 @@ this `migrations/` folder is complete and correct.
   redeem promos through the same `handleCheckPromo`/`increment_promo_usage`
   flow as RidePage.jsx/RestaurantPage.jsx.
 
-`backend/database/schema.sql` and `backend/database/seed.sql` were **not**
-used as a source and were **not** modified. They describe a schema that
+`backend/database/schema.sql` and `backend/database/seed.sql` (both since
+deleted from the repo, 2026-09-25) were **not** used as a source and were **not** modified. They describe a schema that
 diverges significantly from what's actually live (separate `wallets` table,
 `restaurants`/`menu_items` instead of `merchants`/`products`, a `drivers`
 table with no matching `driver_profiles`, a `feature_flags` table keyed by a
@@ -158,6 +162,7 @@ task's background, and out of scope to touch.
 | 0071 | `0071_atomic_webhook_topup_approval.sql` | *(none — money-integrity fix, 2026-09-25)* | Both top-up webhooks (`backend/routes/midtrans.js`, `backend/routes/mutasiku.js`) approved a request in three separate calls (flip `topup_requests.status` to `approved`, `credit_wallet_balance_atomic`, insert the `transactions` row). If the credit or ledger call failed after the status flip committed, the gateway's retry saw a non-pending row and skipped it, so the customer paid but was never credited. Adds `approve_topup_and_credit(...)` (SECURITY DEFINER, **service_role only**) doing all three in one transaction under a row lock, re-checking amount and method; returns `'approved'`/`'already_processed'`/`'not_found'` so replays stay 200 no-ops. The admin manual path (`approve_topup_request`, 0022) was already atomic and is unchanged. **Apply before deploying the companion backend change**; the old backend keeps working after it's applied. |
 | 0072 | `0072_server_side_dispatch.sql` | *(none — reliability fix, 2026-09-25)* | Sequential driver dispatch (ping one nearby driver every 15s) used to run only inside the customer's open browser tab (`frontend-user/src/hooks/useOrderDispatch.js`), so closing the app, locking the phone or losing the tab stopped all pings and the order sat in 'searching' forever. Moves it server-side: `order_dispatch_pings` log table (RLS on, no policies), `dispatch_due_orders(p_limit)` (pending + unassigned + ride/send/pool/service + created in the last 30 min + no ping in the last 15s) and `dispatch_next_ping(p_order_id)` (locks the order row, picks the nearest not-yet-pinged candidate via `get_nearest_drivers` — filtered by the order's `rate_code` vehicle type for rides — or `list_technicians` for pool/service, logs it, restarts the round when everyone was pinged). All service_role only. Called by `backend/routes/dispatch.routes.js`, which sends the push with server-built text. The row lock + log make it one ping per order per 15s regardless of how many triggers fire. **Apply before deploying the companion backend/frontend change** — the new frontend asks the backend to dispatch, and the backend needs these functions. |
 | 0073 | `0073_dispatch_cron_schedule.sql` | *(none — reliability fix, 2026-09-25)* | Schedules `wira-dispatch-tick` with pg_cron every 15 seconds: `net.http_post` to `https://wira-backend-seven.vercel.app/api/dispatch/tick` with header `x-dispatch-secret` read from Supabase Vault (`dispatch_cron_secret`), and only when `dispatch_due_orders(1)` returns something, so idle ticks make no HTTP call. Requires, once and outside git: `vault.create_secret(...)` for `dispatch_cron_secret` and the same value in the wira-backend Vercel env var `DISPATCH_CRON_SECRET` (then redeploy). Can be applied after the 0072 deploy — until then the customer's open app still drives dispatch through the same server endpoint. |
+| 0074 | `0074_orders_require_login.sql` | *(none — security fix, 2026-09-25)* | 0024's `orders_insert_own` allowed `auth.uid() IS NULL AND user_id IS NULL` ("guest checkout"), so anyone with the public anon key could INSERT pending orders with no account. Those rows appear in every driver's job feed and are picked up by server-side dispatch (0072/0073), which pushes real notifications to real drivers — a spam/harassment channel (no money: 0070 forces them unpaid). Guest checkout was never reachable in the app (every order page is under `Layout.jsx`, which redirects to `/login`); the leftover guest branch in `OrderContext.addOrder` and `ecosystemService.createEcosystemOrder` are removed in the same commit. Recreates `orders_insert_own` as `WITH CHECK (auth.uid() IS NOT NULL AND auth.uid() = user_id)` and `REVOKE INSERT ON public.orders FROM anon` (the grant only came from Supabase defaults; no migration, trigger or RPC relies on it — `create_order_and_pay` is authenticated-only). Existing `user_id IS NULL` rows and anon SELECT/UPDATE are untouched. **Must be applied in Supabase**; safe before or after the frontend deploy (the logged-in path is unchanged). |
 
 ## Duplicate migration number: two files are both `0034`
 
@@ -175,7 +180,7 @@ run it, and assume the number is fully accounted for.
 
 These were read and cataloged but not turned into migrations, because they
 are not schema-altering in a way worth replaying, or are pure test/diagnostic
-artifacts:
+artifacts (all removed from the repo root on 2026-09-25; see git history):
 
 - **`test_realtime.sql`** — a single `ALTER PUBLICATION supabase_realtime ADD TABLE orders;` statement, already covered by 0001. Replaying it after 0001 would error (table already a publication member).
 - **`test_insert_mock.sql`** — a single test `INSERT` of one mock driver user row, not real seed data.

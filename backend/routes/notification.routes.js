@@ -8,10 +8,6 @@ const { userFacingLimiter } = require('../middleware/rateLimit');
 
 router.use(auth);
 
-router.get('/', (req, res) => response.success(res, [], 'Daftar notifikasi'));
-router.put('/:id/read', (req, res) => response.success(res, {}, 'Notifikasi ditandai dibaca'));
-router.put('/read-all', (req, res) => response.success(res, {}, 'Semua notifikasi ditandai dibaca'));
-
 // Sends a real FCM push to a single target user by looking up their
 // fcm_token from public.users (service-role client, bypasses RLS) and
 // calling the real admin.messaging().send() pipeline in notificationService.js.

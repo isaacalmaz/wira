@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22+: @supabase/supabase-js needs the native WebSocket that
+          # Node 20 lacks (backend load check fails with "native WebSocket not
+          # found" on 20). Matches the Node the backend runs on in production.
+          node-version: 22
+          cache: npm
+
+      # Matches .npmrc / vercel.json (legacy-peer-deps=true).
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build frontends (user, mitra, admin)
+        run: npm run build:all
+
+      - name: Backend loads
+        working-directory: backend
+        env:
+          VERCEL: '1'
+        run: node -e "require('./server.js')"

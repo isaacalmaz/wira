@@ -72,39 +72,3 @@ export const toDbPaymentMethod = (uiPaymentMethod) => {
   if (label.includes('transfer')) return 'transfer';
   return 'wallet';
 };
-
-export const createEcosystemOrder = async (orderData) => {
-  const newOrder = {
-    total_price: Number(orderData.price || orderData.total_price || 0),
-    service_type: orderData.serviceType || orderData.service_type || 'ride',
-    title: orderData.title || `Pesanan ${orderData.serviceType || 'Wira'}`,
-    details: orderData.details || '',
-    // Guests have no wallet, so a 'wallet' order here is rejected by the DB
-    // (migrations/0070) - WiraPay checkout requires a logged-in session.
-    payment_method: toDbPaymentMethod(orderData.paymentMethod),
-    payment_status: 'unpaid',
-    status: 'pending',
-    // Same structured pricing inputs OrderContext.jsx's addOrder() sends on
-    // its own insert (migrations/0058/0059) - kept in sync here since this
-    // is a separate, still-live insert path (the guest-checkout fallback in
-    // OrderContext.jsx's addOrder(), used when there is no authenticated
-    // session), not the phantom dual-insert that comment there refers to.
-    rate_code: orderData.rateCode ?? null,
-    distance_meters: orderData.distanceMeters ?? null,
-    nights: orderData.nights ?? null,
-    promo_code: orderData.promoCode ?? null,
-  };
-
-  const { data, error } = await supabase
-    .from('orders')
-    .insert([newOrder])
-    .select();
-
-  if (error || !data || data.length === 0) {
-    console.error('Error creating order', error);
-    return null;
-  }
-  
-  broadcastEcosystemEvent('ORDER_CREATED', data[0]);
-  return data[0];
-};
