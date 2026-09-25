@@ -29,6 +29,7 @@ import {
 // 'menunggu' is kept for parity with the previous whitelist even though it
 // isn't one of the canonical OrderStatus values.
 const IN_PROGRESS_STATUSES = [
+  OrderStatus.AWAITING_PAYMENT,
   OrderStatus.PENDING,
   OrderStatus.ACCEPTED,
   OrderStatus.PREPARING,

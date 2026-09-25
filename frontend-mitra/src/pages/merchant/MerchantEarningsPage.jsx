@@ -5,12 +5,13 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { merchantEarnedAmount } from '../../services/orderService';
+import { merchantEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
 
 const MerchantEarningsPage = () => {
   const { user } = useAuth();
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);
+  const [cashDeduction, setCashDeduction] = useState(0);
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
@@ -27,13 +28,14 @@ const MerchantEarningsPage = () => {
 
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, created_at, title')
+        .select('total_price, delivery_fee, payment_method, driver_id, created_at, title')
         .eq('merchant_id', merchantData.id)
         .eq('status', 'completed');
 
       if (data) {
         let todaySum = 0;
         let weekSum = 0;
+        let cashSum = 0;
         const now = new Date();
         const todayStr = now.toLocaleDateString('id-ID');
 
@@ -58,6 +60,7 @@ const MerchantEarningsPage = () => {
 
           if (oDateStr === todayStr) todaySum += amount;
           weekSum += amount;
+          cashSum += cashCommissionDeduction(o, 'merchant');
 
           const dayEntry = weekDays.find(w => w.dateStr === oDateStr);
           if (dayEntry) dayEntry.amount += amount;
@@ -65,6 +68,7 @@ const MerchantEarningsPage = () => {
 
         setTodayTotal(todaySum);
         setWeekTotal(weekSum);
+        setCashDeduction(cashSum);
         setChartData(weekDays);
       }
     };
@@ -74,7 +78,7 @@ const MerchantEarningsPage = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pendapatan Resto</h1>
-      <EarningsCard today={todayTotal} week={weekTotal} />
+      <EarningsCard today={todayTotal} week={weekTotal} cashDeduction={cashDeduction} />
 
       <Card className="p-4 h-72">
         <h3 className="font-semibold mb-4">Tren Pendapatan (7 Hari Terakhir)</h3>

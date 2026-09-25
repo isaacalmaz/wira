@@ -6,7 +6,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { driverEarnedAmount } from '../../services/orderService';
+import { driverEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
 
 const DriverEarningsPage = () => {
   const { user } = useAuth();
@@ -17,6 +17,7 @@ const DriverEarningsPage = () => {
   const [earningsData, setEarningsData] = useState([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);
+  const [cashDeduction, setCashDeduction] = useState(0);
 
   // Tips (migrations/0039/0041's submit_review_and_tip) land in
   // wallet_balance, NOT payable_balance - they're WiraPay spending balance,
@@ -50,13 +51,14 @@ const DriverEarningsPage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, merchant_id, created_at')
+        .select('total_price, delivery_fee, merchant_id, payment_method, created_at')
         .eq('driver_id', user.id)
         .eq('status', 'completed');
         
       if (data) {
         let totalToday = 0;
         let totalWeek = 0;
+        let cashTotal = 0;
         const now = new Date();
         const todayStr = now.toLocaleDateString('id-ID');
         
@@ -84,6 +86,7 @@ const DriverEarningsPage = () => {
             totalToday += price;
           }
           totalWeek += price;
+          cashTotal += cashCommissionDeduction(order, 'driver');
 
           const foundDay = weekDays.find(w => w.dateStr === orderDateStr);
           if (foundDay) {
@@ -93,6 +96,7 @@ const DriverEarningsPage = () => {
 
         setTodayTotal(totalToday);
         setWeekTotal(totalWeek);
+        setCashDeduction(cashTotal);
         setEarningsData(weekDays);
       }
     };
@@ -103,7 +107,7 @@ const DriverEarningsPage = () => {
     <div className="space-y-6 pb-20">
       <h1 className="text-2xl font-bold">Pendapatan</h1>
       
-      <EarningsCard today={todayTotal} week={weekTotal} />
+      <EarningsCard today={todayTotal} week={weekTotal} cashDeduction={cashDeduction} />
 
       <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
         <button className="flex-1 py-2 text-sm font-medium rounded-md capitalize bg-white dark:bg-slate-800 shadow text-primary">Harian</button>

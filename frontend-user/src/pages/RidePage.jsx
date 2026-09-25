@@ -271,15 +271,6 @@ export default function RidePage() {
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
 
-      // Only count the promo as "used" once it's actually attached to a
-      // real, created order - not just when the code was validated - so a
-      // promo can't be reserved by someone who never completes checkout.
-      if (activePromo?.id) {
-        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
-          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
-        });
-      }
-
       navigate(`/active-order/${order.id}`);
 
       // Dispatch is handled in ActiveOrderPage

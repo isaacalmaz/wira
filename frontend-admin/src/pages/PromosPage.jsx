@@ -21,7 +21,8 @@ const PromosPage = () => {
     discount: '20',
     validUntil: '',
     status: 'Active',
-    usage_limit: ''
+    usage_limit: '',
+    per_user_limit: ''
   };
   const [formData, setFormData] = useState(emptyFormData);
 
@@ -64,7 +65,8 @@ const PromosPage = () => {
       discount: String(promo.discount ?? 0),
       validUntil: promo.validUntil || '',
       status: promo.status || 'Active',
-      usage_limit: promo.usage_limit != null ? String(promo.usage_limit) : ''
+      usage_limit: promo.usage_limit != null ? String(promo.usage_limit) : '',
+      per_user_limit: promo.per_user_limit != null ? String(promo.per_user_limit) : ''
     });
     setIsModalOpen(true);
   };
@@ -86,6 +88,8 @@ const PromosPage = () => {
       validUntil: formData.validUntil || null,
       status: formData.status,
       usage_limit: formData.usage_limit === '' ? null : Number(formData.usage_limit),
+      // Enforced in the database at order creation (migrations/0076).
+      per_user_limit: formData.per_user_limit === '' ? null : Number(formData.per_user_limit),
     };
 
     try {
@@ -229,6 +233,9 @@ const PromosPage = () => {
                     <td className="px-6 py-4 text-slate-500">{p.validUntil || '-'}</td>
                     <td className="px-6 py-4">
                       {p.usage || 0}{p.usage_limit != null ? ` / ${p.usage_limit}` : ''}x dipakai
+                      {p.per_user_limit != null && (
+                        <div className="text-xs text-slate-400">maks. {p.per_user_limit}x per pengguna</div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -375,6 +382,23 @@ const PromosPage = () => {
                     min="1"
                     value={formData.usage_limit}
                     onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value })}
+                    placeholder="Tanpa batas"
+                    className="input-field w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Batas per Pengguna (kosongkan = tanpa batas)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.per_user_limit}
+                    onChange={(e) => setFormData({ ...formData, per_user_limit: e.target.value })}
                     placeholder="Tanpa batas"
                     className="input-field w-full"
                   />

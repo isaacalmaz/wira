@@ -5,6 +5,11 @@ import toast from 'react-hot-toast';
 
 const WalletContext = createContext();
 
+// transactions.type values that add money to the wallet. refund (order
+// cancellations, 0040/0066) and correction_in (admin corrections, 0062) were
+// previously shown as expenses.
+const INCOME_TYPES = new Set(['topup', 'transfer_in', 'refund', 'correction_in']);
+
 export const WalletProvider = ({ children }) => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -26,7 +31,7 @@ export const WalletProvider = ({ children }) => {
       if (txRows) {
         setTransactions(txRows.map(t => ({
           id: t.id,
-          type: (t.type === 'topup' || t.type === 'transfer_in') ? 'income' : 'expense',
+          type: INCOME_TYPES.has(t.type) ? 'income' : 'expense',
           desc: t.description,
           date: new Date(t.created_at).toLocaleDateString('id-ID'),
           amount: t.amount,

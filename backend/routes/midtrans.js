@@ -95,7 +95,9 @@ router.post('/charge', userFacingLimiter, auth, async (req, res) => {
         phone: customer_phone || '08123456789'
       },
       callbacks: {
-        finish: 'https://wira-frontend-user.vercel.app/wallet'
+        // wira-frontend-user.vercel.app (the old value) returns 404; the live
+        // user app is wira-pied.vercel.app. Overridable for a custom domain.
+        finish: `${process.env.FRONTEND_USER_URL || 'https://wira-pied.vercel.app'}/wallet`
       }
     };
 

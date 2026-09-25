@@ -143,7 +143,19 @@ export const OrderProvider = ({ children }) => {
 
       let data;
       let error;
-      if (dbPaymentMethod === 'wallet') {
+      let qrisAmount = null;
+      if (orderData.paymentMethod === 'QRIS') {
+        // Pay directly with the static QRIS (migrations/0077): the order is
+        // created as 'awaiting_payment' together with a top-up request for
+        // its exact QRIS nominal; the Mutasiku webhook pays it (0078).
+        const rpcArgs = Object.fromEntries(
+          Object.entries(pricingInputs).map(([key, value]) => [`p_${key}`, value])
+        );
+        const { data: result, error: rpcError } = await supabase.rpc('create_order_awaiting_qris', rpcArgs);
+        data = result?.order;
+        qrisAmount = result?.qris_amount ?? null;
+        error = rpcError;
+      } else if (dbPaymentMethod === 'wallet') {
         // WiraPay: create the order AND debit its server-computed
         // total_price in one DB transaction (migrations/0070). Never call
         // wallet_pay() separately before this - the DB rejects any
@@ -178,9 +190,9 @@ export const OrderProvider = ({ children }) => {
         broadcastEcosystemEvent('ORDER_CREATED', createdOrder);
       }
 
-      const uiOrder = mapDbOrderToUi(createdOrder);
+      const uiOrder = { ...mapDbOrderToUi(createdOrder), qrisAmount };
       setOrders((prev) => [uiOrder, ...prev.filter(o => o.id !== uiOrder.id)]);
-      toast.success('Pesanan berhasil dibuat');
+      toast.success(qrisAmount ? 'Pesanan dibuat. Silakan bayar via QRIS.' : 'Pesanan berhasil dibuat');
       return uiOrder;
     } catch (err) {
       console.error('Gagal membuat pesanan:', err);

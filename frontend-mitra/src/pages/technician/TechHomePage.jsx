@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
 import { OrderStatus } from '../../constants/orderStatus';
-import { acceptOrder, subscribeToTechnicianOrders } from '../../services/orderService';
+import { acceptOrder, subscribeToTechnicianOrders, technicianEarnedAmount } from '../../services/orderService';
 
 // See TechOrdersPage.jsx's identical helper/comment - visibility-only
 // distinction between pool and general service jobs, not a hard filter.
@@ -50,7 +50,8 @@ const TechHomePage = () => {
         let wEarn = 0;
 
         completed.forEach(c => {
-          const price = c.total_price || 0;
+          // Real technician share (net of Tunai commission), not raw total_price.
+          const price = technicianEarnedAmount(c);
           if (new Date(c.created_at).toLocaleDateString('id-ID') === todayStr) {
             tEarn += price;
           }
