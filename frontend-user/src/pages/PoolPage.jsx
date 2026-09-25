@@ -140,14 +140,6 @@ export default function PoolPage() {
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
 
-      // Only counted as "used" once the order actually exists - see
-      // migrations/0046's increment_promo_usage.
-      if (activePromo?.id) {
-        supabase.rpc('increment_promo_usage', { promo_id: activePromo.id }).then(({ error: usageErr }) => {
-          if (usageErr) console.error('Gagal mencatat pemakaian promo:', usageErr);
-        });
-      }
-
       navigate(`/active-order/${order.id}`);
       setIsModalOpen(false);
 
