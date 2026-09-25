@@ -34,9 +34,13 @@ the repo root and run by hand. Each new migration should:
 - Contain real, reviewed SQL — not a copy-paste scratchpad.
 
 The old root-level `*.sql` files (`master_schema.sql`, `setup_wallet.sql`,
-etc.) have been left in place for now; they were the source material for
-this reconstruction and should only be deleted once someone has verified
-this `migrations/` folder is complete and correct.
+etc.) were the source material for this reconstruction. They were removed
+from the repo root on 2026-09-25, together with the one-off root-level
+`*.js`/`*.py` scratch scripts: the numbered migrations in this folder are
+the source of truth and are live. The old files remain available in git
+history (e.g. `git log --all -- setup_wallet.sql`); the "Source" column
+below and the list of excluded files further down refer to those
+historical files.
 
 ## Log of new migrations added going forward
 
@@ -175,7 +179,7 @@ run it, and assume the number is fully accounted for.
 
 These were read and cataloged but not turned into migrations, because they
 are not schema-altering in a way worth replaying, or are pure test/diagnostic
-artifacts:
+artifacts (all removed from the repo root on 2026-09-25; see git history):
 
 - **`test_realtime.sql`** — a single `ALTER PUBLICATION supabase_realtime ADD TABLE orders;` statement, already covered by 0001. Replaying it after 0001 would error (table already a publication member).
 - **`test_insert_mock.sql`** — a single test `INSERT` of one mock driver user row, not real seed data.
