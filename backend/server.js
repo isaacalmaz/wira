@@ -27,21 +27,10 @@ app.get('/', (req, res) => {
 });
 
 // Import Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/rides', require('./routes/ride.routes'));
-app.use('/api/food', require('./routes/food.routes'));
-app.use('/api/send', require('./routes/send.routes'));
-app.use('/api/wallet', require('./routes/wallet.routes'));
-app.use('/api/villas', require('./routes/villa.routes'));
-app.use('/api/services', require('./routes/service.routes'));
-app.use('/api/pool', require('./routes/pool.routes'));
-app.use('/api/pulsa', require('./routes/pulsa.routes'));
-app.use('/api/admin', require('./routes/admin.routes'));
-app.use('/api/mitra', require('./routes/mitra.routes'));
-app.use('/api/whatsapp', require('./routes/whatsapp.routes'));
+// Only endpoints that need a secret (service-role key, Midtrans server key,
+// webhook secrets, FCM credentials) live here - everything else is done by
+// the frontends directly against Supabase under RLS.
 app.use('/api/notifications', require('./routes/notification.routes'));
-app.use('/api/chat', require('./routes/chat.routes'));
 app.use('/api/midtrans', require('./routes/midtrans'));
 app.use('/api/mutasiku', require('./routes/mutasiku'));
 app.use('/api/dispatch', require('./routes/dispatch.routes'));

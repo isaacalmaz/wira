@@ -77,8 +77,8 @@ historical files.
   redeem promos through the same `handleCheckPromo`/`increment_promo_usage`
   flow as RidePage.jsx/RestaurantPage.jsx.
 
-`backend/database/schema.sql` and `backend/database/seed.sql` were **not**
-used as a source and were **not** modified. They describe a schema that
+`backend/database/schema.sql` and `backend/database/seed.sql` (both since
+deleted from the repo, 2026-09-25) were **not** used as a source and were **not** modified. They describe a schema that
 diverges significantly from what's actually live (separate `wallets` table,
 `restaurants`/`menu_items` instead of `merchants`/`products`, a `drivers`
 table with no matching `driver_profiles`, a `feature_flags` table keyed by a

@@ -6,7 +6,8 @@ Aplikasi super (super-app) untuk Mataram & Lombok, terinspirasi dari Gojek & Gra
 
 ```
 wira/
-├── backend/          → API Server (Node.js + Express + Supabase)
+├── backend/          → API kecil (Express di Vercel) hanya untuk hal yang butuh secret: Midtrans, webhook Mutasiku, push FCM, dispatch driver
+├── migrations/       → Semua perubahan skema database Supabase (sumber kebenaran skema)
 ├── frontend-user/    → Website untuk pengguna
 ├── frontend-admin/   → Dashboard admin
 ├── frontend-mitra/   → Dashboard mitra (driver, merchant, teknisi)
@@ -20,7 +21,7 @@ wira/
 cd backend
 npm install
 cp .env.example .env
-# Edit .env dengan data Supabase & WhatChimp Anda
+# Edit .env dengan data Supabase, Midtrans & Firebase Anda
 npm run dev
 ```
 
@@ -73,8 +74,8 @@ Buka: http://localhost:5175
 ## ⚙️ Cara Mengubah Pengaturan
 
 ### Mengubah Harga
-Edit file: `backend/config/pricing.js`
-Semua harga ada di satu file ini. Tinggal ubah angkanya.
+Login ke Admin Dashboard → halaman **Manajemen Harga** (`/pricing`).
+Harga disimpan di database (tabel `vehicles` untuk WiraRide, `pricing_rules` untuk WiraSend/Service/Pool/ongkir WiraFood) dan dihitung ulang di server saat order dibuat — tidak perlu edit kode atau restart apa pun.
 
 ### Mengubah Warna
 Edit file: `frontend-user/tailwind.config.js` (dan frontend-admin, frontend-mitra)
@@ -85,6 +86,3 @@ Edit file: `frontend-user/src/i18n/en.json` (English)
 
 ### Menghidupkan/Mematikan Fitur
 Login ke Admin Dashboard → halaman Feature Flags → toggle ON/OFF
-
-## 📞 Integrasi WhatsApp
-Menggunakan WhatChimp API. Set API key di `.env` file backend.
