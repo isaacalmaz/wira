@@ -6,6 +6,14 @@ const morgan = require('morgan');
 
 const app = express();
 
+// Vercel terminates the connection and forwards the real client IP in
+// X-Forwarded-For (one proxy hop). Without this, req.ip is Vercel's proxy
+// address for every request, so express-rate-limit put ALL users into one
+// shared bucket (and logged ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every
+// request) - e.g. userFacingLimiter's 20/min was a global cap, which the
+// order page's 15s dispatch tick would exhaust with a handful of customers.
+app.set('trust proxy', 1);
+
 // Middleware Keamanan & Utilitas
 app.use(helmet()); // Mengamankan header HTTP
 app.use(cors()); // Mengizinkan akses dari frontend/aplikasi lain
