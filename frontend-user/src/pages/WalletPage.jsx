@@ -32,10 +32,10 @@ import {
 import { toast } from 'react-hot-toast';
 
 export default function WalletPage() {
-  const { balance, transactions, transfer, pay } = useWallet();
+  const { balance, transactions, transfer } = useWallet();
 
   // Modal States
-  const [modalType, setModalType] = useState(null); // 'topup', 'transfer', 'qris', null
+  const [modalType, setModalType] = useState(null); // 'topup', 'transfer', null
   const [topUpStep, setTopUpStep] = useState(1); // 1: input, 2: instruction
   const [baseAmount, setBaseAmount] = useState(50000);
   const [uniqueCode, setUniqueCode] = useState(0);
@@ -50,13 +50,6 @@ export default function WalletPage() {
   const [transferNote, setTransferNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Merchant Payment State - a direct WiraPay balance transfer to a named
-  // merchant/amount the user enters. Previously the merchant name was a
-  // hardcoded constant with no input anywhere in the flow to change it, so
-  // every "QRIS" payment was recorded against the same fake merchant
-  // regardless of where the customer actually was.
-  const [qrisAmount, setQrisAmount] = useState('');
-  const [merchantName, setMerchantName] = useState('');
 
   const quickAmounts = [20000, 50000, 100000, 200000, 500000];
 
@@ -339,37 +332,6 @@ export default function WalletPage() {
     }
   };
 
-  const handleQrisPay = async (e) => {
-    e.preventDefault();
-    if (!merchantName.trim()) {
-      toast.error('Masukkan nama merchant tujuan pembayaran');
-      return;
-    }
-    const amt = Number(qrisAmount);
-    if (!amt || amt <= 0) {
-      toast.error('Nominal tidak valid');
-      return;
-    }
-    if (amt > balance) {
-      toast.error('Saldo WiraPay Anda tidak mencukupi');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await new Promise((r) => setTimeout(r, 800));
-      await pay(amt, `Bayar Merchant - ${merchantName.trim()}`);
-      toast.success(`Pembayaran ${formatRupiah(amt)} Berhasil!`);
-      setModalType(null);
-      setQrisAmount('');
-      setMerchantName('');
-    } catch (err) {
-      toast.error(err.message || 'Pembayaran gagal');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-2xl mx-auto pb-12">
       {/* Kartu Saldo WiraPay */}
@@ -410,8 +372,10 @@ export default function WalletPage() {
             <span>Transfer</span>
           </button>
           <button
-            onClick={() => setModalType('qris')}
-            className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
+            // Dimatikan sementara: pembayaran ini dulu memotong saldo tanpa
+            // meneruskannya ke merchant mana pun (tidak ada penerima).
+            onClick={() => toast('Bayar Merchant sedang disiapkan. Segera hadir!', { icon: '🚧' })}
+            className="flex-1 opacity-60 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
             <Building2 size={18} className="text-cyan-200" />
             <span>Bayar Merchant</span>
@@ -903,84 +867,6 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* MODAL 3: BAYAR MERCHANT (transfer saldo WiraPay langsung - bukan
-          pemindaian QRIS pihak ketiga; lihat catatan di atas merchantName) */}
-      {modalType === 'qris' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative text-center">
-            <button
-              onClick={() => setModalType(null)}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-            >
-              <X size={20} />
-            </button>
-
-            <div>
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-primary mb-2 shadow-inner">
-                <Building2 size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Bayar Merchant
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Kirim saldo WiraPay Anda langsung ke merchant sebagai pembayaran
-              </p>
-            </div>
-
-            <form onSubmit={handleQrisPay} className="space-y-4 text-left">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  Nama Merchant
-                </label>
-                <div className="relative">
-                  <Building2 size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Contoh: Warung Ayam Taliwang H. Moerad"
-                    value={merchantName}
-                    onChange={(e) => setMerchantName(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Nominal Pembayaran
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    Saldo: {formatRupiah(balance)}
-                  </span>
-                </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm">
-                    Rp
-                  </span>
-                  <input
-                    type="number"
-                    min="1000"
-                    placeholder="0"
-                    value={qrisAmount}
-                    onChange={(e) => setQrisAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-base font-bold focus:ring-2 focus:ring-primary focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full py-3 font-bold"
-                disabled={loading || !qrisAmount || !merchantName.trim() || Number(qrisAmount) > balance}
-              >
-                {loading ? 'Memproses...' : 'Konfirmasi Bayar'}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
