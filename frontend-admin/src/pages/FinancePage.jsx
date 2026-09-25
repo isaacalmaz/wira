@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { DollarSign, TrendingUp, CheckCircle, XCircle, Clock, Landmark } from 'lucide-react';
+import { DollarSign, TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Platform commission on every completed order - 20%, matching
+// DashboardPage.jsx's PLATFORM_COMMISSION_RATE (which itself must match
+// credit_payout_on_order_completed() in migrations/0028_mitra_payout_system.sql).
+// This used to be hardcoded here as 10% (revenue * 0.1), silently disagreeing
+// with the Dashboard's 20% and understating real platform income by half.
+// TODO(coordinator): worth hoisting into one shared constant (e.g.
+// src/config/commission.js) so DashboardPage.jsx and this file can never
+// drift apart again - left as a literal here for now to keep this fix
+// minimal and avoid touching DashboardPage.jsx in this pass.
+const PLATFORM_COMMISSION_RATE = 0.20;
 
 const FinancePage = () => {
   const [revenue, setRevenue] = useState(0);
@@ -41,6 +52,22 @@ const FinancePage = () => {
       if (payoutError) throw payoutError;
       if (payoutData) {
         setPayouts(payoutData);
+      }
+
+      // Fetch recent ledger transactions ("Semua Transaksi" tab) - this used
+      // to never be fetched at all, so that tab always rendered an empty
+      // table with no indication data was missing. Joins users(name, phone)
+      // the same way topup/payout requests above do; capped at 200 most
+      // recent rows since this is an audit trail, not a paginated report.
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .select('*, users(name, phone)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (txError) throw txError;
+      if (txData) {
+        setTransactions(txData);
       }
     } catch (error) {
       toast.error(error.message || 'Gagal memuat data');
@@ -142,8 +169,8 @@ const FinancePage = () => {
           <p className="text-sm opacity-80 flex items-center gap-2"><TrendingUp size={16}/> Seluruh pesanan selesai</p>
         </div>
         <div className="card shadow-md">
-          <p className="text-slate-500 font-semibold mb-2">Estimasi Komisi Aplikasi (10%)</p>
-          <h2 className="text-4xl font-black text-slate-800 mb-4">Rp {(revenue * 0.1).toLocaleString('id-ID')}</h2>
+          <p className="text-slate-500 font-semibold mb-2">Estimasi Komisi Aplikasi (20%)</p>
+          <h2 className="text-4xl font-black text-slate-800 mb-4">Rp {(revenue * PLATFORM_COMMISSION_RATE).toLocaleString('id-ID')}</h2>
         </div>
       </div>
 
@@ -352,9 +379,14 @@ const FinancePage = () => {
             <List size={20} className="text-slate-500"/> Semua Transaksi (Buku Besar)
           </h3>
           <p className="text-xs text-slate-500 mb-4">
-            Menampilkan riwayat transaksi uang terakhir (Top-Up, Pembayaran Pesanan, Pencairan, Koreksi).
+            Menampilkan 200 transaksi uang terakhir (Top-Up, Pembayaran Pesanan, Pencairan, Koreksi).
           </p>
 
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">Memuat data...</div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl">Belum ada transaksi tercatat.</div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-slate-700 border-b">
@@ -400,6 +432,7 @@ const FinancePage = () => {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 

@@ -5,14 +5,44 @@ import { Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 
+// Mirrors RegisterPage.jsx's DEFAULT_JOB_PREFS_BY_VEHICLE exactly - this form
+// duplicates RegisterPage's driver-upgrade logic (see file header rationale
+// there), so the same vehicle_type -> job_type_preferences defaults must stay
+// in sync: mobil never gets 'food' as an option at all (hard restriction, not
+// a toggle - see migrations/0033).
+const DEFAULT_JOB_PREFS_BY_VEHICLE = {
+  motor: ['ride', 'send', 'food'],
+  mobil: ['ride', 'send'],
+};
+
 const UnauthorizedPage = () => {
   const { user, logout } = useAuth();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [role, setRole] = useState('driver');
   const [formData, setFormData] = useState({
-    vehicle: '', plate: '', simPhoto: null, restaurantName: '', address: '', specialization: '', experience: ''
+    vehicle: '', plate: '', vehicleType: 'motor', jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE.motor,
+    simPhoto: null, restaurantName: '', address: '', specialization: '', experience: ''
   });
   const [loading, setLoading] = useState(false);
+
+  // Switching vehicle type resets job-type preferences to that vehicle's
+  // sensible default, same as RegisterPage.jsx's handleVehicleTypeChange -
+  // 'food' must never stay selectable for a mobil driver.
+  const handleVehicleTypeChange = (vehicleType) => {
+    setFormData((prev) => ({ ...prev, vehicleType, jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE[vehicleType] }));
+  };
+
+  const toggleJobTypePreference = (jobType) => {
+    setFormData((prev) => {
+      const has = prev.jobTypePreferences.includes(jobType);
+      return {
+        ...prev,
+        jobTypePreferences: has
+          ? prev.jobTypePreferences.filter((t) => t !== jobType)
+          : [...prev.jobTypePreferences, jobType],
+      };
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +57,11 @@ const UnauthorizedPage = () => {
       email: user.email,
       vehicle: role === 'driver' ? formData.vehicle : null,
       plate: role === 'driver' ? formData.plate : null,
+      // Previously missing entirely - DriverHomePage.jsx blocks going online
+      // until vehicle_type is set, so a driver upgraded through this path
+      // (without RegisterPage.jsx's step 3) got approved into a dead end.
+      vehicle_type: role === 'driver' ? formData.vehicleType : null,
+      job_type_preferences: role === 'driver' ? formData.jobTypePreferences : null,
       sim_photo: formData.simPhoto || null,
       restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
       address: (role === 'merchant' || role === 'villa') ? formData.address : null,
@@ -87,6 +122,64 @@ const UnauthorizedPage = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Plat Nomor</label>
                   <input required type="text" className="w-full p-3 border rounded-xl" placeholder="DR 1234 AB" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} />
+                </div>
+
+                {/* Kategori kendaraan - menentukan layanan apa saja yang bisa
+                    dipilih di bawah (mobil tidak pernah bisa Antar Makanan).
+                    Sama seperti RegisterPage.jsx langkah 3, wajib diisi di
+                    sini juga agar driver yang upgrade lewat form ini tidak
+                    terjebak tanpa vehicle_type (lihat DriverHomePage.jsx). */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'motor', label: 'Motor' },
+                      { id: 'mobil', label: 'Mobil' },
+                    ].map((v) => (
+                      <label
+                        key={v.id}
+                        className={`p-3 border rounded-xl cursor-pointer text-center font-semibold text-sm transition-all ${
+                          formData.vehicleType === v.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-slate-200'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="vehicleType"
+                          value={v.id}
+                          checked={formData.vehicleType === v.id}
+                          onChange={() => handleVehicleTypeChange(v.id)}
+                          className="hidden"
+                        />
+                        {v.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preferensi layanan - Antar Makanan tidak pernah muncul
+                    untuk mobil, sama seperti RegisterPage.jsx. */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Layanan yang Ingin Diterima</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
+                      <input type="checkbox" checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
+                      <span className="text-sm">Ride (Antar Penumpang)</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
+                      <input type="checkbox" checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')} />
+                      <span className="text-sm">
+                        Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
+                      </span>
+                    </label>
+                    {formData.vehicleType !== 'mobil' && (
+                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
+                        <input type="checkbox" checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')} />
+                        <span className="text-sm">Antar Makanan (WiraFood)</span>
+                      </label>
+                    )}
+                  </div>
                 </div>
               </>
             )}

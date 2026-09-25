@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, RefreshCw, Save, X } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { ConfirmModal } from '../components/common/UIComponents';
 import PricingRulesSection from './PricingRulesSection';
+
+// A base price/rate of 0 or below is never a real, intentional price on a
+// live platform (it would mean a free ride/delivery/service) - it is almost
+// always a typo or an accidental clear of the input. Reject it client-side
+// before it ever reaches the table the customer app reads live from.
+const isSanePrice = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 
 const emptyDraft = { name: '', type: '', service_type: 'ride', price: 0, per_km_rate: 0, capacity: 1, duration: '', is_active: true };
 
@@ -31,6 +38,13 @@ const VehiclesPricingPage = () => {
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesError, setRulesError] = useState(null);
   const [rulesEdits, setRulesEdits] = useState({});
+
+  // Row pending an explicit confirm before its price change actually
+  // commits - this page's own subtitle says changes apply immediately to
+  // the customer app, so a single accidental click on "Simpan" used to be
+  // enough to push a live price change with no way to back out.
+  const [confirmVehicle, setConfirmVehicle] = useState(null);
+  const [confirmRule, setConfirmRule] = useState(null);
 
   const fetchVehicles = async () => {
     setLoading(true);
@@ -83,9 +97,25 @@ const VehiclesPricingPage = () => {
 
   const isDirty = (id) => !!edits[id];
 
-  const handleSaveRow = async (v) => {
+  // Step 1: validate, then ask for confirmation instead of saving directly.
+  const handleSaveRow = (v) => {
     const patch = edits[v.id];
     if (!patch) return;
+    if (patch.price !== undefined && !isSanePrice(patch.price)) {
+      toast.error('Harga dasar harus lebih besar dari 0');
+      return;
+    }
+    if (patch.per_km_rate !== undefined && !isSanePrice(patch.per_km_rate)) {
+      toast.error('Tarif/km harus lebih besar dari 0');
+      return;
+    }
+    setConfirmVehicle(v);
+  };
+
+  // Step 2: only reached after the operator confirms in the ConfirmModal.
+  const executeSaveVehicle = async (v) => {
+    const patch = edits[v.id];
+    if (!patch) { setConfirmVehicle(null); return; }
     try {
       const { error, data } = await supabase
         .from('vehicles')
@@ -98,6 +128,8 @@ const VehiclesPricingPage = () => {
       fetchVehicles();
     } catch (err) {
       toast.error(err.message || 'Gagal menyimpan perubahan');
+    } finally {
+      setConfirmVehicle(null);
     }
   };
 
@@ -117,6 +149,14 @@ const VehiclesPricingPage = () => {
   const handleCreate = async () => {
     if (!newDraft.name || !newDraft.type) {
       toast.error('Nama dan tipe wajib diisi');
+      return;
+    }
+    if (!isSanePrice(newDraft.price)) {
+      toast.error('Harga dasar harus lebih besar dari 0');
+      return;
+    }
+    if (!isSanePrice(newDraft.per_km_rate)) {
+      toast.error('Tarif/km harus lebih besar dari 0');
       return;
     }
     try {
@@ -142,9 +182,29 @@ const VehiclesPricingPage = () => {
 
   const isRuleDirty = (id) => !!rulesEdits[id];
 
-  const handleSaveRule = async (r) => {
+  // Step 1: validate, then ask for confirmation instead of saving directly.
+  // per_km_rate is only meaningfully validated for the food_delivery group -
+  // it's genuinely 0-by-design for the flat-fee send/service/pool tiers
+  // (migration 0057) and isn't even editable in the UI for those groups.
+  const handleSaveRule = (r) => {
     const patch = rulesEdits[r.id];
     if (!patch) return;
+    if (patch.base_price !== undefined && !isSanePrice(patch.base_price)) {
+      toast.error('Harga dasar harus lebih besar dari 0');
+      return;
+    }
+    const group = RULE_GROUPS.find(g => g.key === r.service_type);
+    if (group?.showPerKmRate && patch.per_km_rate !== undefined && !isSanePrice(patch.per_km_rate)) {
+      toast.error('Tarif/km harus lebih besar dari 0');
+      return;
+    }
+    setConfirmRule(r);
+  };
+
+  // Step 2: only reached after the operator confirms in the ConfirmModal.
+  const executeSaveRule = async (r) => {
+    const patch = rulesEdits[r.id];
+    if (!patch) { setConfirmRule(null); return; }
     try {
       const { error, data } = await supabase
         .from('pricing_rules')
@@ -157,6 +217,8 @@ const VehiclesPricingPage = () => {
       fetchPricingRules();
     } catch (err) {
       toast.error(err.message || 'Gagal menyimpan perubahan');
+    } finally {
+      setConfirmRule(null);
     }
   };
 
@@ -176,6 +238,14 @@ const VehiclesPricingPage = () => {
   const handleCreateRule = async (draft) => {
     if (!draft.code || !draft.name) {
       toast.error('Kode dan nama wajib diisi');
+      return false;
+    }
+    if (!isSanePrice(draft.base_price)) {
+      toast.error('Harga dasar harus lebih besar dari 0');
+      return false;
+    }
+    if (draft.service_type === 'food_delivery' && !isSanePrice(draft.per_km_rate)) {
+      toast.error('Tarif/km harus lebih besar dari 0');
       return false;
     }
     try {
@@ -357,6 +427,44 @@ const VehiclesPricingPage = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!confirmVehicle}
+        title="Konfirmasi Perubahan Harga"
+        message={confirmVehicle ? (() => {
+          const patch = edits[confirmVehicle.id] || {};
+          const parts = [`Anda akan mengubah harga "${confirmVehicle.name}":`];
+          if (patch.price !== undefined) {
+            parts.push(`Harga dasar: Rp ${Number(confirmVehicle.price || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.price).toLocaleString('id-ID')}`);
+          }
+          if (patch.per_km_rate !== undefined) {
+            parts.push(`Tarif/km: Rp ${Number(confirmVehicle.per_km_rate || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.per_km_rate).toLocaleString('id-ID')}`);
+          }
+          parts.push('Perubahan berlaku langsung ke aplikasi pelanggan.');
+          return parts.join(' ');
+        })() : ''}
+        onConfirm={() => executeSaveVehicle(confirmVehicle)}
+        onCancel={() => setConfirmVehicle(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmRule}
+        title="Konfirmasi Perubahan Tarif"
+        message={confirmRule ? (() => {
+          const patch = rulesEdits[confirmRule.id] || {};
+          const parts = [`Anda akan mengubah tarif "${confirmRule.name}":`];
+          if (patch.base_price !== undefined) {
+            parts.push(`Harga dasar: Rp ${Number(confirmRule.base_price || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.base_price).toLocaleString('id-ID')}`);
+          }
+          if (patch.per_km_rate !== undefined) {
+            parts.push(`Tarif/km: Rp ${Number(confirmRule.per_km_rate || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.per_km_rate).toLocaleString('id-ID')}`);
+          }
+          parts.push('Perubahan berlaku langsung ke aplikasi pelanggan.');
+          return parts.join(' ');
+        })() : ''}
+        onConfirm={() => executeSaveRule(confirmRule)}
+        onCancel={() => setConfirmRule(null)}
+      />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../config/supabase';
 import { X, Send, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 export default function ChatModal({ orderId, onClose, receiverName }) {
   const { user } = useAuth();
@@ -46,7 +47,14 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
     if (!input.trim() || !user) return;
     const text = input;
     setInput('');
-    await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
+    // Match ActiveOrderPage.jsx's inline chat error handling - a failed
+    // insert (RLS denial, dropped connection) previously cleared the input
+    // and gave zero feedback, silently dropping the message.
+    const { error } = await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
+    if (error) {
+      console.error(error);
+      toast.error('Gagal mengirim pesan');
+    }
   };
 
   const handleImageUpload = (e) => {
@@ -72,8 +80,12 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
         // Kompresi ekstrim (0.6 quality) agar tidak memberatkan kolom teks DB
         const base64Compressed = canvas.toDataURL('image/jpeg', 0.6);
         const text = `[IMAGE]${base64Compressed}`;
-        
-        await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
+
+        const { error } = await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
+        if (error) {
+          console.error(error);
+          toast.error('Gagal mengirim gambar');
+        }
         setIsUploading(false);
       };
     };

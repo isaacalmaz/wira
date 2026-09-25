@@ -7,6 +7,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }) => {
     // Cek session saat pertama load
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setSession(session ?? null);
       setIsAuthenticated(!!session);
       setLoading(false);
     });
@@ -21,6 +23,7 @@ export const AuthProvider = ({ children }) => {
     // Listen untuk perubahan auth (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setSession(session ?? null);
       setIsAuthenticated(!!session);
       setLoading(false);
     });
@@ -58,8 +61,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     setUser(null);
+    setSession(null);
     setIsAuthenticated(false);
-    
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Logout error:', error.message);
@@ -83,7 +87,7 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, session, isAuthenticated, loading, login, register, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

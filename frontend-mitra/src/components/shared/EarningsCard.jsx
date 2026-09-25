@@ -2,7 +2,14 @@ import React from 'react';
 import { Wallet, TrendingUp } from 'lucide-react';
 import { Card } from './UIComponents';
 
-const EarningsCard = ({ today, week, progress = 75 }) => {
+// Previously rendered a "Target Harian" (Daily Target) progress bar driven by
+// a `progress` prop, but every caller passed a fake binary value
+// (`value > 0 ? 100 : 0`) because there's no real daily-target feature
+// anywhere in the system - it misrepresented itself as a real KPI on 5+
+// screens (Driver/Merchant/Technician earnings & home pages). Removed rather
+// than faked further; this now shows only real, available numbers (today's
+// and this week's actual earnings).
+const EarningsCard = ({ today, week }) => {
   return (
     <Card className="bg-gradient-to-br from-primary to-blue-700 text-white border-none">
       <div className="p-5">
@@ -15,17 +22,7 @@ const EarningsCard = ({ today, week, progress = 75 }) => {
             <Wallet size={24} className="text-white" />
           </div>
         </div>
-        
-        <div className="mb-4">
-          <div className="flex justify-between text-xs text-blue-100 mb-1">
-            <span>Target Harian</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="w-full bg-black/20 rounded-full h-2">
-            <div className="bg-secondary h-2 rounded-full" style={{ width: `${progress}%` }}></div>
-          </div>
-        </div>
-        
+
         <div className="flex items-center gap-2 text-sm text-blue-50 bg-black/10 p-2 rounded-lg inline-flex">
           <TrendingUp size={16} className="text-green-300" />
           <span>Minggu ini: Rp {week.toLocaleString('id-ID')}</span>

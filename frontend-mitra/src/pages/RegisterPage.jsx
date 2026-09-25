@@ -113,6 +113,16 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // KYC gate: the SIM/STNK file input is a hidden, custom-styled
+    // <input type="file"> (see step 3 below) that only conditionally
+    // renders a preview - a plain `required` attribute on a hidden input
+    // either does nothing useful or throws "not focusable" and breaks the
+    // step flow entirely, so this is enforced here instead, on the actual
+    // submit handler that advances past step 3, not just via HTML.
+    if (step === 3 && role === 'driver' && !formData.simPhoto) {
+      toast.error('Unggah foto SIM & STNK terlebih dahulu untuk melanjutkan.');
+      return;
+    }
     if (step < 4) {
       setStep(step + 1);
     } else {

@@ -5,6 +5,13 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { technicianEarnedAmount } from '../../services/orderService';
+
+// Matches TechOrdersPage.jsx/TechHomePage.jsx's real filter list - previously
+// this page only queried service_type 'service', silently excluding 'pool'
+// (and the WiraService/WiraPool variants) from a technician's own earnings
+// totals even though Home/Orders correctly include them.
+const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
 
 const TechEarningsPage = () => {
   const { user } = useAuth();
@@ -19,7 +26,7 @@ const TechEarningsPage = () => {
         .from('orders')
         .select('total_price, created_at')
         .eq('driver_id', user.id)
-        .eq('service_type', 'service')
+        .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .eq('status', 'completed');
 
       if (data) {
@@ -43,7 +50,9 @@ const TechEarningsPage = () => {
         data.forEach(o => {
           const oDate = new Date(o.created_at);
           const oDateStr = oDate.toLocaleDateString('id-ID');
-          const price = o.total_price || 0;
+          // Real technician share (80%, matching driver/merchant), not raw
+          // total_price - see technicianEarnedAmount's doc comment.
+          const price = technicianEarnedAmount(o);
 
           if (oDateStr === todayStr) tSum += price;
           wSum += price;
@@ -63,7 +72,7 @@ const TechEarningsPage = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pendapatan Teknisi</h1>
-      <EarningsCard today={todayTotal} week={weekTotal} progress={weekTotal > 0 ? 100 : 0} />
+      <EarningsCard today={todayTotal} week={weekTotal} />
 
       <Card className="p-4 h-72">
         <h3 className="font-semibold mb-4 text-slate-700 dark:text-slate-300">Grafik Mingguan (7 Hari Terakhir)</h3>

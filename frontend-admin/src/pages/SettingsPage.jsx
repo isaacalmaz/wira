@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { FormField } from '../components/common/UIComponents';
-import { Settings, Save, ShieldCheck, Plus, Trash2, X, RefreshCw } from 'lucide-react';
+import { Settings, Save, ShieldCheck, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
@@ -14,12 +13,13 @@ const SettingsPage = () => {
   const [defaultRegion, setDefaultRegion] = useState('Kota Mataram');
   const [csPhone, setCsPhone] = useState('081234567890');
 
-  // Admin users
+  // Admin users - see the honest-UI note near the "Pengelola & Hak Akses
+  // Admin" card below: this list is just a JSON array inside feature_flags,
+  // never real Supabase Auth users or public.users rows, so it is display
+  // information only now, not an editable access-control list.
   const [admins, setAdmins] = useState([
-    { id: 'adm_1', name: 'Super Administrator', email: 'admin@wira.app', role: 'Super Admin', status: 'Active' }
+    { id: 'adm_1', name: 'Super Administrator', email: 'admin@wira.app', role: 'Superadmin', status: 'Active' }
   ]);
-  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
-  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', role: 'Admin Operasional' });
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -81,40 +81,19 @@ const SettingsPage = () => {
     }
   };
 
-  const handleAddAdmin = async (e) => {
-    e.preventDefault();
-    if (!newAdmin.name || !newAdmin.email) {
-      toast.error('Nama dan Email wajib diisi');
-      return;
-    }
-
-    const updatedAdmins = [
-      ...admins,
-      {
-        id: 'adm_' + Date.now(),
-        name: newAdmin.name,
-        email: newAdmin.email,
-        role: newAdmin.role,
-        status: 'Active'
-      }
-    ];
-
-    setAdmins(updatedAdmins);
-    setIsAddAdminOpen(false);
-    setNewAdmin({ name: '', email: '', role: 'Admin Operasional' });
-    await saveSettingsToCloud(updatedAdmins);
-    toast.success('Admin baru berhasil ditambahkan');
-  };
-
-  const handleDeleteAdmin = async (id) => {
-    if (admins.length <= 1) {
-      toast.error('Minimal harus ada 1 Super Administrator');
-      return;
-    }
-    const updated = admins.filter(a => a.id !== id);
-    setAdmins(updated);
-    await saveSettingsToCloud(updated);
-    toast.success('Admin berhasil dihapus');
+  // Tambah/Hapus Admin used to only write a fake entry into this JSON array
+  // inside feature_flags - it never created a real Supabase Auth user or a
+  // public.users row, so nothing granted here ever actually worked, yet the
+  // old UI showed a green "Admin baru berhasil ditambahkan" success toast as
+  // if it had. That's actively misleading: an operator could walk away
+  // believing they'd granted someone real dashboard access when they had
+  // not granted anything at all. Building the real version needs a
+  // server-side endpoint with service-role privileges (out of scope for
+  // this fix - flagged for the coordinator/backend). Until then, both
+  // actions are disabled and just point at that gap honestly instead of
+  // faking success.
+  const notifyAuthNotConnected = () => {
+    toast.error('Fitur ini belum terhubung ke sistem otentikasi - hubungi developer.');
   };
 
   return (
@@ -194,12 +173,26 @@ const SettingsPage = () => {
             </h2>
             <p className="text-xs text-slate-500">Daftar pengguna dengan hak akses dashboard admin</p>
           </div>
-          <button onClick={() => setIsAddAdminOpen(true)} className="btn-primary py-1.5 px-3 text-sm flex items-center gap-1.5">
+          <button
+            onClick={notifyAuthNotConnected}
+            disabled
+            title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
+            className="py-1.5 px-3 text-sm flex items-center gap-1.5 rounded-lg bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400"
+          >
             <Plus size={16} /> Tambah Admin
           </button>
         </div>
-        
-        <div className="overflow-x-auto">
+
+        <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <span>
+            Fitur ini belum terhubung ke sistem otentikasi - hubungi developer. Daftar di bawah hanya catatan
+            lokal (bukan akun login Supabase sungguhan): menambah atau menghapus baris di sini <strong>tidak</strong> membuat
+            atau mencabut akses masuk dashboard admin secara nyata.
+          </span>
+        </div>
+
+        <div className="overflow-x-auto mt-2">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
@@ -226,11 +219,17 @@ const SettingsPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {a.role !== 'Super Admin' && (
-                      <button 
-                        onClick={() => handleDeleteAdmin(a.id)} 
-                        className="text-red-500 hover:text-red-700 p-1 rounded"
-                        title="Hapus Admin"
+                    {/* Guard fixed to compare against the real 'Superadmin' role
+                        string (no space) used everywhere else in this codebase -
+                        it previously compared against 'Super Admin' (with a
+                        space), which never matched. The action itself stays
+                        disabled either way until real admin management ships. */}
+                    {a.role !== 'Superadmin' && (
+                      <button
+                        onClick={notifyAuthNotConnected}
+                        disabled
+                        className="text-slate-400 p-1 rounded cursor-not-allowed"
+                        title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -242,68 +241,6 @@ const SettingsPage = () => {
           </table>
         </div>
       </div>
-
-      {/* Modal Add Admin */}
-      {isAddAdminOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Tambah Administrator Baru</h3>
-              <button onClick={() => setIsAddAdminOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddAdmin} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  value={newAdmin.name} 
-                  onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
-                  placeholder="Contoh: Budi Santoso" 
-                  className="input-field w-full" 
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={newAdmin.email} 
-                  onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
-                  placeholder="admin@wira.app" 
-                  className="input-field w-full" 
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Peran (Role)</label>
-                <select 
-                  value={newAdmin.role} 
-                  onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
-                  className="input-field w-full"
-                >
-                  <option value="Admin Operasional">Admin Operasional</option>
-                  <option value="Admin Keuangan">Admin Keuangan</option>
-                  <option value="Customer Service">Customer Service</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800">
-                <button type="button" onClick={() => setIsAddAdminOpen(false)} className="btn-secondary">
-                  Batal
-                </button>
-                <button type="submit" className="btn-primary">
-                  Simpan Admin
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

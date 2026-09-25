@@ -1,41 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import ChatModal from '../components/common/ChatModal';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
-import {
-  Package,
-  Truck,
-  MapPin,
-  Phone,
-  User,
-  CheckCircle2,
-  Copy,
-  ArrowRight,
-  Clock,
-  ShieldCheck,
-  MessageCircle,
-} from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchCoordinates } from '../utils/osmHelpers';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import API_BASE_URL from '../config/api';
 
 export default function SendPage() {
   const navigate = useNavigate();
   const { balance, pay } = useWallet();
   const { addOrder } = useOrders();
 
-  const [step, setStep] = useState('form'); // 'form', 'tracking'
   const [selectedPackage, setSelectedPackage] = useState('kecil');
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [activeOrderId, setActiveOrderId] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx's
   // handleCheckPromo/activePromo/calculateFinalPrice.
@@ -53,10 +35,6 @@ export default function SendPage() {
   const [receiverPhone, setReceiverPhone] = useState('');
   const [receiverAddress, setReceiverAddress] = useState('');
   const [itemNote, setItemNote] = useState('');
-
-  // Tracking State
-  const [trackingData, setTrackingData] = useState(null);
-  const [deliveryStage, setDeliveryStage] = useState(0);
 
   const packages = [
     { id: 'dokumen', name: 'Dokumen', desc: 'Berkas / Kertas (< 1kg)', price: 8000, icon: '📄' },
@@ -108,49 +86,6 @@ export default function SendPage() {
     }
     return Math.max(0, basePrice - activePromo.discount);
   };
-
-  // Efek Real-time untuk mendengarkan perubahan status kurir
-  useEffect(() => {
-    if (!activeOrderId) return;
-
-    const channel = supabase
-      .channel(`send_order_${activeOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        async (payload) => {
-          const newStatus = payload.new.status;
-          if (newStatus === 'accepted') {
-            let courierName = 'Kurir Mitra Wira';
-            let courierPhone = '-';
-            if (payload.new.driver_id) {
-              const { data: driverUser } = await supabase.from('users').select('name, phone, email').eq('id', payload.new.driver_id).maybeSingle();
-              const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-              let regInfo = null;
-              if (flagsData && Array.isArray(flagsData.features)) {
-                regInfo = flagsData.features.find(f => f.auth_id === payload.new.driver_id || f.email === driverUser?.email);
-              }
-              courierName = `${driverUser?.name || 'Kurir Wira'} (${regInfo?.vehicle || 'Sepeda Motor'} - ${regInfo?.plate || 'DR WIRA'})`;
-              courierPhone = driverUser?.phone || '-';
-            }
-            setTrackingData(prev => prev ? { ...prev, courier: courierName, courierPhone } : prev);
-            setDeliveryStage(1);
-            toast.success('Kurir telah menerima pengiriman paket!', { icon: '📦' });
-          } else if (newStatus === 'picking_up' || newStatus === 'in_trip') {
-            setDeliveryStage(2);
-            if (newStatus === 'in_trip') toast.success('Paket dalam perjalanan ke penerima!', { icon: '🚚' });
-          } else if (newStatus === 'completed') {
-            setDeliveryStage(3);
-            toast.success('Paket telah berhasil diantar ke penerima!');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeOrderId]);
 
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
@@ -262,21 +197,7 @@ export default function SendPage() {
       // Best-effort nearby-courier push, fired only after the order exists,
       // never blocking or surfacing an error to the customer's booking flow.
 
-      setTrackingData({
-        resi: resi,
-        courier: 'Mencari Kurir WiraSend terdekat...',
-        courierPhone: '-',
-        sender: senderName,
-        receiver: receiverName,
-        from: senderAddress,
-        to: receiverAddress,
-        pkgName: currentPkg.name,
-        price: finalPrice,
-      });
-
       handleRemovePromo(); // don't let a used promo silently discount the next Send order
-      setStep('tracking');
-      setDeliveryStage(0);
       toast.success('Mencari kurir terdekat...');
     } catch (err) {
       toast.error(err.message || 'Pemesanan kurir gagal');
@@ -296,8 +217,7 @@ export default function SendPage() {
         </p>
       </div>
 
-      {step === 'form' ? (
-        <form onSubmit={handleOrderSubmit} className="space-y-4">
+      <form onSubmit={handleOrderSubmit} className="space-y-4">
           {/* Detail Pengirim */}
           <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-2">
@@ -502,107 +422,6 @@ export default function SendPage() {
             {loading ? 'Memesan Kurir...' : `Pesan Kurir Sekarang • ${formatRupiah(calculateFinalPrice())}`}
           </Button>
         </form>
-      ) : (
-        /* TAMPILAN LIVE TRACKING PENGIRIMAN PAKET */
-        <div className="space-y-4 animate-in fade-in zoom-in duration-150">
-          <Card className="p-6 text-center space-y-4 border-2 border-primary/30 shadow-xl">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full mx-auto flex items-center justify-center">
-              <Truck size={32} className="animate-bounce" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                {deliveryStage === 0 ? 'Mencari Kurir Terdekat...' : 'Kurir Sedang Menuju Lokasi'}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {deliveryStage === 0 ? 'Sistem Wira sedang mencarikan kurir untuk paket Anda' : 'Estimasi penjemputan paket dalam ± 10 menit'}
-              </p>
-            </div>
-
-            {/* Kotak Nomor Resi */}
-            <div className="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-slate-400 font-semibold uppercase">Nomor Resi Resmi</p>
-                <p className="font-mono font-extrabold text-base text-primary tracking-wider">
-                  {trackingData?.resi}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(trackingData?.resi);
-                  toast.success('No. Resi disalin!');
-                }}
-                className="text-primary hover:text-cyan-700 p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                title="Salin Resi"
-              >
-                <Copy size={16} />
-              </button>
-            </div>
-
-            {/* Tahapan Pengiriman */}
-            <div className="text-left space-y-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-700 text-xs">
-              <div className="flex items-start gap-3">
-                <div className={`w-3 h-3 rounded-full mt-1 ${deliveryStage >= 1 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Kurir Ditugaskan</p>
-                  <p className="text-slate-500">{trackingData?.courier}</p>
-                </div>
-              </div>
-              <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
-              <div className="flex items-start gap-3">
-                <div className={`w-3 h-3 rounded-full mt-1 ${deliveryStage >= 2 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Paket Dijemput & Dalam Perjalanan</p>
-                  <p className="text-slate-500">{trackingData?.from} ➔ {trackingData?.to}</p>
-                </div>
-              </div>
-              <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
-              <div className="flex items-start gap-3">
-                <div className={`w-3 h-3 rounded-full mt-1 ${deliveryStage >= 3 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Diterima Penerima</p>
-                  <p className="text-slate-500">{trackingData?.receiver}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              {deliveryStage < 3 ? (
-                <>
-                  <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
-                    Menunggu update dari kurir...
-                  </div>
-                  {deliveryStage >= 1 && (
-                    <Button
-                      className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs px-4 flex items-center gap-1.5"
-                      onClick={() => setIsChatOpen(true)}
-                    >
-                      <MessageCircle size={16} /> Chat
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
-                  onClick={() => {
-                    setStep('form');
-                    setTrackingData(null);
-                  }}
-                >
-                  Selesai ✓
-                </Button>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {isChatOpen && activeOrderId && (
-        <ChatModal
-          orderId={activeOrderId}
-          onClose={() => setIsChatOpen(false)}
-          receiverName={trackingData?.courier}
-        />
-      )}
     </div>
   );
 }

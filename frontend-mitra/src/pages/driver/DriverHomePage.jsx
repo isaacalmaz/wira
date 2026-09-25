@@ -189,6 +189,15 @@ const DriverHomePage = () => {
 
     let lastSentAt = 0;
     let warnedPermission = false;
+    // Debounce timeout/POSITION_UNAVAILABLE toasts separately from the
+    // one-shot permission warning above - those two error codes are the
+    // realistic "riding through an area with weak signal" case and can
+    // legitimately recur many times a minute while GPS is flaky, so warn at
+    // most once per window instead of either spamming every failed fix or
+    // (the previous bug) never telling the driver at all beyond a
+    // console.warn they'd never see.
+    let lastUnavailableWarnAt = 0;
+    const UNAVAILABLE_WARN_INTERVAL_MS = 30000;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -202,9 +211,20 @@ const DriverHomePage = () => {
           .catch((err) => console.warn('updateDriverLocation failed:', err.message));
       },
       (error) => {
-        if (error.code === 1 && !warnedPermission) {
-          warnedPermission = true;
-          toast.error('Aktifkan izin lokasi agar Anda muncul di pencarian driver terdekat.');
+        if (error.code === 1) {
+          if (!warnedPermission) {
+            warnedPermission = true;
+            toast.error('Aktifkan izin lokasi agar Anda muncul di pencarian driver terdekat.');
+          }
+        } else if (error.code === 2 || error.code === 3) {
+          // POSITION_UNAVAILABLE or TIMEOUT - the driver's live position has
+          // silently stopped updating. Previously this only console.warn'd,
+          // so a driver riding through a weak-signal area never found out.
+          const now = Date.now();
+          if (now - lastUnavailableWarnAt > UNAVAILABLE_WARN_INTERVAL_MS) {
+            lastUnavailableWarnAt = now;
+            toast.error('Sinyal GPS lemah - posisi Anda mungkin tidak ter-update. Periksa koneksi/GPS Anda.');
+          }
         }
         console.warn('GPS tracking error:', error);
       },
@@ -498,7 +518,7 @@ const DriverHomePage = () => {
                 </div>
               )}
               <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-1 shadow-lg">
-                <EarningsCard today={todayEarnings} week={weekEarnings} progress={completedTrips > 0 ? 100 : 0} />
+                <EarningsCard today={todayEarnings} week={weekEarnings} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <StatTile icon={Target} value={completedTrips} label="Trip Selesai" />

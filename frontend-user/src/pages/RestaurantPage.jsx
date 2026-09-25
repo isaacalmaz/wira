@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
-import ChatModal from '../components/common/ChatModal';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
@@ -19,11 +18,8 @@ import {
   ShoppingBag,
   MapPin,
   ArrowLeft,
-  CheckCircle2,
   Tag,
   X,
-  Bike,
-  MessageCircle,
   LocateFixed,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -50,20 +46,27 @@ export default function RestaurantPage() {
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [trackingStage, setTrackingStage] = useState(1);
   const [merchantCoords, setMerchantCoords] = useState(null);
   const [distance, setDistance] = useState(0);
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState(5000);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     const fetchRest = async () => {
+      setFetchError(false);
       // Ambil data restoran
-      const { data: merchantData } = await supabase
+      const { data: merchantData, error: merchantError } = await supabase
         .from('merchants')
         .select('*')
         .eq('id', id)
         .single();
-        
+
+      if (merchantError || !merchantData) {
+        console.error(merchantError);
+        setFetchError(true);
+        return;
+      }
+
       if (merchantData) {
         // Ambil data menu (products)
         const { data: productsData } = await supabase
@@ -107,49 +110,25 @@ export default function RestaurantPage() {
     }
   }, [merchantCoords, deliveryCoords]);
 
-  const [activeOrderId, setActiveOrderId] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-
-  useEffect(() => {
-    if (!activeOrderId) return;
-
-    const channel = supabase
-      .channel(`order_${activeOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        (payload) => {
-          const newStatus = payload.new.status;
-
-          if (newStatus === 'accepted') {
-            setTrackingStage(1);
-            toast.success(`Pesanan Anda diterima oleh restoran!`, { icon: '🍲' });
-          }
-          else if (newStatus === 'preparing') {
-            setTrackingStage(2);
-            toast.success('Restoran mulai menyiapkan pesanan Anda!', { icon: '🍳' });
-          }
-          else if (newStatus === 'ready') {
-            // Distinct from 'preparing' - the food is cooked, but no driver
-            // has claimed it for delivery yet. Previously these two statuses
-            // collapsed into the same "Sedang Dimasak" stage, so a customer
-            // had no way to tell "still cooking" from "cooked, waiting for a
-            // courier."
-            setTrackingStage(3);
-            toast.success('Pesanan Anda siap, menunggu kurir mengambil!', { icon: '📦' });
-          }
-          else if (newStatus === 'completed') {
-            setTrackingStage(4);
-            handleCompleteFood();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeOrderId]);
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-20 px-4 max-w-md mx-auto">
+        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mb-4">
+          <X size={28} />
+        </div>
+        <h2 className="font-bold text-lg text-slate-900 dark:text-white mb-1">
+          Restoran Tidak Ditemukan
+        </h2>
+        <p className="text-sm text-slate-500 mb-6">
+          Restoran ini mungkin sudah tidak tersedia, atau terjadi gangguan jaringan. Silakan coba lagi.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.location.reload()}>Coba Lagi</Button>
+          <Button onClick={() => navigate('/food')}>Kembali ke WiraFood</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!rest) {
     return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
@@ -317,23 +296,11 @@ export default function RestaurantPage() {
       navigate(`/active-order/${order.id}`);
       clearCart();
       handleRemovePromo(); // don't let a used promo silently discount the next order
-      setStep('tracking');
-      setTrackingStage(0); // 0 = Menunggu Konfirmasi Restoran
       toast.success('Menunggu konfirmasi dari restoran...');
     } catch (err) {
       toast.error(err.message || 'Pemesanan gagal');
     }
     setLoading(false);
-  };
-
-  
-  
-  const handleCompleteFood = () => {
-    // Payment already happened up-front in handleConfirmOrder now - calling
-    // pay() here again would double-charge the customer. This is just UI
-    // reset once the order reaches 'completed'.
-    setStep('menu');
-    toast.success('Makanan telah diterima. Selamat menikmati!');
   };
 
   return (
@@ -671,86 +638,6 @@ export default function RestaurantPage() {
         </div>
       )}
 
-      {/* TAMPILAN 3: STATUS PELACAKAN MAKANAN */}
-      {step === 'tracking' && (
-        <Card className="p-6 text-center space-y-4 border-2 border-primary/30 shadow-xl animate-in fade-in zoom-in duration-150">
-          <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center">
-            <Bike size={32} className="animate-bounce" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              Pesanan Sedang Diproses
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">{rest.name}</p>
-          </div>
-
-          {/* Tahapan Masak & Antar */}
-          <div className="text-left space-y-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-700 text-xs">
-            <div className="flex items-start gap-3">
-              <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 1 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Pesanan Diterima Restoran</p>
-                <p className="text-slate-500">Koki sedang menyiapkan menu lezat Anda</p>
-              </div>
-            </div>
-            <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
-            <div className="flex items-start gap-3">
-              <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 2 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Makanan Sedang Dimasak</p>
-                <p className="text-slate-500">Estimasi matang dalam 10 menit</p>
-              </div>
-            </div>
-            <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
-            <div className="flex items-start gap-3">
-              <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 3 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Siap, Menunggu Kurir</p>
-                <p className="text-slate-500">Pesanan sudah matang, mencari driver terdekat</p>
-              </div>
-            </div>
-            <div className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 ml-1.5"></div>
-            <div className="flex items-start gap-3">
-              <div className={`w-3 h-3 rounded-full mt-1 ${trackingStage >= 4 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Pesanan Selesai</p>
-                <p className="text-slate-500">{deliveryAddress}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {trackingStage < 4 ? (
-              <>
-                <div className="flex-1 text-center text-xs text-slate-400 py-2.5">
-                  Menunggu update dari restoran...
-                </div>
-                <Button
-                  className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs px-4 flex items-center gap-1.5"
-                  onClick={() => setIsChatOpen(true)}
-                >
-                  <MessageCircle size={16} /> Chat
-                </Button>
-              </>
-            ) : (
-              <Button
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs"
-                onClick={() => setStep('menu')}
-              >
-                Selesai ✓
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {isChatOpen && activeOrderId && (
-        <ChatModal
-          orderId={activeOrderId}
-          onClose={() => setIsChatOpen(false)}
-          receiverName={rest?.name}
-        />
-      )}
     </div>
   );
 }

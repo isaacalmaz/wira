@@ -21,7 +21,6 @@ const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
 const SavedAddressesPage = lazy(() => import('./pages/SavedAddressesPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const OTPPage = lazy(() => import('./pages/OTPPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const ActiveOrderPage = lazy(() => import('./pages/ActiveOrderPage'));
@@ -34,6 +33,7 @@ const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function Root() {
   return (
@@ -52,7 +52,6 @@ export default function Root() {
                           {/* Pelanggan (User) Authentication */}
                           <Route path="/login" element={<LoginPage />} />
                           <Route path="/register" element={<RegisterPage />} />
-                          <Route path="/otp" element={<OTPPage />} />
 
                           {/* Pelanggan (User) Main Layout & Services */}
                           <Route element={<Layout />}>
@@ -79,6 +78,9 @@ export default function Root() {
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/refund" element={<RefundPage />} />
                           </Route>
+
+                          {/* Fallback for any unmatched/stale route */}
+                          <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                       </Suspense>
                     </BrowserRouter>

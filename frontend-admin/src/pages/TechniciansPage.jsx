@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { Wrench, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
+import { ConfirmModal } from '../components/common/UIComponents';
 
 const TechniciansPage = () => {
   const [techs, setTechs] = useState([]);
@@ -10,6 +11,7 @@ const TechniciansPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTech, setSelectedTech] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [blockTarget, setBlockTarget] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -101,7 +103,18 @@ const TechniciansPage = () => {
     }
   };
 
-  const toggleStatus = async (id, currentStatus) => {
+  // Step 1: ask for confirmation before blocking/unblocking - this used to
+  // fire immediately on one icon click, but blocking a technician
+  // mid-job is immediately consequential to them.
+  const toggleStatus = (id, currentStatus) => {
+    const tech = techs.find(t => t.id === id);
+    setBlockTarget({ id, name: tech?.name || 'teknisi ini', currentStatus: currentStatus || 'Aktif' });
+  };
+
+  // Step 2: only reached after the operator confirms in the ConfirmModal.
+  const confirmToggleStatus = async () => {
+    if (!blockTarget) return;
+    const { id, currentStatus } = blockTarget;
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
       const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
@@ -112,6 +125,8 @@ const TechniciansPage = () => {
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Gagal mengubah status');
+    } finally {
+      setBlockTarget(null);
     }
   };
 
@@ -195,6 +210,18 @@ const TechniciansPage = () => {
           onVerify={handleVerify}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!blockTarget}
+        title={blockTarget?.currentStatus === 'Aktif' ? 'Blokir Teknisi' : 'Aktifkan Kembali Teknisi'}
+        message={blockTarget ? (
+          blockTarget.currentStatus === 'Aktif'
+            ? `Anda akan memblokir "${blockTarget.name}". Teknisi ini tidak akan bisa menerima order jasa servis baru sampai diaktifkan kembali.`
+            : `Anda akan mengaktifkan kembali "${blockTarget.name}". Teknisi ini akan bisa menerima order lagi.`
+        ) : ''}
+        onConfirm={confirmToggleStatus}
+        onCancel={() => setBlockTarget(null)}
+      />
     </div>
   );
 };

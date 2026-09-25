@@ -50,9 +50,13 @@ export default function WalletPage() {
   const [transferNote, setTransferNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // QRIS Payment State
+  // Merchant Payment State - a direct WiraPay balance transfer to a named
+  // merchant/amount the user enters. Previously the merchant name was a
+  // hardcoded constant with no input anywhere in the flow to change it, so
+  // every "QRIS" payment was recorded against the same fake merchant
+  // regardless of where the customer actually was.
   const [qrisAmount, setQrisAmount] = useState('');
-  const [merchantName, setMerchantName] = useState('Warung Ayam Taliwang H. Moerad');
+  const [merchantName, setMerchantName] = useState('');
 
   const quickAmounts = [20000, 50000, 100000, 200000, 500000];
 
@@ -337,6 +341,10 @@ export default function WalletPage() {
 
   const handleQrisPay = async (e) => {
     e.preventDefault();
+    if (!merchantName.trim()) {
+      toast.error('Masukkan nama merchant tujuan pembayaran');
+      return;
+    }
     const amt = Number(qrisAmount);
     if (!amt || amt <= 0) {
       toast.error('Nominal tidak valid');
@@ -350,10 +358,11 @@ export default function WalletPage() {
     setLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 800));
-      await pay(amt, `Bayar QRIS - ${merchantName}`);
+      await pay(amt, `Bayar Merchant - ${merchantName.trim()}`);
       toast.success(`Pembayaran ${formatRupiah(amt)} Berhasil!`);
       setModalType(null);
       setQrisAmount('');
+      setMerchantName('');
     } catch (err) {
       toast.error(err.message || 'Pembayaran gagal');
     } finally {
@@ -404,8 +413,8 @@ export default function WalletPage() {
             onClick={() => setModalType('qris')}
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
-            <QrCode size={18} className="text-cyan-200" />
-            <span>Bayar QRIS</span>
+            <Building2 size={18} className="text-cyan-200" />
+            <span>Bayar Merchant</span>
           </button>
         </div>
       </div>
@@ -894,7 +903,8 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* MODAL 3: BAYAR QRIS */}
+      {/* MODAL 3: BAYAR MERCHANT (transfer saldo WiraPay langsung - bukan
+          pemindaian QRIS pihak ketiga; lihat catatan di atas merchantName) */}
       {modalType === 'qris' && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative text-center">
@@ -906,30 +916,44 @@ export default function WalletPage() {
             </button>
 
             <div>
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-primary mb-2 shadow-inner">
+                <Building2 size={24} />
+              </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Bayar QRIS Merchant
+                Bayar Merchant
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Scan barcode merchant di toko/resto di Lombok
-              </p>
-            </div>
-
-            {/* Visualisasi Barcode QRIS */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border-2 border-dashed border-primary/40 inline-block mx-auto">
-              <div className="w-40 h-40 bg-white rounded-xl p-2 flex items-center justify-center shadow-inner relative overflow-hidden">
-                <QrCode size={130} className="text-slate-800" />
-                <div className="absolute inset-0 bg-primary/10 flex items-center justify-center animate-pulse pointer-events-none"></div>
-              </div>
-              <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-2">
-                Merchant: {merchantName}
+                Kirim saldo WiraPay Anda langsung ke merchant sebagai pembayaran
               </p>
             </div>
 
             <form onSubmit={handleQrisPay} className="space-y-4 text-left">
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  Nominal Pembayaran
+                  Nama Merchant
                 </label>
+                <div className="relative">
+                  <Building2 size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Contoh: Warung Ayam Taliwang H. Moerad"
+                    value={merchantName}
+                    onChange={(e) => setMerchantName(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Nominal Pembayaran
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Saldo: {formatRupiah(balance)}
+                  </span>
+                </div>
                 <div className="relative">
                   <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm">
                     Rp
@@ -949,7 +973,7 @@ export default function WalletPage() {
               <Button
                 type="submit"
                 className="w-full py-3 font-bold"
-                disabled={loading || !qrisAmount || Number(qrisAmount) > balance}
+                disabled={loading || !qrisAmount || !merchantName.trim() || Number(qrisAmount) > balance}
               >
                 {loading ? 'Memproses...' : 'Konfirmasi Bayar'}
               </Button>

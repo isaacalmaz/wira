@@ -4,8 +4,13 @@ import { supabase } from '../config/supabase';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import WiraMap from '../components/common/WiraMap';
+import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, MapPin, Plus, Trash2, Home, Briefcase, Star } from 'lucide-react';
+import { ArrowLeft, MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide-react';
+import { APP_CONFIG } from '../config/app';
+
+const DEFAULT_COORDS = { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng };
 
 export default function SavedAddressesPage() {
   const { user } = useAuth();
@@ -13,13 +18,21 @@ export default function SavedAddressesPage() {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     label: '',
     address: '',
-    lat: -8.58333,
-    lng: 116.11667
+    lat: DEFAULT_COORDS.lat,
+    lng: DEFAULT_COORDS.lng
   });
+  // Tracks whether lat/lng below have actually been set from a real user
+  // action (memilih saran alamat, menggeser pin di peta, atau "Gunakan
+  // Lokasi Saat Ini") - sebelumnya lat/lng SELALU diinisialisasi ke
+  // DEFAULT_COORDS dan tidak pernah diperbarui dari input pengguna, jadi
+  // setiap alamat tersimpan mendapat koordinat yang sama persis terlepas
+  // dari alamat aslinya. Dipakai untuk memperingatkan pengguna sebelum
+  // menyimpan koordinat default yang belum tentu benar.
+  const [hasPickedLocation, setHasPickedLocation] = useState(false);
 
   const fetchAddresses = async () => {
     if (!user) return;
@@ -51,7 +64,11 @@ export default function SavedAddressesPage() {
       toast.error('Label dan Alamat wajib diisi');
       return;
     }
-    
+    if (!hasPickedLocation) {
+      toast.error('Tentukan titik lokasi yang tepat: cari alamat, geser pin di peta, atau gunakan lokasi saat ini');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('saved_addresses')
@@ -64,14 +81,63 @@ export default function SavedAddressesPage() {
         }]);
 
       if (error) throw error;
-      
+
       toast.success('Alamat berhasil disimpan');
       setIsModalOpen(false);
-      setFormData({ label: '', address: '', lat: -8.58333, lng: 116.11667 });
+      setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+      setHasPickedLocation(false);
       fetchAddresses();
     } catch (err) {
       console.error('Error saving address:', err);
       toast.error('Gagal menyimpan alamat');
+    }
+  };
+
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      return;
+    }
+    const toastId = toast.loading('Mencari lokasi Anda...');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setFormData(prev => ({ ...prev, lat: latLng.lat, lng: latLng.lng }));
+        setHasPickedLocation(true);
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            setFormData(prev => ({ ...prev, address: data.display_name }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        toast.success('Lokasi ditemukan!', { id: toastId });
+      },
+      (error) => {
+        console.error('GPS Error:', error);
+        let errorMsg = 'Gagal mendapatkan lokasi.';
+        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
+        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
+        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout.';
+        toast.error(errorMsg, { id: toastId, duration: 6000 });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  };
+
+  const handleMarkerDrag = async (idx, latLng) => {
+    setFormData(prev => ({ ...prev, lat: latLng.lat, lng: latLng.lng }));
+    setHasPickedLocation(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        setFormData(prev => ({ ...prev, address: data.display_name }));
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -107,7 +173,14 @@ export default function SavedAddressesPage() {
         <h1 className="text-xl font-bold dark:text-white">Alamat Tersimpan</h1>
       </div>
 
-      <Button onClick={() => setIsModalOpen(true)} className="w-full mb-4 flex items-center justify-center gap-2">
+      <Button
+        onClick={() => {
+          setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+          setHasPickedLocation(false);
+          setIsModalOpen(true);
+        }}
+        className="w-full mb-4 flex items-center justify-center gap-2"
+      >
         <Plus size={18} /> Tambah Alamat Baru
       </Button>
 
@@ -154,15 +227,42 @@ export default function SavedAddressesPage() {
                   required
                 />
               </div>
-              <div>
+              <div className="relative z-10">
                 <label className="block text-sm font-medium mb-1 dark:text-slate-300">Detail Alamat</label>
-                <textarea 
+                <LocationAutocomplete
+                  placeholder="Cari alamat (cth: Jl. Pejanggik, Mataram)"
+                  icon={MapPin}
+                  iconColor="text-red-500"
                   value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border rounded-xl dark:text-white"
-                  rows="3"
-                  required
-                ></textarea>
+                  onChange={(val) => setFormData(prev => ({ ...prev, address: val }))}
+                  onSelect={(loc) => {
+                    setFormData(prev => ({ ...prev, address: loc.fullAddress, lat: loc.lat, lng: loc.lng }));
+                    setHasPickedLocation(true);
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-end -mt-1">
+                <button
+                  type="button"
+                  onClick={handleLocateMe}
+                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
+                >
+                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                </button>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-slate-300">
+                  Titik Lokasi di Peta {hasPickedLocation && <span className="text-green-600 font-normal">(dipilih)</span>}
+                </label>
+                <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <WiraMap
+                    center={{ lat: formData.lat, lng: formData.lng }}
+                    zoom={16}
+                    markers={[{ lat: formData.lat, lng: formData.lng, type: 'dropoff', label: formData.label || 'Alamat' }]}
+                    onMarkerDragEnd={handleMarkerDrag}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Geser pin di peta untuk menyesuaikan titik lokasi yang tepat.</p>
               </div>
               <div className="flex gap-3 mt-6">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Star, Calendar, Clock, MapPin, CheckCircle2, X, Shield, MessageCircle } from 'lucide-react';
+import { Wrench, Star, Calendar, Clock, MapPin, X, Shield } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import ChatModal from '../components/common/ChatModal';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
@@ -60,50 +59,12 @@ export default function ServicePage() {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [orderPending, setOrderPending] = useState(false); // request sent, awaiting technician acceptance
-  const [orderSuccess, setOrderSuccess] = useState(false); // technician accepted
-  const [activeOrderId, setActiveOrderId] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  // The actual amount charged for the active/last order - captured at
-  // booking time so the pending/success screens keep showing the real
-  // discounted total even after activePromo is cleared post-booking (see
-  // handleRemovePromo call in handleConfirmOrder).
-  const [paidPrice, setPaidPrice] = useState(0);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
   const [promoCode, setPromoCode] = useState('');
   const [activePromo, setActivePromo] = useState(null);
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
-
-  // Dengarkan penerimaan panggilan dari teknisi secara realtime
-  useEffect(() => {
-    if (!activeOrderId) return;
-
-    const channel = supabase
-      .channel(`order_${activeOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        (payload) => {
-          const newStatus = payload.new.status;
-          if (newStatus === 'accepted') {
-            setOrderPending(false);
-            setOrderSuccess(true);
-            toast.success('Teknisi telah menerima panggilan Anda!', { icon: '🔧' });
-          } else if (newStatus === 'cancelled') {
-            setOrderPending(false);
-            setIsModalOpen(false);
-            toast.error('Mohon maaf, tidak ada teknisi yang tersedia saat ini.');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeOrderId]);
 
   const categories = [
     { id: 'AC', icon: '❄️', name: 'Service AC & Cuci', price: 75000, desc: 'Cuci AC, tambah freon, perbaikan bocor' },
@@ -115,9 +76,6 @@ export default function ServicePage() {
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
     setSelectedTech(tech || technicians.find((t) => t.category.includes(cat.id)) || technicians[0] || { name: 'Mitra Teknisi Wira', rating: 5.0 });
-    setOrderPending(false);
-    setOrderSuccess(false);
-    setActiveOrderId(null);
     setActivePromo(null);
     setPromoCode('');
     setPromoError('');
@@ -205,8 +163,7 @@ export default function ServicePage() {
       }
 
       navigate(`/active-order/${order.id}`);
-      setPaidPrice(finalPrice);
-      setOrderPending(true);
+      setIsModalOpen(false);
 
       // Relevant to nearby ONLINE technicians, not drivers - but there is no
       // online/offline concept for technicians anywhere in this schema (no
@@ -319,8 +276,7 @@ export default function ServicePage() {
               <X size={20} />
             </button>
 
-            {!orderPending && !orderSuccess ? (
-              <form onSubmit={handleConfirmOrder} className="space-y-4">
+            <form onSubmit={handleConfirmOrder} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                     Pesan {selectedService?.name}
@@ -491,98 +447,8 @@ export default function ServicePage() {
                   </Button>
                 </div>
               </form>
-            ) : orderPending ? (
-              /* MENUNGGU TEKNISI MENERIMA */
-              <div className="text-center space-y-4 py-6">
-                <div className="relative w-14 h-14 mx-auto">
-                  <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  <Wrench size={20} className="absolute inset-0 m-auto text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Menunggu Teknisi
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
-                    Permintaan Anda sedang dikirim ke teknisi terdekat. Anda akan diberitahu segera setelah diterima.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full py-3 font-bold text-xs"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Tutup (tetap menunggu di latar belakang)
-                </Button>
-              </div>
-            ) : (
-              /* SUKSES DIJADWALKAN */
-              <div className="text-center space-y-4 py-3">
-                <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full mx-auto flex items-center justify-center">
-                  <CheckCircle2 size={36} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Pemesanan Berhasil!
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Teknisi Wira akan datang sesuai jadwal yang Anda tentukan
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Layanan:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {selectedService?.name}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Teknisi:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {selectedTech?.name} ({selectedTech?.phone})
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Waktu Kedatangan:</span>
-                    <span className="font-semibold text-primary">
-                      {serviceDate} pukul {serviceTime} WITA
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
-                    <span className="text-slate-500 font-bold">Biaya Jasa:</span>
-                    <span className="font-extrabold text-sm text-primary">
-                      {formatRupiah(paidPrice)} ({paymentMethod})
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 py-3 font-bold text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => setIsChatOpen(true)}
-                  >
-                    <MessageCircle size={16} /> Chat Teknisi
-                  </Button>
-                  <Button
-                    className="flex-1 py-3 font-bold"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Selesai
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      )}
-
-      {isChatOpen && activeOrderId && (
-        <ChatModal
-          orderId={activeOrderId}
-          onClose={() => setIsChatOpen(false)}
-          receiverName={selectedTech?.name}
-        />
       )}
     </div>
   );

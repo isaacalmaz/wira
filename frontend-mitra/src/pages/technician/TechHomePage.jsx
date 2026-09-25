@@ -28,10 +28,19 @@ const TechHomePage = () => {
     const fetchTechData = async () => {
       if (!user) return;
 
+      // Must only ever return orders that are either (a) already assigned to
+      // THIS technician, or (b) unassigned pool/service jobs available to
+      // claim - previously the .or() conditions were alternatives, not an
+      // AND, so `service_type.eq.service,service_type.eq.pool` matched ANY
+      // order of that type platform-wide, regardless of whose driver_id it
+      // had. That leaked another technician's in-progress job (customer
+      // name/phone/price, and a clickable route into their active-order
+      // page) into this technician's "Jadwal Pekerjaan" list. Service-type
+      // list matches TechOrdersPage.jsx's fetchOrders filter.
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .or(`driver_id.eq.${user.id},service_type.eq.service,service_type.eq.pool`)
+        .or(`driver_id.eq.${user.id},and(driver_id.is.null,service_type.in.(service,pool,WiraService,WiraPool))`)
         .order('created_at', { ascending: false });
 
       if (data) {
@@ -51,8 +60,12 @@ const TechHomePage = () => {
         setTodayEarnings(tEarn);
         setWeekEarnings(wEarn);
 
-        // Pekerjaan hari ini
-        const activeJobs = data.filter(d => [OrderStatus.ACCEPTED, OrderStatus.ON_THE_WAY, OrderStatus.WORKING].includes(d.status));
+        // Pekerjaan hari ini - jobs already in progress must be explicitly
+        // re-filtered to this technician's own driver_id. The query above
+        // also returns unassigned pool/service jobs available to claim
+        // (driver_id null), which must never surface here as if they were
+        // this technician's own active work.
+        const activeJobs = data.filter(d => d.driver_id === user.id && [OrderStatus.ACCEPTED, OrderStatus.ON_THE_WAY, OrderStatus.WORKING].includes(d.status));
         setTodayOrders(activeJobs);
       }
     };
@@ -97,7 +110,7 @@ const TechHomePage = () => {
         </div>
       </div>
 
-      <EarningsCard today={todayEarnings} week={weekEarnings} progress={weekEarnings > 0 ? 100 : 0} />
+      <EarningsCard today={todayEarnings} week={weekEarnings} />
 
       {isOnline && incomingOrder && (
         <div>

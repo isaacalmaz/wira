@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { Users, Search, Ban, CheckCircle, Car, Store, Wrench, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { ConfirmModal } from '../components/common/UIComponents';
 
 // 'courier' is no longer a separate mitra_access role - Driver now covers
 // Ride/Kurir/Makanan together via self-service preferences (migrations/0033).
@@ -19,6 +20,7 @@ const UsersPage = () => {
   const [correctionAmount, setCorrectionAmount] = useState('');
   const [correctionDesc, setCorrectionDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCorrectionConfirmOpen, setIsCorrectionConfirmOpen] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -36,7 +38,11 @@ const UsersPage = () => {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleBalanceCorrection = async (e) => {
+  // Step 1: validate the form and, if valid, open a confirmation step
+  // instead of firing the RPC directly - a typo in the amount used to post
+  // straight to a real user's real wallet_balance with no preview and no
+  // way to back out.
+  const handleBalanceCorrection = (e) => {
     e.preventDefault();
     if (!correctionModal) return;
     const amt = Number(correctionAmount);
@@ -48,7 +54,16 @@ const UsersPage = () => {
       toast.error('Catatan wajib diisi');
       return;
     }
-    
+
+    setIsCorrectionConfirmOpen(true);
+  };
+
+  // Step 2: only reached after the operator explicitly confirms in the
+  // ConfirmModal below - this is what actually fires the RPC.
+  const confirmBalanceCorrection = async () => {
+    if (!correctionModal) return;
+    const amt = Number(correctionAmount);
+
     setIsSubmitting(true);
     try {
       // Balance update + ledger entry both happen inside this one RPC call
@@ -62,10 +77,11 @@ const UsersPage = () => {
       if (creditErr) throw creditErr;
 
       toast.success('Koreksi saldo berhasil diterapkan');
+      setIsCorrectionConfirmOpen(false);
       setCorrectionModal(null);
       setCorrectionAmount('');
       setCorrectionDesc('');
-      fetchUsers(); // refresh data to show new balance (if we displayed it)
+      fetchUsers(); // refresh data to show new balance
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Gagal melakukan koreksi saldo');
@@ -253,13 +269,32 @@ const UsersPage = () => {
                   disabled={isSubmitting}
                   className="flex-1 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Memproses...' : 'Terapkan'}
+                  {isSubmitting ? 'Memproses...' : 'Lanjutkan'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Konfirmasi Koreksi Saldo - ringkasan saldo lama -> baru sebelum RPC
+          benar-benar dijalankan, agar salah ketik nominal tidak langsung
+          mengubah saldo asli pengguna tanpa jeda konfirmasi. */}
+      <ConfirmModal
+        isOpen={isCorrectionConfirmOpen}
+        title="Konfirmasi Koreksi Saldo"
+        message={correctionModal ? (() => {
+          const amt = Number(correctionAmount) || 0;
+          const current = Number(correctionModal.wallet_balance) || 0;
+          const next = current + amt;
+          const direction = amt >= 0 ? 'Menambah' : 'Mengurangi';
+          return `${direction} saldo ${correctionModal.name} sebesar Rp ${Math.abs(amt).toLocaleString('id-ID')}. ` +
+            `Saldo saat ini: Rp ${current.toLocaleString('id-ID')} -> Saldo baru: Rp ${next.toLocaleString('id-ID')}. ` +
+            `Catatan: "${correctionDesc}". Tindakan ini langsung berlaku pada saldo asli pengguna.`;
+        })() : ''}
+        onConfirm={confirmBalanceCorrection}
+        onCancel={() => setIsCorrectionConfirmOpen(false)}
+      />
     </div>
   );
 };

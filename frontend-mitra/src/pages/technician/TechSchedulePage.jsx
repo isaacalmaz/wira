@@ -4,6 +4,11 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar, CalendarX } from 'lucide-react';
 
+// Matches TechOrdersPage.jsx/TechHomePage.jsx's real filter list - previously
+// this page only queried service_type 'service', silently excluding 'pool'
+// (and the WiraService/WiraPool variants) from a technician's own schedule.
+const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
+
 const TechSchedulePage = () => {
   const { user } = useAuth();
   const [schedule, setSchedule] = useState([]);
@@ -15,7 +20,7 @@ const TechSchedulePage = () => {
         .from('orders')
         .select('*')
         .eq('driver_id', user.id)
-        .eq('service_type', 'service')
+        .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .order('created_at', { ascending: false });
 
       if (data) {

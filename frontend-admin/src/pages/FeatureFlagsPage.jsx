@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Save, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
+import { RefreshCw, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -120,7 +120,6 @@ const FeatureFlagsPage = () => {
   const [features, setFeatures] = useState(INITIAL_FEATURES);
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [showAddZone, setShowAddZone] = useState(false);
   const [newZone, setNewZone] = useState({ name: '', status_text: '' });
   const [editingZone, setEditingZone] = useState(null);
@@ -223,10 +222,42 @@ const FeatureFlagsPage = () => {
     }
   };
 
-  const toggleFeature = (id) => {
-    setFeatures(features.map(f => 
+  // Global service toggles used to only change local state until the
+  // separate, visually-distant "Simpan Konfigurasi Global" button was
+  // clicked, with no "unsaved changes" indicator anywhere - meaning a
+  // toggle here LOOKED identical to the per-zone toggles below (which save
+  // immediately) but silently did nothing until that other button was
+  // found and clicked. Fixed to save immediately on click, same as
+  // toggleZoneService: optimistic local update, persist to
+  // feature_flags.features_config right away, and revert + toast on
+  // failure. A clear toast on success (naming the feature and new state)
+  // replaces the old "Simpan Konfigurasi Global" button, since a global
+  // toggle affects the whole city/service and deserves visible confirmation
+  // that it actually took effect.
+  const toggleFeature = async (id) => {
+    const updatedFeatures = features.map(f =>
       f.id === id ? { ...f, status: !f.status } : f
-    ));
+    );
+    const target = updatedFeatures.find(f => f.id === id);
+
+    setFeatures(updatedFeatures);
+
+    try {
+      const { error } = await supabase
+        .from('feature_flags')
+        .upsert({
+          region: 'features_config',
+          features: updatedFeatures,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'region' });
+
+      if (error) throw error;
+      toast.success(`${target.name} ${target.status ? 'diaktifkan' : 'dinonaktifkan'} untuk seluruh kota.`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menyimpan perubahan fitur global');
+      fetchFeatures(); // revert local state on failure
+    }
   };
 
   const toggleZoneService = async (zoneId, serviceKey) => {
@@ -277,28 +308,6 @@ const FeatureFlagsPage = () => {
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const { error: configError } = await supabase
-        .from('feature_flags')
-        .upsert({
-          region: 'features_config',
-          features: features,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'region' });
-
-      if (configError) throw configError;
-
-      toast.success('Konfigurasi fitur global berhasil disimpan ke cloud!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal menyimpan konfigurasi');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {activeMapZone && (
@@ -317,23 +326,16 @@ const FeatureFlagsPage = () => {
           <p className="text-sm text-slate-500">Aktifkan atau nonaktifkan layanan secara dinamis di Pulau Lombok</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={fetchFeatures} 
+          <button
+            onClick={fetchFeatures}
             className="p-2 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
             title="Muat Ulang"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button 
-            onClick={handleSave} 
-            disabled={saving}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Save size={18} /> {saving ? 'Menyimpan...' : 'Simpan Konfigurasi Global'}
-          </button>
         </div>
       </div>
-      
+
       <div className="card overflow-hidden p-0">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Layanan Global</h2>

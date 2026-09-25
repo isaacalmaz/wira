@@ -4,9 +4,11 @@ import Card from '../components/common/Card';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { useNotification } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function NotificationsPage() {
   const { notifications: notifs, setNotifications } = useNotification();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,18 +17,25 @@ export default function NotificationsPage() {
   }, []);
 
   const handleMarkAllRead = async () => {
+    if (!user) return;
     const hasUnread = notifs.some(n => !n.is_read);
     if (!hasUnread) {
       toast.success("Semua notifikasi sudah dibaca");
       return;
     }
 
+    // Scoped to the current user - previously this updated is_read=true on
+    // EVERY unread row in public.notifications, not just this user's own
+    // (RLS - migrations/0053 - now also enforces auth.uid() = user_id on
+    // UPDATE, but this client-side filter stays as the honest, explicit
+    // query rather than relying on RLS alone).
     const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('is_read', false)
+      .eq('user_id', user.id)
       .select();
-      
+
     if (error) {
       toast.error("Gagal menandai dibaca: " + error.message);
     } else if (!data || data.length === 0) {

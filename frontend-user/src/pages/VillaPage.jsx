@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { Star, MapPin, Calendar, Users, CheckCircle2, X, ShieldCheck, Clock, MessageCircle } from 'lucide-react';
+import { Star, MapPin, X, ShieldCheck } from 'lucide-react';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import ChatModal from '../components/common/ChatModal';
 import API_BASE_URL from '../config/api';
 
 export default function VillaPage() {
@@ -60,10 +59,6 @@ export default function VillaPage() {
   const [guests, setGuests] = useState(2);
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
-  const [bookingPending, setBookingPending] = useState(null); // request sent, awaiting owner confirmation
-  const [bookingSuccess, setBookingSuccess] = useState(null); // owner confirmed
-  const [activeOrderId, setActiveOrderId] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
   const [promoCode, setPromoCode] = useState('');
@@ -116,35 +111,6 @@ export default function VillaPage() {
     return Math.max(0, subtotalPrice - activePromo.discount);
   })();
 
-  // Dengarkan konfirmasi/penolakan dari pemilik villa (mitra) secara realtime
-  useEffect(() => {
-    if (!activeOrderId) return;
-
-    const channel = supabase
-      .channel(`order_${activeOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${activeOrderId}` },
-        (payload) => {
-          const newStatus = payload.new.status;
-          if (newStatus === 'accepted' || newStatus === 'completed') {
-            setBookingSuccess(bookingPending);
-            setBookingPending(null);
-            toast.success('Reservasi Anda telah dikonfirmasi oleh pemilik villa!');
-          } else if (newStatus === 'cancelled') {
-            setBookingPending(null);
-            setSelectedVilla(null);
-            toast.error('Mohon maaf, reservasi villa ini tidak dapat dikonfirmasi.');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeOrderId, bookingPending]);
-
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (paymentMethod === 'WiraPay' && balance < totalPrice) {
@@ -181,15 +147,7 @@ export default function VillaPage() {
       }
 
       navigate(`/active-order/${order.id}`);
-      setBookingPending({
-        code: bookingCode,
-        villaName: selectedVilla.name,
-        nights,
-        checkIn,
-        guests,
-        total: totalPrice,
-        area: selectedVilla.area,
-      });
+      setSelectedVilla(null);
 
       // A villa booking is relevant to exactly ONE recipient - the villa's
       // owning merchant (merchants.owner_id, captured on `selectedVilla`
@@ -259,9 +217,6 @@ export default function VillaPage() {
             key={villa.id}
             onClick={() => {
               setSelectedVilla(villa);
-              setBookingPending(null);
-              setBookingSuccess(null);
-              setActiveOrderId(null);
               setActivePromo(null);
               setPromoCode('');
               setPromoError('');
@@ -326,8 +281,7 @@ export default function VillaPage() {
               <X size={20} />
             </button>
 
-            {!bookingPending && !bookingSuccess ? (
-              <form onSubmit={handleConfirmBooking} className="space-y-4">
+            <form onSubmit={handleConfirmBooking} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                     Reservasi {selectedVilla.name}
@@ -499,112 +453,8 @@ export default function VillaPage() {
                   </Button>
                 </div>
               </form>
-            ) : bookingPending ? (
-              /* MENUNGGU KONFIRMASI PEMILIK VILLA */
-              <div className="text-center space-y-4 py-6">
-                <div className="relative w-14 h-14 mx-auto">
-                  <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  <Clock size={22} className="absolute inset-0 m-auto text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Menunggu Konfirmasi
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
-                    Permintaan reservasi Anda telah dikirim ke pemilik {bookingPending.villaName}. Anda akan diberitahu segera setelah dikonfirmasi.
-                  </p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-left text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-bold uppercase text-[10px]">Kode Booking:</span>
-                    <span className="font-mono font-extrabold text-sm text-primary">{bookingPending.code}</span>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full py-3 font-bold text-xs"
-                  onClick={() => setSelectedVilla(null)}
-                >
-                  Tutup (tetap menunggu di latar belakang)
-                </Button>
-              </div>
-            ) : (
-              /* VOUCHER RESERVASI BERHASIL */
-              <div className="text-center space-y-4 py-2">
-                <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full mx-auto flex items-center justify-center">
-                  <CheckCircle2 size={36} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Reservasi Berhasil!
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Voucher menginap Anda telah siap
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                    <span className="text-slate-500 font-bold uppercase text-[10px]">
-                      Kode Booking:
-                    </span>
-                    <span className="font-mono font-extrabold text-sm text-primary">
-                      {bookingSuccess.code}
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <span className="text-slate-500">Villa:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {bookingSuccess.villaName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Tanggal Check-In:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {bookingSuccess.checkIn} ({bookingSuccess.nights} malam)
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Tamu:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {bookingSuccess.guests} Orang
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
-                    <span className="text-slate-500 font-bold">Total Terbayar:</span>
-                    <span className="font-extrabold text-sm text-primary">
-                      {formatRupiah(bookingSuccess.total)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 py-3 font-bold text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => setIsChatOpen(true)}
-                  >
-                    <MessageCircle size={16} /> Chat Pemilik
-                  </Button>
-                  <Button
-                    className="flex-1 py-3 font-bold"
-                    onClick={() => setSelectedVilla(null)}
-                  >
-                    Selesai & Tutup
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      )}
-
-      {isChatOpen && activeOrderId && (
-        <ChatModal
-          orderId={activeOrderId}
-          onClose={() => setIsChatOpen(false)}
-          receiverName={bookingSuccess?.villaName || selectedVilla?.name}
-        />
       )}
     </div>
   );

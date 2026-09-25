@@ -429,6 +429,17 @@ export function merchantEarnedAmount(order) {
 }
 
 /**
+ * Same 20% platform commission / 80% mitra share as driverEarnedAmount and
+ * merchantEarnedAmount above, applied to a technician's service/pool jobs.
+ * Unlike food orders, a service/pool order's total_price is the whole job
+ * price with nothing else split out of it, so the technician's share is
+ * simply 80% of total_price - no delivery_fee-style carve-out needed.
+ */
+export function technicianEarnedAmount(order) {
+  return (order.total_price || 0) * 0.8;
+}
+
+/**
  * Realtime INSERT payloads can't be filtered by distance server-side
  * (postgres_changes only supports simple column=eq.value filters), so this
  * checks it client-side. `getDriverPos` is called fresh on every event (not

@@ -3,8 +3,8 @@ import { Card, Button } from '../../components/shared/UIComponents';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Utensils, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Utensils, Loader2, MessageSquare } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 

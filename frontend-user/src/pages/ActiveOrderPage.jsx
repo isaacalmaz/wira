@@ -235,6 +235,22 @@ export default function ActiveOrderPage() {
           </div>
         )}
 
+        {order.status === 'pending' && (
+          <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
+            <div className="relative w-10 h-10 mx-auto mb-2">
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Mencari driver terdekat...
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {totalCandidates > 0
+                ? `${pingedCount} dari ${totalCandidates} driver di sekitar sudah dihubungi, menunggu salah satu menerima.`
+                : 'Sistem Wira sedang menghubungkan pesanan Anda dengan mitra di sekitar.'}
+            </p>
+          </div>
+        )}
+
         {['accepted', 'picking_up'].includes(order.status) && (
           <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
             {order.service_type === 'food' ? (

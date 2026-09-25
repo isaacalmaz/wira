@@ -103,7 +103,7 @@ const DriverEarningsPage = () => {
     <div className="space-y-6 pb-20">
       <h1 className="text-2xl font-bold">Pendapatan</h1>
       
-      <EarningsCard today={todayTotal} week={weekTotal} progress={weekTotal > 0 ? 100 : 0} />
+      <EarningsCard today={todayTotal} week={weekTotal} />
 
       <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
         <button className="flex-1 py-2 text-sm font-medium rounded-md capitalize bg-white dark:bg-slate-800 shadow text-primary">Harian</button>

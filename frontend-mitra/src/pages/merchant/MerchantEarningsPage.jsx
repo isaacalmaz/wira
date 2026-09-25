@@ -74,7 +74,7 @@ const MerchantEarningsPage = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Pendapatan Resto</h1>
-      <EarningsCard today={todayTotal} week={weekTotal} progress={weekTotal > 0 ? 100 : 0} />
+      <EarningsCard today={todayTotal} week={weekTotal} />
 
       <Card className="p-4 h-72">
         <h3 className="font-semibold mb-4">Tren Pendapatan (7 Hari Terakhir)</h3>

@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { Car, Package, Utensils, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
+import { ConfirmModal } from '../components/common/UIComponents';
 
 // Driver is now one unified mitra_access role covering Ride/Kurir/Makanan
 // together (migrations/0033 collapsed the earlier 'driver'/'courier' split
@@ -24,6 +25,7 @@ const DriversPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [blockTarget, setBlockTarget] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -134,7 +136,18 @@ const DriversPage = () => {
     }
   };
 
-  const toggleStatus = async (id, currentStatus) => {
+  // Step 1: ask for confirmation before blocking/unblocking - this used to
+  // fire immediately on one icon click, but blocking a driver mid-shift is
+  // immediately consequential to them (an active ride/delivery, income).
+  const toggleStatus = (id, currentStatus) => {
+    const driver = drivers.find(d => d.id === id);
+    setBlockTarget({ id, name: driver?.name || 'driver ini', currentStatus: currentStatus || 'Aktif' });
+  };
+
+  // Step 2: only reached after the operator confirms in the ConfirmModal.
+  const confirmToggleStatus = async () => {
+    if (!blockTarget) return;
+    const { id, currentStatus } = blockTarget;
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
       const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
@@ -145,6 +158,8 @@ const DriversPage = () => {
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Gagal mengubah status');
+    } finally {
+      setBlockTarget(null);
     }
   };
 
@@ -256,6 +271,18 @@ const DriversPage = () => {
           onVerify={handleVerify}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!blockTarget}
+        title={blockTarget?.currentStatus === 'Aktif' ? 'Blokir Driver' : 'Aktifkan Kembali Driver'}
+        message={blockTarget ? (
+          blockTarget.currentStatus === 'Aktif'
+            ? `Anda akan memblokir "${blockTarget.name}". Driver ini tidak akan bisa menerima order baru sampai diaktifkan kembali - jika sedang dalam perjalanan/order aktif, order itu tidak otomatis dibatalkan.`
+            : `Anda akan mengaktifkan kembali "${blockTarget.name}". Driver ini akan bisa menerima order lagi.`
+        ) : ''}
+        onConfirm={confirmToggleStatus}
+        onCancel={() => setBlockTarget(null)}
+      />
     </div>
   );
 };

@@ -3,30 +3,24 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
-import { useOrders } from '../context/OrderContext';
 import {
   Smartphone,
   Zap,
   Droplet,
   ShieldPlus,
   CheckCircle2,
-  Copy,
-  Receipt,
   X,
-  Sparkles,
+  Construction,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function PulsaPage() {
-  const { balance, pay } = useWallet();
-  const { addOrder } = useOrders();
+  const { balance } = useWallet();
 
   const [tab, setTab] = useState('Pulsa');
   const [targetNumber, setTargetNumber] = useState('');
   const [selectedNominal, setSelectedNominal] = useState(50000);
-  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [receiptData, setReceiptData] = useState(null);
 
   const tabs = [
     { id: 'Pulsa', icon: Smartphone, label: 'Pulsa Reguler' },
@@ -103,52 +97,13 @@ export default function PulsaPage() {
     setShowModal(true);
   };
 
-  const handleProcessPayment = async () => {
-    if (balance < selectedProduct.price) {
-      toast.error('Saldo WiraPay tidak mencukupi, silakan Top Up terlebih dahulu');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await new Promise((r) => setTimeout(r, 900));
-
-      // Potong saldo
-      const desc = `${tab === 'PLN' ? 'Beli Token PLN' : tab} ${selectedProduct.label} (${targetNumber})`;
-      await pay(selectedProduct.price, desc);
-
-      // Buat token acak untuk PLN
-      const plnToken = Array.from({ length: 5 }, () => Math.floor(1000 + Math.random() * 9000)).join('-');
-      const serialNumber = 'SN' + Date.now().toString().slice(-8);
-
-      // Catat ke Order Activity
-      await addOrder({
-        service: 'WiraPulsa',
-        serviceType: 'pulsa',
-        title: desc,
-        details: `${tab === 'PLN' ? 'No Token: ' + plnToken : 'No Seri: ' + serialNumber}`,
-        price: selectedProduct.price,
-        status: 'Selesai',
-        paymentMethod: 'WiraPay',
-      });
-
-      setReceiptData({
-        product: selectedProduct.label,
-        target: targetNumber,
-        price: selectedProduct.price,
-        operator: currentOperator?.name || (tab === 'PLN' ? 'PLN Prabayar' : 'PDAM Mataram'),
-        sn: tab === 'PLN' ? plnToken : serialNumber,
-        isPln: tab === 'PLN',
-        date: new Date().toLocaleString('id-ID'),
-      });
-
-      toast.success('Pembayaran Berhasil!');
-    } catch (err) {
-      toast.error(err.message || 'Pembayaran gagal');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Pembayaran nyata (potong saldo WiraPay + kirim token/nomor seri) belum
+  // terhubung ke provider PPOB manapun - sebelumnya tombol ini tetap
+  // memotong saldo WiraPay pengguna lalu mengarang nomor token/seri palsu
+  // dengan Math.random()/Date.now(), seolah-olah transaksi benar-benar
+  // berhasil. Daripada mengambil uang sungguhan untuk hasil yang palsu,
+  // aksi pembelian dinonaktifkan sampai integrasi provider yang sebenarnya
+  // siap - lihat tombol "Bayar Sekarang" di bawah.
 
   return (
     <div className="space-y-6 max-w-xl mx-auto pb-16">
@@ -270,149 +225,78 @@ export default function PulsaPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative animate-in fade-in zoom-in duration-150">
             <button
-              onClick={() => {
-                setShowModal(false);
-                setReceiptData(null);
-              }}
+              onClick={() => setShowModal(false)}
               className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               <X size={20} />
             </button>
 
-            {!receiptData ? (
-              <>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Konfirmasi Pembelian
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Periksa kembali rincian transaksi Anda
-                  </p>
-                </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                Konfirmasi Pembelian
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Periksa kembali rincian transaksi Anda
+              </p>
+            </div>
 
-                <div className="bg-slate-50 dark:bg-slate-900/70 p-4 rounded-2xl space-y-3 text-sm border border-slate-100 dark:border-slate-700">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Layanan:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{tab}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Nomor Tujuan:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {targetNumber}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Produk:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {selectedProduct.label}
-                    </span>
-                  </div>
-                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      Total Bayar:
-                    </span>
-                    <span className="font-extrabold text-lg text-primary">
-                      {formatRupiah(selectedProduct.price)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-500 pt-1">
-                    <span>Metode: WiraPay</span>
-                    <span>Sisa Saldo: {formatRupiah(balance)}</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowModal(false)}
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    className="flex-1 font-bold"
-                    onClick={handleProcessPayment}
-                    disabled={loading || balance < selectedProduct.price}
-                  >
-                    {loading ? 'Memproses...' : 'Bayar Sekarang'}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              /* Struk Digital Resmi */
-              <div className="text-center space-y-4">
-                <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full mx-auto flex items-center justify-center">
-                  <CheckCircle2 size={32} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Transaksi Sukses!
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Pembayaran Anda telah berhasil diproses
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Waktu:</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {receiptData.date}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Tujuan:</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {receiptData.target}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Total:</span>
-                    <span className="font-bold text-primary text-sm">
-                      {formatRupiah(receiptData.price)}
-                    </span>
-                  </div>
-
-                  {receiptData.isPln ? (
-                    <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-center">
-                      <p className="text-[11px] font-bold text-amber-900 dark:text-amber-300 mb-1">
-                        20 Digit Kode Token Listrik PLN:
-                      </p>
-                      <p className="font-mono font-extrabold text-base tracking-widest text-amber-800 dark:text-amber-200">
-                        {receiptData.sn}
-                      </p>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(receiptData.sn.replace(/-/g, ''));
-                          toast.success('Token PLN disalin!');
-                        }}
-                        className="text-[10px] text-amber-700 font-bold underline mt-1"
-                      >
-                        Salin Angka Token
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
-                      <span className="text-slate-400">No. Seri (SN):</span>
-                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                        {receiptData.sn}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  className="w-full py-3 font-bold"
-                  onClick={() => {
-                    setShowModal(false);
-                    setReceiptData(null);
-                    setTargetNumber('');
-                  }}
-                >
-                  Selesai
-                </Button>
+            <div className="bg-slate-50 dark:bg-slate-900/70 p-4 rounded-2xl space-y-3 text-sm border border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Layanan:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{tab}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span className="text-slate-500">Nomor Tujuan:</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  {targetNumber}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Produk:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {selectedProduct.label}
+                </span>
+              </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  Total Bayar:
+                </span>
+                <span className="font-extrabold text-lg text-primary">
+                  {formatRupiah(selectedProduct.price)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 pt-1">
+                <span>Metode: WiraPay</span>
+                <span>Sisa Saldo: {formatRupiah(balance)}</span>
+              </div>
+            </div>
+
+            {/* Pembelian nyata belum terhubung ke provider PPOB manapun -
+                daripada berpura-pura berhasil (memotong saldo & mengarang
+                token/nomor seri palsu), aksi bayar dinonaktifkan dengan
+                pesan jujur sampai integrasi yang sebenarnya siap. */}
+            <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-xl text-left">
+              <Construction size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                Fitur pembayaran Pulsa & Tagihan sedang dalam pengembangan, segera hadir. Belum ada saldo yang dipotong.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowModal(false)}
+              >
+                Tutup
+              </Button>
+              <Button
+                className="flex-1 font-bold"
+                disabled
+              >
+                Segera Hadir
+              </Button>
+            </div>
           </div>
         </div>
       )}

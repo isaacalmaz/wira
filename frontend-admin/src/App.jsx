@@ -46,19 +46,36 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-// This is the same admin-role set enforced server-side by Postgres RLS
-// policies and RPCs across the project (see e.g. migrations/0022, 0024,
-// 0025, 0026: `role IN ('admin', 'Superadmin', 'superadmin', 'Admin Ops')`).
-// AdminSidebar.jsx's menuItems array defines a finer per-item `roles`
-// tiering ('Admin Keuangan', 'CS', ...) purely for hiding/showing nav
-// links, but none of those finer roles are ever checked by any RLS policy
-// or RPC - only this 4-value set is a real, server-enforced admin
-// boundary. Gating routes on the sidebar's cosmetic tiers instead would
-// (a) lock real 'Admin Ops' admins out of pages the backend already lets
-// them use (e.g. /finance, /whatsapp), and (b) let 'Admin Keuangan'/'CS'
-// users past the route gate only to be rejected by the RPC anyway. So
-// every admin route below uses this uniform, backend-matching set.
-const ADMIN_ROLES = ['admin', 'Superadmin', 'superadmin', 'Admin Ops'];
+// The 4 roles actually recognized by backend RLS policies / RPCs / is_admin()
+// (see migrations/0022, 0024, 0025, 0026: `role IN ('admin', 'Superadmin',
+// 'superadmin', 'Admin Ops')`). Verified against migrations/*.sql: neither
+// 'CS' nor 'Admin Keuangan' appears in any RLS policy, RPC role check, or
+// is_admin() definition anywhere in this repo - they are purely
+// frontend-admin/AdminSidebar.jsx concepts today. That is a real backend
+// gap (flagged for the coordinator - see PR notes), but it does not excuse
+// the bug this route guard has: AdminSidebar.jsx already shows CS and Admin
+// Keuangan a full nav (Dashboard, Users, Orders, Keuangan, WhatsApp, Pusat
+// Bantuan), yet this constant - used as the blanket `allowedRoles` on nearly
+// every route below - didn't include either role, so both roles logged in,
+// saw a full sidebar, and got silently bounced to /login on every click,
+// including landing on /dashboard itself.
+//
+// Fix: CORE_ADMIN_ROLES keeps the exact backend-verified 4-role set, for
+// routes AdminSidebar.jsx does NOT promise to CS/Admin Keuangan (Drivers,
+// Merchants, Technicians, Villas, Manajemen Harga, Promo, Settings) - so
+// those two roles aren't blanket-granted pages the sidebar never shows
+// them. ADMIN_ROLES adds CS + Admin Keuangan on top, for the routes the
+// sidebar *does* promise them, using the narrowest role list that matches
+// each page's sidebar entry (see AdminSidebar.jsx menuItems, ~line 83-96):
+// Dashboard -> both, Users/Orders/WhatsApp/Support -> + CS only,
+// Finance -> + Admin Keuangan only. Data on those pages is still gated by
+// RLS to the backend-verified set until a migration adds these two roles
+// there too - unblocking navigation here does not by itself unblock every
+// query on those pages.
+const CORE_ADMIN_ROLES = ['admin', 'Superadmin', 'superadmin', 'Admin Ops'];
+const ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'CS', 'Admin Keuangan'];
+const CS_ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'CS'];
+const FINANCE_ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'Admin Keuangan'];
 
 function App() {
   return (
@@ -89,62 +106,62 @@ function App() {
             } />
 
             <Route path="users" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
                 <UsersPage />
               </ProtectedRoute>
             } />
             <Route path="orders" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
                 <OrdersPage />
               </ProtectedRoute>
             } />
             <Route path="drivers" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <DriversPage />
               </ProtectedRoute>
             } />
             <Route path="merchants" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <MerchantsPage />
               </ProtectedRoute>
             } />
             <Route path="technicians" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <TechniciansPage />
               </ProtectedRoute>
             } />
             <Route path="villas" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <VillasPage />
               </ProtectedRoute>
             } />
             <Route path="pricing" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <VehiclesPricingPage />
               </ProtectedRoute>
             } />
             <Route path="finance" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={FINANCE_ADMIN_ROLES}>
                 <FinancePage />
               </ProtectedRoute>
             } />
             <Route path="promos" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <PromosPage />
               </ProtectedRoute>
             } />
             <Route path="whatsapp" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
                 <WhatsAppPage />
               </ProtectedRoute>
             } />
             <Route path="support" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
                 <SupportTicketsPage />
               </ProtectedRoute>
             } />
             <Route path="settings" element={
-              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <SettingsPage />
               </ProtectedRoute>
             } />
