@@ -44,10 +44,16 @@ PGHOST=/var/run/postgresql PGPORT=5499 PGUSER=postgres WIRA_TEST_DB=my_db db-tes
 | `0078_qris_order_payment.sql` | deferred payment trigger, awaiting_payment guard, cancel/expire RPCs, `cron.schedule` |
 | `0079_close_anon_data_leaks.sql` | anon-leak policy fixes + REVOKEs |
 | `0080_counterparty_profiles.sql` | `users_select` own-only, `get_counterparty_profiles`, drivers visibility |
+| `0072_server_side_dispatch.sql` | `order_dispatch_pings`, `dispatch_due_orders`, `dispatch_next_ping` (needed by 0083) |
+| `0081_expire_stale_manual_topups.sql` | top-up expiry: order-linked 2 h, plain wallet 24 h, Midtrans never |
+| `0082_release_promo_usage_on_cancel.sql` | `orders.promo_usage_id`, promo use released on cancel |
+| `0083_dispatch_window_from_payment.sql` | `orders.paid_at`, dispatch window from payment, client guard |
 
-All eleven files apply whole and unmodified; no function body is copied into
-the stub. Migrations 0081+ are not part of the suite yet: add them to
-`MIGRATION_FILES` in `run.sh` (plus any stub objects they need) and a test file.
+All fifteen files apply whole and unmodified; no function body is copied into
+the stub. 0072 is listed right before 0081–0083 because 0083 redefines its
+`dispatch_due_orders`; its `dispatch_next_ping` is created but not exercised. To
+add a new migration: append it to `MIGRATION_FILES` in `run.sh` (plus any stub
+objects it needs) and add a test file.
 
 ## What `schema_stub.sql` stands in for
 
@@ -67,7 +73,8 @@ Everything else the migrations above depend on. None of it is tested itself.
 
 Not present at all (so not covered): other `orders` triggers such as the
 payout trigger (0028/0075), PIN (0063–0069), claim guardrail (0054), and
-dispatch (0072/0073).
+the pg_cron → backend dispatch tick (0073); of 0072 only `dispatch_due_orders`
+is exercised.
 
 ## Tests
 

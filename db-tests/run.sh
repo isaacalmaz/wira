@@ -29,6 +29,10 @@ MIGRATION_FILES=(
   0078_qris_order_payment.sql
   0079_close_anon_data_leaks.sql
   0080_counterparty_profiles.sql
+  0072_server_side_dispatch.sql
+  0081_expire_stale_manual_topups.sql
+  0082_release_promo_usage_on_cancel.sql
+  0083_dispatch_window_from_payment.sql
 )
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 --set=SHOW_CONTEXT=never)
