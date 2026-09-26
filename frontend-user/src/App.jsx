@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/react';
 import { LangProvider } from './i18n';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -47,6 +48,7 @@ export default function Root() {
                   <OrderProvider>
                     <BrowserRouter>
                       <Toaster position="top-center" />
+                      <Analytics />
                       <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div></div>}>
                         <Routes>
                           {/* Pelanggan (User) Authentication */}
