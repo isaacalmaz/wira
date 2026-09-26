@@ -726,6 +726,9 @@ export default function WalletPage() {
                           <li>Masukkan nominal transfer PERSIS: <strong>Rp {finalAmount.toLocaleString('id-ID')}</strong>.</li>
                           <li>Setelah pembayaran selesai, tekan tombol konfirmasi di bawah.</li>
                         </ol>
+                        <p className="text-amber-700 dark:text-amber-300">
+                          Pembayaran harus diterima dalam 2 jam sejak konfirmasi. Lewat dari itu, permintaan otomatis kedaluwarsa dan tidak diproses.
+                        </p>
                       </div>
                     </div>
                   );

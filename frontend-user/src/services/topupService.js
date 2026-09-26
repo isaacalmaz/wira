@@ -320,8 +320,14 @@ export async function cancelTopUpRequest(supabaseClient, requestId, userId) {
   }
 }
 
+// Must match the Mutasiku webhook's match window (backend/routes/mutasiku.js).
+// Older pending requests are cancelled by expire_awaiting_qris_orders()
+// (migrations/0081, pg_cron every minute), so hide them here right away.
+export const TOPUP_EXPIRY_MS = 2 * 60 * 60 * 1000;
+
 /**
  * Fetches active/pending top-up requests for a specific user.
+ * Requests older than TOPUP_EXPIRY_MS are expired and left out.
  *
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseClient
  * @param {string} userId
@@ -335,6 +341,7 @@ export async function fetchUserTopUpRequests(supabaseClient, userId) {
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'pending')
+      .gte('created_at', new Date(Date.now() - TOPUP_EXPIRY_MS).toISOString())
       .order('created_at', { ascending: false });
 
     if (error) throw error;
