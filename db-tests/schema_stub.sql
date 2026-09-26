@@ -311,3 +311,35 @@ FOR UPDATE USING (auth.uid() = user_id AND status = 'pending')
 WITH CHECK (auth.uid() = user_id AND status = 'cancelled');
 CREATE POLICY "Admins can manage all topups" ON public.topup_requests
 FOR ALL USING (is_admin()) WITH CHECK (is_admin());
+
+-- --- auth.users (Supabase Auth; 0084 reads id/email/created_at) ------------
+CREATE TABLE auth.users (
+    id UUID PRIMARY KEY,
+    email TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- --- feature_flags (0003) with 0055's policies ------------------------------
+CREATE TABLE public.feature_flags (
+    region TEXT PRIMARY KEY,
+    features JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.feature_flags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "feature_flags_select_public" ON public.feature_flags FOR SELECT USING (true);
+CREATE POLICY "feature_flags_insert" ON public.feature_flags
+FOR INSERT WITH CHECK (region = 'mitra_registrations' OR is_admin());
+CREATE POLICY "feature_flags_update" ON public.feature_flags
+FOR UPDATE USING (region = 'mitra_registrations' OR is_admin())
+WITH CHECK (region = 'mitra_registrations' OR is_admin());
+CREATE POLICY "feature_flags_delete_admin" ON public.feature_flags FOR DELETE USING (is_admin());
+-- Pre-0084 production shape: the application list 0085 copies. Two pending
+-- entries for the same account/role (newest first, as the app wrote them)
+-- and one without a usable auth_id.
+INSERT INTO public.feature_flags (region, features) VALUES
+  ('features_config', '{"ride": true}'),
+  ('mitra_registrations', '[
+    {"id": "MTR-000003", "auth_id": "07000000-0000-0000-0000-0000000000b1", "role": "driver", "name": "Legacy Driver", "phone": "0877", "plate": "DR 1 LG", "sim_photo": "data:image/jpeg;base64,AAA", "status": "Pending", "created_at": "2026-09-20T10:00:00.000Z"},
+    {"id": "MTR-000002", "auth_id": "07000000-0000-0000-0000-0000000000b1", "role": "driver", "name": "Legacy Driver (old)", "status": "Pending", "created_at": "2026-09-19T10:00:00.000Z"},
+    {"id": "MTR-000001", "auth_id": "not-a-uuid", "role": "technician", "name": "Legacy Tech", "specialization": "ac", "experience": "3", "status": "Active", "reviewed_at": "2026-09-18T10:00:00.000Z"}
+  ]');

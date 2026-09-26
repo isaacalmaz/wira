@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, RefreshCw, FileSearch, Trash2, Plus } from 'lucide-react';
 import { supabase } from '../config/supabase';
+import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
 
@@ -26,41 +27,32 @@ const MerchantsPage = () => {
       if (merchantsErr) throw merchantsErr;
       setLiveMerchants(merchantsData || []);
 
-      const { data: flagsData, error: flagsErr } = await supabase
-        .from('feature_flags')
-        .select('features')
-        .eq('region', 'mitra_registrations')
-        .maybeSingle();
-
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-
-      if (flagsData && Array.isArray(flagsData.features)) {
-        // RegisterPage.jsx's step-1 Villa radio writes the pending
-        // registration's role as the literal 'villa' (not 'merchant') now
-        // that Villa is its own top-level choice - without matching both
-        // values here, a brand-new Villa registration never appears in any
-        // admin queue at all and can never be approved.
-        const p = flagsData.features
-          .filter(m => (m.role === 'merchant' || m.role === 'villa') && m.status === 'Pending')
-          .map(m => ({
-            id: m.id,
-            role: 'merchant',
-            name: m.restaurant_name || m.name,
-            owner: m.name,
-            phone: m.phone,
-            email: m.email,
-            address: m.address || 'Mataram, Lombok',
-            service_type: m.service_type || 'food',
-            sim_photo: m.sim_photo,
-            ktp_photo: m.ktp_photo,
-            selfie_photo: m.selfie_photo,
-            vehicle_plate: m.vehicle_plate,
-            vehicle_type: m.vehicle_type,
-            status: m.status,
-            date: m.date
-          }));
-        setPendingMerchants(p);
-      }
+      const pendingApplications = await fetchPendingApplications(['merchant', 'villa']);
+      // RegisterPage.jsx's step-1 Villa radio writes the pending
+      // registration's role as the literal 'villa' (not 'merchant') now
+      // that Villa is its own top-level choice - without matching both
+      // values here, a brand-new Villa registration never appears in any
+      // admin queue at all and can never be approved.
+      const p = pendingApplications
+        .map(m => ({
+          id: m.id,
+          auth_id: m.auth_id,
+          role: 'merchant',
+          name: m.restaurant_name || m.name,
+          owner: m.name,
+          phone: m.phone,
+          email: m.email,
+          address: m.address || 'Mataram, Lombok',
+          service_type: m.service_type || 'food',
+          sim_photo: m.sim_photo,
+          ktp_photo: m.ktp_photo,
+          selfie_photo: m.selfie_photo,
+          vehicle_plate: m.vehicle_plate,
+          vehicle_type: m.vehicle_type,
+          status: m.status,
+          date: m.created_at
+        }));
+      setPendingMerchants(p);
     } catch (err) {
       console.error(err);
       toast.error('Gagal memuat data merchant');
@@ -140,14 +132,7 @@ const MerchantsPage = () => {
       // writes above actually succeeded - if they threw, the registration
       // stays 'Pending' so it's still visible to retry, instead of looking
       // silently "done" with nothing actually granted.
-      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-      if (flagsData && Array.isArray(flagsData.features)) {
-        const updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
-        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
-        if (updateFlagsErr) throw updateFlagsErr;
-        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
-      }
+      await setApplicationStatus(id, accept, notes);
 
       setIsReviewOpen(false);
       fetchData();

@@ -61,7 +61,7 @@ const MerchantMenuPage = () => {
       // mengambil baris `merchants` PERTAMA di seluruh tabel bila owner_id
       // belum terikat (mis. saat akun masih menunggu persetujuan admin
       // setelah mendaftar - lihat RegisterPage.jsx, pendaftaran mitra masuk
-      // ke `mitra_registrations`/`feature_flags` dengan status 'Pending' dan
+      // ke `mitra_applications` dengan status 'Pending' dan
       // baris `merchants` baru dibuat belakangan, bukan saat itu juga) -
       // itu bisa diam-diam menempelkan akun mitra ini ke etalase toko orang
       // lain (menampilkan menu mereka, dan insert produk baru ke toko

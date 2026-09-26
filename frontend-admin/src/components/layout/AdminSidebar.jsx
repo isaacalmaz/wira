@@ -16,7 +16,7 @@ import {
   Settings,
   Tag
 } from 'lucide-react';
-import { supabase } from '../../config/supabase';
+import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 
 const AdminSidebar = ({ isCollapsed }) => {
   const location = useLocation();
@@ -25,33 +25,18 @@ const AdminSidebar = ({ isCollapsed }) => {
 
   const fetchPendingCounts = async () => {
     try {
-      const { data } = await supabase
-        .from('feature_flags')
-        .select('features')
-        .eq('region', 'mitra_registrations')
-        .maybeSingle();
-
-      let list = Array.isArray(data?.features) ? data.features : [];
-      
-      // Fallback local
-      try {
-        const local = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-        const existingIds = new Set(list.map((m) => m.id));
-        for (const item of local) {
-          if (!existingIds.has(item.id)) list.push(item);
-        }
-      } catch { /* best-effort; ignore */ }
+      const list = await fetchPendingApplications(null, 'id, role');
 
       // Driver (Ride) and Kurir (Send) are two distinct registration roles
       // now (see migrations/0031) but still share the /drivers admin page
       // and its sidebar badge - matching only 'driver' here would repeat
       // the exact bug just fixed for Villa registrations (commit 1476fc0):
-      // a pending Kurir application would exist in feature_flags but never
+      // a pending Kurir application would exist but never
       // be counted, so the sidebar badge could sit at 0 while a real
       // registration silently waited.
-      const driverCount = list.filter((m) => (m.role === 'driver' || m.role === 'courier') && m.status === 'Pending').length;
-      const merchantCount = list.filter((m) => (m.role === 'merchant' || m.role === 'villa') && m.status === 'Pending').length;
-      const techCount = list.filter((m) => m.role === 'technician' && m.status === 'Pending').length;
+      const driverCount = list.filter((m) => m.role === 'driver' || m.role === 'courier').length;
+      const merchantCount = list.filter((m) => m.role === 'merchant' || m.role === 'villa').length;
+      const techCount = list.filter((m) => m.role === 'technician').length;
 
       setPendingCounts({ driver: driverCount, merchant: merchantCount, technician: techCount });
     } catch { /* best-effort; ignore */ }
@@ -60,22 +45,7 @@ const AdminSidebar = ({ isCollapsed }) => {
   useEffect(() => {
     fetchPendingCounts();
 
-    const channel = supabase
-      .channel('realtime-sidebar-counts')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'feature_flags' },
-        (payload) => {
-          if (payload.new && payload.new.region === 'mitra_registrations') {
-            fetchPendingCounts();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribeToApplications('realtime-sidebar-counts', fetchPendingCounts);
   }, []);
 
   // Daftar menu sesuai dengan instruksi

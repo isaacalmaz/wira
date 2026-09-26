@@ -4,6 +4,7 @@ import { Card, Badge, Button, StarRating } from '../../components/shared/UICompo
 import { User, ShieldCheck, Car, Settings, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
+import { fetchMyApplication } from '../../services/mitraApplicationService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 
 const DriverProfilePage = () => {
@@ -16,15 +17,12 @@ const DriverProfilePage = () => {
 
   useEffect(() => {
     const fetchRegData = async () => {
-      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
-      if (data && data.features) {
-        const myReg = data.features.find(f => f.auth_id === user?.id && (f.role === 'driver' || f.role === 'courier'));
-        if (myReg) {
-          setVehicle(myReg.vehicle || 'Kendaraan Mitra');
-          setPlate(myReg.plate || '');
-        } else {
-          setVehicle('Data kendaraan tidak ditemukan');
-        }
+      const myReg = await fetchMyApplication(supabase, user.id, ['driver', 'courier']);
+      if (myReg) {
+        setVehicle(myReg.vehicle || 'Kendaraan Mitra');
+        setPlate(myReg.plate || '');
+      } else {
+        setVehicle('Data kendaraan tidak ditemukan');
       }
     };
     
