@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Home, Save } from 'lucide-react';
 import { Card, Button } from '../../components/shared/UIComponents';
 import { supabase } from '../../config/supabase';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Star, Calendar, Clock, MapPin, X, Shield } from 'lucide-react';
+import { Wrench, Star, X } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -8,7 +8,6 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import API_BASE_URL from '../config/api';
 
 export default function ServicePage() {
   const navigate = useNavigate();

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Send, Phone, MessageSquare, Loader, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, Send, Phone, MessageSquare, Loader } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Wallet, TrendingUp, Banknote } from 'lucide-react';
 import { Card } from './UIComponents';
 import { formatSignedRupiah } from '../../utils/formatters';

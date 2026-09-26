@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from './UIComponents';
 import { OrderStatus } from '../../constants/orderStatus';
 

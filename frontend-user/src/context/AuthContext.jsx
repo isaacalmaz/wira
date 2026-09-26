@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { requestForToken } from '../config/firebase';
-import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 

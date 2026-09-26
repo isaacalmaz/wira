@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Badge, StarRating, Button, EmptyState } from '../../components/shared/UIComponents';
-import { User, Wrench, ShieldCheck, Image as ImageIcon, Settings } from 'lucide-react';
+import { User, Wrench, Image as ImageIcon, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 

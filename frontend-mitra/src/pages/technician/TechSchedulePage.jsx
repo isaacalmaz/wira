@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, EmptyState } from '../../components/shared/UIComponents';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  X, CheckCircle, XCircle, Phone, MessageSquare, Car, Store, Wrench, Package,
-  FileText, Calendar, Clock, AlertCircle, ZoomIn, Download, ShieldCheck, User
+  X, CheckCircle, XCircle, MessageSquare, Car, Store, Wrench, Package,
+  FileText, AlertCircle, ZoomIn, ShieldCheck
 } from 'lucide-react';
 
 const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {

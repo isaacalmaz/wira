@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../config/supabase';
 import { ShoppingBag, Search } from 'lucide-react';
 

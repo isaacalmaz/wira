@@ -1,4 +1,3 @@
-const jwt = require('jsonwebtoken');
 const response = require('../utils/response');
 const supabase = require('../config/supabase');
 

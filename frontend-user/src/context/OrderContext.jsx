@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';

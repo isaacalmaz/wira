@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 
 const AuthContext = createContext();
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await supabase.auth.signOut();
-    } catch (e) {}
+    } catch { /* sign-out failure is ignored; local state is cleared below */ }
     setUser(null);
     setMitraAccess([]);
   };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { Wrench, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';

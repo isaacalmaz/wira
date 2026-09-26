@@ -21,7 +21,7 @@ export default function PoolPage() {
   // list_technicians() - migrations/0025/0026) - needed here purely to have
   // a notification target list on booking, PoolPage previously never
   // fetched technicians at all.
-  const [technicians, setTechnicians] = useState([]);
+  const [, setTechnicians] = useState([]);
   useEffect(() => {
     const fetchTechnicians = async () => {
       const { data } = await supabase.rpc('list_technicians');

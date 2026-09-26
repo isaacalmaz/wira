@@ -1,7 +1,6 @@
-import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, MessageSquare, Wallet, User, Menu as MenuIcon, ArrowLeftRight, Building2, Car, Store, Wrench } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench } from 'lucide-react';
 
 // The underlying mitra_access value for the restaurant portal is still the
 // literal string 'merchant' (kept as-is so existing accounts/routes don't

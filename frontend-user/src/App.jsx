@@ -8,7 +8,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { WalletProvider } from './context/WalletContext';
 import { OrderProvider } from './context/OrderContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 
 const Layout = lazy(() => import('./components/layout/Layout'));
 const HomePage = lazy(() => import('./pages/HomePage'));

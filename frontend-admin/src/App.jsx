@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 
 // Layout
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import { Clock, MessageCircle, Wrench, Waves } from 'lucide-react';
@@ -22,7 +22,7 @@ const isPoolOrder = (order) => order?.service_type === 'pool' || order?.service_
 const TechOrdersPage = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState('Klien');
   const [isChatOpen, setIsChatOpen] = useState(false);
 

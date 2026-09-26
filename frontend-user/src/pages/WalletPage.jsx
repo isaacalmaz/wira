@@ -726,6 +726,9 @@ export default function WalletPage() {
                           <li>Masukkan nominal transfer PERSIS: <strong>Rp {finalAmount.toLocaleString('id-ID')}</strong>.</li>
                           <li>Setelah pembayaran selesai, tekan tombol konfirmasi di bawah.</li>
                         </ol>
+                        <p className="text-amber-700 dark:text-amber-300">
+                          Pembayaran dalam 2 jam diverifikasi otomatis. Lewat dari itu, admin memverifikasi manual hingga 24 jam; setelahnya permintaan kedaluwarsa. Hubungi CS jika sudah membayar tapi saldo belum masuk.
+                        </p>
                       </div>
                     </div>
                   );

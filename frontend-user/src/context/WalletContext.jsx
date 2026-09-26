@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
@@ -113,7 +113,7 @@ export const WalletProvider = ({ children }) => {
   // twice.
   const refund = async (orderId, desc = 'Refund Layanan') => {
     try {
-      const { data, error } = await supabase.rpc('wallet_refund', {
+      const { error } = await supabase.rpc('wallet_refund', {
         p_order_id: orderId,
         p_description: desc,
       });

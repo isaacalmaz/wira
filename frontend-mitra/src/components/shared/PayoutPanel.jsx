@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Wallet, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, Button, Modal } from './UIComponents';
 import { supabase } from '../../config/supabase';

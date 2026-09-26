@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
@@ -49,7 +49,6 @@ export default function ActiveOrderPage() {
   const chatRef = useRef(null);
 
   const isDriver = order?.driver_id === user?.id;
-  const isMerchant = order?.merchant_id === user?.id; // If villa/food, this user might be the merchant owner. Actually, orders table only has merchant_id which points to merchants table. The user.id is merchants.owner_id. We fetch it below.
 
   const fetchOrder = useCallback(async () => {
     try {

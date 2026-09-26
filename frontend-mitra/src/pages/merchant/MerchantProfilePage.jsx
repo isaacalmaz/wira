@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Card, Button, StarRating } from '../../components/shared/UIComponents';
 import { Store, MapPin, Clock, CreditCard, Settings, UtensilsCrossed, Home } from 'lucide-react';

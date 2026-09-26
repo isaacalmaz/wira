@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, ToggleLeft, ToggleRight, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
+import { RefreshCw, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';

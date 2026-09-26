@@ -4,7 +4,7 @@ import { Settings, Save, ShieldCheck, Plus, Trash2, AlertTriangle } from 'lucide
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // App Settings
