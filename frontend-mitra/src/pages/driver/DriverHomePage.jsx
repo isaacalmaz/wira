@@ -7,6 +7,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
 import { supabase } from '../../config/supabase';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
@@ -115,9 +116,9 @@ const DriverHomePage = () => {
       return;
     }
     let cancelled = false;
-    supabase.from('users').select('name').eq('id', activeOrder.user_id).maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setCustomerName(data?.name || 'Penumpang');
+    fetchCounterpartyProfiles(supabase, [activeOrder.user_id])
+      .then((profiles) => {
+        if (!cancelled) setCustomerName(profiles[activeOrder.user_id]?.name || 'Penumpang');
       });
     return () => { cancelled = true; };
   }, [activeOrder?.user_id]);

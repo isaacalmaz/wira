@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Send, Phone, MessageSquare, Loader, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -54,10 +55,14 @@ export default function ActiveOrderPage() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, customer:user_id(name, phone), merchant:merchant_id(owner_id)')
+        .select('*, merchant:merchant_id(owner_id)')
         .eq('id', id)
         .single();
       if (error) throw error;
+      if (data?.user_id) {
+        const profiles = await fetchCounterpartyProfiles(supabase, [data.user_id]);
+        data.customer = profiles[data.user_id] || null;
+      }
       setOrder(data);
     } catch (err) {
       console.error(err);

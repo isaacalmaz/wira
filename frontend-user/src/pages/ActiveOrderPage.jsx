@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
 import { OrderStatus, getDisplayStatus } from '../constants/orderStatus';
+import { fetchCounterpartyProfiles } from '../services/profileService';
 
 // Icons for map
 const driverIcon = new L.Icon({
@@ -70,10 +71,15 @@ export default function ActiveOrderPage() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, driver:driver_id(name, phone, vehicle_type), merchant:merchant_id(name, address)')
+        .select('*, merchant:merchant_id(name, address)')
         .eq('id', id)
         .single();
       if (error) throw error;
+
+      if (data?.driver_id) {
+        const profiles = await fetchCounterpartyProfiles(supabase, [data.driver_id]);
+        data.driver = profiles[data.driver_id] || null;
+      }
       setOrder(data);
 
       if (data?.driver_id) {
