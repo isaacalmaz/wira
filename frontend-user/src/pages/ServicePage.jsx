@@ -22,13 +22,15 @@ export default function ServicePage() {
   useEffect(() => {
     const fetchTechnicians = async () => {
       const { data: users } = await supabase.rpc('list_technicians');
-      const { data: flagsData } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      // Specialization/experience from the technician's application
+      // (migrations/0084); missing before that migration -> defaults.
+      const { data: profiles } = await supabase.rpc('get_technician_profiles');
 
-      const regs = Array.isArray(flagsData?.features) ? flagsData.features : [];
+      const regs = Array.isArray(profiles) ? profiles : [];
       if (users) {
         const activeTechs = users
           .map(u => {
-            const reg = regs.find(r => r.auth_id === u.id || r.email === u.email);
+            const reg = regs.find(r => r.id === u.id);
             return {
               id: u.id,
               name: u.name,

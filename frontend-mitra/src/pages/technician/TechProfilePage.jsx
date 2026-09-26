@@ -4,6 +4,7 @@ import { Card, Badge, StarRating, Button, EmptyState } from '../../components/sh
 import { User, Wrench, Image as ImageIcon, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
+import { fetchMyApplication } from '../../services/mitraApplicationService';
 
 const TechProfilePage = () => {
   const { user, logout } = useAuth();
@@ -12,15 +13,12 @@ const TechProfilePage = () => {
 
   useEffect(() => {
     const fetchRegData = async () => {
-      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').single();
-      if (data && data.features) {
-        const myReg = data.features.find(f => f.auth_id === user?.id && f.role === 'technician');
-        if (myReg) {
-          setSpecialization(myReg.specialization || 'Jasa Servis Umum');
-          setExperience(myReg.experience ? `${myReg.experience} Tahun` : '');
-        } else {
-          setSpecialization('Jasa Servis Umum');
-        }
+      const myReg = await fetchMyApplication(supabase, user.id, ['technician']);
+      if (myReg) {
+        setSpecialization(myReg.specialization || 'Jasa Servis Umum');
+        setExperience(myReg.experience ? `${myReg.experience} Tahun` : '');
+      } else {
+        setSpecialization('Jasa Servis Umum');
       }
     };
     if (user) fetchRegData();

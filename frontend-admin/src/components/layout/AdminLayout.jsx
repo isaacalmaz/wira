@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Menu, Bell, Sun, Moon, LogOut, Check, ExternalLink, Clock } from 'lucide-react';
 import { supabase } from '../../config/supabase';
+import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 
 const AdminLayout = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -44,51 +45,43 @@ const AdminLayout = () => {
   useEffect(() => {
     const fetchInitialNotifs = async () => {
       try {
-        const { data } = await supabase
-          .from('feature_flags')
-          .select('features')
-          .eq('region', 'mitra_registrations')
-          .maybeSingle();
-
-        if (data && Array.isArray(data.features)) {
-          const pendings = data.features.filter((m) => m.status === 'Pending' || m.status === 'Menunggu Verifikasi');
-          if (pendings.length > 0) {
-            // Every role must be named/linked explicitly here - the old
-            // 3-way ternary (driver/merchant/else-Teknisi) silently mislabeled
-            // any other role as "Teknisi Baru" and linked it to /technicians.
-            // That's exactly the bug already fixed once for Villa
-            // (MerchantsPage.jsx's pending queue, commit 1476fc0): a Kurir
-            // registration would have shown up here as a fake "Teknisi Baru"
-            // notification pointing admins at the wrong page entirely.
-            const ROLE_NOTIF_META = {
-              driver: { title: 'Driver', link: '/drivers' },
-              courier: { title: 'Kurir', link: '/drivers' },
-              merchant: { title: 'Restoran', link: '/merchants' },
-              villa: { title: 'Villa', link: '/merchants' },
-              technician: { title: 'Teknisi', link: '/technicians' },
+        const pendings = await fetchPendingApplications(null, 'id, role, name, phone, created_at');
+        if (pendings.length > 0) {
+          // Every role must be named/linked explicitly here - the old
+          // 3-way ternary (driver/merchant/else-Teknisi) silently mislabeled
+          // any other role as "Teknisi Baru" and linked it to /technicians.
+          // That's exactly the bug already fixed once for Villa
+          // (MerchantsPage.jsx's pending queue, commit 1476fc0): a Kurir
+          // registration would have shown up here as a fake "Teknisi Baru"
+          // notification pointing admins at the wrong page entirely.
+          const ROLE_NOTIF_META = {
+            driver: { title: 'Driver', link: '/drivers' },
+            courier: { title: 'Kurir', link: '/drivers' },
+            merchant: { title: 'Restoran', link: '/merchants' },
+            villa: { title: 'Villa', link: '/merchants' },
+            technician: { title: 'Teknisi', link: '/technicians' },
+          };
+          const dynamicNotifs = pendings.map((m) => {
+            const meta = ROLE_NOTIF_META[m.role] || { title: m.role || 'Mitra', link: '/users' };
+            return {
+              id: m.id,
+              title: `Pendaftaran ${meta.title} Baru`,
+              desc: `${m.name} (${m.phone}) menunggu verifikasi.`,
+              time: m.created_at ? new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
+              unread: true,
+              link: meta.link,
+              type: m.role,
             };
-            const dynamicNotifs = pendings.map((m) => {
-              const meta = ROLE_NOTIF_META[m.role] || { title: m.role || 'Mitra', link: '/users' };
-              return {
-                id: m.id,
-                title: `Pendaftaran ${meta.title} Baru`,
-                desc: `${m.name} (${m.phone}) menunggu verifikasi.`,
-                time: m.created_at ? new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
-                unread: true,
-                link: meta.link,
-                type: m.role,
-              };
+          });
+          setNotifications((prev) => {
+            const prevNotifs = new Map(prev.map(p => [p.id, p]));
+            return dynamicNotifs.map(newNotif => {
+              const existing = prevNotifs.get(newNotif.id);
+              return existing ? { ...newNotif, unread: existing.unread } : newNotif;
             });
-            setNotifications((prev) => {
-              const prevNotifs = new Map(prev.map(p => [p.id, p]));
-              return dynamicNotifs.map(newNotif => {
-                const existing = prevNotifs.get(newNotif.id);
-                return existing ? { ...newNotif, unread: existing.unread } : newNotif;
-              });
-            });
-          } else {
-            setNotifications([]);
-          }
+          });
+        } else {
+          setNotifications([]);
         }
       } catch (err) {
         console.error('Error memuat notifikasi riil:', err);
@@ -98,22 +91,7 @@ const AdminLayout = () => {
     fetchInitialNotifs();
 
     // Listener Real-time
-    const channel = supabase
-      .channel('realtime-admin-notifs')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'feature_flags' },
-        (payload) => {
-          if (payload.new && payload.new.region === 'mitra_registrations') {
-            fetchInitialNotifs();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribeToApplications('realtime-admin-notifs', fetchInitialNotifs);
   }, []);
 
   return (

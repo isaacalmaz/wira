@@ -4,6 +4,7 @@ import { LogOut, Car, Store, Home, Wrench } from 'lucide-react';
 import { Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
+import { submitMitraApplication } from '../services/mitraApplicationService';
 
 // Mirrors RegisterPage.jsx's DEFAULT_JOB_PREFS_BY_VEHICLE exactly - this form
 // duplicates RegisterPage's driver-upgrade logic (see file header rationale
@@ -48,9 +49,7 @@ const UnauthorizedPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    const newMitra = {
-      id: `MTR-${Date.now().toString().slice(-6)}`,
-      auth_id: user.id,
+    const application = {
       role: role,
       name: user.name || user.email,
       phone: user.phone || '',
@@ -68,23 +67,10 @@ const UnauthorizedPage = () => {
       service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : null,
       specialization: role === 'technician' ? formData.specialization : null,
       experience: role === 'technician' ? formData.experience : null,
-      status: 'Pending',
-      created_at: new Date().toISOString(),
     };
 
     try {
-      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      const currentList = Array.isArray(data?.features) ? data.features : [];
-      const updatedList = [newMitra, ...currentList.filter(m => m.auth_id !== user.id || m.role !== role)];
-
-      if (data) {
-        const { error, data: updated } = await supabase.from('feature_flags').update({ features: updatedList }).eq('region', 'mitra_registrations').select();
-        if (error) throw error;
-        if (!updated || updated.length === 0) throw new Error('Gagal menyimpan pendaftaran (akses ditolak).');
-      } else {
-        const { error } = await supabase.from('feature_flags').insert([{ region: 'mitra_registrations', features: updatedList }]);
-        if (error) throw error;
-      }
+      await submitMitraApplication(supabase, application, user.id);
 
       // Update public.users status to Pending
       const { error: userErr, data: userData } = await supabase.from('users').update({ status: 'Pending' }).eq('id', user.id).select();

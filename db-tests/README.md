@@ -48,8 +48,10 @@ PGHOST=/var/run/postgresql PGPORT=5499 PGUSER=postgres WIRA_TEST_DB=my_db db-tes
 | `0081_expire_stale_manual_topups.sql` | top-up expiry: order-linked 2 h, plain wallet 24 h, Midtrans never |
 | `0082_release_promo_usage_on_cancel.sql` | `orders.promo_usage_id`, promo use released on cancel |
 | `0083_dispatch_window_from_payment.sql` | `orders.paid_at`, dispatch window from payment, client guard |
+| `0084_mitra_applications.sql` | `mitra_applications` + RLS, `submit_mitra_application`, `get_technician_profiles` |
+| `0085_migrate_and_lock_mitra_registrations.sql` | legacy list copied out of `feature_flags`, `feature_flags` writes admin-only |
 
-All fifteen files apply whole and unmodified; no function body is copied into
+All seventeen files apply whole and unmodified; no function body is copied into
 the stub. 0072 is listed right before 0081–0083 because 0083 redefines its
 `dispatch_due_orders`; its `dispatch_next_ping` is created but not exercised. To
 add a new migration: append it to `MIGRATION_FILES` in `run.sh` (plus any stub
@@ -70,6 +72,8 @@ Everything else the migrations above depend on. None of it is tested itself.
 | policies on those tables | 0001, 0014, 0015, 0024, 0026, 0028, 0032, 0039, 0057 | as they were **before** 0074/0079/0080, including the leaky guest/anon branches, so those migrations are what removes them |
 | `enforce_orders_state_machine` placeholder + `trg_enforce_orders_state_machine` | 0051 | 0070 replaces the body; the trigger itself is only created in 0051 |
 | `driver_locations` view, `get_nearest_drivers` / `find_nearest_drivers` | 0014 (postgis) | same names/signatures, trivial bodies; 0080 only REVOKEs them |
+| `auth.users` (`id`, `email`, `created_at`) | Supabase Auth | read by 0084 |
+| `feature_flags` + 0055 policies, seeded with a legacy `mitra_registrations` list | 0003, 0055 | the pre-0084 shape 0085 migrates |
 
 Not present at all (so not covered): other `orders` triggers such as the
 payout trigger (0028/0075), PIN (0063–0069), claim guardrail (0054), and

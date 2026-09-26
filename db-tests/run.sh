@@ -33,6 +33,8 @@ MIGRATION_FILES=(
   0081_expire_stale_manual_topups.sql
   0082_release_promo_usage_on_cancel.sql
   0083_dispatch_window_from_payment.sql
+  0084_mitra_applications.sql
+  0085_migrate_and_lock_mitra_registrations.sql
 )
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 --set=SHOW_CONTEXT=never)

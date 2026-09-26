@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
 import { Car, Package, Utensils, Ban, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -37,17 +38,10 @@ const DriversPage = () => {
         setDrivers(activeMitras);
       }
 
-      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-      if (flagsData && Array.isArray(flagsData.features)) {
-        // The merged registration form (RegisterPage.jsx) only ever writes
-        // role: 'driver' now - 'courier' is matched defensively here purely
-        // for any pending registration submitted before this migration
-        // shipped tonight, so it still surfaces in the approval queue
-        // instead of silently vanishing.
-        const p = flagsData.features.filter(m => (m.role === 'driver' || m.role === 'courier') && m.status === 'Pending');
-        setPendingDrivers(p);
-      }
+      // The merged registration form (RegisterPage.jsx) only ever writes
+      // role: 'driver' now - 'courier' is matched defensively for any
+      // application submitted before migrations/0033.
+      setPendingDrivers(await fetchPendingApplications(['driver', 'courier']));
     } catch (err) {
       console.error(err);
       toast.error('Gagal memuat data');
@@ -119,14 +113,7 @@ const DriversPage = () => {
       // succeeded - if it threw, the registration stays 'Pending' so it's
       // still visible to retry, instead of looking silently "done" with no
       // real mitra_access grant.
-      const { data: flagsData, error: flagsErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
-      if (flagsErr && flagsErr.code !== 'PGRST116') throw flagsErr;
-      if (flagsData && Array.isArray(flagsData.features)) {
-        const updatedFeatures = flagsData.features.map(f => f.id === id ? { ...f, status: accept ? 'Active' : 'Rejected', admin_notes: notes || f.admin_notes || '', reviewed_at: new Date().toISOString() } : f);
-        const { error: updateFlagsErr, data: updatedFlagsRow } = await supabase.from('feature_flags').update({ features: updatedFeatures }).eq('region', 'mitra_registrations').select();
-        if (updateFlagsErr) throw updateFlagsErr;
-        if (!updatedFlagsRow || updatedFlagsRow.length === 0) throw new Error('Akses ditolak saat menyimpan status pendaftaran.');
-      }
+      await setApplicationStatus(id, accept, notes);
 
       setIsReviewOpen(false);
       fetchData();

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
+import { submitMitraApplication } from '../services/mitraApplicationService';
 
 // Kompres gambar otomatis agar ringan di cloud Supabase
 const compressImage = (file) => {
@@ -155,13 +156,10 @@ const RegisterPage = () => {
         return;
       }
 
-      const newMitra = {
-        id: `MTR-${Date.now().toString().slice(-6)}`,
-        auth_id: authData?.user?.id,
+      const application = {
         role: role,
         name: formData.name,
         phone: formData.phone,
-        email: formData.email,
         vehicle: role === 'driver' ? formData.vehicle : null,
         plate: role === 'driver' ? formData.plate : null,
         vehicle_type: role === 'driver' ? formData.vehicleType : null,
@@ -172,63 +170,17 @@ const RegisterPage = () => {
         service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : null,
         specialization: role === 'technician' ? formData.specialization : null,
         experience: role === 'technician' ? formData.experience : null,
-        status: 'Pending',
-        created_at: new Date().toISOString(),
       };
 
-      // 1. Simpan ke Supabase Cloud
       try {
-        const { data, error: fetchErr } = await supabase
-          .from('feature_flags')
-          .select('id, features')
-          .eq('region', 'mitra_registrations')
-          .maybeSingle();
-
-        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
-
-        const currentList = Array.isArray(data?.features) ? data.features : [];
-        const updatedList = [newMitra, ...currentList.filter((m) => m.id !== newMitra.id)];
-
-        if (data) {
-          const { error: updateErr, data: updatedRow } = await supabase
-            .from('feature_flags')
-            .update({ features: updatedList, updated_at: new Date().toISOString() })
-            .eq('region', 'mitra_registrations')
-            .select();
-          if (updateErr) throw updateErr;
-          if (!updatedRow || updatedRow.length === 0) throw new Error('Akses ditolak saat menyimpan pendaftaran.');
-        } else {
-          const { error: insertErr } = await supabase
-            .from('feature_flags')
-            .insert([{ region: 'mitra_registrations', features: updatedList, updated_at: new Date().toISOString() }]);
-          if (insertErr) throw insertErr;
-        }
-      } catch (cloudErr) {
-        console.error('Cloud sync error:', cloudErr);
-        toast.error(`Gagal sinkronisasi cloud: ${cloudErr.message || 'Error tidak diketahui'}`);
-      }
-
-      // 2. Simpan juga ke mitra_registrations jika tabel sudah dibuat
-      try {
-        await supabase.from('mitra_registrations').insert([newMitra]);
-      } catch { /* best-effort; ignore */ }
-
-      // 3. Simpan ke LocalStorage & broadcast untuk sinkronisasi lokal
-      try {
-        const existing = JSON.parse(localStorage.getItem('wira_mitra_registrations') || '[]');
-        localStorage.setItem('wira_mitra_registrations', JSON.stringify([newMitra, ...existing]));
-        
-        if (typeof BroadcastChannel !== 'undefined') {
-          const bc = new BroadcastChannel('wira_mitra_channel');
-          bc.postMessage({ type: 'NEW_MITRA', data: newMitra });
-          bc.close();
-        }
-      } catch (storageErr) {
-        console.warn('Storage sync warn:', storageErr);
-      } finally {
-        setLoading(false);
+        await submitMitraApplication(supabase, { ...application, email: formData.email }, authData.user.id);
         toast.success('Pendaftaran berhasil dikirim!');
         navigate('/pending-verification');
+      } catch (err) {
+        console.error('Submit application error:', err);
+        toast.error(`Akun dibuat, tetapi pendaftaran mitra gagal dikirim: ${err.message || 'Error tidak diketahui'}. Masuk (Login) lalu ajukan ulang.`);
+      } finally {
+        setLoading(false);
       }
     }
   };

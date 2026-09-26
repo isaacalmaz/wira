@@ -1,7 +1,7 @@
 # Wira — Project Handoff & Continuation Guide
 
 **Untuk**: agent AI (Antigravity atau lainnya) yang melanjutkan pekerjaan di project ini.
-**Terakhir diperbarui**: 2026-09-26 (migration sampai 0083 + job CI `db-tests`; versi besar sebelumnya 2026-09-20 — baca ulang dari awal, jangan cuma diff mental dari versi lama).
+**Terakhir diperbarui**: 2026-09-26 (migration sampai 0085 + job CI `db-tests`; versi besar sebelumnya 2026-09-20 — baca ulang dari awal, jangan cuma diff mental dari versi lama).
 **Repo**: `github.com/isaacalmaz/wira` (public), branch `main`.
 
 ---
@@ -103,7 +103,7 @@ Setiap `git push` ke `main` men-deploy ke **4** project Vercel sekaligus sekaran
 
 **Update 2026-09-25:** migration **0070** sudah dijalankan DAN diverifikasi live (skrip verifikasi rollback-only, 8/8 lulus, frontend sudah di-merge & deploy). Menutup celah "cetak saldo WiraPay": order `wallet`/`paid` bisa dibuat tanpa bayar lalu di-refund, termasuk lewat opsi "Transfer Bank" di Pool/Villa. **0071** (webhook top-up atomik) — cek `migrations/README.md` untuk status apply-nya.
 
-**Update 2026-09-26:** migration **0071–0083 sudah ditulis** (0074–0083 dirangkum di tabel bawah). Per 2026-09-26 user mengonfirmasi **0071–0080 sudah dijalankan** di project Wira (0079/0080 juga dicek dari luar dengan anon key: `permission denied`); **0081–0083 belum tentu** — cek dulu (§2.4), dan ikuti urutan deploy yang tertulis di baris README masing-masing (mis. 0076 sebelum frontend, 0080 SETELAH frontend). 0078, 0079 dan 0080 diverifikasi di PostgreSQL 16 lokal saat ditulis, dan sejak 2026-09-26 **CI menjalankan migration uang/keamanan secara otomatis** (job `db-tests`, lihat §6.9).
+**Update 2026-09-26:** migration **0071–0085 sudah ditulis** (0074–0085 dirangkum di tabel bawah). Per 2026-09-26 user mengonfirmasi **0071–0083 sudah dijalankan** di project Wira (0079/0080 juga dicek dari luar dengan anon key: `permission denied`); **0084–0085 belum tentu** — cek dulu (§2.4), dan ikuti urutan deploy yang tertulis di baris README masing-masing (mis. 0076 sebelum frontend, 0080 dan 0084 SETELAH frontend). 0078, 0079 dan 0080 diverifikasi di PostgreSQL 16 lokal saat ditulis, dan sejak 2026-09-26 **CI menjalankan migration uang/keamanan secara otomatis** (job `db-tests`, lihat §6.9).
 
 Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **0001–0060 sudah dikonfirmasi dijalankan dan sebagian besar sudah diverifikasi live** (lihat catatan khusus di baris masing-masing). Selalu cek `ls migrations/` untuk nomor real-time terbaru — dokumen ini bisa tertinggal.
 
@@ -122,7 +122,8 @@ Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **000
 | **Top-up manual kedaluwarsa** | 2026-09-26, migration 0081: `expire_awaiting_qris_orders()` (cron `wira-expire-qris-orders`, tiap menit) membatalkan `topup_requests` pending non-Midtrans: yang terkait order setelah **2 jam** (jendela webhook Mutasiku), top-up wallet biasa setelah **24 jam** (admin masih bisa approve manual pembayaran yang terlewat webhook). Wallet menyembunyikan request > 24 jam. |
 | **Kuota promo kembali saat order batal** | 2026-09-26, migration 0082: kolom `orders.promo_usage_id` diisi trigger insert HANYA kalau 0076 benar-benar memakai kuota (klien tidak bisa memalsukan); trigger AFTER UPDATE ke `cancelled` mengembalikan tepat satu pemakaian (tidak pernah < 0, tidak dobel walau admin un-cancel/cancel lagi). `consume_promo_for_order` kini mengembalikan id promo (jangan jalankan ulang 0076 setelah 0082). Order sebelum 0082 tidak punya penanda → tidak dikembalikan. |
 | **Jendela dispatch dari waktu bayar** | 2026-09-26, migration 0083: kolom `orders.paid_at` diisi trigger pembayaran QRIS (0078); `dispatch_due_orders` memakai `COALESCE(paid_at, created_at)` untuk jendela 30 menit; trigger kecil menolak klien mengisi/mengubah `paid_at`. |
-| **CI menguji migration uang/keamanan** | 2026-09-26: job `db-tests` di `.github/workflows/ci.yml` (Postgres 16) menerapkan 0045, 0046, 0059, 0070, 0071, 0074, 0076–0080, 0072, 0081–0083 apa adanya di atas stub Supabase kecil lalu menjalankan asersi SQL. Lihat §6.9 dan `db-tests/README.md`. |
+| **Data pendaftaran mitra tidak lagi publik** | 2026-09-26, migrations 0084 + 0085: pendaftaran mitra (termasuk foto SIM/STNK) dulu satu daftar JSON di baris `feature_flags` `region='mitra_registrations'` yang bisa dibaca & ditimpa siapa saja (anon juga). Sekarang tabel `mitra_applications` (baca: pendaftar sendiri/admin; ubah: admin; kirim lewat RPC `submit_mitra_application`), data lama disalin lalu barisnya dihapus, tulis `feature_flags` kembali admin saja. Spesialisasi teknisi untuk ServicePage lewat `get_technician_profiles()`. Deploy frontend dulu, baru jalankan 0084+0085. |
+| **CI menguji migration uang/keamanan** | 2026-09-26: job `db-tests` di `.github/workflows/ci.yml` (Postgres 16) menerapkan 0045, 0046, 0059, 0070, 0071, 0074, 0076–0080, 0072, 0081–0085 apa adanya di atas stub Supabase kecil lalu menjalankan asersi SQL. Lihat §6.9 dan `db-tests/README.md`. |
 | **Dispatch driver di server** (ping 1 driver tiap 15 detik, tetap jalan walau app pelanggan ditutup) | 2026-09-25, migrations 0072 (fungsi) + 0073 (pg_cron). `backend/routes/dispatch.routes.js`. Butuh secret `dispatch_cron_secret` di Supabase Vault = env `DISPATCH_CRON_SECRET` di Vercel wira-backend. Order yang lebih tua dari 30 menit tidak di-dispatch lagi. |
 | **Checkout WiraPay atomik** (order + debit harga server dalam satu transaksi, `create_order_and_pay`) | ✅ 2026-09-25, migration 0070, diverifikasi live. "Transfer" sekarang tersimpan sebagai `payment_method='transfer'`, `unpaid` |
 | **Top-up QRIS terverifikasi OTOMATIS via webhook Mutasiku** (mutasi bank DANA) | ✅ Baru sesi ini — `backend/routes/mutasiku.js`, tidak perlu admin approve manual lagi untuk top-up manual |
@@ -147,7 +148,7 @@ Migration **0001–0060 sudah ditulis**; per pengecekan terakhir sesi ini, **000
 3. **Isi kredensial asli Midtrans** kalau akun merchant-nya sudah disetujui — saat ini QRIS manual + Mutasiku adalah jalur top-up utama yang live, Midtrans masih placeholder/sandbox.
 4. **(Opsional, disarankan)** Jalankan sekali audit `pg_policies` menyeluruh untuk tabel-tabel lain yang belum pernah dicek (lihat §2.5) — sesi ini sudah cek `users/orders/merchants/drivers/reviews/notifications/operational_zones/topup_requests` dan bersih, tapi belum semua tabel di skema.
 5. ~~**`topup_requests`'s kebijakan "Anyone can check pending amounts"** sedikit longgar~~ — di-drop oleh migration 0079 (berlaku setelah 0079 dijalankan).
-6. **Jalankan 0081–0083 di Supabase kalau belum** (0071–0080 sudah dikonfirmasi jalan 2026-09-26) (cek dulu, §2.4), dengan urutan deploy di baris `migrations/README.md` masing-masing. 0078 butuh pg_cron (sama seperti 0073); setelah apply cek `SELECT jobname, schedule FROM cron.job;` memuat `wira-expire-qris-orders`.
+6. **Jalankan 0084+0085 di Supabase kalau belum** (setelah frontend-nya ter-deploy; 0071–0083 sudah dikonfirmasi jalan 2026-09-26) (cek dulu, §2.4), dengan urutan deploy di baris `migrations/README.md` masing-masing. 0078 butuh pg_cron (sama seperti 0073); setelah apply cek `SELECT jobname, schedule FROM cron.job;` memuat `wira-expire-qris-orders`.
 
 ---
 
