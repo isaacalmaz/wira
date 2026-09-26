@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Search } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { MapPin } from 'lucide-react';
 
 export default function LocationAutocomplete({ placeholder, icon: Icon, iconColor, value, onChange, onSelect }) {
   const [query, setQuery] = useState(value || '');

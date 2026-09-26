@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '../components/shared/UIComponents';
 import { supabase } from '../config/supabase';
@@ -128,7 +128,7 @@ const RegisterPage = () => {
     } else {
       setLoading(true);
 
-      let authData = null;
+      let authData;
       // 0. Buat akun di Supabase Auth
       try {
         const { data, error: authError } = await supabase.auth.signUp({
@@ -211,7 +211,7 @@ const RegisterPage = () => {
       // 2. Simpan juga ke mitra_registrations jika tabel sudah dibuat
       try {
         await supabase.from('mitra_registrations').insert([newMitra]);
-      } catch (e) {}
+      } catch { /* best-effort; ignore */ }
 
       // 3. Simpan ke LocalStorage & broadcast untuk sinkronisasi lokal
       try {

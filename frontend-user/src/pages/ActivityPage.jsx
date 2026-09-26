@@ -15,9 +15,7 @@ import {
   Waves,
   Smartphone,
   Clock,
-  CheckCircle2,
   X,
-  ExternalLink,
   Receipt,
 } from 'lucide-react';
 

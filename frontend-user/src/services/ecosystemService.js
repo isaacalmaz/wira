@@ -26,7 +26,7 @@ export const getStoredOrders = async () => {
 export const broadcastEcosystemEvent = (type, payload) => {
   const eventData = { type, payload, timestamp: Date.now() };
   if (syncChannel) {
-    try { syncChannel.postMessage(eventData); } catch (e) {}
+    try { syncChannel.postMessage(eventData); } catch { /* channel closed; ignore */ }
   }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('wira_ecosystem_event', { detail: eventData }));

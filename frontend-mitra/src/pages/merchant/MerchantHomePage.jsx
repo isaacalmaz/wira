@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal } from '../../components/shared/UIComponents';
-import { Store, TrendingUp, ShoppingBag, BellRing, MapPin } from 'lucide-react';
+import { Store, TrendingUp, ShoppingBag, BellRing } from 'lucide-react';
 import OnlineToggle from '../../components/shared/OnlineToggle';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { MessageSquare, Search, Filter, MessageCircle, CheckCircle, X } from 'lucide-react';
+import { MessageCircle, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function SupportTicketsPage() {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { ChevronLeft, Mail, Phone, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

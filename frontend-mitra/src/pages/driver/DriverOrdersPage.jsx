@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
+import { Card, Badge, EmptyState } from '../../components/shared/UIComponents';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { User, MapPin, Package, RefreshCw, History } from 'lucide-react';
+import { User, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';

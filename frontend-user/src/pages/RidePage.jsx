@@ -17,7 +17,6 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import API_BASE_URL from '../config/api';
 
 export default function RidePage() {
   const navigate = useNavigate();

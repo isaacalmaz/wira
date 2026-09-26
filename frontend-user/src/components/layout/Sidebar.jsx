@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Activity, Wallet, User, Settings, LogOut } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import { SERVICES } from '../../config/services';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {

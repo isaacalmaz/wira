@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, Car, Store, Home, Wrench } from 'lucide-react';
 import { Card } from '../components/shared/UIComponents';
@@ -73,7 +73,7 @@ const UnauthorizedPage = () => {
     };
 
     try {
-      const { data, error: fetchErr } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
+      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'mitra_registrations').maybeSingle();
       const currentList = Array.isArray(data?.features) ? data.features : [];
       const updatedList = [newMitra, ...currentList.filter(m => m.auth_id !== user.id || m.role !== role)];
 

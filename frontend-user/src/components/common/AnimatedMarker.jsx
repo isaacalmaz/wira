@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
+import { useEffect, useRef, useState } from 'react';
+import { Marker } from 'react-leaflet';
 
 // Utility to interpolate between two coordinates
 const interpolate = (start, end, progress) => {

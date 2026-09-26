@@ -22,7 +22,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
 
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('submit_review_and_tip', {
+      const { error } = await supabase.rpc('submit_review_and_tip', {
         p_order_id: order.id,
         p_rating: rating,
         p_review_text: reviewText,

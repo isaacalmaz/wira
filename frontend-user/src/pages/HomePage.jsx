@@ -1,10 +1,9 @@
 import { useTranslation } from '../i18n';
 import { SERVICES } from '../config/services';
-import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { Link } from 'react-router-dom';
 import Card from '../components/common/Card';
-import { Wallet, Clock, Package, ShoppingBag, ArrowRight, Settings2, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Wallet, Clock, ArrowRight, Settings2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { supabase } from '../config/supabase';
@@ -23,7 +22,7 @@ export default function HomePage() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {}
+    } catch { /* invalid stored value: fall back to default */ }
     return SERVICES.map(s => s.id);
   });
   const [hiddenServices, setHiddenServices] = useState(() => {
@@ -33,7 +32,7 @@ export default function HomePage() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {}
+    } catch { /* invalid stored value: fall back to default */ }
     return [];
   });
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);

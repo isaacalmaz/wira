@@ -16,7 +16,7 @@ export default function VillaPage() {
   const { addOrder } = useOrders();
 
   const [villas, setVillas] = useState([]);
-  const [fetchLoading, setFetchLoading] = useState(true);
+  const [, setFetchLoading] = useState(true);
   const [area, setArea] = useState('Semua');
   const areas = ['Semua', 'Senggigi', 'Kuta', 'Sembalun', 'Tetebatu'];
 

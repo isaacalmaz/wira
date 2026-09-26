@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, Eye, RefreshCw, FileSearch, Trash2, Plus, Edit } from 'lucide-react';
+import { Search, RefreshCw, FileSearch, Trash2, Plus } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';

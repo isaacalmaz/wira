@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, Button } from '../components/shared/UIComponents';
 import { Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

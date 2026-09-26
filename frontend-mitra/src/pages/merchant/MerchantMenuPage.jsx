@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, GripVertical, Search, X, Check, UtensilsCrossed, RefreshCw, Camera } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Search, X, UtensilsCrossed, RefreshCw, Camera } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';

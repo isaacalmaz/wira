@@ -2,21 +2,20 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Star, Clock } from 'lucide-react';
 import Card from '../components/common/Card';
-import { formatRupiah } from '../utils/formatRupiah';
 import { supabase } from '../config/supabase';
 
 export default function FoodPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Semua');
   const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   
   const categories = ['Semua', 'Ayam', 'Daging', 'Seafood', 'Minuman'];
 
   useEffect(() => {
     const fetchRestaurants = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('merchants')
         .select('*')
         .eq('service_type', 'food')

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Gift } from 'lucide-react';
 import { Card } from '../../components/shared/UIComponents';
@@ -13,7 +13,6 @@ const DriverEarningsPage = () => {
   // One unified Driver portal - earnings cover every order ever assigned to
   // this driver regardless of service type (ride/send/food share is already
   // computed correctly per-order by driverEarnedAmount).
-  const [tab, setTab] = useState('daily');
   const [earningsData, setEarningsData] = useState([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [weekTotal, setWeekTotal] = useState(0);

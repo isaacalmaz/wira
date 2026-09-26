@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext();
 
@@ -94,7 +93,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -115,7 +114,7 @@ export const AuthProvider = ({ children }) => {
     try {
       localStorage.removeItem('wira_admin_demo_user');
       await supabase.auth.signOut();
-    } catch (e) {}
+    } catch { /* sign-out failure is ignored; local state is cleared below */ }
     setUser(null);
   };
 

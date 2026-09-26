@@ -40,7 +40,7 @@ const AdminSidebar = ({ isCollapsed }) => {
         for (const item of local) {
           if (!existingIds.has(item.id)) list.push(item);
         }
-      } catch (e) {}
+      } catch { /* best-effort; ignore */ }
 
       // Driver (Ride) and Kurir (Send) are two distinct registration roles
       // now (see migrations/0031) but still share the /drivers admin page
@@ -54,7 +54,7 @@ const AdminSidebar = ({ isCollapsed }) => {
       const techCount = list.filter((m) => m.role === 'technician' && m.status === 'Pending').length;
 
       setPendingCounts({ driver: driverCount, merchant: merchantCount, technician: techCount });
-    } catch (err) {}
+    } catch { /* best-effort; ignore */ }
   };
 
   useEffect(() => {
