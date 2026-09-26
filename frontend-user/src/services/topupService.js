@@ -320,10 +320,10 @@ export async function cancelTopUpRequest(supabaseClient, requestId, userId) {
   }
 }
 
-// Must match the Mutasiku webhook's match window (backend/routes/mutasiku.js).
-// Older pending requests are cancelled by expire_awaiting_qris_orders()
-// (migrations/0081, pg_cron every minute), so hide them here right away.
-export const TOPUP_EXPIRY_MS = 2 * 60 * 60 * 1000;
+// Must match expire_awaiting_qris_orders() (migrations/0081, pg_cron every
+// minute): a wallet top-up the Mutasiku webhook (2-hour match window) missed
+// can still be approved by an admin for 24 hours, then it is cancelled.
+export const TOPUP_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Fetches active/pending top-up requests for a specific user.

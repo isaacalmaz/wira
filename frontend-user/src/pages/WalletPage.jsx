@@ -727,7 +727,7 @@ export default function WalletPage() {
                           <li>Setelah pembayaran selesai, tekan tombol konfirmasi di bawah.</li>
                         </ol>
                         <p className="text-amber-700 dark:text-amber-300">
-                          Pembayaran harus diterima dalam 2 jam sejak konfirmasi. Lewat dari itu, permintaan otomatis kedaluwarsa dan tidak diproses.
+                          Pembayaran dalam 2 jam diverifikasi otomatis. Lewat dari itu, admin memverifikasi manual hingga 24 jam; setelahnya permintaan kedaluwarsa. Hubungi CS jika sudah membayar tapi saldo belum masuk.
                         </p>
                       </div>
                     </div>
