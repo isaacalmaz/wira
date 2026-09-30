@@ -518,7 +518,9 @@
     "cancel_desc_accepted": "Your partner is already on the way. Cancelling is still free within 3 minutes of the order being accepted.",
     "cancel_keep": "Keep my order",
     "call_driver": "Call partner",
-    "qris_cancel_desc": "This order has not been paid yet. Cancelling makes its QRIS code invalid, so do not transfer after cancelling."
+    "qris_cancel_desc": "This order has not been paid yet. Cancelling makes its QRIS code invalid, so do not transfer after cancelling.",
+    "cancel_desc_late": "Your partner has not picked you up within 20 minutes of accepting, so cancelling is free.",
+    "cancel_available_at": "Your partner is on the way. If you have not been picked up, you can cancel for free from {{time}}."
   },
   "review": {
     "title": "Leave a Review",

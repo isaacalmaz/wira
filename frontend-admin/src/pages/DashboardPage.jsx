@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import {
-  Badge, Button, Card, EmptyState, IconTile, ListRow, Money, PageHeader, SectionHeader, Spinner, Stat, Table,
+  Badge, Button, Card, EmptyState, IconTile, ListRow, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table,
 } from '../components/ui';
 import { useTheme } from '../context/ThemeContext';
 import { fetchPendingApplications } from '../services/mitraApplicationService';
@@ -82,6 +82,7 @@ const DashboardPage = () => {
   // the key figures above.
   const [recentOrders, setRecentOrders] = useState([]);
   const [pendingApps, setPendingApps] = useState([]);
+  const [staleCount, setStaleCount] = useState(0);
 
   useEffect(() => {
     const fetchExtras = async () => {
@@ -96,6 +97,10 @@ const DashboardPage = () => {
         if (recentRes.error) throw recentRes.error;
         setRecentOrders(recentRes.data || []);
         setPendingApps(pendings || []);
+
+        // Stuck active orders (migrations/0088); silently absent before it.
+        const { data: stale } = await supabase.rpc('admin_stale_orders', { p_minutes: 60 });
+        setStaleCount(Array.isArray(stale) ? stale.length : 0);
       } catch (err) {
         console.error('Dashboard extras error:', err);
       }
@@ -391,9 +396,19 @@ const DashboardPage = () => {
         <section className="flex min-w-0 flex-col">
           <SectionHeader
             title="Perlu Tindakan"
-            action={pendingApps.length > 0 ? <Badge tone="warning" className="font-mono">{pendingApps.length}</Badge> : null}
+            action={pendingApps.length + staleCount > 0 ? <Badge tone="warning" className="font-mono">{pendingApps.length + staleCount}</Badge> : null}
           />
-          {pendingApps.length === 0 ? (
+          {staleCount > 0 && (
+            <Notice
+              tone="warning"
+              title={`${staleCount} pesanan macet`}
+              className="mb-3"
+              action={<Button size="sm" variant="secondary" onClick={() => navigate('/orders')}>Tinjau</Button>}
+            >
+              Statusnya tidak bergerak lebih dari 60 menit.
+            </Notice>
+          )}
+          {pendingApps.length === 0 && staleCount > 0 ? null : pendingApps.length === 0 ? (
             <EmptyState icon={<Inbox size={22} />} title="Tidak ada notifikasi riil baru" description="Pendaftaran mitra yang menunggu verifikasi akan muncul di sini." />
           ) : (
             <Card padding="none" className="overflow-hidden">

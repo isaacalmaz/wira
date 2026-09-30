@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { ShoppingBag, Search } from 'lucide-react';
 import { Badge, Card, EmptyState, Input, Money, PageHeader, Select, Spinner, Table } from '../components/ui';
 import { orderStatusLabel } from '../config/orderStatus';
+import StaleOrdersPanel from '../components/common/StaleOrdersPanel';
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -64,6 +65,8 @@ const OrdersPage = () => {
         subtitle="Seluruh pesanan yang masuk ke ekosistem Wira"
         className="!mb-0"
       />
+
+      <StaleOrdersPanel onResolved={fetchOrders} />
 
       {/* Filter bar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center">

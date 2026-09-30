@@ -84,6 +84,15 @@ export default function ActiveOrderPage() {
   const chatRef = useRef(null);
   // UI only: the cancel confirmation sheet and the chat section anchor.
   const [cancelOpen, setCancelOpen] = useState(false);
+  // Re-evaluates the cancellation window (3 min / 20 min after acceptance)
+  // while a partner is on the way.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const waitingForPickup = order && ['accepted', 'picking_up'].includes(order.status);
+  useEffect(() => {
+    if (!waitingForPickup) return undefined;
+    const id = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, [waitingForPickup]);
   const chatSectionRef = useRef(null);
 
   // Fetch Order Details
@@ -246,16 +255,25 @@ export default function ActiveOrderPage() {
     }
   };
 
+  // Mirrors wallet_refund_matched_ride (migrations/0088): free while pending,
+  // in the first 3 minutes after a partner accepts, and again once 20 minutes
+  // pass without the pickup.
+  const FREE_WINDOW_MS = 3 * 60 * 1000;
+  const NO_SHOW_MS = 20 * 60 * 1000;
+  const sinceAccept = order?.accepted_at ? nowTick - new Date(order.accepted_at).getTime() : null;
   const isCancelable = () => {
     if (!order) return false;
     if (order.status === 'pending') return true;
-    if (order.status === 'accepted') {
-      if (!order.accepted_at) return true; // fallback
-      const diff = Date.now() - new Date(order.accepted_at).getTime();
-      return diff <= 180000; // 3 mins
+    if (['accepted', 'picking_up'].includes(order.status)) {
+      if (sinceAccept == null) return true; // fallback
+      return sinceAccept <= FREE_WINDOW_MS || sinceAccept >= NO_SHOW_MS;
     }
     return false;
   };
+  const cancelReopensAt = order && ['accepted', 'picking_up'].includes(order.status) && sinceAccept != null
+    && sinceAccept > FREE_WINDOW_MS && sinceAccept < NO_SHOW_MS
+    ? new Date(new Date(order.accepted_at).getTime() + NO_SHOW_MS)
+    : null;
 
   if (loading || !order) {
     return (
@@ -270,12 +288,15 @@ export default function ActiveOrderPage() {
   // ---- display-only values (no effect on data or cancellation logic) ----
   const route = routeFromOrder(order);
   const distanceKm = order.distance_meters ? (Number(order.distance_meters) / 1000).toFixed(1) : null;
-  const paidWithWallet = order.payment_method === 'wallet' && order.payment_status === 'paid';
+  // QRIS orders are paid out of the wallet too, so both are refunded there.
+  const paidWithWallet = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
   const partnerName = order.driver?.name || t('chat.default_partner');
   const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
   const cancelDescription = order.status === 'pending'
     ? t('order.cancel_desc_pending')
-    : t('order.cancel_desc_accepted');
+    : sinceAccept != null && sinceAccept >= NO_SHOW_MS
+      ? t('order.cancel_desc_late')
+      : t('order.cancel_desc_accepted');
   const openChat = () => chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const roundBtn = 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors';
 
@@ -446,6 +467,11 @@ export default function ActiveOrderPage() {
         </div>
       </Card>
 
+      {cancelReopensAt && (
+        <p className="text-center text-[12.5px] leading-relaxed text-ink-muted">
+          {t('order.cancel_available_at', { time: cancelReopensAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) })}
+        </p>
+      )}
       {isCancelable() && (
         <Button
           variant="danger-soft"

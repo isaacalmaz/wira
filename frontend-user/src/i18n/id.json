@@ -518,7 +518,9 @@
     "cancel_desc_accepted": "Mitra sudah menuju lokasi Anda. Pembatalan masih gratis dalam 3 menit pertama setelah pesanan diterima.",
     "cancel_keep": "Lanjutkan pesanan",
     "call_driver": "Telepon mitra",
-    "qris_cancel_desc": "Pesanan ini belum dibayar. Kalau dibatalkan, kode QRIS-nya tidak berlaku lagi. Jangan transfer setelah membatalkan."
+    "qris_cancel_desc": "Pesanan ini belum dibayar. Kalau dibatalkan, kode QRIS-nya tidak berlaku lagi. Jangan transfer setelah membatalkan.",
+    "cancel_desc_late": "Mitra belum menjemput Anda lebih dari 20 menit sejak pesanan diterima, jadi pembatalan gratis.",
+    "cancel_available_at": "Mitra sedang menuju lokasi Anda. Jika belum dijemput, Anda bisa membatalkan gratis mulai pukul {{time}}."
   },
   "review": {
     "title": "Beri Ulasan",
