@@ -178,7 +178,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         onClick={locateUser}
         title={t('common.use_current_location')}
         aria-label={t('common.use_current_location')}
-        className={`absolute ${locateClassName} z-[1000] inline-flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken`}
+        className={`absolute ${locateClassName} z-10 inline-flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken`}
       >
         <LocateFixed size={20} aria-hidden="true" />
       </button>

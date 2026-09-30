@@ -40,6 +40,8 @@ import {
 import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+import AddressNoteField from '../components/common/AddressNoteField';
+import { withAddressNote } from '../utils/addressNote';
 
 // Placeholder used to drop a <Money> into a translated sentence, so an
 // amount inside "Pesan Sekarang • {{price}}" still renders in mono.
@@ -100,6 +102,7 @@ export default function RestaurantPage() {
 
   const [step, setStep] = useState('menu'); // 'menu', 'checkout', 'tracking'
   const [deliveryAddress, setDeliveryAddress] = useState('Jl. Pejanggik No. 8, Mataram');
+  const [deliveryNote, setDeliveryNote] = useState('');
   const [deliveryCoords, setDeliveryCoords] = useState({ lat: -8.5833, lng: 116.1167 });
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [promoCode, setPromoCode] = useState('');
@@ -318,7 +321,7 @@ export default function RestaurantPage() {
         serviceType: 'food',
         merchantId: rest.id,
         title: rest.name,
-        details: `${itemsSummary} — Antar ke: ${deliveryAddress}`,
+        details: `${itemsSummary} — Antar ke: ${withAddressNote(deliveryAddress, deliveryNote)}`,
         price: grandTotal,
         deliveryFee: dynamicDeliveryFee,
         dropoffLat: deliveryCoords.lat,
@@ -518,9 +521,10 @@ export default function RestaurantPage() {
             </div>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <SavedAddressPicker
-                onSelect={({ address, lat, lng }) => {
+                onSelect={({ address, lat, lng, note }) => {
                   setDeliveryAddress(address);
                   setDeliveryCoords({ lat, lng });
+                  setDeliveryNote(note || '');
                 }}
               />
               <button
@@ -531,6 +535,14 @@ export default function RestaurantPage() {
                 <LocateFixed size={15} aria-hidden="true" /> {t('common.use_current_location')}
               </button>
             </div>
+            <AddressNoteField
+              id="delivery-note"
+              address={deliveryAddress}
+              lat={deliveryCoords?.lat}
+              lng={deliveryCoords?.lng}
+              note={deliveryNote}
+              onNoteChange={setDeliveryNote}
+            />
             <div className="h-44 overflow-hidden rounded-card border border-line">
               <WiraMap
                 center={deliveryCoords}

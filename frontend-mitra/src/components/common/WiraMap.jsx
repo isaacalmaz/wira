@@ -159,7 +159,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         onClick={locateUser}
         title="Lokasi saya"
         aria-label="Lokasi saya"
-        className="absolute bottom-6 right-6 z-[1000] inline-flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
+        className="absolute bottom-6 right-6 z-10 inline-flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
       >
         <LocateFixed size={20} aria-hidden="true" />
       </button>

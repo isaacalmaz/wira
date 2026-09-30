@@ -23,6 +23,8 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
+import AddressNoteField from '../components/common/AddressNoteField';
+import { withAddressNote } from '../utils/addressNote';
 
 export default function RidePage() {
   const navigate = useNavigate();
@@ -175,6 +177,7 @@ export default function RidePage() {
   // production (calculateFinalPrice() is called unconditionally on line
   // ~600's "Pesan Sekarang" button).
   const [promoCode, setPromoCode] = useState('');
+  const [pickupNote, setPickupNote] = useState('');
   const [activePromo, setActivePromo] = useState(null);
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
@@ -251,7 +254,7 @@ export default function RidePage() {
       }
 
       const orderDetails = JSON.stringify({
-        pickup: { name: pickup, lat: pickupLat, lng: pickupLng },
+        pickup: { name: withAddressNote(pickup, pickupNote), lat: pickupLat, lng: pickupLng },
         dropoff: { name: dropoff, lat: mapState.markers[1]?.lat, lng: mapState.markers[1]?.lng },
         route: mapState.route
       });
@@ -528,6 +531,15 @@ export default function RidePage() {
                   })}
                 </div>
               </div>
+
+              <AddressNoteField
+                id="ride-pickup-note"
+                address={pickup}
+                lat={mapState.markers[0]?.lat}
+                lng={mapState.markers[0]?.lng}
+                note={pickupNote}
+                onNoteChange={setPickupNote}
+              />
 
               {/* Kode Promo */}
               <div className="flex flex-col gap-1.5">

@@ -709,5 +709,20 @@
     "method_wallet": "WiraPay",
     "method_transfer": "Transfer bank",
     "service_complaint": "Keluhan: {{text}}"
+  },
+  "address_note": {
+    "label": "Detail alamat / patokan",
+    "placeholder": "Contoh: pagar hijau, depan masjid",
+    "hint": "Membantu mitra menemukan lokasi Anda.",
+    "landmark": "Patokan",
+    "save": "Simpan alamat",
+    "save_title": "Simpan alamat ini",
+    "save_desc": "Beri nama supaya mudah dipilih lagi saat memesan.",
+    "name_label": "Nama alamat",
+    "name_placeholder": "Contoh: Rumah, Kantor, Kos",
+    "preset_home": "Rumah",
+    "preset_office": "Kantor",
+    "preset_kos": "Kos",
+    "need_address": "Isi alamatnya dulu sebelum menyimpan."
   }
 }

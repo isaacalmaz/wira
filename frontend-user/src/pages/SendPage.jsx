@@ -10,6 +10,8 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
+import AddressNoteField from '../components/common/AddressNoteField';
+import { withAddressNote } from '../utils/addressNote';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -32,10 +34,12 @@ export default function SendPage() {
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
   const [senderAddress, setSenderAddress] = useState('');
+  const [senderNote, setSenderNote] = useState('');
 
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [receiverAddress, setReceiverAddress] = useState('');
+  const [receiverNote, setReceiverNote] = useState('');
   const [itemNote, setItemNote] = useState('');
 
   // `name` stays Indonesian on purpose: it is written into the order's
@@ -170,7 +174,7 @@ export default function SendPage() {
         service: 'WiraSend',
         serviceType: 'send',
         title: `Kirim Paket ke ${receiverName}`,
-        details: `No. Resi: ${resi} • ${currentPkg.name} (${senderAddress} ➔ ${receiverAddress})`,
+        details: `No. Resi: ${resi} • ${currentPkg.name} (${withAddressNote(senderAddress, senderNote)} ➔ ${withAddressNote(receiverAddress, receiverNote)})`,
         price: finalPrice,
         status: 'pending',
         paymentMethod: paymentMethod,
@@ -262,7 +266,8 @@ export default function SendPage() {
                 required
               />
             </Field>
-            <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setSenderAddress(address)} className="self-start" />
+            <SavedAddressPicker requireCoords={false} onSelect={({ address, note }) => { setSenderAddress(address); setSenderNote(note || ''); }} className="self-start" />
+            <AddressNoteField id="send-sender-note" address={senderAddress} note={senderNote} onNoteChange={setSenderNote} />
           </Card>
 
           {/* Detail Penerima */}
@@ -304,7 +309,8 @@ export default function SendPage() {
                 required
               />
             </Field>
-            <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setReceiverAddress(address)} className="self-start" />
+            <SavedAddressPicker requireCoords={false} onSelect={({ address, note }) => { setReceiverAddress(address); setReceiverNote(note || ''); }} className="self-start" />
+            <AddressNoteField id="send-receiver-note" address={receiverAddress} note={receiverNote} onNoteChange={setReceiverNote} />
             <Field label={t('wallet.transfer_note_label')} htmlFor="send-item-note">
               <Input
                 id="send-item-note"

@@ -22,6 +22,7 @@ export default function SavedAddressesPage() {
 
   const [formData, setFormData] = useState({
     label: '',
+    note: '',
     address: '',
     lat: DEFAULT_COORDS.lat,
     lng: DEFAULT_COORDS.lng
@@ -71,21 +72,24 @@ export default function SavedAddressesPage() {
     }
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('saved_addresses')
         .insert([{
           user_id: user.id,
           label: formData.label,
           address: formData.address,
           lat: formData.lat,
-          lng: formData.lng
-        }]);
+          lng: formData.lng,
+          note: formData.note.trim() || null,
+        }])
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Blocked by RLS');
 
       toast.success(t('addresses.saved'));
       setIsModalOpen(false);
-      setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+      setFormData({ label: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
       setHasPickedLocation(false);
       fetchAddresses();
     } catch (err) {
@@ -175,7 +179,7 @@ export default function SavedAddressesPage() {
         block
         leftIcon={<Plus size={18} aria-hidden="true" />}
         onClick={() => {
-          setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+          setFormData({ label: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
           setHasPickedLocation(false);
           setIsModalOpen(true);
         }}
@@ -203,6 +207,7 @@ export default function SavedAddressesPage() {
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
                 <h3 className="break-words text-[14px] font-semibold text-ink">{addr.label}</h3>
                 <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-muted">{addr.address}</p>
+                {addr.note && <p className="text-[12.5px] text-ink-muted">{t('address_note.landmark')}: {addr.note}</p>}
               </div>
               <button
                 type="button"
@@ -268,6 +273,15 @@ export default function SavedAddressesPage() {
               </button>
             </div>
           </div>
+          <Field label={t('address_note.label')} htmlFor="address-note" hint={t('address_note.hint')}>
+            <Input
+              id="address-note"
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              placeholder={t('address_note.placeholder')}
+              maxLength={140}
+            />
+          </Field>
           <div className="flex flex-col gap-1.5">
             <p className="text-[13px] font-semibold text-ink">
               {t('addresses.map_label')} {hasPickedLocation && <span className="font-normal text-success-ink">{t('addresses.map_picked')}</span>}

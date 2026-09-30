@@ -125,7 +125,10 @@ export function localizeOrderTitle(order, t) {
  * with pickup/dropoff; every other service stores one of the templates below.
  */
 export function localizeOrderDetails(order, t) {
-  const raw = typeof order?.details === 'string' ? order.details : '';
+  // Landmark notes ride inside the address text as "(Patokan: …)" (utils/addressNote).
+  const raw = typeof order?.details === 'string'
+    ? order.details.split('(Patokan: ').join(`(${t('address_note.landmark')}: `)
+    : '';
   if (!raw) return '';
 
   // WiraRide: JSON { pickup: {name}, dropoff: {name}, route }

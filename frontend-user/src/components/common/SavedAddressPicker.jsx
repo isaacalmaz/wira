@@ -32,7 +32,7 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
     let cancelled = false;
     supabase
       .from('saved_addresses')
-      .select('id, label, address, lat, lng, is_primary')
+      .select('id, label, address, lat, lng, is_primary, note')
       .eq('user_id', user.id)
       .order('is_primary', { ascending: false })
       .order('created_at', { ascending: false })
@@ -82,7 +82,7 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
                 type="button"
                 disabled={!usable}
                 onClick={() => {
-                  onSelect({ address: a.address, lat: a.lat, lng: a.lng, label: a.label });
+                  onSelect({ address: a.address, lat: a.lat, lng: a.lng, label: a.label, note: a.note || '' });
                   setIsOpen(false);
                 }}
                 className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
@@ -94,6 +94,7 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-[13.5px] font-semibold text-ink">{a.label}</span>
                   <span className="truncate text-xs text-ink-muted">{a.address}</span>
+                  {a.note && <span className="truncate text-xs text-ink-muted">{t('address_note.landmark')}: {a.note}</span>}
                 </span>
               </button>
             );

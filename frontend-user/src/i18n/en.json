@@ -709,5 +709,20 @@
     "method_wallet": "WiraPay",
     "method_transfer": "Bank transfer",
     "service_complaint": "Issue: {{text}}"
+  },
+  "address_note": {
+    "label": "Address details / landmark",
+    "placeholder": "e.g. green gate, opposite the mosque",
+    "hint": "Helps your partner find you.",
+    "landmark": "Landmark",
+    "save": "Save address",
+    "save_title": "Save this address",
+    "save_desc": "Give it a name so you can pick it again when you order.",
+    "name_label": "Address name",
+    "name_placeholder": "e.g. Home, Office, Boarding house",
+    "preset_home": "Home",
+    "preset_office": "Office",
+    "preset_kos": "Boarding house",
+    "need_address": "Enter the address first, then save it."
   }
 }
