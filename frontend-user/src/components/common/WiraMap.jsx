@@ -27,9 +27,10 @@ const createIcon = (iconComponent) => {
 // Tenun Laut markers: pickup = brand (laut), destination = danger (bara),
 // driver = a solid brand arrow. Colours are semantic classes, so they follow
 // the theme; the tile layer is inverted in dark mode, the marker pane is not.
-const pickupIcon = createIcon(<MapPin strokeWidth={2.2} className="text-brand fill-brand-soft w-8 h-8" />);
-const dropoffIcon = createIcon(<MapPin strokeWidth={2.2} className="text-danger fill-danger-soft w-8 h-8" />);
-const driverIcon = createIcon(<Navigation strokeWidth={1.8} className="text-white fill-brand w-8 h-8 transform rotate-45" />);
+// Shared with ActiveOrderPage so every map uses the same pins.
+export const pickupIcon = createIcon(<MapPin strokeWidth={2.2} className="text-brand fill-brand-soft w-8 h-8" />);
+export const dropoffIcon = createIcon(<MapPin strokeWidth={2.2} className="text-danger fill-danger-soft w-8 h-8" />);
+export const driverIcon = createIcon(<Navigation strokeWidth={1.8} className="text-white fill-brand w-8 h-8 transform rotate-45" />);
 
 // Leaflet mengukur ukuran container-nya sekali saat mount. Jika layout di
 // sekitarnya masih berubah bentuk setelah itu (mis. sidebar/topbar baru

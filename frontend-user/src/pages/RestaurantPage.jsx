@@ -347,6 +347,9 @@ export default function RestaurantPage() {
     setLoading(false);
   };
 
+  // merchants.is_open is toggled by the merchant in Wira Mitra.
+  const isClosed = rest.is_open === false;
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 pb-28">
       <PageHeader
@@ -374,7 +377,7 @@ export default function RestaurantPage() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-[12.5px]">
               <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
                 <Star size={14} className="fill-current" aria-hidden="true" />
-                {t('restaurant.reviews_count', { rating: rest.rating })}
+                <span className="font-mono">{rest.rating ?? '–'}</span>
               </span>
               {rest.deliveryTime && (
                 <span className="inline-flex items-center gap-1.5 text-ink-muted">
@@ -382,9 +385,13 @@ export default function RestaurantPage() {
                   <span className="font-mono">{rest.deliveryTime}</span>
                 </span>
               )}
-              <Badge tone="success" dot className="ml-auto">{t('restaurant.open_now')}</Badge>
+              {isClosed
+                ? <Badge tone="neutral" dot className="ml-auto">{t('restaurant.closed')}</Badge>
+                : <Badge tone="success" dot className="ml-auto">{t('restaurant.open_now')}</Badge>}
             </div>
           </Card>
+
+          {isClosed && <Notice tone="warning">{t('restaurant.closed_notice')}</Notice>}
 
           <section>
             <SectionHeader title={t('restaurant.menu_title')} />
@@ -440,7 +447,8 @@ export default function RestaurantPage() {
                               type="button"
                               aria-label={`+ ${item.name}`}
                               onClick={() => addItem({ ...item, qty: 1 })}
-                              className="inline-flex h-11 w-11 items-center justify-center rounded-r-control text-brand-ink hover:bg-brand-soft"
+                              disabled={isClosed}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-r-control text-brand-ink hover:bg-brand-soft disabled:opacity-40 disabled:hover:bg-transparent"
                             >
                               <Plus size={16} />
                             </button>
@@ -448,6 +456,7 @@ export default function RestaurantPage() {
                         ) : (
                           <Button
                             variant="secondary"
+                            disabled={isClosed}
                             leftIcon={<Plus size={16} />}
                             onClick={() => {
                               addItem({ ...item, qty: 1 });
@@ -483,6 +492,7 @@ export default function RestaurantPage() {
             <Button
               variant="on-brand"
               rightIcon={<ArrowRight size={16} />}
+              disabled={isClosed}
               onClick={() => setStep('checkout')}
             >
               {t('restaurant.to_checkout')}
@@ -646,7 +656,7 @@ export default function RestaurantPage() {
                 size="lg"
                 className="flex-1"
                 onClick={handleConfirmOrder}
-                disabled={loading}
+                disabled={loading || isClosed}
                 isLoading={loading}
               >
                 {loading ? t('common.processing') : withMoney(t('restaurant.place_order', { price: SLOT }), grandTotal)}

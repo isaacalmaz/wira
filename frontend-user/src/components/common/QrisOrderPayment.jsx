@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Copy, Check, QrCode } from 'lucide-react';
+import { Copy, Check, QrCode, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QRISCard from './QRISCard';
-import { Button, IconTile, Notice } from '../ui';
+import { Button, IconTile, Notice, Sheet } from '../ui';
 import { supabase } from '../../config/supabase';
 import { formatAmountWithUniqueHighlight } from '../../services/topupService';
 import { formatRupiah } from '../../utils/formatRupiah';
@@ -16,6 +16,7 @@ const PAY_WINDOW_MS = 15 * 60 * 1000;
 // topup_requests row; the Mutasiku webhook verifies the transfer and the DB
 // moves the order on to 'pending', which ActiveOrderPage picks up.
 export default function QrisOrderPayment({ order, onCancel, cancelling }) {
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const { t } = useTranslation();
   const [amount, setAmount] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -107,11 +108,40 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
       <Button
         variant="danger-soft"
         block
-        onClick={onCancel}
+        onClick={() => setConfirmCancel(true)}
         isLoading={cancelling}
       >
         {cancelling ? t('common.cancelling') : t('order.cancel_order')}
       </Button>
+
+      <Sheet
+        open={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        dismissible={!cancelling}
+        tone="danger"
+        icon={<AlertCircle size={22} />}
+        title={t('order.cancel_confirm_title')}
+        description={t('order.qris_cancel_desc')}
+        closeLabel={t('common.close')}
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setConfirmCancel(false)} disabled={cancelling}>
+              {t('order.cancel_keep')}
+            </Button>
+            <Button
+              variant="danger"
+              size="lg"
+              isLoading={cancelling}
+              onClick={async () => {
+                await onCancel();
+                setConfirmCancel(false);
+              }}
+            >
+              {cancelling ? t('common.cancelling') : t('order.cancel_order')}
+            </Button>
+          </>
+        )}
+      />
     </div>
   );
 }

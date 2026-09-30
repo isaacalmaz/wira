@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Star, Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight } from 'lucide-react';
+import { Wrench, ShieldCheck, Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight } from 'lucide-react';
 import {
   Button,
   Card,
@@ -103,6 +103,13 @@ function PromoField({ t, id, activePromo, promoCode, setPromoCode, onApply, onRe
           id={id}
           value={promoCode}
           onChange={(e) => setPromoCode(e.target.value)}
+          onKeyDown={(e) => {
+            // Inside the booking <form>: Enter must apply the code, not place the order.
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (!checking && promoCode.trim()) onApply();
+            }
+          }}
           invalid={!!error}
           autoCapitalize="characters"
           className="min-w-0 flex-1 font-mono uppercase"
@@ -150,12 +157,10 @@ export default function ServicePage() {
               specialty: reg?.specialization
                 ? t('service.specialist_in', { field: reg.specialization })
                 : t('service.default_specialty'),
-              rating: 5.0,
-              reviews: 1,
               experience: reg?.experience
                 ? t('service.experience_years', { count: reg.experience })
                 : t('service.experience_min'),
-              avatar: u.avatar_url || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=200',
+              avatar: u.avatar_url || null,
               phone: u.phone,
               available: true,
             };
@@ -195,7 +200,7 @@ export default function ServicePage() {
 
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
-    setSelectedTech(tech || technicians.find((tech2) => tech2.category.includes(cat.id)) || technicians[0] || { name: t('service.default_partner'), rating: 5.0 });
+    setSelectedTech(tech || technicians.find((tech2) => tech2.category.includes(cat.id)) || technicians[0] || { name: t('service.default_partner') });
     setActivePromo(null);
     setPromoCode('');
     setPromoError('');
@@ -263,7 +268,8 @@ export default function ServicePage() {
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
-        details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`,
+        details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`
+          + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : ''),
         price: finalPrice,
         paymentMethod: paymentMethod,
         // selectedService.id matches pricing_rules.code for
@@ -352,18 +358,20 @@ export default function ServicePage() {
                 <div key={tech.id} className="flex items-center gap-3 p-3.5">
                   <span
                     aria-hidden="true"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink"
                   >
-                    {(tech.name || '?').trim().charAt(0).toUpperCase()}
+                    {tech.avatar
+                      ? <img src={tech.avatar} alt="" className="h-full w-full rounded-full object-cover" />
+                      : (tech.name || '?').trim().charAt(0).toUpperCase()}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <h4 className="truncate text-[14px] font-semibold text-ink">{tech.name}</h4>
                     <p className="text-[12px] text-ink-muted">
                       {t('service.experience_line', { category: tech.category, years: tech.experience })}
                     </p>
-                    <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink">
-                      <Star size={12} className="fill-current" aria-hidden="true" />
-                      {t('service.verified', { rating: tech.rating })}
+                    <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-ink">
+                      <ShieldCheck size={13} aria-hidden="true" />
+                      {t('service.verified_partner')}
                     </p>
                   </div>
                   <Button

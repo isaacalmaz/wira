@@ -162,7 +162,6 @@
     "not_found_desc": "This restaurant may have closed, or your connection dropped. Try loading the page again.",
     "back_to_food": "Back to WiraFood",
     "loading": "Loading the restaurant...",
-    "reviews_count": "{{rating}} (500+ reviews)",
     "open_now": "Open Now",
     "menu_title": "Food & Drinks",
     "sold_out": "Sold out",
@@ -185,7 +184,9 @@
     "insufficient_balance": "Your WiraPay balance is short for this order. Pay cash instead, or top up first.",
     "order_placed": "Order sent. Waiting for the restaurant to confirm...",
     "order_failed": "We couldn't send that order: {{message}}",
-    "place_order": "Place Order • {{price}}"
+    "place_order": "Place Order • {{price}}",
+    "closed": "Closed",
+    "closed_notice": "This restaurant is closed right now. You can browse the menu, but orders open again when the restaurant does."
   },
   "send": {
     "title": "WiraSend — Same-Day Delivery",
@@ -252,7 +253,6 @@
     "recommended": "Recommended Technicians in Lombok",
     "empty": "No technicians have signed up yet. They can register through the Wira partner portal.",
     "experience_line": "{{category}} • {{years}} of experience",
-    "verified": "{{rating}} (verified)",
     "choose": "Choose",
     "general_category": "General",
     "specialist_in": "{{field}} specialist",
@@ -279,7 +279,8 @@
     "submit": "Schedule the Technician",
     "insufficient_balance": "Your WiraPay balance is short for this booking. Pay cash instead, or top up first.",
     "success": "Request sent. Waiting for a technician to accept your job.",
-    "failed": "We couldn't book that technician: {{message}}"
+    "failed": "We couldn't book that technician: {{message}}",
+    "verified_partner": "Verified partner"
   },
   "pool": {
     "title": "WiraPool — Swimming Pool Care",
@@ -518,7 +519,8 @@
     "cancel_desc_pending": "No partner has accepted this order yet, so cancelling is free.",
     "cancel_desc_accepted": "Your partner is already on the way. Cancelling is still free within 3 minutes of the order being accepted.",
     "cancel_keep": "Keep my order",
-    "call_driver": "Call partner"
+    "call_driver": "Call partner",
+    "qris_cancel_desc": "This order has not been paid yet. Cancelling makes its QRIS code invalid, so do not transfer after cancelling."
   },
   "review": {
     "title": "Leave a Review",
@@ -705,6 +707,7 @@
     "pool_detail": "Size {{size}} • {{address}} • Visit on {{date}}",
     "food_detail": "{{items}} — Deliver to {{address}}",
     "method_wallet": "WiraPay",
-    "method_transfer": "Bank transfer"
+    "method_transfer": "Bank transfer",
+    "service_complaint": "Issue: {{text}}"
   }
 }

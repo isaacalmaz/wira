@@ -155,9 +155,11 @@ export function localizeOrderDetails(order, t) {
   }
 
   // ServicePage: `Teknisi: ${name} • Jadwal: ${date} pukul ${time} • Lokasi: ${address}`
-  m = raw.match(/^Teknisi: (.+?) • Jadwal: (\S+) pukul (\S+) • Lokasi: (.+)$/s);
+  // optionally followed by ` • Keluhan: ${notes}`
+  m = raw.match(/^Teknisi: (.+?) • Jadwal: (\S+) pukul (\S+) • Lokasi: (.+?)(?: • Keluhan: (.+))?$/s);
   if (m) {
-    return t('order_text.service_detail', { tech: m[1], date: m[2], time: m[3], address: m[4] });
+    const base = t('order_text.service_detail', { tech: m[1], date: m[2], time: m[3], address: m[4] });
+    return m[5] ? `${base} • ${t('order_text.service_complaint', { text: m[5] })}` : base;
   }
 
   // PoolPage: `Ukuran: ${size} • Lokasi: ${address} • Kunjungan: ${date}`

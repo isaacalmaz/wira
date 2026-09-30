@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Star, Clock, UtensilsCrossed } from 'lucide-react';
-import { Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
+import { Badge, Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 
@@ -95,7 +95,10 @@ export default function FoodPage() {
                 className="h-20 w-20 shrink-0 rounded-control bg-sunken object-cover"
               />
               <div className="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
-                <h3 className="truncate text-[14px] font-semibold text-ink">{rest.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="min-w-0 truncate text-[14px] font-semibold text-ink">{rest.name}</h3>
+                  {rest.is_open === false && <Badge tone="neutral" className="shrink-0">{t('restaurant.closed')}</Badge>}
+                </div>
                 <p className="truncate text-[12px] text-ink-muted">
                   {[rest.category, rest.address].filter(Boolean).join(' · ')}
                 </p>
@@ -106,10 +109,10 @@ export default function FoodPage() {
                       <span className="font-mono">{rest.rating}</span>
                     </span>
                   )}
-                  {rest.deliveryTime && (
+                  {rest.delivery_time && (
                     <span className="inline-flex items-center gap-1 text-ink-muted">
                       <Clock size={13} aria-hidden="true" />
-                      <span className="font-mono">{rest.deliveryTime}</span>
+                      <span className="font-mono">{rest.delivery_time}</span>
                     </span>
                   )}
                 </div>

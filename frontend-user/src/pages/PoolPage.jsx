@@ -102,6 +102,13 @@ function PromoField({ t, id, activePromo, promoCode, setPromoCode, onApply, onRe
           id={id}
           value={promoCode}
           onChange={(e) => setPromoCode(e.target.value)}
+          onKeyDown={(e) => {
+            // Inside the booking <form>: Enter must apply the code, not place the order.
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (!checking && promoCode.trim()) onApply();
+            }
+          }}
           invalid={!!error}
           autoCapitalize="characters"
           className="min-w-0 flex-1 font-mono uppercase"

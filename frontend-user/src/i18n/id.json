@@ -162,7 +162,6 @@
     "not_found_desc": "Restoran ini mungkin sudah tutup atau jaringan Anda sedang bermasalah. Coba muat ulang halaman ini.",
     "back_to_food": "Kembali ke WiraFood",
     "loading": "Memuat data restoran...",
-    "reviews_count": "{{rating}} (500+ ulasan)",
     "open_now": "Buka Sekarang",
     "menu_title": "Menu Makanan & Minuman",
     "sold_out": "Habis",
@@ -185,7 +184,9 @@
     "insufficient_balance": "Saldo WiraPay belum cukup untuk pesanan ini. Pilih tunai atau isi saldo dulu.",
     "order_placed": "Pesanan terkirim. Menunggu konfirmasi dari restoran...",
     "order_failed": "Pesanan belum bisa dikirim: {{message}}",
-    "place_order": "Pesan Sekarang • {{price}}"
+    "place_order": "Pesan Sekarang • {{price}}",
+    "closed": "Tutup",
+    "closed_notice": "Restoran ini sedang tutup. Menu tetap bisa dilihat, tapi pesanan baru bisa dibuat saat restoran buka kembali."
   },
   "send": {
     "title": "WiraSend — Kirim Paket Kilat",
@@ -252,7 +253,6 @@
     "recommended": "Teknisi Rekomendasi di Lombok",
     "empty": "Belum ada teknisi yang terdaftar. Teknisi dapat mendaftar lewat portal mitra Wira.",
     "experience_line": "{{category}} • Pengalaman {{years}}",
-    "verified": "{{rating}} (terverifikasi)",
     "choose": "Pilih",
     "general_category": "Umum",
     "specialist_in": "Spesialis {{field}}",
@@ -279,7 +279,8 @@
     "submit": "Jadwalkan Teknisi",
     "insufficient_balance": "Saldo WiraPay belum cukup untuk pesanan ini. Pilih tunai atau isi saldo dulu.",
     "success": "Permintaan terkirim. Menunggu teknisi menerima panggilan Anda.",
-    "failed": "Teknisi belum bisa dipesan: {{message}}"
+    "failed": "Teknisi belum bisa dipesan: {{message}}",
+    "verified_partner": "Mitra terverifikasi"
   },
   "pool": {
     "title": "WiraPool — Perawatan Kolam Renang",
@@ -518,7 +519,8 @@
     "cancel_desc_pending": "Belum ada mitra yang menerima pesanan ini, jadi pembatalan gratis.",
     "cancel_desc_accepted": "Mitra sudah menuju lokasi Anda. Pembatalan masih gratis dalam 3 menit pertama setelah pesanan diterima.",
     "cancel_keep": "Lanjutkan pesanan",
-    "call_driver": "Telepon mitra"
+    "call_driver": "Telepon mitra",
+    "qris_cancel_desc": "Pesanan ini belum dibayar. Kalau dibatalkan, kode QRIS-nya tidak berlaku lagi. Jangan transfer setelah membatalkan."
   },
   "review": {
     "title": "Beri Ulasan",
@@ -705,6 +707,7 @@
     "pool_detail": "Ukuran {{size}} • {{address}} • Kunjungan {{date}}",
     "food_detail": "{{items}} — Antar ke {{address}}",
     "method_wallet": "WiraPay",
-    "method_transfer": "Transfer bank"
+    "method_transfer": "Transfer bank",
+    "service_complaint": "Keluhan: {{text}}"
   }
 }
