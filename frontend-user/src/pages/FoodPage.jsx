@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Star, Clock } from 'lucide-react';
-import Card from '../components/common/Card';
+import { Search, Star, Clock, UtensilsCrossed } from 'lucide-react';
+import { Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 
@@ -10,8 +10,8 @@ export default function FoodPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Semua');
   const [restaurants, setRestaurants] = useState([]);
-  const [, setLoading] = useState(true);
-  
+  const [loading, setLoading] = useState(true);
+
   // These values are the merchant `category` values stored in the database,
   // so they stay as-is for filtering; only their labels are translated.
   const categories = ['Semua', 'Ayam', 'Daging', 'Seafood', 'Minuman'];
@@ -24,7 +24,7 @@ export default function FoodPage() {
         .select('*')
         .eq('service_type', 'food')
         .order('created_at', { ascending: false });
-        
+
       if (data) {
         setRestaurants(data);
       }
@@ -34,57 +34,90 @@ export default function FoodPage() {
     fetchRestaurants();
   }, []);
 
-  const filtered = restaurants.filter(r => 
+  const filtered = restaurants.filter(r =>
     (category === 'Semua' || r.category === category) &&
     r.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      <div className="relative">
-        <input 
-          type="text" 
-          placeholder={t('food.search_placeholder')} 
-          className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary dark:text-white"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+    <div className="flex flex-col gap-5">
+      <PageHeader back="/" backLabel={t('common.back')} title={t('order.service_title.food')} className="mb-0" />
+
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={18} aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label={t('food.search_placeholder')}
+            placeholder={t('food.search_placeholder')}
+            className="pl-10"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <Segmented
+          scroll
+          value={category}
+          onChange={setCategory}
+          options={categories.map((c) => ({ value: c, label: t(`food.categories.${c}`) }))}
         />
-        <Search className="absolute left-3 top-3 text-slate-400" size={20} />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {categories.map(c => (
-          <button 
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition ${category === c ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
-          >
-            {t(`food.categories.${c}`)}
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
-        <p className="text-center text-sm text-slate-500 py-10">{t('food.empty')}</p>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {filtered.map(rest => (
-          <Link key={rest.id} to={`/restaurant/${rest.id}`} className="block group">
-            <Card className="flex gap-4 p-4 cursor-pointer group-hover:border-primary transition-all group-hover:shadow-md">
-              <img src={rest.image} alt={rest.name} className="w-24 h-24 rounded-2xl object-cover bg-slate-200 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-base dark:text-white group-hover:text-primary transition-colors truncate">{rest.name}</h3>
-                <p className="text-xs text-slate-500 mb-2">{rest.category} • {rest.address}</p>
-                <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                  <span className="flex items-center gap-1 text-amber-500"><Star size={14} fill="currentColor" /> {rest.rating}</span>
-                  <span className="flex items-center gap-1"><Clock size={14} /> {rest.deliveryTime}</span>
+      {loading && restaurants.length === 0 ? (
+        <div className="grid gap-3 md:grid-cols-2" aria-hidden="true">
+          {[0, 1, 2, 3].map((n) => (
+            <div key={n} className="flex gap-3.5 rounded-card border border-line bg-card p-3.5">
+              <div className="h-20 w-20 shrink-0 animate-pulse rounded-control bg-sunken" />
+              <div className="flex flex-1 flex-col gap-2 py-1">
+                <div className="h-3.5 w-2/3 animate-pulse rounded bg-sunken" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-sunken" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-sunken" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={<UtensilsCrossed size={22} />} title={t('food.empty')} />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {filtered.map(rest => (
+            <Card
+              key={rest.id}
+              as={Link}
+              to={`/restaurant/${rest.id}`}
+              padding="none"
+              className="flex gap-3.5 p-3.5"
+            >
+              <img
+                src={rest.image}
+                alt={rest.name}
+                className="h-20 w-20 shrink-0 rounded-control bg-sunken object-cover"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
+                <h3 className="truncate text-[14px] font-semibold text-ink">{rest.name}</h3>
+                <p className="truncate text-[12px] text-ink-muted">
+                  {[rest.category, rest.address].filter(Boolean).join(' · ')}
+                </p>
+                <div className="mt-auto flex items-center gap-3 text-[12px] font-semibold text-ink">
+                  {rest.rating != null && (
+                    <span className="inline-flex items-center gap-1">
+                      <Star size={13} className="fill-current" aria-hidden="true" />
+                      <span className="font-mono">{rest.rating}</span>
+                    </span>
+                  )}
+                  {rest.deliveryTime && (
+                    <span className="inline-flex items-center gap-1 text-ink-muted">
+                      <Clock size={13} aria-hidden="true" />
+                      <span className="font-mono">{rest.deliveryTime}</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </Card>
-          </Link>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

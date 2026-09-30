@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import Button from '../components/common/Button';
-import Card from '../components/common/Card';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+import { Button, Card, Field, Input } from '../components/ui';
+import WiraMark from '../components/brand/WiraMark';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '', confirm: '' });
@@ -35,29 +35,48 @@ export default function RegisterPage() {
     }
   };
 
-  const inputClass = "w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400";
-
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 bg-white">
-        <h1 className="text-2xl font-bold mb-6 text-center text-primary">{t('auth.register_title')}</h1>
-        <form onSubmit={handleRegister} className="space-y-4">
-          <input type="text" placeholder={t('auth.name_placeholder')} className={inputClass} required onChange={e=>setForm({...form, name: e.target.value})} />
-          <input type="tel" placeholder={t('auth.phone_placeholder')} className={inputClass} required onChange={e=>setForm({...form, phone: e.target.value})} />
-          <input type="email" placeholder={t('auth.email_placeholder')} className={inputClass} required onChange={e=>setForm({...form, email: e.target.value})} />
-          <input type="password" placeholder={t('auth.register_password_placeholder')} className={inputClass} required minLength={6} onChange={e=>setForm({...form, password: e.target.value})} />
-          <input type="password" placeholder={t('auth.confirm_password_placeholder')} className={inputClass} required minLength={6} onChange={e=>setForm({...form, confirm: e.target.value})} />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" required /> {t('auth.terms_agree')}
-          </label>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? t('common.processing') : t('auth.register_submit')}
-          </Button>
-        </form>
-        <p className="text-center text-sm text-slate-500 mt-6">
-          {t('auth.has_account')} <Link to="/login" className="text-primary font-semibold cursor-pointer hover:underline">{t('auth.login_link')}</Link>
-        </p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-7 bg-ground px-4 py-10">
+      <div className="flex items-center gap-3">
+        <WiraMark size={44} title="Wira" />
+        <span className="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-brand-ink" aria-hidden="true">wira</span>
+      </div>
+
+      <Card padding="none" className="w-full max-w-[400px] overflow-hidden">
+        <div className="h-1.5 tenun-band" aria-hidden="true" />
+        <div className="flex flex-col gap-6 p-6 sm:p-7">
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">{t('auth.register_title')}</h1>
+          <form onSubmit={handleRegister} className="flex flex-col gap-4">
+            <Field label={t('auth.name_label')} htmlFor="register-name">
+              <Input id="register-name" type="text" autoComplete="name" placeholder={t('auth.name_placeholder')} required onChange={e=>setForm({...form, name: e.target.value})} />
+            </Field>
+            <Field label={t('auth.phone_label')} htmlFor="register-phone">
+              <Input id="register-phone" type="tel" autoComplete="tel" inputMode="tel" className="font-mono" placeholder={t('auth.phone_placeholder')} required onChange={e=>setForm({...form, phone: e.target.value})} />
+            </Field>
+            <Field label={t('auth.email')} htmlFor="register-email">
+              <Input id="register-email" type="email" autoComplete="email" inputMode="email" placeholder={t('auth.email_placeholder')} required onChange={e=>setForm({...form, email: e.target.value})} />
+            </Field>
+            <Field label={t('auth.password')} htmlFor="register-password">
+              <Input id="register-password" type="password" autoComplete="new-password" placeholder={t('auth.register_password_placeholder')} required minLength={6} onChange={e=>setForm({...form, password: e.target.value})} />
+            </Field>
+            <Field label={t('auth.confirm_password_label')} htmlFor="register-confirm">
+              <Input id="register-confirm" type="password" autoComplete="new-password" placeholder={t('auth.confirm_password_placeholder')} required minLength={6} onChange={e=>setForm({...form, confirm: e.target.value})} />
+            </Field>
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm leading-relaxed text-ink">
+              <input type="checkbox" required className="mt-0.5 h-5 w-5 shrink-0 rounded-[6px] border-line-strong bg-card text-brand focus:ring-brand/20" />
+              <span>{t('auth.terms_agree')}</span>
+            </label>
+            <Button type="submit" block size="lg" className="mt-1" isLoading={loading}>
+              {loading ? t('common.processing') : t('auth.register_submit')}
+            </Button>
+          </form>
+        </div>
       </Card>
+
+      <p className="text-center text-sm text-ink-muted">
+        {t('auth.has_account')}{' '}
+        <Link to="/login" className="inline-flex min-h-11 items-center font-semibold text-brand-ink hover:underline">{t('auth.login_link')}</Link>
+      </p>
     </div>
   );
 }

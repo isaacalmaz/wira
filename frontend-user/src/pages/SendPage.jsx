@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
+import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Ticket, X } from 'lucide-react';
+import { Button, Card, Field, Input, Textarea, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchCoordinates } from '../utils/osmHelpers';
@@ -201,221 +201,255 @@ export default function SendPage() {
     }
   };
 
-  return (
-    <div className="space-y-6 max-w-2xl mx-auto pb-16">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          {t('send.title')}
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          {t('send.subtitle')}
-        </p>
-      </div>
+  // ---- display-only helpers (no effect on pricing or booking) ----
+  const finalPrice = calculateFinalPrice();
+  const insufficientBalance = paymentMethod === 'WiraPay' && balance < finalPrice;
+  const PACKAGE_ICONS = { dokumen: FileText, kecil: Package, sedang: Briefcase, besar: Luggage };
+  const optionCls = (active) => cx(
+    'flex min-w-0 items-center gap-2.5 rounded-control bg-card text-left transition-colors',
+    active ? 'border-2 border-brand px-[11px] py-[9px]' : 'border border-line px-3 py-2.5 hover:border-line-strong',
+  );
 
-      <form onSubmit={handleOrderSubmit} className="space-y-4">
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
+      <PageHeader
+        back="/"
+        backLabel={t('common.back')}
+        title={t('send.title')}
+        subtitle={t('send.subtitle')}
+        className="mb-0"
+      />
+
+      <form onSubmit={handleOrderSubmit} className="flex flex-col gap-4">
           {/* Detail Pengirim */}
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          <Card className="flex flex-col gap-4">
+            <h2 className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight text-ink">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand ring-[3px] ring-brand-soft" aria-hidden="true" />
               {t('send.sender_section')}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
-                type="text"
-                placeholder={t('send.sender_name')}
-                value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
-                className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label={t('send.sender_name')} htmlFor="send-sender-name" required>
+                <Input
+                  id="send-sender-name"
+                  type="text"
+                  autoComplete="name"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label={t('send.sender_phone')} htmlFor="send-sender-phone" required>
+                <Input
+                  id="send-sender-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder={t('wallet.recipient_placeholder')}
+                  value={senderPhone}
+                  onChange={(e) => setSenderPhone(e.target.value)}
+                  className="font-mono placeholder:font-sans"
+                  required
+                />
+              </Field>
+            </div>
+            <Field label={t('addresses.address_field')} htmlFor="send-sender-address" required>
+              <Textarea
+                id="send-sender-address"
+                placeholder={t('send.sender_address')}
+                value={senderAddress}
+                onChange={(e) => setSenderAddress(e.target.value)}
+                rows={2}
                 required
               />
-              <input
-                type="tel"
-                placeholder={t('send.sender_phone')}
-                value={senderPhone}
-                onChange={(e) => setSenderPhone(e.target.value)}
-                className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                required
-              />
-            </div>
-            <textarea
-              placeholder={t('send.sender_address')}
-              value={senderAddress}
-              onChange={(e) => setSenderAddress(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-              rows="2"
-              required
-            ></textarea>
-            <div className="flex justify-end">
-              <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setSenderAddress(address)} />
-            </div>
+            </Field>
+            <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setSenderAddress(address)} className="self-start" />
           </Card>
 
           {/* Detail Penerima */}
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
+          <Card className="flex flex-col gap-4">
+            <h2 className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight text-ink">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-danger ring-[3px] ring-danger-soft" aria-hidden="true" />
               {t('send.receiver_section')}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label={t('send.receiver_name')} htmlFor="send-receiver-name" required>
+                <Input
+                  id="send-receiver-name"
+                  type="text"
+                  value={receiverName}
+                  onChange={(e) => setReceiverName(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label={t('send.receiver_phone')} htmlFor="send-receiver-phone" required>
+                <Input
+                  id="send-receiver-phone"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder={t('wallet.recipient_placeholder')}
+                  value={receiverPhone}
+                  onChange={(e) => setReceiverPhone(e.target.value)}
+                  className="font-mono placeholder:font-sans"
+                  required
+                />
+              </Field>
+            </div>
+            <Field label={t('addresses.address_field')} htmlFor="send-receiver-address" required>
+              <Textarea
+                id="send-receiver-address"
+                placeholder={t('send.receiver_address')}
+                value={receiverAddress}
+                onChange={(e) => setReceiverAddress(e.target.value)}
+                rows={2}
+                required
+              />
+            </Field>
+            <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setReceiverAddress(address)} className="self-start" />
+            <Field label={t('wallet.transfer_note_label')} htmlFor="send-item-note">
+              <Input
+                id="send-item-note"
                 type="text"
-                placeholder={t('send.receiver_name')}
-                value={receiverName}
-                onChange={(e) => setReceiverName(e.target.value)}
-                className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                required
+                placeholder={t('send.item_note')}
+                value={itemNote}
+                onChange={(e) => setItemNote(e.target.value)}
               />
-              <input
-                type="tel"
-                placeholder={t('send.receiver_phone')}
-                value={receiverPhone}
-                onChange={(e) => setReceiverPhone(e.target.value)}
-                className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                required
-              />
-            </div>
-            <textarea
-              placeholder={t('send.receiver_address')}
-              value={receiverAddress}
-              onChange={(e) => setReceiverAddress(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-              rows="2"
-              required
-            ></textarea>
-            <div className="flex justify-end">
-              <SavedAddressPicker requireCoords={false} onSelect={({ address }) => setReceiverAddress(address)} />
-            </div>
-            <input
-              type="text"
-              placeholder={t('send.item_note')}
-              value={itemNote}
-              onChange={(e) => setItemNote(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-            />
+            </Field>
           </Card>
 
           {/* Pilih Ukuran Paket */}
-          <Card className="p-4 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-3">
-              {t('send.package_section')}
-            </h3>
-            <div className="grid grid-cols-2 gap-2.5">
+          <section className="flex flex-col gap-3">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('send.package_section')}</h2>
+            <div role="radiogroup" aria-label={t('send.package_section')} className="grid grid-cols-2 gap-2.5">
               {packages.map((p) => {
                 const isSelected = selectedPackage === p.id;
+                const Icon = PACKAGE_ICONS[p.id] || Package;
                 return (
-                  <div
+                  <button
                     key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     onClick={() => setSelectedPackage(p.id)}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition text-left ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary shadow-sm'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                    }`}
+                    className={cx(
+                      'flex h-full min-w-0 flex-col items-start gap-2.5 rounded-tile bg-card text-left transition-colors',
+                      isSelected ? 'border-2 border-brand p-[13px]' : 'border border-line p-3.5 hover:border-line-strong',
+                    )}
                   >
-                    <span className="text-2xl mb-1 block">{p.icon}</span>
-                    <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
-                      {t(`send.packages.${p.id}`)}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mb-1">{t(`send.packages.${p.id}_desc`)}</p>
-                    <p className="font-extrabold text-xs text-primary">
-                      {formatRupiah(p.price)}
-                    </p>
-                  </div>
+                    <IconTile tone="brand" size="sm"><Icon size={18} /></IconTile>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-[14px] font-bold leading-snug text-ink">{t(`send.packages.${p.id}`)}</span>
+                      <span className="text-[11.5px] leading-snug text-ink-muted">{t(`send.packages.${p.id}_desc`)}</span>
+                    </span>
+                    <Money value={p.price} className="mt-auto text-[14px] font-medium text-ink" />
+                  </button>
                 );
               })}
             </div>
-          </Card>
+          </section>
 
           {/* Kode Promo */}
-          <Card className="p-4 border border-slate-200 dark:border-slate-700 space-y-2">
+          <div className="flex flex-col gap-1.5">
             {activePromo ? (
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-3 rounded-control border border-success-line bg-success-soft py-1.5 pl-3.5 pr-1.5">
+                <Ticket size={17} className="shrink-0 text-success" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-success-ink">
                   {t('promo.applied', { code: activePromo.code })}
                 </span>
                 <button
                   type="button"
-                  className="text-slate-400 hover:text-red-500 font-semibold"
+                  className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[12.5px] font-semibold text-ink-muted transition-colors hover:bg-card hover:text-danger-ink"
                   onClick={handleRemovePromo}
                 >
-                  {t('common.remove')}
+                  <X size={14} aria-hidden="true" /> {t('common.remove')}
                 </button>
               </div>
             ) : (
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
+                  aria-label={t('promo.placeholder')}
                   placeholder={t('promo.placeholder')}
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
-                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
+                  invalid={!!promoError}
+                  className="min-w-0 flex-1 font-mono text-[14px] uppercase placeholder:font-sans placeholder:normal-case"
                 />
                 <Button
                   type="button"
-                  variant="outline"
-                  className="text-xs px-3"
+                  variant="secondary"
+                  className="shrink-0"
                   onClick={handleCheckPromo}
                   disabled={checkingPromo || !promoCode.trim()}
+                  isLoading={checkingPromo}
                 >
                   {checkingPromo ? t('promo.checking') : t('promo.apply')}
                 </Button>
               </div>
             )}
             {promoError && (
-              <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+              <p className="text-xs text-danger-ink">{promoError}</p>
             )}
-          </Card>
-
-          {/* Metode Pembayaran */}
-          <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white">
-                {t('common.payment_method')}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {t('send.payment_hint')}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('WiraPay')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                  paymentMethod === 'WiraPay'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                WiraPay ({formatRupiah(balance)})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('Tunai')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                  paymentMethod === 'Tunai'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                {t('common.pay_cash_cod')}
-              </button>
-            </div>
           </div>
 
-          {activePromo && (
-            <div className="flex justify-between items-center text-xs px-1">
-              <span className="text-slate-500">{t('send.package_price')}</span>
-              <span className="text-slate-500 line-through">{formatRupiah(currentPkg.price)}</span>
+          {/* Metode Pembayaran */}
+          <section className="flex flex-col gap-2">
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('common.payment_method')}</h2>
+              <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.payment_hint')}</p>
             </div>
-          )}
+            <div role="radiogroup" aria-label={t('common.payment_method')} className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={paymentMethod === 'WiraPay'}
+                onClick={() => setPaymentMethod('WiraPay')}
+                className={cx(optionCls(paymentMethod === 'WiraPay'), 'min-h-[60px]')}
+              >
+                <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-[13px] font-semibold text-ink">WiraPay</span>
+                  <Money value={balance} tone="muted" className="text-xs" />
+                </span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={paymentMethod === 'Tunai'}
+                onClick={() => setPaymentMethod('Tunai')}
+                className={cx(optionCls(paymentMethod === 'Tunai'), 'min-h-[60px]')}
+              >
+                <Banknote size={18} className="shrink-0 text-success" aria-hidden="true" />
+                <span className="min-w-0 text-[13px] font-semibold leading-snug text-ink">{t('common.pay_cash_cod')}</span>
+              </button>
+            </div>
+          </section>
 
-          <Button
-            type="submit"
-            className="w-full py-3.5 text-sm font-bold shadow-lg"
-            disabled={loading}
-          >
-            {loading ? t('send.booking') : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
-          </Button>
+          {/* Booking panel: pinned above the bottom nav so the CTA is always reachable */}
+          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex flex-col gap-3 rounded-t-sheet bg-ground px-4 pt-2 pb-4 shadow-sheet md:bottom-4 md:mx-0 md:rounded-sheet md:px-5">
+            <div className="flex justify-center" aria-hidden="true">
+              <span className="h-1 w-10 rounded-full bg-line-strong" />
+            </div>
+
+            {insufficientBalance && (
+              <Notice tone="danger">{t('send.insufficient_balance')}</Notice>
+            )}
+
+            {activePromo && (
+              <div className="flex items-center justify-between gap-3 text-[13px]">
+                <span className="text-ink-muted">{t('send.package_price')}</span>
+                <Money value={currentPkg.price} tone="muted" className="line-through" />
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              block
+              isLoading={loading}
+            >
+              {loading ? t('send.booking') : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
+            </Button>
+          </div>
         </form>
     </div>
   );

@@ -1,12 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
-import Button from '../components/common/Button';
-import Card from '../components/common/Card';
+import {
+  Button,
+  Card,
+  Badge,
+  Money,
+  IconTile,
+  Field,
+  Input,
+  Notice,
+  PageHeader,
+  SectionHeader,
+  EmptyState,
+  Spinner,
+  cx,
+} from '../components/ui';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
@@ -18,14 +31,61 @@ import {
   ShoppingBag,
   MapPin,
   ArrowLeft,
-  Tag,
-  X,
+  ArrowRight,
+  Store,
   LocateFixed,
+  Wallet,
+  Banknote,
 } from 'lucide-react';
-import { formatRupiah } from '../utils/formatRupiah';
 import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+
+// Placeholder used to drop a <Money> into a translated sentence, so an
+// amount inside "Pesan Sekarang • {{price}}" still renders in mono.
+const SLOT = '\u0000';
+function withMoney(text, value, moneyProps = {}) {
+  const [before, after = ''] = text.split(SLOT);
+  return <>{before}<Money value={value} {...moneyProps} />{after}</>;
+}
+
+// Selectable option (Tenun Laut): 2px brand border + radio when selected.
+function ChoiceCard({ selected, onClick, leading, title, subtitle, trailing }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onClick}
+      className={cx(
+        'flex w-full min-h-11 items-center gap-3 rounded-tile bg-card text-left transition-colors',
+        selected ? 'border-2 border-brand px-[13px] py-[11px]' : 'border border-line px-3.5 py-3 hover:border-line-strong',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cx('flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2', selected ? 'border-brand' : 'border-line-strong')}
+      >
+        {selected && <span className="h-2 w-2 rounded-full bg-brand" />}
+      </span>
+      {leading}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[14px] font-semibold text-ink">{title}</span>
+        {subtitle && <span className="text-[12px] text-ink-muted">{subtitle}</span>}
+      </span>
+      {trailing && <span className="shrink-0 text-right">{trailing}</span>}
+    </button>
+  );
+}
+
+function SummaryRow({ label, children, strong = false, className = '' }) {
+  return (
+    <div className={cx('flex items-baseline justify-between gap-3', className)}>
+      <dt className={strong ? 'font-semibold text-ink' : 'text-ink-muted'}>{label}</dt>
+      <dd className="text-right text-ink">{children}</dd>
+    </div>
+  );
+}
 
 export default function RestaurantPage() {
   const { id } = useParams();
@@ -114,26 +174,29 @@ export default function RestaurantPage() {
 
   if (fetchError) {
     return (
-      <div className="flex flex-col items-center justify-center text-center py-20 px-4 max-w-md mx-auto">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mb-4">
-          <X size={28} />
-        </div>
-        <h2 className="font-bold text-lg text-slate-900 dark:text-white mb-1">
-          {t('restaurant.not_found_title')}
-        </h2>
-        <p className="text-sm text-slate-500 mb-6">
-          {t('restaurant.not_found_desc')}
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>{t('common.retry')}</Button>
-          <Button onClick={() => navigate('/food')}>{t('restaurant.back_to_food')}</Button>
-        </div>
+      <div className="mx-auto max-w-md py-10">
+        <EmptyState
+          icon={<Store size={24} />}
+          title={t('restaurant.not_found_title')}
+          description={t('restaurant.not_found_desc')}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" onClick={() => window.location.reload()}>{t('common.retry')}</Button>
+              <Button onClick={() => navigate('/food')}>{t('restaurant.back_to_food')}</Button>
+            </div>
+          }
+        />
       </div>
     );
   }
 
   if (!rest) {
-    return <div className="p-10 text-center animate-pulse">{t('restaurant.loading')}</div>;
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-ink-muted" role="status">
+        <Spinner size={24} className="text-brand-ink" />
+        <p className="text-sm">{t('restaurant.loading')}</p>
+      </div>
+    );
   }
 
   const grandTotal = Math.max(0, subtotal + dynamicDeliveryFee - discount);
@@ -285,157 +348,144 @@ export default function RestaurantPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto pb-28">
-      {/* Header Banner Restoran */}
-      <div className="relative">
-        <Link
-          to="/food"
-          className="absolute top-4 left-4 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-md hover:scale-105 transition"
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <Card className="overflow-hidden p-0 border border-slate-200 dark:border-slate-700">
-          <div className="h-48 bg-slate-200 relative overflow-hidden">
-            <img
-              src={rest.image}
-              alt={rest.name}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-            <div className="absolute bottom-4 left-4 right-4 text-white">
-              <span className="text-[11px] font-bold uppercase bg-primary px-2.5 py-1 rounded-full mb-1 inline-block">
-                {rest.category}
-              </span>
-              <h1 className="text-xl sm:text-2xl font-bold leading-tight">
-                {rest.name}
-              </h1>
-              <p className="text-xs text-slate-200 flex items-center gap-1 mt-1">
-                <MapPin size={12} /> {rest.address}
-              </p>
-            </div>
-          </div>
-          <div className="p-3 bg-white dark:bg-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1 font-bold text-amber-500">
-              <Star size={15} fill="currentColor" /> {t('restaurant.reviews_count', { rating: rest.rating })}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={15} /> {rest.deliveryTime}
-            </span>
-            <span className="text-green-600 font-bold">{t('restaurant.open_now')}</span>
-          </div>
-        </Card>
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-5 pb-28">
+      <PageHeader
+        back="/food"
+        backLabel={t('common.back')}
+        eyebrow={rest.category}
+        title={rest.name}
+        subtitle={rest.address ? (
+          <span className="inline-flex items-start gap-1">
+            <MapPin size={14} className="mt-[3px] shrink-0" aria-hidden="true" /> {rest.address}
+          </span>
+        ) : null}
+        className="mb-0"
+      />
 
       {/* TAMPILAN 1: DAFTAR MENU MAKANAN */}
       {step === 'menu' && (
-        <div className="space-y-3">
-          <h2 className="font-bold text-base text-slate-900 dark:text-white px-1">
-            {t('restaurant.menu_title')}
-          </h2>
-          {rest.menuItems.map((item) => {
-            const inCart = cart.items.find((i) => i.id === item.id);
-            const isAvailable = item.is_available ?? true;
-            return (
-              <Card
-                key={item.id}
-                className={`p-4 flex gap-4 items-center border border-slate-200 dark:border-slate-700 transition ${isAvailable ? 'hover:shadow-sm' : 'opacity-60'}`}
-              >
-                {item.image && (
-                  <div className="relative shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 rounded-xl object-cover bg-slate-100"
-                    />
-                    {!isAvailable && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl text-white text-[10px] font-bold">
-                        {t('restaurant.sold_out')}
-                      </span>
+        <>
+          <Card padding="none" className="overflow-hidden">
+            <img
+              src={rest.image}
+              alt={rest.name}
+              className="h-44 w-full bg-sunken object-cover sm:h-56"
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-[12.5px]">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
+                <Star size={14} className="fill-current" aria-hidden="true" />
+                {t('restaurant.reviews_count', { rating: rest.rating })}
+              </span>
+              {rest.deliveryTime && (
+                <span className="inline-flex items-center gap-1.5 text-ink-muted">
+                  <Clock size={14} aria-hidden="true" />
+                  <span className="font-mono">{rest.deliveryTime}</span>
+                </span>
+              )}
+              <Badge tone="success" dot className="ml-auto">{t('restaurant.open_now')}</Badge>
+            </div>
+          </Card>
+
+          <section>
+            <SectionHeader title={t('restaurant.menu_title')} />
+            <Card padding="none" className="divide-y divide-line overflow-hidden">
+              {rest.menuItems.map((item) => {
+                const inCart = cart.items.find((i) => i.id === item.id);
+                const isAvailable = item.is_available ?? true;
+                return (
+                  <div
+                    key={item.id}
+                    className={cx('flex gap-3.5 p-3.5', !isAvailable && 'opacity-60')}
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-20 w-20 shrink-0 rounded-control bg-sunken object-cover"
+                      />
                     )}
-                  </div>
-                )}
 
-                <div className="flex-1">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 mb-2">
-                    {item.description}
-                  </p>
-                  <p className="font-extrabold text-sm text-primary">
-                    {formatRupiah(item.price)}
-                  </p>
-                  {!isAvailable && !item.image && (
-                    <span className="inline-block mt-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">
-                      {t('restaurant.sold_out')}
-                    </span>
-                  )}
-                </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <h3 className="text-[14px] font-semibold leading-snug text-ink">{item.name}</h3>
+                      {item.description && (
+                        <p className="line-clamp-2 text-[12.5px] leading-relaxed text-ink-muted">
+                          {item.description}
+                        </p>
+                      )}
+                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <Money value={item.price} className="text-[14px] font-medium text-ink" />
 
-                <div className="shrink-0 flex items-center gap-2">
-                  {!isAvailable ? null : inCart ? (
-                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
-                      <button
-                        onClick={() => {
-                          if (inCart.qty > 1) {
-                            updateQty(item.id, inCart.qty - 1);
-                          } else {
-                            removeItem(item.id);
-                          }
-                        }}
-                        className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-sm"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="font-bold text-xs px-1 text-slate-900 dark:text-white">
-                        {inCart.qty}
-                      </span>
-                      <button
-                        onClick={() => addItem({ ...item, qty: 1 })}
-                        className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center shadow-sm"
-                      >
-                        <Plus size={14} />
-                      </button>
+                        {!isAvailable ? (
+                          <Badge tone="neutral">{t('restaurant.sold_out')}</Badge>
+                        ) : inCart ? (
+                          <div className="inline-flex items-center rounded-control border border-line-strong bg-card">
+                            <button
+                              type="button"
+                              aria-label={`− ${item.name}`}
+                              onClick={() => {
+                                if (inCart.qty > 1) {
+                                  updateQty(item.id, inCart.qty - 1);
+                                } else {
+                                  removeItem(item.id);
+                                }
+                              }}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-l-control text-ink hover:bg-sunken"
+                            >
+                              <Minus size={16} />
+                            </button>
+                            <span className="min-w-[28px] text-center font-mono text-[14px] font-medium text-ink" aria-live="polite">
+                              {inCart.qty}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`+ ${item.name}`}
+                              onClick={() => addItem({ ...item, qty: 1 })}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-r-control text-brand-ink hover:bg-brand-soft"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            leftIcon={<Plus size={16} />}
+                            onClick={() => {
+                              addItem({ ...item, qty: 1 });
+                              toast.success(t('restaurant.added_to_cart', { name: item.name }));
+                            }}
+                          >
+                            {t('restaurant.add')}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="text-xs px-3.5 py-1.5 font-bold"
-                      onClick={() => {
-                        addItem({ ...item, qty: 1 });
-                        toast.success(t('restaurant.added_to_cart', { name: item.name }));
-                      }}
-                    >
-                      + {t('restaurant.add')}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                  </div>
+                );
+              })}
+            </Card>
+          </section>
+        </>
       )}
 
       {/* BAR KERANJANG TERAPUNG DI BAWAH */}
       {cart.items.length > 0 && step === 'menu' && (
-        <div className="fixed bottom-16 md:bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
-          <div className="bg-slate-900 dark:bg-slate-800 text-white p-3.5 px-5 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700 animate-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold">
-                <ShoppingBag size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-300 font-medium">
-                  {t('restaurant.items_selected', { count: cart.items.reduce((acc, curr) => acc + curr.qty, 0) })}
-                </p>
-                <p className="font-extrabold text-base">{formatRupiah(subtotal)}</p>
-              </div>
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
+          <div className="mx-auto flex max-w-2xl items-center gap-3 rounded-card bg-brand py-2.5 pl-3 pr-2.5 text-white shadow-pop">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-white/10" aria-hidden="true">
+              <ShoppingBag size={20} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p className="truncate text-[12px] text-white/75">
+                {t('restaurant.items_selected', { count: cart.items.reduce((acc, curr) => acc + curr.qty, 0) })}
+              </p>
+              <Money value={subtotal} className="text-[16px] font-medium" />
             </div>
             <Button
-              className="py-2.5 px-5 font-bold text-xs sm:text-sm shadow-md"
+              variant="on-brand"
+              rightIcon={<ArrowRight size={16} />}
               onClick={() => setStep('checkout')}
             >
-              {t('restaurant.to_checkout')} ➔
+              {t('restaurant.to_checkout')}
             </Button>
           </div>
         </div>
@@ -443,22 +493,20 @@ export default function RestaurantPage() {
 
       {/* TAMPILAN 2: HALAMAN CHECKOUT LENGKAP */}
       {step === 'checkout' && (
-        <div className="space-y-4 animate-in fade-in zoom-in duration-150">
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700 !overflow-visible">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">
-              {t('restaurant.delivery_address')}
-            </h3>
+        <div className="flex flex-col gap-4">
+          <Card className="flex flex-col gap-3">
+            <SectionHeader title={t('restaurant.delivery_address')} className="mb-0" />
             <div className="relative z-10">
               <LocationAutocomplete
                 placeholder={t('restaurant.delivery_address_placeholder')}
                 icon={MapPin}
-                iconColor="text-red-500"
+                iconColor="text-danger"
                 value={deliveryAddress}
                 onChange={setDeliveryAddress}
                 onSelect={(loc) => setDeliveryCoords({ lat: loc.lat, lng: loc.lng })}
               />
             </div>
-            <div className="flex items-center justify-between -mt-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <SavedAddressPicker
                 onSelect={({ address, lat, lng }) => {
                   setDeliveryAddress(address);
@@ -468,12 +516,12 @@ export default function RestaurantPage() {
               <button
                 type="button"
                 onClick={handleLocateMe}
-                className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
+                className="inline-flex min-h-11 items-center gap-1.5 text-[12.5px] font-semibold text-brand-ink hover:underline"
               >
-                <LocateFixed size={12} /> {t('common.use_current_location')}
+                <LocateFixed size={15} aria-hidden="true" /> {t('common.use_current_location')}
               </button>
             </div>
-            <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="h-44 overflow-hidden rounded-card border border-line">
               <WiraMap
                 center={deliveryCoords}
                 zoom={16}
@@ -481,140 +529,129 @@ export default function RestaurantPage() {
                 onMarkerDragEnd={handleMarkerDrag}
               />
             </div>
-            <p className="text-[11px] text-slate-400">{t('common.map_pin_hint')}</p>
+            <p className="text-xs text-ink-muted">{t('common.map_pin_hint')}</p>
           </Card>
 
           {/* Rincian Pesanan */}
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">
-              {t('restaurant.order_summary')}
-            </h3>
-            <div className="space-y-2 divide-y divide-slate-100 dark:divide-slate-700/50">
+          <Card className="flex flex-col gap-4">
+            <SectionHeader title={t('restaurant.order_summary')} className="mb-0" />
+            <ul className="flex flex-col gap-2.5">
               {cart.items.map((i) => (
-                <div key={i.id} className="pt-2 flex justify-between items-center text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {i.qty}x {i.name}
-                    </span>
-                  </div>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {formatRupiah(i.price * i.qty)}
-                  </span>
-                </div>
+                <li key={i.id} className="flex items-baseline gap-3 text-[13.5px]">
+                  <span className="w-8 shrink-0 font-mono text-ink-muted">{i.qty}x</span>
+                  <span className="min-w-0 flex-1 font-semibold text-ink">{i.name}</span>
+                  <Money value={i.price * i.qty} className="text-ink" />
+                </li>
               ))}
-            </div>
+            </ul>
 
             {/* Input Promo */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+            <div className="border-t border-line pt-4">
               {activePromo ? (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
-                    <Tag size={12} /> {t('promo.applied', { code: activePromo.code })}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-slate-400 hover:text-red-500 font-semibold"
-                    onClick={handleRemovePromo}
-                  >
-                    {t('common.remove')}
-                  </button>
-                </div>
+                <Notice
+                  tone="success"
+                  action={
+                    <Button variant="ghost" size="sm" onClick={handleRemovePromo} className="-my-1.5">
+                      {t('common.remove')}
+                    </Button>
+                  }
+                >
+                  {t('promo.applied', { code: activePromo.code })}
+                </Notice>
               ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder={t('promo.placeholder')}
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
-                  />
-                  <Button size="sm" variant="outline" onClick={handleCheckPromo} disabled={checkingPromo || !promoCode.trim()}>
-                    {checkingPromo ? t('promo.checking') : t('promo.apply')}
-                  </Button>
-                </div>
-              )}
-              {promoError && (
-                <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
+                <Field label={t('promo.placeholder')} htmlFor="food-promo" error={promoError || undefined}>
+                  <div className="flex gap-2">
+                    <Input
+                      id="food-promo"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      invalid={!!promoError}
+                      autoCapitalize="characters"
+                      className="min-w-0 flex-1 font-mono uppercase"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={handleCheckPromo}
+                      disabled={checkingPromo || !promoCode.trim()}
+                      className="shrink-0"
+                    >
+                      {checkingPromo ? t('promo.checking') : t('promo.apply')}
+                    </Button>
+                  </div>
+                </Field>
               )}
             </div>
 
             {/* Hitung Rincian */}
-            <div className="pt-2 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-500">
-                <span>{t('restaurant.subtotal')}</span>
-                <span>{formatRupiah(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>{t('restaurant.delivery_fee')}</span>
-                <span>{formatRupiah(dynamicDeliveryFee)}</span>
-              </div>
+            <dl className="flex flex-col gap-2 border-t border-line pt-4 text-[13px]">
+              <SummaryRow label={t('restaurant.subtotal')}>
+                <Money value={subtotal} />
+              </SummaryRow>
+              <SummaryRow label={t('restaurant.delivery_fee')}>
+                <Money value={dynamicDeliveryFee} />
+              </SummaryRow>
               {distance > 0 && (
-                <div className="flex justify-between text-[10px] text-slate-400 -mt-1">
-                  <span>{t('restaurant.delivery_distance')}</span>
-                  <span>{distance.toFixed(1)} km</span>
-                </div>
+                <SummaryRow label={t('restaurant.delivery_distance')} className="text-[12px]">
+                  <span className="font-mono text-ink-muted">{distance.toFixed(1)} km</span>
+                </SummaryRow>
               )}
               {discount > 0 && (
-                <div className="flex justify-between text-green-600 font-bold">
-                  <span>{t('restaurant.discount')}</span>
-                  <span>-{formatRupiah(discount)}</span>
-                </div>
+                <SummaryRow label={t('restaurant.discount')}>
+                  <Money value={discount} sign="minus" tone="in" />
+                </SummaryRow>
               )}
-              <div className="flex justify-between text-sm font-extrabold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
-                <span>{t('restaurant.grand_total')}</span>
-                <span className="text-primary">{formatRupiah(grandTotal)}</span>
-              </div>
-            </div>
+              <SummaryRow label={t('restaurant.grand_total')} strong className="mt-1 border-t border-line pt-3 text-[14px]">
+                <Money value={grandTotal} className="text-[17px] font-medium" />
+              </SummaryRow>
+            </dl>
           </Card>
 
           {/* Metode Pembayaran */}
-          <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-              {t('restaurant.choose_payment')}
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
+          <Card className="flex flex-col gap-3">
+            <SectionHeader title={t('restaurant.choose_payment')} className="mb-0" />
+            <div role="radiogroup" aria-label={t('restaurant.choose_payment')} className="flex flex-col gap-2.5">
+              <ChoiceCard
+                selected={paymentMethod === 'WiraPay'}
                 onClick={() => setPaymentMethod('WiraPay')}
-                className={`p-3 rounded-xl border text-left transition ${
-                  paymentMethod === 'WiraPay'
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                    : 'border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                <p className="font-bold text-xs text-slate-900 dark:text-white">WiraPay</p>
-                <p className="text-[10px] text-slate-500">{t('common.balance_with_amount', { amount: formatRupiah(balance) })}</p>
-              </button>
-              <button
-                type="button"
+                leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
+                title="WiraPay"
+                subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
+              />
+              <ChoiceCard
+                selected={paymentMethod === 'Tunai'}
                 onClick={() => setPaymentMethod('Tunai')}
-                className={`p-3 rounded-xl border text-left transition ${
-                  paymentMethod === 'Tunai'
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                    : 'border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                <p className="font-bold text-xs text-slate-900 dark:text-white">{t('common.pay_cash_cod')}</p>
-                <p className="text-[10px] text-slate-500">{t('common.pay_cash_to_courier')}</p>
-              </button>
+                leading={<IconTile tone="neutral" size="sm"><Banknote size={18} /></IconTile>}
+                title={t('common.pay_cash_cod')}
+                subtitle={t('common.pay_cash_to_courier')}
+              />
             </div>
+            {paymentMethod === 'WiraPay' && balance < grandTotal && (
+              <Notice tone="danger">{t('restaurant.insufficient_balance')}</Notice>
+            )}
           </Card>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setStep('menu')}
-            >
-              {t('common.back')}
-            </Button>
-            <Button
-              className="flex-1 font-bold"
-              onClick={handleConfirmOrder}
-              disabled={loading}
-            >
-              {loading ? t('common.processing') : t('restaurant.place_order', { price: formatRupiah(grandTotal) })}
-            </Button>
+          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
+            <div className="mx-auto flex max-w-2xl items-stretch gap-2.5 rounded-card border border-line bg-card p-2.5 shadow-pop">
+              <Button
+                variant="secondary"
+                size="lg"
+                aria-label={t('common.back')}
+                title={t('common.back')}
+                className="shrink-0 px-4"
+                onClick={() => setStep('menu')}
+              >
+                <ArrowLeft size={18} aria-hidden="true" />
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={handleConfirmOrder}
+                disabled={loading}
+                isLoading={loading}
+              >
+                {loading ? t('common.processing') : withMoney(t('restaurant.place_order', { price: SLOT }), grandTotal)}
+              </Button>
+            </div>
           </div>
         </div>
       )}

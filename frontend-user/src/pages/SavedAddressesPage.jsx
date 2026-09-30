@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide-react';
+import { MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide-react';
+import { Button, Card, EmptyState, Field, IconTile, Input, PageHeader, Sheet, Spinner } from '../components/ui';
 import { APP_CONFIG } from '../config/app';
 import { useTranslation } from '../i18n';
 
@@ -163,123 +162,128 @@ export default function SavedAddressesPage() {
 
   const getIcon = (label) => {
     const l = label.toLowerCase();
-    if (l.includes('rumah')) return <Home size={20} className="text-blue-500" />;
-    if (l.includes('kantor') || l.includes('kerja')) return <Briefcase size={20} className="text-orange-500" />;
-    return <Star size={20} className="text-amber-400" />;
+    if (l.includes('rumah')) return <Home size={18} aria-hidden="true" />;
+    if (l.includes('kantor') || l.includes('kerja')) return <Briefcase size={18} aria-hidden="true" />;
+    return <Star size={18} aria-hidden="true" />;
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} title={t('common.back')} aria-label={t('common.back')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
-          <ArrowLeft size={20} className="dark:text-white" />
-        </button>
-        <h1 className="text-xl font-bold dark:text-white">{t('addresses.title')}</h1>
-      </div>
+    <div className="flex flex-col gap-6 pb-6">
+      <PageHeader title={t('addresses.title')} back backLabel={t('common.back')} className="!mb-0" />
 
       <Button
+        block
+        leftIcon={<Plus size={18} aria-hidden="true" />}
         onClick={() => {
           setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
           setHasPickedLocation(false);
           setIsModalOpen(true);
         }}
-        className="w-full mb-4 flex items-center justify-center gap-2"
       >
-        <Plus size={18} /> {t('addresses.add')}
+        {t('addresses.add')}
       </Button>
 
       {loading ? (
-        <div className="text-center p-8 text-slate-400">{t('addresses.loading')}</div>
+        <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-ink-muted">
+          <Spinner size={18} className="text-brand-ink" /> {t('addresses.loading')}
+        </div>
       ) : addresses.length === 0 ? (
-        <Card className="p-8 text-center border-dashed border-2 border-slate-200 bg-transparent shadow-none">
-          <MapPin size={48} className="mx-auto text-slate-300 mb-4" />
-          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">{t('addresses.empty_title')}</h3>
-          <p className="text-sm text-slate-500">{t('addresses.empty_desc')}</p>
-        </Card>
+        <EmptyState
+          icon={<MapPin size={24} />}
+          title={t('addresses.empty_title')}
+          description={t('addresses.empty_desc')}
+        />
       ) : (
-        <div className="space-y-3">
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
           {addresses.map((addr) => (
-            <Card key={addr.id} className="p-4 flex items-start gap-4 hover:border-primary transition border-2 border-transparent">
-              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full">
+            <div key={addr.id} className="flex items-start gap-3 py-3 pl-4 pr-2">
+              <IconTile size="sm" tone="brand" className="mt-0.5">
                 {getIcon(addr.label)}
+              </IconTile>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+                <h3 className="break-words text-[14px] font-semibold text-ink">{addr.label}</h3>
+                <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-muted">{addr.address}</p>
               </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-slate-800 dark:text-white">{addr.label}</h3>
-                <p className="text-sm text-slate-500 line-clamp-2">{addr.address}</p>
-              </div>
-              <button onClick={() => handleDelete(addr.id)} title={t('addresses.delete_label')} aria-label={t('addresses.delete_label')} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition">
+              <button
+                type="button"
+                onClick={() => handleDelete(addr.id)}
+                title={t('addresses.delete_label')}
+                aria-label={t('addresses.delete_label')}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-danger transition-colors hover:bg-danger-soft"
+              >
                 <Trash2 size={18} />
               </button>
-            </Card>
+            </div>
           ))}
-        </div>
+        </Card>
       )}
 
-      {/* Add Address Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold mb-4 dark:text-white">{t('addresses.modal_title')}</h2>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">{t('addresses.label_field')}</label>
-                <input 
-                  type="text" 
-                  value={formData.label}
-                  onChange={(e) => setFormData({...formData, label: e.target.value})}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border rounded-xl dark:text-white"
-                  required
-                />
-              </div>
-              <div className="relative z-10">
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">{t('addresses.address_field')}</label>
-                <LocationAutocomplete
-                  placeholder={t('location.search_placeholder')}
-                  icon={MapPin}
-                  iconColor="text-red-500"
-                  value={formData.address}
-                  onChange={(val) => setFormData(prev => ({ ...prev, address: val }))}
-                  onSelect={(loc) => {
-                    setFormData(prev => ({ ...prev, address: loc.fullAddress, lat: loc.lat, lng: loc.lng }));
-                    setHasPickedLocation(true);
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-end -mt-1">
-                <button
-                  type="button"
-                  onClick={handleLocateMe}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
-                >
-                  <LocateFixed size={12} /> {t('common.use_current_location')}
-                </button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">
-                  {t('addresses.map_label')} {hasPickedLocation && <span className="text-green-600 font-normal">{t('addresses.map_picked')}</span>}
-                </label>
-                <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                  <WiraMap
-                    center={{ lat: formData.lat, lng: formData.lng }}
-                    zoom={16}
-                    markers={[{ lat: formData.lat, lng: formData.lng, type: 'dropoff', label: formData.label || t('addresses.title') }]}
-                    onMarkerDragEnd={handleMarkerDrag}
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">{t('common.map_pin_hint')}</p>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button type="submit" className="flex-1">
-                  {t('common.save')}
-                </Button>
-              </div>
-            </form>
+      {/* Add Address Sheet */}
+      <Sheet
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={t('addresses.modal_title')}
+        closeLabel={t('common.close')}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" form="saved-address-form">
+              {t('common.save')}
+            </Button>
+          </>
+        )}
+      >
+        <form id="saved-address-form" onSubmit={handleSave} className="flex flex-col gap-4">
+          <Field label={t('addresses.label_field')} htmlFor="address-label">
+            <Input
+              id="address-label"
+              type="text"
+              value={formData.label}
+              onChange={(e) => setFormData({...formData, label: e.target.value})}
+              required
+            />
+          </Field>
+          <div className="relative z-10 flex flex-col gap-1.5">
+            <span className="text-[13px] font-semibold text-ink">{t('addresses.address_field')}</span>
+            <LocationAutocomplete
+              placeholder={t('location.search_placeholder')}
+              icon={MapPin}
+              iconColor="text-danger"
+              value={formData.address}
+              onChange={(val) => setFormData(prev => ({ ...prev, address: val }))}
+              onSelect={(loc) => {
+                setFormData(prev => ({ ...prev, address: loc.fullAddress, lat: loc.lat, lng: loc.lng }));
+                setHasPickedLocation(true);
+              }}
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-[13px] font-semibold text-brand-ink hover:bg-brand-soft"
+              >
+                <LocateFixed size={15} aria-hidden="true" /> {t('common.use_current_location')}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[13px] font-semibold text-ink">
+              {t('addresses.map_label')} {hasPickedLocation && <span className="font-normal text-success-ink">{t('addresses.map_picked')}</span>}
+            </p>
+            <div className="h-40 overflow-hidden rounded-control border border-line">
+              <WiraMap
+                center={{ lat: formData.lat, lng: formData.lng }}
+                zoom={16}
+                markers={[{ lat: formData.lat, lng: formData.lng, type: 'dropoff', label: formData.label || t('addresses.title') }]}
+                onMarkerDragEnd={handleMarkerDrag}
+              />
+            </div>
+            <p className="text-xs text-ink-muted">{t('common.map_pin_hint')}</p>
+          </div>
+        </form>
+      </Sheet>
     </div>
   );
 }

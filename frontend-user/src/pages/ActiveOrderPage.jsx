@@ -4,15 +4,46 @@ import { supabase } from '../config/supabase';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Send, Phone, MessageSquare, Loader } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench } from 'lucide-react';
+import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
-import { formatRupiah } from '../utils/formatRupiah';
 import { useTranslation } from '../i18n';
-import { localizeOrderTitle } from '../utils/localizeDbText';
+import { localizeOrderTitle, localizePaymentMethod } from '../utils/localizeDbText';
+
+// ---- display-only helpers ----
+// Badge tone per DESIGN.md: searching/pending = warning, active = brand,
+// completed = success, cancelled = danger.
+const statusTone = (status) => {
+  if (status === 'pending' || status === 'awaiting_payment') return 'warning';
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'danger';
+  return 'brand';
+};
+
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench };
+
+// Pickup/destination names for the route summary, read from the order's
+// details text (ride = JSON, send = the SendPage template). Returns null
+// when the order has no route to show.
+function routeFromOrder(order) {
+  const raw = typeof order?.details === 'string' ? order.details : '';
+  if (!raw) return null;
+  if (raw.trimStart().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.pickup && parsed?.dropoff) return { from: parsed.pickup.name, to: parsed.dropoff.name };
+    } catch {
+      // not JSON: fall through
+    }
+  }
+  const m = raw.match(/^No\. Resi: (\S+) • (.+?) \((.+) ➔ (.+)\)$/s);
+  if (m) return { from: m[3], to: m[4] };
+  return null;
+}
 
 // Icons for map
 const driverIcon = new L.Icon({
@@ -69,6 +100,9 @@ export default function ActiveOrderPage() {
   const [inputText, setInputText] = useState('');
   const { pingedCount, totalCandidates } = useOrderDispatch(order, session);
   const chatRef = useRef(null);
+  // UI only: the cancel confirmation sheet and the chat section anchor.
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const chatSectionRef = useRef(null);
 
   // Fetch Order Details
   const fetchOrder = useCallback(async () => {
@@ -242,124 +276,303 @@ export default function ActiveOrderPage() {
   };
 
   if (loading || !order) {
-    return <div className="flex h-screen items-center justify-center"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-ink">
+        <Spinner size={28} />
+      </div>
+    );
   }
 
   const showMap = ['ride', 'send', 'food', 'service'].includes(order.service_type);
 
+  // ---- display-only values (no effect on data or cancellation logic) ----
+  const route = routeFromOrder(order);
+  const distanceKm = order.distance_meters ? (Number(order.distance_meters) / 1000).toFixed(1) : null;
+  const paidWithWallet = order.payment_method === 'wallet' && order.payment_status === 'paid';
+  const partnerName = order.driver?.name || t('chat.default_partner');
+  const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
+  const cancelDescription = order.status === 'pending'
+    ? t('order.cancel_desc_pending')
+    : t('order.cancel_desc_accepted');
+  const openChat = () => chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const roundBtn = 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors';
+
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 -mx-4 md:-mx-0 -mt-4 md:-mt-0">
-      <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
-        <button onClick={() => navigate('/')} title={t('common.back')} aria-label={t('common.back')} className="mr-3"><ArrowLeft size={24} /></button>
-        <h1 className="text-lg font-bold flex-1">{t('order.title')}</h1>
-        <span className="font-semibold bg-white/20 px-2 py-1 rounded text-sm">{t(getStatusKey(order.status))}</span>
+    <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      {/* Status header */}
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          title={t('common.back')}
+          aria-label={t('common.back')}
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink transition-colors hover:bg-sunken"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            {t(`order.service_title.${order.service_type}`)}
+          </span>
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance sm:text-2xl">{t('order.title')}</h1>
+          <Badge tone={statusTone(order.status)} dot>{t(getStatusKey(order.status))}</Badge>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col">
-        {showMap && (
-          <div className="h-64 shrink-0 relative bg-gray-200">
-            <MapContainer center={driverLoc || [-8.5833, 116.1167]} zoom={14} className="h-full w-full" zoomControl={false}>
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-              <MapBounds order={order} driverLoc={driverLoc} />
-              {order.pickup_lat && order.pickup_lng && <Marker position={[order.pickup_lat, order.pickup_lng]} icon={defaultIcon} />}
-              {order.dropoff_lat && order.dropoff_lng && <Marker position={[order.dropoff_lat, order.dropoff_lng]} icon={defaultIcon} />}
-              {driverLoc && <Marker position={[driverLoc.lat, driverLoc.lng]} icon={driverIcon} />}
-            </MapContainer>
-          </div>
-        )}
+      {showMap && (
+        <div className="relative h-56 shrink-0 overflow-hidden rounded-card border border-line bg-sunken sm:h-64">
+          <MapContainer center={driverLoc || [-8.5833, 116.1167]} zoom={14} className="h-full w-full" zoomControl={false}>
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            <MapBounds order={order} driverLoc={driverLoc} />
+            {order.pickup_lat && order.pickup_lng && <Marker position={[order.pickup_lat, order.pickup_lng]} icon={defaultIcon} />}
+            {order.dropoff_lat && order.dropoff_lng && <Marker position={[order.dropoff_lat, order.dropoff_lng]} icon={defaultIcon} />}
+            {driverLoc && <Marker position={[driverLoc.lat, driverLoc.lng]} icon={driverIcon} />}
+          </MapContainer>
+        </div>
+      )}
 
-        {order.status === OrderStatus.AWAITING_PAYMENT && (
+      {order.status === OrderStatus.AWAITING_PAYMENT && (
+        <div className="overflow-hidden rounded-card border border-line [&>div]:mb-0 [&>div]:border-b-0">
           <QrisOrderPayment order={order} onCancel={handleCancel} cancelling={isCancelling} />
-        )}
+        </div>
+      )}
 
-        {order.status === 'pending' && (
-          <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
-            <div className="relative w-10 h-10 mx-auto mb-2">
-              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {t('order.searching_driver')}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+      {order.status === 'pending' && (
+        <Card className="flex items-start gap-3.5">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-warning-line bg-warning-soft text-warning">
+            <Spinner size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="text-[14px] font-semibold text-ink">{t('order.searching_driver')}</p>
+            <p className="text-[13px] leading-relaxed text-ink-muted">
               {totalCandidates > 0
                 ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
                 : t('order.dispatch_connecting')}
             </p>
           </div>
-        )}
+        </Card>
+      )}
 
-        {['accepted', 'picking_up'].includes(order.status) && (
-          <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
-            {order.service_type === 'food' ? (
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('order.food_pin_note')}</p>
-            ) : securityPin ? (
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{t('order.pin_label')}</p>
-                <div className="text-3xl font-bold tracking-[0.3em] text-primary">{securityPin}</div>
-              </>
+      {['accepted', 'picking_up'].includes(order.status) && (
+        order.service_type === 'food' ? (
+          <Notice tone="info">{t('order.food_pin_note')}</Notice>
+        ) : (
+          <Card className="flex flex-col items-center gap-3 text-center">
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+              <ShieldCheck size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
+              {t('order.pin_label')}
+            </p>
+            {securityPin ? (
+              <div className="flex justify-center gap-2" aria-label={String(securityPin).split('').join(' ')}>
+                {String(securityPin).split('').map((d, i) => (
+                  <span
+                    key={i}
+                    aria-hidden="true"
+                    className="inline-flex h-14 w-12 items-center justify-center rounded-control border border-line-strong bg-ground font-mono text-[28px] font-medium text-ink"
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-gray-400">{t('order.pin_loading')}</p>
+              <p className="flex items-center gap-2 text-sm text-ink-muted">
+                <Spinner size={14} /> {t('order.pin_loading')}
+              </p>
             )}
+          </Card>
+        )
+      )}
+
+      {order.driver && (
+        <Card className="flex items-center gap-3">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-brand-line bg-brand-soft text-[17px] font-bold text-brand-ink" aria-hidden="true">
+            {partnerName.trim().charAt(0).toUpperCase()}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="truncate text-[15px] font-bold text-ink">{order.driver.name}</p>
+            <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-muted">
+              {order.driver.vehicle_type && <span className="capitalize">{order.driver.vehicle_type}</span>}
+              {order.driver.vehicle_type && order.driver.plate_number && <span aria-hidden="true">·</span>}
+              {order.driver.plate_number && (
+                <span className="rounded-[6px] border border-line-strong bg-ground px-1.5 font-mono text-[12px] font-medium uppercase text-ink">
+                  {order.driver.plate_number}
+                </span>
+              )}
+            </p>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={openChat}
+            title={t('order.chat_title')}
+            aria-label={t('order.chat_title')}
+            className={cx(roundBtn, 'border-brand-line bg-brand-soft text-brand-ink hover:brightness-[0.97]')}
+          >
+            <MessageCircle size={19} />
+          </button>
+          <a
+            href={`tel:${order.driver.phone}`}
+            title={t('order.call_driver')}
+            aria-label={t('order.call_driver')}
+            className={cx(roundBtn, 'border-brand bg-brand text-white hover:bg-brand-hover')}
+          >
+            <Phone size={19} />
+          </a>
+        </Card>
+      )}
 
-
-        <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 border-b dark:border-slate-700">
-          <h2 className="font-bold text-lg mb-1">{t(`order.service_title.${order.service_type}`)}</h2>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">{localizeOrderTitle(order, t)}</p>
-          <div className="font-bold text-primary mt-2">{formatRupiah(order.total_price)}</div>
+      {/* Order + route summary */}
+      <Card className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <IconTile tone="brand" size="sm"><ServiceIcon size={18} /></IconTile>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">{t(`order.service_title.${order.service_type}`)}</h2>
+            <p className="text-[13px] leading-relaxed text-ink-muted">{localizeOrderTitle(order, t)}</p>
+          </div>
+          <Money value={order.total_price} className="shrink-0 pt-0.5 text-[15px] font-medium text-ink" />
         </div>
 
-        {order.driver && (
-          <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 flex items-center justify-between border-b dark:border-slate-700">
-            <div>
-              <div className="font-bold">{order.driver.name}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">{order.driver.vehicle_type} • {order.driver.plate_number}</div>
+        {route && (
+          <>
+            <div className="h-px bg-line" aria-hidden="true" />
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-center gap-[3px] pt-[5px]" aria-hidden="true">
+                <span className="h-2.5 w-2.5 rounded-full bg-brand" />
+                <span className="h-5 w-px bg-line-strong" />
+                <span className="h-2.5 w-2.5 rounded-[3px] bg-danger" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <p className="truncate text-[14px] font-semibold text-ink">
+                  <span className="sr-only">{t('activity.route_pickup')}: </span>{route.from || t('activity.route_pickup')}
+                </p>
+                <p className="truncate text-[14px] font-semibold text-ink">
+                  <span className="sr-only">{t('activity.route_dropoff')}: </span>{route.to || t('activity.route_dropoff')}
+                </p>
+              </div>
+              {distanceKm && (
+                <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-xs text-ink-muted">{distanceKm} km</span>
+              )}
             </div>
-            <a href={`tel:${order.driver.phone}`} className="p-3 bg-green-100 text-green-600 rounded-full">
-              <Phone size={20} />
-            </a>
-          </div>
+          </>
         )}
 
-        {isCancelable() && (
-          <div className="p-4 shrink-0 bg-white dark:bg-slate-800 shadow-sm mb-2">
-            <button 
-              onClick={handleCancel} 
-              disabled={isCancelling}
-              className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold border border-red-200"
-            >
-              {isCancelling ? t('common.cancelling') : t('order.cancel_order')}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3 border-t border-line pt-3 text-[13px]">
+          <span className="flex-1 text-ink-muted">{t('activity.payment_label')}</span>
+          <span className="font-semibold text-ink">{localizePaymentMethod(order, t)}</span>
+        </div>
+      </Card>
 
-        <div className="flex-1 bg-white dark:bg-slate-800 shadow-sm p-4 flex flex-col">
-          <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> {t('order.chat_title')}</h3>
-          <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
-            {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">{t('order.chat_empty')}</div>}
-            {messages.map((m) => (
-              <div key={m.id} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
+      {isCancelable() && (
+        <Button
+          variant="danger-soft"
+          size="lg"
+          block
+          onClick={() => setCancelOpen(true)}
+          isLoading={isCancelling}
+        >
+          {isCancelling ? t('common.cancelling') : t('order.cancel_order')}
+        </Button>
+      )}
+
+      {/* Chat */}
+      <section ref={chatSectionRef} className="flex scroll-mt-20 flex-col overflow-hidden rounded-card border border-line bg-card">
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <IconTile tone="brand" size="sm"><MessageSquare size={17} /></IconTile>
+          <h3 className="min-w-0 flex-1 text-[15px] font-bold tracking-tight text-ink">{t('order.chat_title')}</h3>
+        </div>
+        <div className="flex max-h-80 min-h-[160px] flex-col gap-2.5 overflow-y-auto overscroll-contain bg-ground px-3 py-3" ref={chatRef}>
+          {messages.length === 0 && (
+            <div className="flex flex-1 items-center justify-center px-6 py-6 text-center text-[13px] leading-relaxed text-ink-muted">
+              {t('order.chat_empty')}
+            </div>
+          )}
+          {messages.map((m) => {
+            const isMe = m.sender_id === user?.id;
+            return (
+              <div key={m.id} className={`flex flex-col gap-0.5 ${isMe ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-card px-3.5 py-2 text-sm leading-relaxed ${isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink'}`}>
                   {m.text}
                 </div>
-                <span className="text-[9px] text-gray-400 mt-0.5 px-1">
+                <span className="px-1 font-mono text-[10.5px] text-ink-muted">
                   {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
-            ))}
-          </div>
-          <form onSubmit={sendMessage} className="flex gap-2 shrink-0">
-            <input 
-              value={inputText} 
-              onChange={e => setInputText(e.target.value)} 
-              placeholder={t('order.chat_placeholder')} 
-              className="flex-1 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
-            />
-            <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 transition-colors"><Send size={16}/></button>
-          </form>
+            );
+          })}
         </div>
-      </div>
+        <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
+          <input
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            placeholder={t('order.chat_placeholder')}
+            aria-label={t('order.chat_placeholder')}
+            className="min-h-11 min-w-0 flex-1 rounded-full border border-line-strong bg-ground px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted/80 focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim()}
+            title={t('chat.send')}
+            aria-label={t('chat.send')}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+          >
+            <Send size={17} />
+          </button>
+        </form>
+      </section>
+
+      {/* Cancel confirmation */}
+      <Sheet
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        dismissible={!isCancelling}
+        tone="danger"
+        icon={<AlertCircle size={22} />}
+        title={t('order.cancel_confirm_title')}
+        description={cancelDescription}
+        closeLabel={t('common.close')}
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setCancelOpen(false)} disabled={isCancelling}>
+              {t('order.cancel_keep')}
+            </Button>
+            <Button
+              variant="danger"
+              size="lg"
+              isLoading={isCancelling}
+              onClick={async () => {
+                await handleCancel();
+                setCancelOpen(false);
+              }}
+            >
+              {isCancelling ? t('common.cancelling') : t('order.cancel_order')}
+            </Button>
+          </>
+        )}
+      >
+        {paidWithWallet ? (
+          <div className="flex flex-col rounded-tile border border-line bg-card px-4">
+            <div className="flex items-center gap-3 border-b border-line py-3">
+              <span className="flex-1 text-[13px] text-ink-muted">
+                {t('activity.payment_label')} · {localizePaymentMethod(order, t)}
+              </span>
+              <Money value={order.total_price} className="text-[13.5px] font-medium text-ink" />
+            </div>
+            <div className="flex items-center gap-3 py-3">
+              <span className="flex-1 text-[13px] font-semibold text-ink">{t('ledger.refund')}</span>
+              <Money value={order.total_price} sign="plus" tone="in" className="text-[15px] font-medium" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-tile border border-line bg-card px-4 py-3">
+            <span className="flex-1 text-[13px] text-ink-muted">
+              {t('activity.total_label')} · {localizePaymentMethod(order, t)}
+            </span>
+            <Money value={order.total_price} className="text-[13.5px] font-medium text-ink" />
+          </div>
+        )}
+      </Sheet>
     </div>
   );
 }

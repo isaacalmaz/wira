@@ -1,39 +1,25 @@
-import { ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n';
+import { Card, PageHeader } from '../../components/ui';
 
 export default function TermsPage() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const sections = ['s1', 's2', 's3', 's4', 's5'];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-      <div className="bg-white dark:bg-slate-800 px-4 py-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          title={t('common.back')}
-          aria-label={t('common.back')}
-          className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-        >
-          <ChevronLeft size={24} className="dark:text-white" />
-        </button>
-        <h1 className="text-lg font-bold dark:text-white">{t('terms.title')}</h1>
-      </div>
+    <div className="flex flex-col gap-6 pb-6">
+      <PageHeader title={t('terms.title')} subtitle={t('terms.updated')} back backLabel={t('common.back')} className="!mb-0" />
 
-      <div className="p-4 space-y-4 text-sm text-slate-700 dark:text-slate-300">
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
-          <p className="text-xs text-slate-500">{t('terms.updated')}</p>
-
+      <Card padding="lg">
+        <article className="flex flex-col gap-6 text-sm leading-relaxed text-ink">
           {sections.map((id) => (
-            <div key={id} className="space-y-4">
-              <h2 className="font-bold text-lg dark:text-white">{t(`terms.${id}_title`)}</h2>
+            <section key={id} className="flex flex-col gap-2">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink text-balance">{t(`terms.${id}_title`)}</h2>
               <p>{t(`terms.${id}_body`)}</p>
-            </div>
+            </section>
           ))}
-        </div>
-      </div>
+        </article>
+      </Card>
     </div>
   );
 }

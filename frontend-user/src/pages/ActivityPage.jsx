@@ -1,9 +1,7 @@
 import ReviewModal from "../components/common/ReviewModal";
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
-import { formatRupiah } from '../utils/formatRupiah';
+import { Badge, Button, Card, EmptyState, IconTile, Money, PageHeader, Segmented, Sheet } from '../components/ui';
 import { useOrders } from '../context/OrderContext';
 import { OrderStatus } from '../constants/orderStatus';
 import { useTranslation } from '../i18n';
@@ -17,8 +15,8 @@ import {
   Waves,
   Smartphone,
   Clock,
-  X,
   Receipt,
+  Star,
 } from 'lucide-react';
 
 // Statuses that mean an order/ride is still actually "live" (not yet
@@ -40,6 +38,28 @@ const IN_PROGRESS_STATUSES = [
   OrderStatus.WORKING,
   'menunggu',
 ];
+
+// Badge tone per status (DESIGN.md §5): searching/pending = warning,
+// active = brand, completed = success, cancelled = danger.
+const WAITING_STATUSES = [OrderStatus.AWAITING_PAYMENT, OrderStatus.PENDING, 'menunggu'];
+function statusTone(order) {
+  const s = String(order?.rawStatus || order?.status || '').toLowerCase();
+  if (s === OrderStatus.COMPLETED) return 'success';
+  if (s === OrderStatus.CANCELLED) return 'danger';
+  if (WAITING_STATUSES.includes(s)) return 'warning';
+  if (IN_PROGRESS_STATUSES.includes(s)) return 'brand';
+  return 'neutral';
+}
+
+// One label/value line of the receipt.
+function ReceiptRow({ label, children, strong = false }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <span className={`shrink-0 text-[13px] ${strong ? 'font-semibold text-ink' : 'text-ink-muted'}`}>{label}</span>
+      <span className="min-w-0 break-words text-right text-[13px] font-semibold text-ink">{children}</span>
+    </div>
+  );
+}
 
 export default function ActivityPage() {
   const navigate = useNavigate();
@@ -65,206 +85,152 @@ export default function ActivityPage() {
   const getServiceIcon = (service) => {
     switch (service) {
       case 'WiraRide':
-        return <Bike className="text-cyan-600" size={20} />;
+        return <Bike size={20} />;
       case 'WiraFood':
-        return <ShoppingBag className="text-orange-600" size={20} />;
+        return <ShoppingBag size={20} />;
       case 'WiraSend':
-        return <Package className="text-blue-600" size={20} />;
+        return <Package size={20} />;
       case 'WiraVilla':
-        return <Home className="text-emerald-600" size={20} />;
+        return <Home size={20} />;
       case 'WiraService':
-        return <Wrench className="text-indigo-600" size={20} />;
+        return <Wrench size={20} />;
       case 'WiraPool':
-        return <Waves className="text-teal-600" size={20} />;
+        return <Waves size={20} />;
       case 'WiraPulsa':
-        return <Smartphone className="text-purple-600" size={20} />;
+        return <Smartphone size={20} />;
       default:
-        return <Receipt className="text-primary" size={20} />;
+        return <Receipt size={20} />;
     }
   };
 
+  const filterOptions = tabs.map((tabName) => ({
+    value: tabName,
+    label: tabName === 'Semua' ? t('common.all') : tabName,
+  }));
+
   return (
-    <div className="space-y-6 max-w-2xl mx-auto pb-16">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          {t('activity.title')}
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          {t('activity.subtitle')}
-        </p>
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-4">
+      <PageHeader title={t('activity.title')} subtitle={t('activity.subtitle')} className="mb-0" />
 
       {/* Tabs Filter */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {tabs.map((tabName) => (
-          <button
-            key={tabName}
-            onClick={() => setTab(tabName)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap text-xs font-bold transition shadow-sm ${
-              tab === tabName
-                ? 'bg-primary text-white ring-2 ring-primary/30'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {tabName === 'Semua' ? t('common.all') : tabName}
-          </button>
-        ))}
-      </div>
+      <Segmented scroll options={filterOptions} value={tab} onChange={setTab} ariaLabel={t('activity.service_label')} />
 
       {/* Daftar Kartu Pesanan */}
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <Receipt size={40} className="mx-auto text-slate-300 mb-2" />
-            <p className="text-slate-500 text-sm font-medium">
-              {t('activity.empty')}
-            </p>
-          </div>
+          <EmptyState icon={<Receipt size={24} />} title={t('activity.empty')} />
         ) : (
-          filtered.map((act) => (
-            <Card
-              key={act.id}
-              onClick={() => IN_PROGRESS_STATUSES.includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
-              className="p-4 hover:border-primary/60 cursor-pointer transition hover:shadow-md border border-slate-200 dark:border-slate-700"
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                    {getServiceIcon(act.service)}
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                      {act.service}
+          filtered.map((act) => {
+            const tone = statusTone(act);
+            return (
+              <Card
+                key={act.id}
+                as="button"
+                type="button"
+                padding="none"
+                onClick={() => IN_PROGRESS_STATUSES.includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
+                className="hover:border-brand-line"
+              >
+                <span className="flex flex-col gap-3 p-4">
+                  <span className="flex items-start gap-3">
+                    <IconTile tone="brand">{getServiceIcon(act.service)}</IconTile>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-ink">
+                        {act.service}
+                      </span>
+                      <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">
+                        {localizeOrderTitle(act, t)}
+                      </span>
+                      {act.details && (
+                        <span className="line-clamp-1 text-[12px] text-ink-muted">
+                          {localizeOrderDetails(act, t)}
+                        </span>
+                      )}
                     </span>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
-                      {localizeOrderTitle(act, t)}
-                    </h3>
-                  </div>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
-                    act.rawStatus === OrderStatus.COMPLETED
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : act.rawStatus === OrderStatus.CANCELLED
-                      ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 animate-pulse'
-                  }`}
-                >
-                  {t(act.statusKey)}
-                </span>
-              </div>
+                    <Badge tone={tone} dot className="mt-0.5 shrink-0">
+                      {t(act.statusKey)}
+                    </Badge>
+                  </span>
 
-              {act.details && (
-                <p className="text-xs text-slate-500 line-clamp-1 mb-2.5 pl-12">
-                  {localizeOrderDetails(act, t)}
-                </p>
-              )}
-
-              <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-700/60 pl-12">
-                <span className="text-slate-400 flex items-center gap-1">
-                  <Clock size={11} /> {act.date}
+                  <span className="flex items-center justify-between gap-3 border-t border-line pt-3">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 font-mono text-xs text-ink-muted">
+                      <Clock size={13} className="shrink-0" aria-hidden="true" />
+                      <span className="truncate">{act.date}</span>
+                    </span>
+                    <Money
+                      value={act.price}
+                      tone={tone === 'danger' ? 'muted' : 'default'}
+                      className={`text-[14px] font-medium ${tone === 'danger' ? 'line-through' : 'text-ink'}`}
+                    />
+                  </span>
                 </span>
-                <span className="font-extrabold text-sm text-slate-900 dark:text-white">
-                  {formatRupiah(act.price)}
-                </span>
-              </div>
-            </Card>
-          ))
+              </Card>
+            );
+          })
         )}
       </div>
 
       {/* MODAL RINCIAN STRUK PESANAN */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative animate-in fade-in zoom-in duration-150">
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="text-center pb-2 border-b border-slate-100 dark:border-slate-700">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-2">
-                {getServiceIcon(selectedOrder.service)}
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {t('activity.receipt_title')}
-              </h3>
-              <p className="text-xs text-slate-400 font-mono">{t('activity.receipt_id', { id: selectedOrder.id })}</p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-2.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('activity.service_label')}</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {selectedOrder.service}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('activity.order_label')}</span>
-                <span className="font-semibold text-slate-900 dark:text-white text-right max-w-[200px]">
-                  {localizeOrderTitle(selectedOrder, t)}
-                </span>
-              </div>
-              {selectedOrder.details && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{t('activity.detail_label')}</span>
-                  <span className="font-medium text-slate-700 dark:text-slate-300 text-right max-w-[200px]">
-                    {localizeOrderDetails(selectedOrder, t)}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('activity.time_label')}</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {selectedOrder.date}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('activity.payment_label')}</span>
-                <span className="font-bold text-primary">
-                  {localizePaymentMethod(selectedOrder, t)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('activity.status_label')}</span>
-                <span className="font-bold text-green-600">{t(selectedOrder.statusKey)}</span>
-              </div>
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 flex justify-between items-center text-sm">
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {t('activity.total_label')}
-                </span>
-                <span className="font-extrabold text-base text-primary">
-                  {formatRupiah(selectedOrder.price)}
-                </span>
-              </div>
-
-            </div>
-
-            {selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name && (
+      <Sheet
+        open={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        title={t('activity.receipt_title')}
+        icon={selectedOrder ? getServiceIcon(selectedOrder.service) : null}
+        closeLabel={t('common.close')}
+        footer={
+          selectedOrder && (
+            <>
               <Button
-                className="w-full py-2.5 font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white"
-                onClick={() => {
-                  setReviewingOrder(selectedOrder);
-                  setSelectedOrder(null);
-                }}
+                variant={selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name ? 'secondary' : 'primary'}
+                size="lg"
+                onClick={() => setSelectedOrder(null)}
               >
-                ⭐ {t('activity.review_cta')}
+                {t('activity.close_receipt')}
               </Button>
-            )}
+              {selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name && (
+                <Button
+                  size="lg"
+                  leftIcon={<Star size={18} />}
+                  onClick={() => {
+                    setReviewingOrder(selectedOrder);
+                    setSelectedOrder(null);
+                  }}
+                >
+                  {t('activity.review_cta')}
+                </Button>
+              )}
+            </>
+          )
+        }
+      >
+        {selectedOrder && (
+          <div className="flex flex-col gap-3">
+            <p className="break-all font-mono text-xs text-ink-muted">
+              {t('activity.receipt_id', { id: selectedOrder.id })}
+            </p>
 
-            <Button
-              className="w-full py-2.5 font-bold text-xs"
-              onClick={() => setSelectedOrder(null)}
-
-            >
-              {t('activity.close_receipt')}
-            </Button>
+            <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-card px-4 py-1.5">
+              <ReceiptRow label={t('activity.service_label')}>{selectedOrder.service}</ReceiptRow>
+              <ReceiptRow label={t('activity.order_label')}>{localizeOrderTitle(selectedOrder, t)}</ReceiptRow>
+              {selectedOrder.details && (
+                <ReceiptRow label={t('activity.detail_label')}>
+                  <span className="font-medium">{localizeOrderDetails(selectedOrder, t)}</span>
+                </ReceiptRow>
+              )}
+              <ReceiptRow label={t('activity.time_label')}>
+                <span className="font-mono font-medium">{selectedOrder.date}</span>
+              </ReceiptRow>
+              <ReceiptRow label={t('activity.payment_label')}>{localizePaymentMethod(selectedOrder, t)}</ReceiptRow>
+              <ReceiptRow label={t('activity.status_label')}>
+                <Badge tone={statusTone(selectedOrder)} dot>{t(selectedOrder.statusKey)}</Badge>
+              </ReceiptRow>
+              <ReceiptRow label={t('activity.total_label')} strong>
+                <Money value={selectedOrder.price} className="text-[15px] font-medium" />
+              </ReceiptRow>
+            </div>
           </div>
-
-        </div>
-      )}
+        )}
+      </Sheet>
 
       {reviewingOrder && (
         <ReviewModal 
@@ -281,4 +247,3 @@ export default function ActivityPage() {
     </div>
   );
 }
-

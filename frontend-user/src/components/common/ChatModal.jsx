@@ -3,6 +3,7 @@ import { supabase } from '../../config/supabase';
 import { X, Send, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
+import { Spinner } from '../ui';
 
 export default function ChatModal({ orderId, onClose, receiverName }) {
   const { user } = useAuth();
@@ -82,20 +83,43 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
     e.target.value = null; // reset input
   };
 
+  const partnerName = receiverName || t('chat.default_partner');
+
+  // A full-height panel rather than a <Sheet>: a conversation needs the
+  // whole height and a pinned composer. Styled to the Tenun Laut system.
   return (
-    <div className="fixed inset-0 bg-black/60 z-[200] flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 animate-in fade-in zoom-in duration-300">
-      <div className="bg-white dark:bg-slate-800 w-full sm:w-[400px] h-[80vh] sm:h-[600px] rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden">
-        
+    <div className="fixed inset-0 z-[200] flex flex-col justify-end md:items-center md:justify-center md:p-4" role="dialog" aria-modal="true" aria-label={t('chat.title_with_name', { name: partnerName })}>
+      <div className="absolute inset-0 bg-laut-900/55" onClick={onClose} aria-hidden="true" />
+      <div className="relative flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-sheet bg-ground shadow-sheet md:h-[640px] md:max-w-md md:rounded-sheet">
+
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-700 bg-primary text-white">
-          <h3 className="font-bold">{t('chat.title_with_name', { name: receiverName || t('chat.default_partner') })}</h3>
-          <button onClick={onClose} title={t('common.close')} aria-label={t('common.close')} className="p-1 hover:bg-white/20 rounded-full transition"><X size={20} /></button>
+        <div className="flex shrink-0 flex-col border-b border-line bg-ground">
+          <div className="flex justify-center pt-2.5 pb-1 md:hidden">
+            <span className="h-1 w-10 rounded-full bg-line-strong" aria-hidden="true" />
+          </div>
+          <div className="flex items-center gap-3 px-4 pb-3 pt-1 md:pt-4">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink" aria-hidden="true">
+              {partnerName.trim().charAt(0).toUpperCase()}
+            </span>
+            <h3 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-tight text-ink">
+              {t('chat.title_with_name', { name: partnerName })}
+            </h3>
+            <button
+              type="button"
+              onClick={onClose}
+              title={t('common.close')}
+              aria-label={t('common.close')}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-4 py-4">
           {messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            <div className="flex flex-1 items-center justify-center px-6 text-center text-sm leading-relaxed text-ink-muted">
               {t('chat.empty')}
             </div>
           ) : (
@@ -105,13 +129,13 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
               const content = isImage ? m.text.replace('[IMAGE]', '') : m.text;
               return (
                 <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] p-3 rounded-2xl ${isMe ? 'bg-primary text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-tl-none'}`}>
+                  <div className={`max-w-[78%] rounded-card px-3.5 py-2.5 ${isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink'}`}>
                     {isImage ? (
-                      <img src={content} alt="Attachment" className="w-full rounded-lg mb-1" />
+                      <img src={content} alt="" className="mb-1 w-full rounded-[10px]" />
                     ) : (
-                      <p className="text-sm break-words">{content}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{content}</p>
                     )}
-                    <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-100' : 'text-slate-400'}`}>
+                    <p className={`mt-1 text-right font-mono text-[10.5px] ${isMe ? 'text-white/70' : 'text-ink-muted'}`}>
                       {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
@@ -121,14 +145,17 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
           )}
           {isUploading && (
             <div className="flex justify-end">
-              <div className="bg-primary/50 text-white text-xs px-3 py-1 rounded-full animate-pulse">{t('chat.uploading')}</div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-ink">
+                <Spinner size={12} />
+                {t('chat.uploading')}
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex gap-2 items-center">
+        <div className="flex shrink-0 items-center gap-2 border-t border-line bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <input 
             type="file" 
             accept="image/*" 
@@ -136,7 +163,13 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
             ref={fileInputRef} 
             onChange={handleImageUpload} 
           />
-          <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-500 hover:text-primary transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title={t('chat.send_image')} aria-label={t('chat.send_image')}>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink"
+            title={t('chat.send_image')}
+            aria-label={t('chat.send_image')}
+          >
             <ImageIcon size={20} />
           </button>
 
@@ -146,9 +179,17 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             placeholder={t('chat.placeholder')} 
-            className="flex-1 px-4 py-2.5 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 focus:outline-none focus:border-primary text-sm"
+            aria-label={t('chat.placeholder')}
+            className="min-h-11 min-w-0 flex-1 rounded-full border border-line-strong bg-ground px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted/80 focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
-          <button onClick={handleSend} className="p-2.5 bg-primary text-white rounded-full hover:bg-opacity-90 transition-colors">
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!input.trim()}
+            aria-label={t('chat.send')}
+            title={t('chat.send')}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+          >
             <Send size={18} />
           </button>
         </div>

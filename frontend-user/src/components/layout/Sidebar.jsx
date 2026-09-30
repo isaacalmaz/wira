@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Activity, Wallet, User, Settings, LogOut } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
+import WiraMark from '../brand/WiraMark';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -14,50 +15,53 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  const navItems = [
+    { to: '/', icon: Home, label: 'nav.home' },
+    { to: '/wallet', icon: Wallet, label: 'nav.wallet' },
+    { to: '/activity', icon: Activity, label: 'nav.activity' },
+  ];
+  const linkCls = (active) => `flex items-center gap-3 rounded-control px-3 py-2.5 text-[14px] transition-colors ${active ? 'bg-brand-soft text-brand-ink font-bold' : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink'}`;
+  const name = user?.user_metadata?.name || user?.name || t('nav.guest_name');
+  const phone = user?.user_metadata?.phone || user?.phone;
+
   return (
-    <div className="h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
-            <User className="text-slate-500" />
+    <div className="h-full bg-card border-r border-line flex flex-col">
+      <div className="px-5 pt-6 pb-4">
+        <Link to="/" className="flex items-center gap-2.5 mb-7" aria-label="Wira">
+          <WiraMark size={34} />
+          <span className="text-[24px] font-extrabold tracking-[-0.035em] leading-none text-brand-ink">wira</span>
+        </Link>
+
+        <div className="flex items-center gap-3 mb-6 rounded-card border border-line bg-ground px-3 py-3">
+          <div className="w-10 h-10 shrink-0 rounded-full bg-brand-soft text-brand-ink flex items-center justify-center">
+            <User size={19} />
           </div>
-          <div>
-            <p className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
-              {user?.user_metadata?.name || user?.name || t('nav.guest_name')}
-            </p>
-            {(user?.user_metadata?.phone || user?.phone) && (
-              <p className="text-xs text-slate-500 truncate max-w-[150px]">
-                {user?.user_metadata?.phone || user?.phone}
-              </p>
-            )}
+          <div className="min-w-0">
+            <p className="font-bold text-[14px] text-ink truncate">{name}</p>
+            {phone && <p className="text-xs text-ink-muted truncate font-mono">{phone}</p>}
           </div>
         </div>
 
-        <nav className="space-y-2">
-          <Link to="/" className={`flex items-center gap-3 p-3 rounded-lg ${location.pathname === '/' ? 'bg-primary/10 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-            <Home size={20} />
-            <span>{t('nav.home')}</span>
-          </Link>
-          <Link to="/wallet" className={`flex items-center gap-3 p-3 rounded-lg ${location.pathname === '/wallet' ? 'bg-primary/10 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-            <Wallet size={20} />
-            <span>{t('nav.wallet')}</span>
-          </Link>
-          <Link to="/activity" className={`flex items-center gap-3 p-3 rounded-lg ${location.pathname === '/activity' ? 'bg-primary/10 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-            <Activity size={20} />
-            <span>{t('nav.activity')}</span>
-          </Link>
+        <nav className="flex flex-col gap-1">
+          {navItems.map(({ to, icon: Icon, label }) => {
+            const active = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
+            return (
+              <Link key={to} to={to} className={linkCls(active)} aria-current={active ? 'page' : undefined}>
+                <Icon size={19} />
+                <span>{t(label)}</span>
+              </Link>
+            );
+          })}
         </nav>
-
-        
       </div>
-      
-      <div className="mt-auto p-6 border-t border-slate-200 dark:border-slate-700">
-        <Link to="/profile" className="flex items-center gap-3 p-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700">
-          <Settings size={20} />
+
+      <div className="mt-auto px-5 py-4 border-t border-line flex flex-col gap-1">
+        <Link to="/profile" className={linkCls(location.pathname.startsWith('/profile'))}>
+          <Settings size={19} />
           <span>{t('nav.settings')}</span>
         </Link>
-        <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
-          <LogOut size={20} />
+        <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 rounded-control px-3 py-2.5 text-[14px] font-semibold text-danger-ink hover:bg-danger-soft">
+          <LogOut size={19} />
           <span>{t('nav.logout')}</span>
         </button>
       </div>

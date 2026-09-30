@@ -4,18 +4,33 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   QrCode,
-  CheckCircle2,
   Copy,
   X,
   Building2,
   PhoneCall,
   Clock,
-  Sparkles,
-  AlertTriangle,
   Check,
+  Plus,
+  Send,
+  Receipt,
+  RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  IconTile,
+  Input,
+  ListRow,
+  Money,
+  Notice,
+  SectionHeader,
+  Sheet,
+  cx,
+} from '../components/ui';
 import QRISCard from '../components/common/QRISCard';
 import { formatRupiah } from '../utils/formatRupiah';
 import { supabase } from '../config/supabase';
@@ -336,544 +351,481 @@ export default function WalletPage() {
     }
   };
 
+  // Display-only: which icon and tile tone a ledger row gets (DESIGN.md §5).
+  // Gold (`pay`) for wallet money moves, brand for service payments,
+  // danger/neutral for admin corrections.
+  const ledgerVisual = (trx) => {
+    switch (trx.rawType) {
+      case 'topup':
+        return { tone: 'pay', Icon: Plus };
+      case 'transfer_in':
+        return { tone: 'pay', Icon: ArrowDownLeft };
+      case 'transfer':
+        return { tone: 'pay', Icon: ArrowUpRight };
+      case 'payment':
+        return { tone: 'brand', Icon: Receipt };
+      case 'refund':
+        return { tone: 'brand', Icon: RotateCcw };
+      case 'correction_in':
+        return { tone: 'neutral', Icon: SlidersHorizontal };
+      case 'correction_out':
+        return { tone: 'danger', Icon: SlidersHorizontal };
+      default:
+        return trx.type === 'income'
+          ? { tone: 'neutral', Icon: ArrowDownLeft }
+          : { tone: 'neutral', Icon: ArrowUpRight };
+    }
+  };
+
+  const closeTopUp = () => {
+    setModalType(null);
+    setViewingPendingId(null);
+    setTopUpStep(1);
+  };
+
+  const topUpFormatted = formatAmountWithUniqueHighlight(finalAmount);
+  const baseAmountId = 'wallet-topup-amount';
+  const transferFormId = 'wallet-transfer-form';
+
   return (
-    <div className="space-y-6 max-w-2xl mx-auto pb-12">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-4">
       {/* Kartu Saldo WiraPay */}
-      <div className="bg-gradient-to-br from-cyan-600 via-primary to-cyan-800 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
-        <div className="absolute -top-6 -right-6 p-4 opacity-15 pointer-events-none">
-          <Wallet size={160} />
-        </div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-            {t('wallet.card_label')}
-          </span>
-          <Sparkles size={18} className="text-amber-300 animate-pulse" />
-        </div>
+      <section className="overflow-hidden rounded-card bg-laut-700 text-white" aria-label={t('wallet.card_label')}>
+        <div className="h-2.5 tenun-band" aria-hidden="true" />
+        <div className="flex flex-col gap-5 px-5 pb-5 pt-4">
+          <div className="flex items-start gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-laut-300">
+                {t('wallet.card_label')}
+              </span>
+              <span className="text-[13px] text-white/70">{t('wallet.available_balance')}</span>
+              <Money
+                value={balance}
+                className="text-[30px] font-medium leading-tight tracking-[-0.02em] text-white sm:text-[36px]"
+              />
+            </div>
+            <Wallet size={22} className="mt-0.5 shrink-0 text-emas-400" aria-hidden="true" />
+          </div>
 
-        <p className="text-sm opacity-90 mb-1">{t('wallet.available_balance')}</p>
-        <p className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
-          {formatRupiah(balance)}
-        </p>
-
-        <div className="flex justify-between gap-3">
-          <button
-            onClick={() => {
-              setViewingPendingId(null);
-              setModalType('topup');
-              setTopUpStep(1);
-              setBaseAmount(50000);
-            }}
-            className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
-          >
-            <ArrowUpRight size={18} className="text-green-300" />
-            <span>{t('wallet.top_up')}</span>
-          </button>
-          <button
-            onClick={() => setModalType('transfer')}
-            className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
-          >
-            <ArrowDownLeft size={18} className="text-amber-300" />
-            <span>{t('wallet.transfer')}</span>
-          </button>
-          <button
-            // Dimatikan sementara: pembayaran ini dulu memotong saldo tanpa
-            // meneruskannya ke merchant mana pun (tidak ada penerima).
-            onClick={() => toast(t('wallet.merchant_coming_soon'), { icon: '🚧' })}
-            className="flex-1 opacity-60 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
-          >
-            <Building2 size={18} className="text-cyan-200" />
-            <span>{t('wallet.pay_merchant')}</span>
-          </button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="on-brand"
+              className="px-2"
+              onClick={() => {
+                setViewingPendingId(null);
+                setModalType('topup');
+                setTopUpStep(1);
+                setBaseAmount(50000);
+              }}
+            >
+              {t('wallet.top_up')}
+            </Button>
+            <Button variant="on-brand-outline" className="px-2" onClick={() => setModalType('transfer')}>
+              {t('wallet.transfer')}
+            </Button>
+            <Button
+              variant="on-brand-outline"
+              className="px-2 opacity-60"
+              // Dimatikan sementara: pembayaran ini dulu memotong saldo tanpa
+              // meneruskannya ke merchant mana pun (tidak ada penerima).
+              onClick={() => toast(t('wallet.merchant_coming_soon'), { icon: <Building2 size={18} /> })}
+            >
+              {t('wallet.pay_merchant')}
+            </Button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Permintaan Top-Up Menunggu Verifikasi */}
       {pendingTopUps.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <Clock size={16} /> {t('wallet.pending_title', { count: pendingTopUps.length })}
-            </h3>
-            <span className="text-[11px] text-slate-400">{t('wallet.pending_badge')}</span>
-          </div>
+        <section className="flex flex-col gap-3">
+          <SectionHeader
+            className="mb-0"
+            title={t('wallet.pending_title', { count: pendingTopUps.length })}
+            action={<Badge tone="neutral">{t('wallet.pending_badge')}</Badge>}
+          />
 
-          <div className="space-y-2.5">
+          <div className="flex flex-col gap-3">
             {pendingTopUps.map((p) => {
               const pFormatted = formatAmountWithUniqueHighlight(p.amount);
               return (
-                <div
-                  key={p.id}
-                  className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-base text-slate-900 dark:text-white inline-flex items-baseline flex-nowrap whitespace-nowrap gap-0.5">
-                        <span>{pFormatted.prefix}</span>
-                        <span className="text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-mono underline decoration-amber-500 shrink-0">
-                          {pFormatted.uniqueDigits}
-                        </span>
-                      </span>
-                      <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold px-2 py-0.5 rounded-full">
-                        {t('wallet.pending_waiting_admin')}
-                      </span>
+                <Card key={p.id} padding="none" className="border-warning-line">
+                  <div className="flex flex-col gap-3 p-4">
+                    <div className="flex items-start gap-3">
+                      <IconTile tone="pay"><Clock size={20} /></IconTile>
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                          <span className="whitespace-nowrap font-mono text-[17px] font-medium tracking-tight text-ink">
+                            {pFormatted.prefix}
+                            <span className="text-pay-ink underline decoration-pay-line decoration-2 underline-offset-4">
+                              {pFormatted.uniqueDigits}
+                            </span>
+                          </span>
+                          <Badge tone="warning" dot>{t('wallet.pending_waiting_admin')}</Badge>
+                        </div>
+                        <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                          {t('wallet.pending_instruction', { amount: pFormatted.fullFormatted })}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      {t('wallet.pending_instruction', { amount: pFormatted.fullFormatted })}
-                    </p>
-                  </div>
 
-                  <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(p.amount, t('wallet.copy_label_amount_value', { amount: pFormatted.fullFormatted }))}
-                      className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 hover:bg-amber-200 px-2.5 py-1.5 rounded-xl transition"
-                      title={t('wallet.copy_amount_title')}
-                    >
-                      <Copy size={13} />
-                      <span>{t('common.copy')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const code = Number(p.amount) % 1000;
-                        const base = Number(p.amount) - code;
-                        setBaseAmount(base);
-                        setUniqueCode(code);
-                        setFinalAmount(Number(p.amount));
-                        setViewingPendingId(p.id);
-                        setModalType('topup');
-                        setTopUpStep(2);
-                      }}
-                      className="flex items-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl transition shadow-sm"
-                    >
-                      <QrCode size={13} />
-                      <span>{t('wallet.view_qris')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelPending(p.id)}
-                      disabled={loading}
-                      className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 px-2 py-1.5 rounded-xl transition border border-rose-200/60 dark:border-rose-800/60"
-                      title={t('wallet.cancel_request_title')}
-                    >
-                      <X size={13} />
-                      <span>{t('common.cancel')}</span>
-                    </button>
+                    <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
+                      <Button
+                        variant="danger-soft"
+                        className="px-2"
+                        onClick={() => handleCancelPending(p.id)}
+                        disabled={loading}
+                        title={t('wallet.cancel_request_title')}
+                        leftIcon={<X size={15} />}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="px-2"
+                        onClick={() => copyToClipboard(p.amount, t('wallet.copy_label_amount_value', { amount: pFormatted.fullFormatted }))}
+                        title={t('wallet.copy_amount_title')}
+                        leftIcon={<Copy size={15} />}
+                      >
+                        {t('common.copy')}
+                      </Button>
+                      <Button
+                        className="px-2"
+                        onClick={() => {
+                          const code = Number(p.amount) % 1000;
+                          const base = Number(p.amount) - code;
+                          setBaseAmount(base);
+                          setUniqueCode(code);
+                          setFinalAmount(Number(p.amount));
+                          setViewingPendingId(p.id);
+                          setModalType('topup');
+                          setTopUpStep(2);
+                        }}
+                        leftIcon={<QrCode size={15} />}
+                      >
+                        {t('wallet.view_qris')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Riwayat Transaksi */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-            {t('wallet.history_title')}
-          </h3>
-          <span className="text-xs text-slate-500">{t('wallet.history_count', { count: transactions.length })}</span>
-        </div>
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          className="mb-0"
+          title={t('wallet.history_title')}
+          action={<span className="font-medium text-ink-muted">{t('wallet.history_count', { count: transactions.length })}</span>}
+        />
 
-        <Card className="divide-y divide-slate-100 dark:divide-slate-800 p-0 overflow-hidden shadow-sm">
-          {transactions.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
-              {t('wallet.history_empty')}
-            </div>
-          ) : (
-            transactions.map((trx) => {
-              const shown = localizeTransaction({ type: trx.rawType, description: trx.desc }, t);
-              return (
-              <div
-                key={trx.id}
-                className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                      trx.type === 'income'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                    }`}
-                  >
-                    {trx.type === 'income' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-slate-900 dark:text-white leading-tight">
-                      {shown.title}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                      <Clock size={11} /> {trx.date}{shown.detail ? ` • ${shown.detail}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`font-bold text-sm sm:text-base ${
-                      trx.type === 'income'
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-slate-800 dark:text-slate-200'
-                    }`}
-                  >
-                    {trx.type === 'income' ? '+' : '-'}
-                    {formatRupiah(trx.amount)}
-                  </span>
-                  <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">
-                    {trx.status || t('wallet.transaction_success')}
-                  </p>
-                </div>
-              </div>
-              );
-            })
-          )}
-        </Card>
-      </div>
+        {transactions.length === 0 ? (
+          <EmptyState icon={<Wallet size={24} />} description={t('wallet.history_empty')} />
+        ) : (
+          <Card padding="none">
+            <ul className="divide-y divide-line">
+              {transactions.map((trx) => {
+                const shown = localizeTransaction({ type: trx.rawType, description: trx.desc }, t);
+                const { tone, Icon } = ledgerVisual(trx);
+                const isIncome = trx.type === 'income';
+                return (
+                  <li key={trx.id}>
+                    <ListRow
+                      className="px-4 py-3.5"
+                      leading={<IconTile tone={tone} size="sm"><Icon size={17} /></IconTile>}
+                      title={shown.title}
+                      subtitle={
+                        <>
+                          <span className="font-mono">{trx.date}</span>
+                          {shown.detail ? ` · ${shown.detail}` : ''}
+                        </>
+                      }
+                      trailing={
+                        <span className="flex flex-col items-end gap-0.5">
+                          <Money
+                            value={trx.amount}
+                            sign={isIncome ? 'plus' : 'minus'}
+                            tone={isIncome ? 'in' : 'default'}
+                            className="text-[14px] font-medium"
+                          />
+                          <span className="text-[11px] text-ink-muted">
+                            {trx.status || t('wallet.transaction_success')}
+                          </span>
+                        </span>
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+      </section>
 
       {/* MODAL 1: TOP UP SALDO */}
-      {modalType === 'topup' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => {
-                setModalType(null);
-                setViewingPendingId(null);
-                setTopUpStep(1);
-              }}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+      <Sheet
+        open={modalType === 'topup'}
+        onClose={closeTopUp}
+        tone="pay"
+        icon={topUpStep === 1 ? <Plus size={22} /> : <QrCode size={22} />}
+        title={topUpStep === 1 ? t('wallet.topup_title') : t('wallet.qris_title')}
+        description={topUpStep === 1 ? t('wallet.topup_subtitle') : t('wallet.qris_subtitle')}
+        closeLabel={t('common.close')}
+        footer={
+          topUpStep === 1 ? (
+            <Button
+              size="lg"
+              onClick={handleProceedToPayment}
+              disabled={loading || !baseAmount || Number(baseAmount) < 10000}
+              isLoading={loading}
             >
-              <X size={20} />
-            </button>
-
-            {topUpStep === 1 ? (
-              <>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    {t('wallet.topup_title')}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {t('wallet.topup_subtitle')}
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    {t('wallet.quick_amount')}
-                  </label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {quickAmounts.map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setBaseAmount(amt)}
-                        className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition ${
-                          baseAmount === amt
-                            ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        {formatRupiah(amt)}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="pt-2">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">
-                      {t('wallet.other_amount')}
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm">
-                        Rp
-                      </span>
-                      <input
-                        type="number"
-                        min="10000"
-                        step="1000"
-                        placeholder={t('wallet.min_amount_placeholder')}
-                        value={baseAmount || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setBaseAmount(val === '' ? '' : Math.max(0, Number(val)));
-                        }}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white font-bold text-base focus:ring-2 focus:ring-primary focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">
-                      {t('common.payment_method')}
-                    </label>
-                    {/* Single QRIS Payment Flow - VA options eliminated */}
-                    <div className="p-3.5 rounded-2xl border-2 border-primary bg-primary/5 dark:bg-primary/10 flex items-center justify-between shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-md">
-                          <QrCode size={22} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                            {t('wallet.qris_option_title')}
-                            <span className="text-[10px] bg-green-500 text-white font-semibold px-2 py-0.5 rounded-full">
-                              {t('wallet.qris_option_active')}
-                            </span>
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            {t('wallet.qris_option_desc')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center">
-                        <Check size={13} strokeWidth={3} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full py-3 text-sm font-bold shadow-lg shadow-primary/20"
-                  onClick={handleProceedToPayment}
-                  disabled={loading || !baseAmount || Number(baseAmount) < 10000}
-                >
-                  {loading
-                    ? t('wallet.preparing_code')
-                    : t('wallet.continue_to_qris', { amount: formatRupiah(Number(baseAmount) || 0) })}
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-900/40 text-primary mb-2 shadow-inner">
-                    <QrCode size={26} />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    {t('wallet.qris_title')}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {t('wallet.qris_subtitle')}
-                  </p>
-                </div>
-
-                {/* Standardized QRIS Card */}
-                <QRISCard />
-
-                {/* Total Payment with Highlighted 3 Unique Digits */}
-                {(() => {
-                  const formatted = formatAmountWithUniqueHighlight(finalAmount);
+              {loading
+                ? t('wallet.preparing_code')
+                : t('wallet.continue_to_qris', { amount: formatRupiah(Number(baseAmount) || 0) })}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => {
+                  setViewingPendingId(null);
+                  setTopUpStep(1);
+                }}
+              >
+                {viewingPendingId ? t('wallet.new_topup') : t('wallet.change_amount')}
+              </Button>
+              <Button size="lg" onClick={handleTopUpConfirm} disabled={loading} isLoading={loading}>
+                {loading ? t('common.processing') : viewingPendingId ? t('wallet.close_paid') : t('wallet.i_have_paid')}
+              </Button>
+            </>
+          )
+        }
+      >
+        {topUpStep === 1 ? (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-ink">{t('wallet.quick_amount')}</span>
+              <div className="grid grid-cols-3 gap-2">
+                {quickAmounts.map((amt) => {
+                  const selected = baseAmount === amt;
                   return (
-                    <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          {t('wallet.bill_total')}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleCopyNominal}
-                          className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-cyan-700 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition shrink-0"
-                          title={t('wallet.copy_amount_title')}
-                        >
-                          {copiedNominal ? (
-                            <>
-                              <Check size={13} className="text-green-600" />
-                              <span className="text-green-600 font-bold">{t('common.copied')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={13} />
-                              <span>{t('wallet.copy_amount')}</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Prominent Bold Nominal with Distinct Highlight on Last 3 Digits */}
-                      <div className="text-center py-2.5 px-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner overflow-hidden">
-                        <p className="inline-flex items-baseline justify-center flex-nowrap whitespace-nowrap gap-0.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums max-w-full">
-                          <span>{formatted.prefix}</span>
-                          <span className="text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-amber-700 underline decoration-amber-500 decoration-2 shrink-0">
-                            {formatted.uniqueDigits}
-                          </span>
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          {t('wallet.amount_breakdown', { base: formatRupiah(Number(baseAmount)), code: `+${uniqueCode}` })}
-                        </p>
-                      </div>
-
-                      {/* Info Banner when reviewing existing pending top-up */}
-                      {viewingPendingId && (
-                        <div className="text-center text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-700 flex items-center justify-center gap-1.5">
-                          <Clock size={14} className="shrink-0" />
-                          <span>{t('wallet.pending_status_note')}</span>
-                        </div>
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setBaseAmount(amt)}
+                      aria-pressed={selected}
+                      className={cx(
+                        'min-h-11 rounded-control border px-1.5 py-2 font-mono text-[13px] font-medium transition-colors',
+                        selected
+                          ? 'border-brand bg-brand-soft text-brand-ink ring-1 ring-brand'
+                          : 'border-line-strong bg-card text-ink hover:bg-sunken',
                       )}
-
-                      {/* Important Warning Instruction Box */}
-                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl flex gap-2.5 text-amber-800 dark:text-amber-200 text-xs">
-                        <AlertTriangle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="font-bold">
-                            {t('wallet.warning_title', { digits: formatted.uniqueDigits })}
-                          </p>
-                          <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                            {t('wallet.warning_body')}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Step-by-Step Instructions */}
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pt-1">
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          {t('wallet.guide_title')}
-                        </p>
-                        <ol className="list-decimal list-inside space-y-0.5 pl-1">
-                          <li>{t('wallet.guide_step_1')}</li>
-                          <li>{t('wallet.guide_step_2')}</li>
-                          <li>{t('wallet.guide_step_3', { amount: formatRupiah(finalAmount) })}</li>
-                          <li>{t('wallet.guide_step_4')}</li>
-                        </ol>
-                        <p className="text-amber-700 dark:text-amber-300">
-                          {t('wallet.guide_note')}
-                        </p>
-                      </div>
-                    </div>
+                    >
+                      {formatRupiah(amt)}
+                    </button>
                   );
-                })()}
+                })}
+              </div>
+            </div>
 
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      setViewingPendingId(null);
-                      setTopUpStep(1);
-                    }}
-                  >
-                    {viewingPendingId ? t('wallet.new_topup') : t('wallet.change_amount')}
-                  </Button>
-                  <Button
-                    className="flex-1 font-bold shadow-lg shadow-primary/20"
-                    onClick={handleTopUpConfirm}
-                    disabled={loading}
-                  >
-                    {loading ? t('common.processing') : viewingPendingId ? t('wallet.close_paid') : t('wallet.i_have_paid')}
-                  </Button>
+            <Field label={t('wallet.other_amount')} htmlFor={baseAmountId}>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center font-mono text-[15px] text-ink-muted">
+                  Rp
+                </span>
+                <Input
+                  id={baseAmountId}
+                  type="number"
+                  inputMode="numeric"
+                  min="10000"
+                  step="1000"
+                  placeholder={t('wallet.min_amount_placeholder')}
+                  value={baseAmount || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setBaseAmount(val === '' ? '' : Math.max(0, Number(val)));
+                  }}
+                  className="pl-11 font-mono text-[17px] font-medium"
+                />
+              </div>
+            </Field>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-ink">{t('common.payment_method')}</span>
+              {/* Single QRIS Payment Flow - VA options eliminated */}
+              <div className="flex items-center gap-3 rounded-card border-2 border-brand bg-card p-3.5">
+                <IconTile tone="pay"><QrCode size={20} /></IconTile>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[13.5px] font-semibold leading-snug text-ink">{t('wallet.qris_option_title')}</span>
+                    <Badge tone="success">{t('wallet.qris_option_active')}</Badge>
+                  </div>
+                  <span className="text-[12px] text-ink-muted">{t('wallet.qris_option_desc')}</span>
                 </div>
-
-                {viewingPendingId && (
-                  <button
-                    type="button"
-                    onClick={() => handleCancelPending(viewingPendingId)}
-                    disabled={loading}
-                    className="w-full text-center text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-rose-200 dark:border-rose-900/50"
-                  >
-                    <X size={14} />
-                    <span>{t('wallet.cancel_this_request')}</span>
-                  </button>
-                )}
-              </>
-            )}
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-white" aria-hidden="true">
+                  <Check size={13} strokeWidth={3} />
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Standardized QRIS Card */}
+            <QRISCard />
 
-      {/* MODAL 2: TRANSFER ANTAR USER */}
-      {modalType === 'transfer' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 relative">
-            <button
-              onClick={() => setModalType(null)}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-            >
-              <X size={20} />
-            </button>
+            {/* Total Payment with Highlighted 3 Unique Digits */}
+            <div className="flex flex-col gap-2 rounded-card border border-line bg-card p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                  {t('wallet.bill_total')}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-mr-2 min-h-11"
+                  onClick={handleCopyNominal}
+                  title={t('wallet.copy_amount_title')}
+                  leftIcon={copiedNominal ? <Check size={15} className="text-success" /> : <Copy size={15} />}
+                >
+                  {copiedNominal ? <span className="text-success-ink">{t('common.copied')}</span> : t('wallet.copy_amount')}
+                </Button>
+              </div>
 
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                {t('wallet.transfer_title')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                {t('wallet.transfer_subtitle')}
+              {/* Prominent nominal, last three digits called out */}
+              <p className="whitespace-nowrap font-mono text-[28px] font-medium leading-tight tracking-tight text-ink">
+                {topUpFormatted.prefix}
+                <span className="rounded-[6px] bg-pay-soft px-1 text-pay-ink underline decoration-pay-line decoration-2 underline-offset-4">
+                  {topUpFormatted.uniqueDigits}
+                </span>
+              </p>
+              <p className="text-[12px] text-ink-muted">
+                {t('wallet.amount_breakdown', { base: formatRupiah(Number(baseAmount)), code: `+${uniqueCode}` })}
               </p>
             </div>
 
-            <form onSubmit={handleTransferSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  {t('wallet.recipient_label')}
-                </label>
-                <div className="relative">
-                  <PhoneCall size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input
-                    type="tel"
-                    placeholder={t('wallet.recipient_placeholder')}
-                    value={transferPhone}
-                    onChange={(e) => setTransferPhone(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:outline-none font-medium"
-                    required
-                  />
-                </div>
-              </div>
+            {/* Info banner when reviewing an existing pending top-up */}
+            {viewingPendingId && (
+              <Notice tone="warning">{t('wallet.pending_status_note')}</Notice>
+            )}
 
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    {t('wallet.transfer_amount_label')}
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    {t('common.balance_with_amount', { amount: formatRupiah(balance) })}
-                  </span>
-                </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm">
-                    Rp
-                  </span>
-                  <input
-                    type="number"
-                    min="5000"
-                    max={balance}
-                    placeholder={t('wallet.transfer_amount_placeholder')}
-                    value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-base font-bold focus:ring-2 focus:ring-primary focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
+            {/* Important Warning Instruction Box */}
+            <Notice tone="warning" title={t('wallet.warning_title', { digits: topUpFormatted.uniqueDigits })}>
+              {t('wallet.warning_body')}
+            </Notice>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  {t('wallet.transfer_note_label')}
-                </label>
-                <input
-                  type="text"
-                  placeholder={t('wallet.transfer_note_placeholder')}
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
+            {/* Step-by-Step Instructions */}
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] font-semibold text-ink">{t('wallet.guide_title')}</p>
+              <ol className="flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-relaxed text-ink-muted marker:font-mono marker:text-ink-muted">
+                <li>{t('wallet.guide_step_1')}</li>
+                <li>{t('wallet.guide_step_2')}</li>
+                <li>{t('wallet.guide_step_3', { amount: formatRupiah(finalAmount) })}</li>
+                <li>{t('wallet.guide_step_4')}</li>
+              </ol>
+              <p className="text-xs leading-relaxed text-ink-muted">{t('wallet.guide_note')}</p>
+            </div>
 
-              <div className="pt-2 flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setModalType(null)}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 font-bold"
-                  disabled={loading || balance < Number(transferAmount)}
-                >
-                  {loading ? t('common.sending') : t('wallet.transfer_send')}
-                </Button>
-              </div>
-            </form>
+            {viewingPendingId && (
+              <Button
+                variant="danger-soft"
+                block
+                onClick={() => handleCancelPending(viewingPendingId)}
+                disabled={loading}
+                leftIcon={<X size={16} />}
+              >
+                {t('wallet.cancel_this_request')}
+              </Button>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Sheet>
 
+      {/* MODAL 2: TRANSFER ANTAR USER */}
+      <Sheet
+        open={modalType === 'transfer'}
+        onClose={() => setModalType(null)}
+        tone="pay"
+        icon={<Send size={20} />}
+        title={t('wallet.transfer_title')}
+        description={t('wallet.transfer_subtitle')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setModalType(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="submit"
+              form={transferFormId}
+              size="lg"
+              disabled={loading || balance < Number(transferAmount)}
+              isLoading={loading}
+            >
+              {loading ? t('common.sending') : t('wallet.transfer_send')}
+            </Button>
+          </>
+        }
+      >
+        <form id={transferFormId} onSubmit={handleTransferSubmit} className="flex flex-col gap-4">
+          <Field label={t('wallet.recipient_label')} htmlFor="wallet-transfer-phone">
+            <div className="relative">
+              <PhoneCall size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+              <Input
+                id="wallet-transfer-phone"
+                type="tel"
+                inputMode="tel"
+                placeholder={t('wallet.recipient_placeholder')}
+                value={transferPhone}
+                onChange={(e) => setTransferPhone(e.target.value)}
+                className="pl-10 font-mono"
+                required
+              />
+            </div>
+          </Field>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <label htmlFor="wallet-transfer-amount" className="text-[13px] font-semibold text-ink">
+                {t('wallet.transfer_amount_label')}
+              </label>
+              <span className="text-xs text-ink-muted">
+                {t('common.balance_with_amount', { amount: formatRupiah(balance) })}
+              </span>
+            </div>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center font-mono text-[15px] text-ink-muted">
+                Rp
+              </span>
+              <Input
+                id="wallet-transfer-amount"
+                type="number"
+                inputMode="numeric"
+                min="5000"
+                max={balance}
+                placeholder={t('wallet.transfer_amount_placeholder')}
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                className="pl-11 font-mono text-[17px] font-medium"
+                required
+              />
+            </div>
+          </div>
+
+          <Field label={t('wallet.transfer_note_label')} htmlFor="wallet-transfer-note">
+            <Input
+              id="wallet-transfer-note"
+              type="text"
+              placeholder={t('wallet.transfer_note_placeholder')}
+              value={transferNote}
+              onChange={(e) => setTransferNote(e.target.value)}
+            />
+          </Field>
+        </form>
+      </Sheet>
     </div>
   );
 }

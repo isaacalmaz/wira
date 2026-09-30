@@ -101,7 +101,10 @@
     "password_mismatch": "Kata sandi dan ulangannya belum sama. Periksa lagi keduanya.",
     "register_success": "Akun Anda berhasil dibuat. Buka email Anda (cek juga folder Spam) untuk verifikasi sebelum masuk.",
     "register_failed": "Pendaftaran belum berhasil. Pastikan email belum pernah didaftarkan dan kata sandi minimal 6 karakter.",
-    "session_expired": "Sesi Anda sudah berakhir. Masuk kembali untuk melanjutkan."
+    "session_expired": "Sesi Anda sudah berakhir. Masuk kembali untuk melanjutkan.",
+    "name_label": "Nama lengkap",
+    "phone_label": "Nomor HP",
+    "confirm_password_label": "Ulangi kata sandi"
   },
   "home": {
     "wallet_balance": "Saldo WiraPay",
@@ -115,7 +118,11 @@
     "move_down": "Turunkan urutan",
     "toggle_service": "Tampilkan atau sembunyikan layanan ini",
     "recent": "Aktivitas Terakhir",
-    "recent_empty": "Belum ada pesanan. Mulai dari WiraRide atau WiraFood, yuk!"
+    "recent_empty": "Belum ada pesanan. Mulai dari WiraRide atau WiraFood, yuk!",
+    "greeting_morning": "Selamat pagi",
+    "greeting_afternoon": "Selamat siang",
+    "greeting_evening": "Selamat sore",
+    "greeting_night": "Selamat malam"
   },
   "ride": {
     "pickup_placeholder": "Titik jemput Anda (cth. Ampenan atau Rumah)",
@@ -506,7 +513,12 @@
     "create_failed": "Pesanan belum bisa dibuat: {{message}}",
     "create_failed_generic": "Pesanan belum bisa dibuat. Periksa koneksi Anda, lalu coba lagi.",
     "login_required": "Masuk dulu ke akun Anda untuk membuat pesanan.",
-    "update_status_failed": "Status pesanan belum bisa diperbarui. Coba lagi sebentar lagi."
+    "update_status_failed": "Status pesanan belum bisa diperbarui. Coba lagi sebentar lagi.",
+    "cancel_confirm_title": "Batalkan pesanan ini?",
+    "cancel_desc_pending": "Belum ada mitra yang menerima pesanan ini, jadi pembatalan gratis.",
+    "cancel_desc_accepted": "Mitra sudah menuju lokasi Anda. Pembatalan masih gratis dalam 3 menit pertama setelah pesanan diterima.",
+    "cancel_keep": "Lanjutkan pesanan",
+    "call_driver": "Telepon mitra"
   },
   "review": {
     "title": "Beri Ulasan",
@@ -527,7 +539,8 @@
     "empty": "Belum ada pesan. Sapa driver Anda dulu, yuk.",
     "placeholder": "Tulis pesan Anda...",
     "send_image": "Kirim gambar",
-    "uploading": "Mengirim gambar..."
+    "uploading": "Mengirim gambar...",
+    "send": "Kirim pesan"
   },
   "notifications": {
     "title": "Notifikasi",

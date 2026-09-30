@@ -1,5 +1,7 @@
 import React from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { translateStatic } from '../../i18n';
+import { Button, Card, IconTile } from '../ui';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -30,30 +32,34 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 text-slate-800 text-center">
-          <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-lg border border-slate-200">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-              ⚠️
+        <div className="flex min-h-[100dvh] items-center justify-center bg-ground px-4 py-10 text-ink">
+          <Card padding="lg" className="flex w-full max-w-md flex-col items-center gap-4 text-center">
+            <IconTile tone="danger" size="lg">
+              <AlertTriangle size={24} aria-hidden="true" />
+            </IconTile>
+            <div className="flex flex-col gap-1.5">
+              <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-balance">{translateStatic('error_boundary.title')}</h1>
+              <p className="text-sm leading-relaxed text-ink-muted">
+                {translateStatic('error_boundary.desc')}
+              </p>
             </div>
-            <h1 className="text-xl font-black text-slate-900 mb-2">{translateStatic('error_boundary.title')}</h1>
-            <p className="text-sm text-slate-500 mb-2">
-              {translateStatic('error_boundary.desc')}
-            </p>
             {this.state.error && (
-              <div className="text-xs text-left text-red-500 bg-red-50 p-2 rounded mb-4 overflow-auto max-h-32">
+              <pre className="max-h-32 w-full overflow-auto whitespace-pre-wrap break-words rounded-control border border-danger-line bg-danger-soft p-3 text-left font-mono text-xs text-danger-ink">
                 {this.state.error.toString()}
-              </div>
+              </pre>
             )}
-            <button
+            <Button
+              block
+              size="lg"
+              className="mt-1"
               onClick={() => {
                 this.setState({ hasError: false });
                 window.location.reload();
               }}
-              className="w-full py-3 bg-cyan-600 text-white rounded-2xl font-bold hover:bg-cyan-700 transition shadow-md"
             >
               {translateStatic('error_boundary.reload')}
-            </button>
-          </div>
+            </Button>
+          </Card>
         </div>
       );
     }

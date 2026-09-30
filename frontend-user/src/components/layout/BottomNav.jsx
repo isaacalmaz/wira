@@ -14,17 +14,24 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-around items-center z-50">
-      {tabs.map(tab => {
-        const Icon = tab.icon;
-        const isActive = location.pathname === tab.path;
-        return (
-          <Link key={tab.path} to={tab.path} className={`flex flex-col items-center gap-1 p-2 ${isActive ? 'text-primary dark:text-primary-light' : 'text-slate-500 dark:text-slate-400'}`}>
-            <Icon size={24} />
-            <span className="text-[10px]">{t(tab.label)}</span>
-          </Link>
-        );
-      })}
-    </div>
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-line pb-safe">
+      <div className="grid grid-cols-4 px-2 pt-1.5 pb-1.5">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = tab.path === '/' ? location.pathname === '/' : location.pathname.startsWith(tab.path);
+          return (
+            <Link
+              key={tab.path}
+              to={tab.path}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex flex-col items-center gap-1 rounded-[10px] py-1.5 ${isActive ? 'text-brand-ink' : 'text-ink-muted hover:text-ink'}`}
+            >
+              <Icon size={21} strokeWidth={isActive ? 2.3 : 1.9} />
+              <span className={`text-[11px] leading-none ${isActive ? 'font-bold' : 'font-semibold'}`}>{t(tab.label)}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

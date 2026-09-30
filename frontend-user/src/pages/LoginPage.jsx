@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import Button from '../components/common/Button';
-import Card from '../components/common/Card';
+import { Button, Card, Field, Input } from '../components/ui';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import WiraMark from '../components/brand/WiraMark';
@@ -33,46 +32,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-dark via-primary to-primary-light flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 bg-white/95 backdrop-blur">
-        <div className="text-center mb-8">
-          <WiraMark size={64} title="Wira" className="block mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-800">{t('auth.login_title')}</h1>
-          <p className="text-slate-500 text-sm mt-1">{t('auth.login_subtitle')}</p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-7 bg-ground px-4 py-10">
+      <div className="flex items-center gap-3">
+        <WiraMark size={44} title="Wira" />
+        <span className="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-brand-ink" aria-hidden="true">wira</span>
+      </div>
+
+      <Card padding="none" className="w-full max-w-[400px] overflow-hidden">
+        <div className="h-1.5 tenun-band" aria-hidden="true" />
+        <div className="flex flex-col gap-6 p-6 sm:p-7">
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">{t('auth.login_title')}</h1>
+            <p className="text-sm leading-relaxed text-ink-muted">{t('auth.login_subtitle')}</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <Field label={t('auth.email')} htmlFor="login-email">
+              <Input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder={t('auth.email_placeholder')}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label={t('auth.password')} htmlFor="login-password">
+              <Input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </Field>
+            <Button type="submit" block size="lg" className="mt-2" isLoading={loading}>
+              {loading ? t('common.processing') : t('auth.login_submit')}
+            </Button>
+          </form>
         </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('auth.email')}</label>
-            <input
-              type="email"
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400"
-              placeholder={t('auth.email_placeholder')}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('auth.password')}</label>
-            <input
-              type="password"
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full mt-6" size="lg" disabled={loading}>
-            {loading ? t('common.processing') : t('auth.login_submit')}
-          </Button>
-        </form>
-
-        <p className="text-center text-sm text-slate-500 mt-6">
-          {t('auth.no_account')} <Link to="/register" className="text-primary font-semibold cursor-pointer hover:underline">{t('auth.register_link')}</Link>
-        </p>
       </Card>
+
+      <p className="text-center text-sm text-ink-muted">
+        {t('auth.no_account')}{' '}
+        <Link to="/register" className="inline-flex min-h-11 items-center font-semibold text-brand-ink hover:underline">{t('auth.register_link')}</Link>
+      </p>
     </div>
   );
 }

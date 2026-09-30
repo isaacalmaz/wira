@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Copy, Check, Clock } from 'lucide-react';
+import { Copy, Check, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QRISCard from './QRISCard';
+import { Button, IconTile, Notice } from '../ui';
 import { supabase } from '../../config/supabase';
 import { formatAmountWithUniqueHighlight } from '../../services/topupService';
 import { formatRupiah } from '../../utils/formatRupiah';
@@ -57,41 +58,60 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 space-y-3 text-center">
-      <p className="text-sm font-bold text-slate-900 dark:text-white">{t('order.qris_pay_title')}</p>
+    <div className="mb-2 flex shrink-0 flex-col gap-4 border-b border-line bg-card px-4 py-5">
+      <div className="flex items-center gap-3">
+        <IconTile tone="pay" size="sm"><QrCode size={18} /></IconTile>
+        <p className="min-w-0 flex-1 text-[15px] font-bold tracking-tight text-ink text-balance">{t('order.qris_pay_title')}</p>
+      </div>
+
       <QRISCard />
-      {formatted ? (
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            {formatted.prefix}
-            <span className="text-primary">{formatted.uniqueDigits}</span>
-          </span>
-          <button type="button" onClick={copyAmount} title={t('common.copy')} aria-label={t('common.copy')} className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700">
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-          </button>
+
+      <div className="flex items-center gap-3 rounded-card border border-line bg-ground px-4 py-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{t('wallet.bill_total')}</span>
+          {formatted ? (
+            <span className="whitespace-nowrap font-mono text-2xl font-medium tracking-tight text-ink">
+              {formatted.prefix}
+              <span className="text-pay-ink underline decoration-pay-line decoration-2 underline-offset-4">{formatted.uniqueDigits}</span>
+            </span>
+          ) : (
+            <span className="text-sm text-ink-muted">{t('order.qris_loading_amount')}</span>
+          )}
         </div>
-      ) : (
-        <p className="text-sm text-slate-400">{t('order.qris_loading_amount')}</p>
-      )}
-      <p className="text-xs text-slate-600 dark:text-slate-300">
+        {formatted && (
+          <Button
+            variant="secondary"
+            onClick={copyAmount}
+            title={t('common.copy')}
+            aria-label={t('common.copy')}
+            leftIcon={copied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
+          >
+            {copied ? t('common.copied') : t('common.copy')}
+          </Button>
+        )}
+      </div>
+
+      <p className="text-[13px] leading-relaxed text-ink">
         {t('order.qris_exact_note')}
         {uniqueCode > 0 && ` ${t('order.qris_overpay_note', { amount: formatRupiah(uniqueCode) })}`}
       </p>
-      <p className={`text-xs font-semibold inline-flex items-center gap-1 ${remainingMs > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
-        <Clock size={14} />
+
+      <Notice tone={remainingMs > 0 ? 'warning' : 'danger'}>
         {remainingMs > 0 ? t('order.qris_countdown', { time: `${mm}:${ss}` }) : t('order.qris_expired')}
-      </p>
-      <p className="text-[11px] text-slate-500">
+      </Notice>
+
+      <p className="text-xs leading-relaxed text-ink-muted">
         {t('order.qris_footer')}
       </p>
-      <button
-        type="button"
+
+      <Button
+        variant="danger-soft"
+        block
         onClick={onCancel}
-        disabled={cancelling}
-        className="w-full bg-red-50 text-red-600 py-2.5 rounded-xl font-bold border border-red-200 text-sm"
+        isLoading={cancelling}
       >
         {cancelling ? t('common.cancelling') : t('order.cancel_order')}
-      </button>
+      </Button>
     </div>
   );
 }

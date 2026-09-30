@@ -3,10 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
 import { toast } from "react-hot-toast";
-import { User, Settings, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, ChevronRight } from 'lucide-react';
+import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil } from 'lucide-react';
+import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 
 export default function ProfilePage() {
@@ -42,90 +41,103 @@ export default function ProfilePage() {
   const displayPhone = profile?.phone || user?.user_metadata?.phone || '';
   const avatarUrl = profile?.avatar_url ? supabase.storage.from('avatars').getPublicUrl(profile.avatar_url).data.publicUrl : null;
 
+  const rowCls = 'min-h-14 px-4 py-3';
+  const lead = (Icon) => (
+    <IconTile size="sm" tone="neutral">
+      <Icon size={18} aria-hidden="true" />
+    </IconTile>
+  );
+
   return (
-    <div className="space-y-6 pb-20">
-      <Card className="p-6 text-center">
-        <div className="w-24 h-24 bg-primary/10 text-primary rounded-full mx-auto flex items-center justify-center mb-4 overflow-hidden border-2 border-primary">
+    <div className="flex flex-col gap-6 pb-6">
+      {/* Profile header */}
+      <Card padding="lg">
+        <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-line bg-brand-soft text-brand-ink">
           {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
           ) : (
-            <User size={48} />
+            <User size={30} aria-hidden="true" />
           )}
         </div>
-        <h2 className="text-xl font-bold dark:text-white">
-          {loading ? t('profile.loading_name') : displayName}
-        </h2>
-        {(loading || displayPhone) && (
-          <p className="text-slate-500">{loading ? '...' : displayPhone}</p>
-        )}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="mt-4" 
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h1 className="text-[18px] font-extrabold leading-snug tracking-tight text-ink truncate">
+            {loading ? t('profile.loading_name') : displayName}
+          </h1>
+          {(loading || displayPhone) && (
+            <p className="font-mono text-[13px] text-ink-muted break-all">{loading ? '...' : displayPhone}</p>
+          )}
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="min-h-11 shrink-0"
+          leftIcon={<Pencil size={15} aria-hidden="true" />}
           onClick={() => navigate('/profile/edit')}
         >
           {t('profile.edit')}
         </Button>
+        </div>
       </Card>
 
-      <div className="space-y-2">
-        <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-          <div className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition" onClick={() => toast(t('profile.feature_coming_soon'))}>
-            <Heart className="text-red-500" />
-            <span className="flex-1 font-medium dark:text-white">{t('profile.saved_items')}</span>
-            <ChevronRight size={20} className="text-slate-400" />
-          </div>
-          <div 
-            className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+      <div className="flex flex-col gap-3">
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          <ListRow
+            className={rowCls}
+            leading={lead(Heart)}
+            title={t('profile.saved_items')}
+            chevron
+            onClick={() => toast(t('profile.feature_coming_soon'))}
+          />
+          <ListRow
+            className={rowCls}
+            leading={lead(MapPin)}
+            title={t('profile.saved_addresses')}
+            chevron
             onClick={() => navigate('/profile/addresses')}
-          >
-            <MapPin className="text-blue-500" />
-            <span className="flex-1 font-medium dark:text-white">{t('profile.saved_addresses')}</span>
-            <ChevronRight size={20} className="text-slate-400" />
-          </div>
+          />
         </Card>
 
-        <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-          <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition" onClick={toggleTheme}>
-            <div className="flex items-center gap-4">
-              {darkMode ? <Sun className="text-yellow-500" /> : <Moon className="text-slate-500" />}
-              <span className="font-medium dark:text-white">{t('profile.dark_mode')}</span>
-            </div>
-            <div className="w-10 h-6 bg-slate-200 dark:bg-primary rounded-full relative">
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${darkMode ? 'right-1' : 'left-1'}`}></div>
-            </div>
-          </div>
-          <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition" onClick={toggleLang}>
-            <div className="flex items-center gap-4">
-              <Settings className="text-slate-500" />
-              <span className="font-medium dark:text-white">{t('profile.language')}</span>
-            </div>
-            <span className="text-sm bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded">{lang === 'id' ? t('profile.language_id') : t('profile.language_en')}</span>
-          </div>
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          <ListRow
+            className={rowCls}
+            leading={lead(darkMode ? Sun : Moon)}
+            title={t('profile.dark_mode')}
+            aria-pressed={darkMode}
+            onClick={toggleTheme}
+            trailing={(
+              <span className={cx('relative inline-block h-7 w-12 rounded-full align-middle transition-colors duration-200', darkMode ? 'bg-brand' : 'bg-line-strong')} aria-hidden="true">
+                <span className={cx('absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.25)] transition-transform duration-200', darkMode ? 'translate-x-5' : 'translate-x-0')} />
+              </span>
+            )}
+          />
+          <ListRow
+            className={rowCls}
+            leading={lead(Languages)}
+            title={t('profile.language')}
+            onClick={toggleLang}
+            trailing={<Badge tone="neutral">{lang === 'id' ? t('profile.language_id') : t('profile.language_en')}</Badge>}
+          />
         </Card>
 
         {/* Pusat Bantuan & Legal */}
-        <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-          <Link to="/support" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
-            <div className="flex items-center gap-4">
-              <MessageSquare className="text-slate-500" />
-              <span className="font-medium dark:text-white">{t('profile.support')}</span>
-            </div>
-            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold">{t('profile.support_badge')}</span>
-          </Link>
-          <Link to="/contact" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
-            <span className="font-medium dark:text-white">{t('profile.contact')}</span>
-          </Link>
-          <Link to="/terms" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
-            <span className="font-medium dark:text-white">{t('profile.terms')}</span>
-          </Link>
-          <Link to="/refund" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
-            <span className="font-medium dark:text-white">{t('profile.refund')}</span>
-          </Link>
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          <ListRow
+            as={Link}
+            to="/support"
+            className={rowCls}
+            leading={lead(MessageSquare)}
+            title={t('profile.support')}
+            trailing={<Badge tone="brand">{t('profile.support_badge')}</Badge>}
+            chevron
+          />
+          <ListRow as={Link} to="/contact" className={rowCls} leading={lead(Headphones)} title={t('profile.contact')} chevron />
+          <ListRow as={Link} to="/terms" className={rowCls} leading={lead(FileText)} title={t('profile.terms')} chevron />
+          <ListRow as={Link} to="/refund" className={rowCls} leading={lead(RotateCcw)} title={t('profile.refund')} chevron />
         </Card>
 
-        <Button variant="outline" className="w-full text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-slate-800" onClick={logout}>
-          <LogOut size={18} className="mr-2" /> {t('profile.logout')}
+        <Button variant="danger-soft" block leftIcon={<LogOut size={18} aria-hidden="true" />} onClick={logout}>
+          {t('profile.logout')}
         </Button>
       </div>
     </div>

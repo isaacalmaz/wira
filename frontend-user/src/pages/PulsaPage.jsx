@@ -1,7 +1,18 @@
 import { useState } from 'react';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
-import { formatRupiah } from '../utils/formatRupiah';
+import {
+  Button,
+  Card,
+  Sheet,
+  Field,
+  Input,
+  Badge,
+  Money,
+  Notice,
+  PageHeader,
+  SectionHeader,
+  Segmented,
+  cx,
+} from '../components/ui';
 import { useWallet } from '../context/WalletContext';
 import {
   Smartphone,
@@ -9,11 +20,26 @@ import {
   Droplet,
   ShieldPlus,
   CheckCircle2,
-  X,
-  Construction,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+
+// Placeholder used to drop a <Money> into a translated sentence, so an
+// amount inside "Beli Sekarang • {{price}}" still renders in mono.
+const SLOT = '\u0000';
+function withMoney(text, value, moneyProps = {}) {
+  const [before, after = ''] = text.split(SLOT);
+  return <>{before}<Money value={value} {...moneyProps} />{after}</>;
+}
+
+function SummaryRow({ label, children, strong = false, className = '' }) {
+  return (
+    <div className={cx('flex items-baseline justify-between gap-3', className)}>
+      <dt className={cx('shrink-0', strong ? 'font-semibold text-ink' : 'text-ink-muted')}>{label}</dt>
+      <dd className="min-w-0 text-right text-ink">{children}</dd>
+    </div>
+  );
+}
 
 export default function PulsaPage() {
   const { t } = useTranslation();
@@ -36,21 +62,21 @@ export default function PulsaPage() {
   const detectOperator = (number) => {
     const clean = number.replace(/\D/g, '');
     if (clean.startsWith('0811') || clean.startsWith('0812') || clean.startsWith('0813') || clean.startsWith('0821') || clean.startsWith('0822') || clean.startsWith('0852') || clean.startsWith('0853')) {
-      return { name: 'Telkomsel', color: 'text-red-500 bg-red-50 dark:bg-red-950/30' };
+      return { name: 'Telkomsel', tone: 'brand' };
     }
     if (clean.startsWith('0814') || clean.startsWith('0815') || clean.startsWith('0816') || clean.startsWith('0855') || clean.startsWith('0856') || clean.startsWith('0857') || clean.startsWith('0858')) {
-      return { name: 'Indosat IM3', color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/30' };
+      return { name: 'Indosat IM3', tone: 'brand' };
     }
     if (clean.startsWith('0817') || clean.startsWith('0818') || clean.startsWith('0819') || clean.startsWith('0859') || clean.startsWith('0877') || clean.startsWith('0878')) {
-      return { name: 'XL Axiata', color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30' };
+      return { name: 'XL Axiata', tone: 'brand' };
     }
     if (clean.startsWith('0895') || clean.startsWith('0896') || clean.startsWith('0897') || clean.startsWith('0898') || clean.startsWith('0899')) {
-      return { name: 'Tri (3)', color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/30' };
+      return { name: 'Tri (3)', tone: 'brand' };
     }
     if (clean.startsWith('0881') || clean.startsWith('0882') || clean.startsWith('0883') || clean.startsWith('0888')) {
-      return { name: 'Smartfren', color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/30' };
+      return { name: 'Smartfren', tone: 'brand' };
     }
-    return clean.length >= 4 ? { name: t('pulsa.operator_other'), color: 'text-slate-500 bg-slate-100' } : null;
+    return clean.length >= 4 ? { name: t('pulsa.operator_other'), tone: 'neutral' } : null;
   };
 
   const currentOperator = detectOperator(targetNumber);
@@ -109,197 +135,160 @@ export default function PulsaPage() {
   // aksi pembelian dinonaktifkan sampai integrasi provider yang sebenarnya
   // siap - lihat tombol "Bayar Sekarang" di bawah.
 
+  const targetLabel = tab === 'PLN'
+    ? t('pulsa.label_pln')
+    : tab === 'PDAM'
+    ? t('pulsa.label_pdam')
+    : tab === 'BPJS'
+    ? t('pulsa.label_bpjs')
+    : t('pulsa.label_phone');
+  const showOperator = currentOperator && tab !== 'PLN' && tab !== 'PDAM' && tab !== 'BPJS';
+
   return (
-    <div className="space-y-6 max-w-xl mx-auto pb-16">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          {t('pulsa.title')}
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          {t('pulsa.subtitle')}
-        </p>
-      </div>
+    <div className="mx-auto flex max-w-xl flex-col gap-6 pb-16">
+      <PageHeader
+        back="/"
+        backLabel={t('common.back')}
+        title={t('pulsa.title')}
+        subtitle={t('pulsa.subtitle')}
+        className="mb-0"
+      />
 
       {/* Tabs Kategori Layanan */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {tabs.map((tabItem) => {
+      <Segmented
+        scroll
+        value={tab}
+        onChange={(id) => {
+          setTab(id);
+          setSelectedNominal(products[id]?.[0]?.nominal || 50000);
+        }}
+        options={tabs.map((tabItem) => {
           const Icon = tabItem.icon;
-          const isActive = tab === tabItem.id;
-          return (
-            <button
-              key={tabItem.id}
-              onClick={() => {
-                setTab(tabItem.id);
-                setSelectedNominal(products[tabItem.id]?.[0]?.nominal || 50000);
-              }}
-              className={`px-4 py-2.5 rounded-2xl whitespace-nowrap flex items-center gap-2 text-xs sm:text-sm font-bold transition shadow-sm ${
-                isActive
-                  ? 'bg-primary text-white ring-2 ring-primary/40'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Icon size={16} /> {t(tabItem.labelKey)}
-            </button>
-          );
+          return {
+            value: tabItem.id,
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <Icon size={15} aria-hidden="true" /> {t(tabItem.labelKey)}
+              </span>
+            ),
+          };
         })}
-      </div>
+      />
 
       {/* Form Input Nomor Tujuan */}
-      <Card className="p-5 space-y-2 border border-slate-200 dark:border-slate-700">
-        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-          {tab === 'PLN'
-            ? t('pulsa.label_pln')
-            : tab === 'PDAM'
-            ? t('pulsa.label_pdam')
-            : tab === 'BPJS'
-            ? t('pulsa.label_bpjs')
-            : t('pulsa.label_phone')}
-        </label>
-        <div className="relative">
-          <input
-            type="tel"
-            placeholder={tab === 'PLN' ? t('pulsa.placeholder_pln') : t('pulsa.placeholder_phone')}
-            value={targetNumber}
-            onChange={(e) => setTargetNumber(e.target.value)}
-            className="w-full p-3.5 pr-28 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-base font-bold tracking-wide focus:ring-2 focus:ring-primary focus:outline-none"
-          />
-          {currentOperator && tab !== 'PLN' && tab !== 'PDAM' && tab !== 'BPJS' && (
-            <span
-              className={`absolute right-3 top-3 px-2.5 py-1 rounded-md text-xs font-bold ${currentOperator.color}`}
-            >
-              {currentOperator.name}
-            </span>
-          )}
-        </div>
+      <Card>
+        <Field label={targetLabel} htmlFor="pulsa-target">
+          <div className="relative">
+            <Input
+              id="pulsa-target"
+              type="tel"
+              inputMode="numeric"
+              placeholder={tab === 'PLN' ? t('pulsa.placeholder_pln') : t('pulsa.placeholder_phone')}
+              value={targetNumber}
+              onChange={(e) => setTargetNumber(e.target.value)}
+              className={cx('font-mono text-[16px] tracking-wide', showOperator && 'pr-36')}
+            />
+            {showOperator && (
+              <Badge tone={currentOperator.tone} className="absolute right-3 top-1/2 max-w-[8.5rem] -translate-y-1/2 truncate">
+                {currentOperator.name}
+              </Badge>
+            )}
+          </div>
+        </Field>
       </Card>
 
       {/* Daftar Pilihan Nominal / Paket */}
-      <div>
-        <h3 className="font-bold text-base mb-3 text-slate-900 dark:text-white">
-          {t('pulsa.choose_package')}
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
+      <section>
+        <SectionHeader title={t('pulsa.choose_package')} />
+        <div role="radiogroup" aria-label={t('pulsa.choose_package')} className="grid grid-cols-2 gap-3">
           {activeProducts.map((p) => {
             const isSelected = selectedNominal === p.nominal;
             return (
-              <div
+              <button
                 key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
                 onClick={() => setSelectedNominal(p.nominal)}
-                className={`p-4 rounded-2xl cursor-pointer border-2 transition-all text-left relative ${
+                className={cx(
+                  'relative flex min-h-[84px] flex-col items-start justify-between gap-2 rounded-tile bg-card text-left transition-colors',
                   isSelected
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary shadow-md'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
-                }`}
+                    ? 'border-2 border-brand p-[13px] pr-9'
+                    : 'border border-line p-3.5 pr-9 hover:border-line-strong',
+                )}
               >
                 {isSelected && (
                   <CheckCircle2
                     size={18}
-                    className="absolute top-3 right-3 text-primary"
+                    className="absolute right-3 top-3 text-brand-ink"
+                    aria-hidden="true"
                   />
                 )}
-                <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                <span className="text-[14px] font-semibold leading-snug text-ink">
                   {t(`pulsa.products.${p.id}`)}
-                </p>
-                <p className="text-xs font-bold text-primary mt-2">
-                  {formatRupiah(p.price)}
-                </p>
-              </div>
+                </span>
+                <Money value={p.price} className="text-[13.5px] text-ink-muted" />
+              </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Tombol Aksi Beli */}
-      <div className="pt-2">
-        <Button
-          className="w-full py-3.5 text-base font-bold shadow-lg"
-          onClick={handleCheckout}
-          disabled={!targetNumber}
-        >
-          {t('pulsa.buy_now', { price: formatRupiah(selectedProduct.price) })}
-        </Button>
-      </div>
+      <Button
+        size="lg"
+        block
+        onClick={handleCheckout}
+        disabled={!targetNumber}
+      >
+        {withMoney(t('pulsa.buy_now', { price: SLOT }), selectedProduct.price)}
+      </Button>
 
-      {/* MODAL KONFIRMASI & STRUK PEMBAYARAN */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative animate-in fade-in zoom-in duration-150">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <X size={20} />
-            </button>
-
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                {t('pulsa.confirm_title')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {t('pulsa.confirm_subtitle')}
-              </p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-900/70 p-4 rounded-2xl space-y-3 text-sm border border-slate-100 dark:border-slate-700">
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('pulsa.service_label')}</span>
-                <span className="font-bold text-slate-900 dark:text-white">{t(tabs.find((x) => x.id === tab)?.labelKey || 'pulsa.tab_pulsa')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('pulsa.target_label')}</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {targetNumber}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('pulsa.product_label')}</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {t(`pulsa.products.${selectedProduct.id}`)}
-                </span>
-              </div>
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  {t('pulsa.total_label')}
-                </span>
-                <span className="font-extrabold text-lg text-primary">
-                  {formatRupiah(selectedProduct.price)}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-500 pt-1">
-                <span>{t('pulsa.method_label')}</span>
-                <span>{t('pulsa.remaining_balance', { amount: formatRupiah(balance) })}</span>
-              </div>
-            </div>
-
+      {/* SHEET KONFIRMASI */}
+      <Sheet
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        closeLabel={t('common.close')}
+        title={t('pulsa.confirm_title')}
+        description={t('pulsa.confirm_subtitle')}
+        footer={
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setShowModal(false)}>
+              {t('common.close')}
+            </Button>
             {/* Pembelian nyata belum terhubung ke provider PPOB manapun -
                 daripada berpura-pura berhasil (memotong saldo & mengarang
                 token/nomor seri palsu), aksi bayar dinonaktifkan dengan
                 pesan jujur sampai integrasi yang sebenarnya siap. */}
-            <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-xl text-left">
-              <Construction size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                {t('pulsa.under_construction')}
-              </p>
+            <Button size="lg" disabled>
+              {t('pulsa.coming_soon')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <dl className="flex flex-col gap-3 rounded-card border border-line bg-card p-4 text-[13px]">
+            <SummaryRow label={t('pulsa.service_label')}>
+              <span className="font-semibold">{t(tabs.find((x) => x.id === tab)?.labelKey || 'pulsa.tab_pulsa')}</span>
+            </SummaryRow>
+            <SummaryRow label={t('pulsa.target_label')}>
+              <span className="break-all font-mono font-medium">{targetNumber}</span>
+            </SummaryRow>
+            <SummaryRow label={t('pulsa.product_label')}>
+              <span className="font-semibold">{t(`pulsa.products.${selectedProduct.id}`)}</span>
+            </SummaryRow>
+            <SummaryRow label={t('pulsa.total_label')} strong className="border-t border-line pt-3 text-[14px]">
+              <Money value={selectedProduct.price} className="text-[17px] font-medium" />
+            </SummaryRow>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+              <span>{t('pulsa.method_label')}</span>
+              <span>{withMoney(t('pulsa.remaining_balance', { amount: SLOT }), balance)}</span>
             </div>
+          </dl>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowModal(false)}
-              >
-                {t('common.close')}
-              </Button>
-              <Button
-                className="flex-1 font-bold"
-                disabled
-              >
-                {t('pulsa.coming_soon')}
-              </Button>
-            </div>
-          </div>
+          <Notice tone="warning">{t('pulsa.under_construction')}</Notice>
         </div>
-      )}
+      </Sheet>
     </div>
   );
 }

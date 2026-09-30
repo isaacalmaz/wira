@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { Bookmark, Home, Briefcase, MapPin, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../../i18n';
+import { cx } from '../ui';
 
 const LABEL_ICON = { rumah: Home, home: Home, kantor: Briefcase, office: Briefcase };
 
@@ -58,17 +59,20 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
   if (!user || addresses.length === 0) return null;
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
+    <div className={cx('relative', className)} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
+        aria-expanded={isOpen}
+        className="-mx-1.5 inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-1.5 text-[12.5px] font-semibold text-brand-ink transition-colors hover:bg-brand-soft"
       >
-        <Bookmark size={12} /> {t('common.saved_addresses')} <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Bookmark size={14} aria-hidden="true" />
+        <span>{t('common.saved_addresses')}</span>
+        <ChevronDown size={14} aria-hidden="true" className={cx('transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[500] mt-1.5 w-64 max-h-56 overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5">
+        <div className="absolute left-0 z-[500] mt-1 max-h-60 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-card border border-line bg-card py-1 shadow-pop">
           {addresses.map((a) => {
             const Icon = LABEL_ICON[a.label?.toLowerCase()] || MapPin;
             const usable = !requireCoords || (a.lat != null && a.lng != null);
@@ -81,13 +85,15 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
                   onSelect({ address: a.address, lat: a.lat, lng: a.lng, label: a.label });
                   setIsOpen(false);
                 }}
-                className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-45"
                 title={usable ? undefined : t('common.saved_address_no_coords')}
               >
-                <Icon size={14} className="text-primary mt-0.5 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{a.label}</span>
-                  <span className="block text-[11px] text-slate-500 truncate">{a.address}</span>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-brand-line bg-brand-soft text-brand-ink">
+                  <Icon size={15} aria-hidden="true" />
+                </span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-[13.5px] font-semibold text-ink">{a.label}</span>
+                  <span className="truncate text-xs text-ink-muted">{a.address}</span>
                 </span>
               </button>
             );

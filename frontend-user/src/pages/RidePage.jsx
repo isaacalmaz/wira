@@ -4,13 +4,18 @@ import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
 import {
-  MapPin,
-  Navigation,
   ArrowRight,
+  ChevronLeft,
   LocateFixed,
+  Bike,
+  Car,
+  CarFront,
+  Wallet,
+  Banknote,
+  Ticket,
+  X,
 } from 'lucide-react';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
+import { Button, Input, Money, Notice, IconTile, Badge, cx } from '../components/ui';
 import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
@@ -288,15 +293,24 @@ export default function RidePage() {
     }
   };
 
+  // ---- display-only helpers (no effect on pricing or booking) ----
+  const finalPrice = step === 'vehicle' ? calculateFinalPrice() : 0;
+  const insufficientBalance = step === 'vehicle' && paymentMethod === 'WiraPay' && balance < finalPrice;
+  const distanceKm = routeInfo ? (routeInfo.distance / 1000).toFixed(1) : null;
+  const etaLabel = routeInfo ? t('ride.eta_minutes', { minutes: Math.ceil(routeInfo.duration / 60) }) : null;
+  const vehicleIcon = (id) => (id === 'motor' ? Bike : id === 'mobil' ? Car : CarFront);
+  const helperBtn = 'inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-1.5 -mx-1.5 text-[12.5px] font-semibold text-brand-ink transition-colors hover:bg-brand-soft';
+
   return (
-    <div className="relative h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-900">
+    <div className="relative h-full w-full overflow-hidden bg-ground [&_.leaflet-container]:rounded-none">
       {/* Area Peta Interaktif */}
-      <div className="absolute inset-0 z-0 bg-slate-200">
-        <WiraMap 
-          center={mapState.center} 
-          zoom={mapState.zoom} 
+      <div className="absolute inset-0 z-0 bg-sunken">
+        <WiraMap
+          center={mapState.center}
+          zoom={mapState.zoom}
           markers={mapState.markers}
           route={mapState.route}
+          locateClassName="top-[40%] right-3"
           onMarkerDragEnd={async (idx, latLng) => {
             setMapState(prev => {
               const newMarkers = [...prev.markers];
@@ -324,26 +338,44 @@ export default function RidePage() {
             }
           }}
         />
+      </div>
 
-        {/* Input Terapung jika langkah awal */}
+      {/* Top overlay: back button + (step 1) the pickup/destination search card */}
+      <div className="pointer-events-none absolute inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[400] flex items-start gap-2 md:inset-x-auto md:left-1/2 md:top-6 md:w-[31rem] md:-translate-x-1/2">
+        <button
+          type="button"
+          onClick={() => (step === 'vehicle' ? setStep('input') : navigate('/'))}
+          title={t('common.back')}
+          aria-label={t('common.back')}
+          className="pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
         {step === 'input' && (
-          <div className="absolute top-3 left-3 right-3 md:right-auto md:left-1/2 md:-translate-x-1/2 md:top-6 md:w-[28rem] z-[400] max-w-md mx-auto md:mx-0">
-            <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700 !overflow-visible">
-              <LocationAutocomplete
-                placeholder={t('ride.pickup_placeholder')}
-                icon={Navigation}
-                iconColor="text-blue-500"
-                value={pickup}
-                onChange={setPickup}
-                onSelect={(loc) => {
-                  setMapState(prev => {
-                    const newMarkers = [...prev.markers];
-                    newMarkers[0] = { lat: loc.lat, lng: loc.lng };
-                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19, markers: newMarkers };
-                  });
-                }}
-              />
-              <div className="flex items-center justify-between pr-1 mt-[-4px] mb-2">
+          <div className="pointer-events-auto min-w-0 flex-1 rounded-card border border-line bg-card p-3 shadow-pop">
+            {/* Grid: marker rail on the left, inputs on the right. The rail line
+                runs from the pickup dot to the destination square. */}
+            <div className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-2.5">
+              <span className="col-start-1 row-start-1 row-end-5 my-[22px] w-px justify-self-center bg-line-strong" aria-hidden="true" />
+              <span className="relative z-[1] col-start-1 row-start-1 h-2.5 w-2.5 self-center justify-self-center rounded-full bg-brand ring-[3px] ring-brand-soft" aria-hidden="true" />
+              <div className="col-start-2 row-start-1">
+                <LocationAutocomplete
+                  variant="bare"
+                  label={t('activity.route_pickup')}
+                  placeholder={t('ride.pickup_placeholder')}
+                  value={pickup}
+                  onChange={setPickup}
+                  onSelect={(loc) => {
+                    setMapState(prev => {
+                      const newMarkers = [...prev.markers];
+                      newMarkers[0] = { lat: loc.lat, lng: loc.lng };
+                      return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19, markers: newMarkers };
+                    });
+                  }}
+                />
+              </div>
+              <div className="col-start-2 row-start-2 flex min-h-9 flex-wrap items-center justify-between gap-x-3 py-0.5">
                 <SavedAddressPicker
                   onSelect={({ address, lat, lng }) => {
                     setPickup(address);
@@ -354,29 +386,30 @@ export default function RidePage() {
                     });
                   }}
                 />
-                <button
-                  onClick={() => handleLocateMe(0)}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
-                >
-                  <LocateFixed size={12} /> {t('common.use_current_location')}
+                <button type="button" onClick={() => handleLocateMe(0)} className={cx(helperBtn, 'ml-auto')}>
+                  <LocateFixed size={14} aria-hidden="true" /> {t('common.use_current_location')}
                 </button>
               </div>
+              <div className="col-start-2 row-start-3 mb-2 border-t border-line" aria-hidden="true" />
 
-              <LocationAutocomplete
-                placeholder={t('ride.dropoff_placeholder')}
-                icon={MapPin}
-                iconColor="text-red-500"
-                value={dropoff}
-                onChange={setDropoff}
-                onSelect={(loc) => {
-                  setMapState(prev => {
-                    const newMarkers = [...prev.markers];
-                    newMarkers[1] = { lat: loc.lat, lng: loc.lng };
-                    return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19, markers: newMarkers };
-                  });
-                }}
-              />
-              <div className="flex items-center justify-between pr-1 mt-[-4px]">
+              <span className="relative z-[1] col-start-1 row-start-4 h-2.5 w-2.5 self-center justify-self-center rounded-[3px] bg-danger ring-[3px] ring-danger-soft" aria-hidden="true" />
+              <div className="col-start-2 row-start-4">
+                <LocationAutocomplete
+                  variant="bare"
+                  label={t('activity.route_dropoff')}
+                  placeholder={t('ride.dropoff_placeholder')}
+                  value={dropoff}
+                  onChange={setDropoff}
+                  onSelect={(loc) => {
+                    setMapState(prev => {
+                      const newMarkers = [...prev.markers];
+                      newMarkers[1] = { lat: loc.lat, lng: loc.lng };
+                      return { ...prev, center: { lat: loc.lat, lng: loc.lng }, zoom: 19, markers: newMarkers };
+                    });
+                  }}
+                />
+              </div>
+              <div className="col-start-2 row-start-5 flex min-h-9 flex-wrap items-center justify-between gap-x-3 pt-0.5">
                 <SavedAddressPicker
                   onSelect={({ address, lat, lng }) => {
                     setDropoff(address);
@@ -387,190 +420,229 @@ export default function RidePage() {
                     });
                   }}
                 />
-                <button
-                  onClick={() => handleLocateMe(1)}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600"
-                >
-                  <LocateFixed size={12} /> {t('common.use_current_location')}
+                <button type="button" onClick={() => handleLocateMe(1)} className={cx(helperBtn, 'ml-auto')}>
+                  <LocateFixed size={14} aria-hidden="true" /> {t('common.use_current_location')}
                 </button>
               </div>
-            </Card>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Bagian Bawah: Aksi & Langkah Pemesanan */}
-      <div className="absolute bottom-0 w-full md:w-[28rem] md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-3xl z-10 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] border-t md:border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[75vh]">
-        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-3 shrink-0"></div>
-        <div className="flex-1 overflow-y-auto pb-6">
+      {/* Booking panel: bottom sheet above the map (floating card on desktop) */}
+      <section className={cx(
+        'absolute inset-x-0 bottom-0 z-10 flex flex-col bg-ground shadow-sheet rounded-t-sheet',
+        'md:inset-x-auto md:bottom-6 md:left-1/2 md:w-[28rem] md:-translate-x-1/2 md:rounded-sheet',
+        step === 'vehicle' ? 'max-h-[88%]' : 'max-h-[45%]',
+      )}>
+        <div className="flex shrink-0 justify-center pt-2.5 pb-1.5" aria-hidden="true">
+          <span className="h-1 w-10 rounded-full bg-line-strong" />
+        </div>
+
         {/* LANGKAH 1: PILIH TUJUAN CEPAT */}
         {step === 'input' && (
-          <div className="p-5 space-y-3">
-            {routeInfo && (
-              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Navigation size={14} className="text-primary" /> {t('ride.distance')}
-                </span>
-                <span className="text-sm font-bold text-slate-800 dark:text-white">
-                  {(routeInfo.distance / 1000).toFixed(1)} km
-                </span>
-              </div>
-            )}
-            <Button
-              className="w-full py-3 font-bold text-sm shadow-md"
-              onClick={handleLanjut}
-              disabled={!pickup || !dropoff || isSearching || !routeInfo}
-            >
-              {isSearching ? t('ride.calculating') : t('ride.continue')} <ArrowRight size={16} className="ml-1 inline" />
-            </Button>
-          </div>
+          <>
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-5 pb-1">
+              {routeInfo ? (
+                <div className="flex items-center gap-3 rounded-card border border-line bg-card px-4 py-3">
+                  <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink-muted">{t('ride.distance')}</span>
+                  <span className="whitespace-nowrap font-mono text-[13px] text-ink-muted">{etaLabel}</span>
+                  <span className="whitespace-nowrap font-mono text-[15px] font-medium text-ink">{distanceKm} km</span>
+                </div>
+              ) : (
+                <p className="text-[13px] leading-relaxed text-ink-muted">{t('common.map_pin_hint')}</p>
+              )}
+            </div>
+            <div className="shrink-0 px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pb-5">
+              <Button
+                block
+                size="lg"
+                onClick={handleLanjut}
+                disabled={!pickup || !dropoff || isSearching || !routeInfo}
+                isLoading={isSearching}
+                rightIcon={<ArrowRight size={18} />}
+              >
+                {isSearching ? t('ride.calculating') : t('ride.continue')}
+              </Button>
+            </div>
+          </>
         )}
 
         {/* LANGKAH 2: PILIH KENDARAAN & METODE BAYAR */}
         {step === 'vehicle' && (
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  {t('ride.select_vehicle')}
-                </h3>
-                <p className="text-xs text-slate-500 truncate max-w-xs">
-                  {pickup} ➔ {dropoff}
-                </p>
+          <>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-2">
+              {/* Route summary: dot - line - square */}
+              <div className="flex items-start gap-3">
+                <div className="flex flex-col items-center gap-[3px] pt-[5px]" aria-hidden="true">
+                  <span className="h-2.5 w-2.5 rounded-full bg-brand" />
+                  <span className="h-5 w-px bg-line-strong" />
+                  <span className="h-2.5 w-2.5 rounded-[3px] bg-danger" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <p className="truncate text-[14px] font-semibold text-ink">
+                    <span className="sr-only">{t('activity.route_pickup')}: </span>{pickup}
+                  </p>
+                  <p className="truncate text-[14px] font-semibold text-ink">
+                    <span className="sr-only">{t('activity.route_dropoff')}: </span>{dropoff}
+                  </p>
+                </div>
+                {distanceKm && (
+                  <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-xs text-ink-muted">{distanceKm} km</span>
+                )}
               </div>
-              <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 font-medium">
-                {routeInfo ? t('ride.distance_badge', { km: (routeInfo.distance / 1000).toFixed(1) }) : ''}
-              </span>
-            </div>
 
-            <div className="space-y-2">
-              {dynamicVehicles.map((v) => {
-                const isSelected = selectedVehicle?.id === v.id;
-                return (
-                  <div
-                    key={v.id}
-                    onClick={() => setSelectedVehicle(v)}
-                    className={`flex items-center justify-between p-3 rounded-2xl border-2 cursor-pointer transition ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{v.icon}</span>
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                          {v.name}
-                        </h4>
-                        <p className="text-[11px] text-slate-500">{v.desc}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-extrabold text-sm text-slate-900 dark:text-white">
-                        {formatRupiah(v.price)}
-                      </span>
-                      <p className="text-[10px] text-slate-400">{v.time}</p>
-                    </div>
+              <div className="h-px bg-line" aria-hidden="true" />
+
+              <div className="flex flex-col gap-2.5">
+                <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.select_vehicle')}</h2>
+                <div role="radiogroup" aria-label={t('ride.select_vehicle')} className="flex flex-col gap-2">
+                  {dynamicVehicles.map((v) => {
+                    const isSelected = selectedVehicle?.id === v.id;
+                    const Icon = vehicleIcon(v.id);
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setSelectedVehicle(v)}
+                        className={cx(
+                          'flex w-full items-center gap-3 rounded-tile bg-card text-left transition-colors',
+                          isSelected ? 'border-2 border-brand px-[13px] py-[11px]' : 'border border-line px-3.5 py-3 hover:border-line-strong',
+                        )}
+                      >
+                        <span className={cx('inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2', isSelected ? 'border-brand' : 'border-line-strong')} aria-hidden="true">
+                          {isSelected && <span className="h-2 w-2 rounded-full bg-brand" />}
+                        </span>
+                        <IconTile tone="brand" size="sm"><Icon size={19} /></IconTile>
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate text-[14px] font-bold text-ink">{v.name}</span>
+                          <span className="text-[11.5px] leading-snug text-ink-muted">
+                            {v.desc}{v.time ? <> · <span className="font-mono">{v.time}</span></> : null}
+                          </span>
+                        </span>
+                        <Money value={v.price} className="shrink-0 text-[15px] font-medium text-ink" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Kode Promo */}
+              <div className="flex flex-col gap-1.5">
+                {activePromo ? (
+                  <div className="flex items-center gap-3 rounded-control border border-success-line bg-success-soft py-1.5 pl-3.5 pr-1.5">
+                    <Ticket size={17} className="shrink-0 text-success" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-success-ink">
+                      {t('promo.applied', { code: activePromo.code })}
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[12.5px] font-semibold text-ink-muted transition-colors hover:bg-card hover:text-danger-ink"
+                      onClick={() => {
+                        setActivePromo(null);
+                        setPromoCode('');
+                        setPromoError('');
+                      }}
+                    >
+                      <X size={14} aria-hidden="true" /> {t('common.remove')}
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      aria-label={t('promo.placeholder')}
+                      placeholder={t('promo.placeholder')}
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      invalid={!!promoError}
+                      className="min-w-0 flex-1 font-mono text-[14px] uppercase placeholder:font-sans placeholder:normal-case"
+                    />
+                    <Button
+                      variant="secondary"
+                      className="shrink-0"
+                      onClick={handleCheckPromo}
+                      disabled={checkingPromo || !promoCode.trim()}
+                      isLoading={checkingPromo}
+                    >
+                      {checkingPromo ? t('promo.checking') : t('promo.apply')}
+                    </Button>
+                  </div>
+                )}
+                {promoError && (
+                  <p className="text-xs text-danger-ink">{promoError}</p>
+                )}
+              </div>
 
-            {/* Kode Promo */}
-            <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl space-y-2">
-              {activePromo ? (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-green-600 dark:text-green-400">
-                    {t('promo.applied', { code: activePromo.code })}
-                  </span>
+              {/* Metode Pembayaran */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{t('common.payment_method')}</span>
+                <div role="radiogroup" aria-label={t('common.payment_method')} className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    className="text-slate-400 hover:text-red-500 font-semibold"
-                    onClick={() => {
-                      setActivePromo(null);
-                      setPromoCode('');
-                      setPromoError('');
-                    }}
+                    role="radio"
+                    aria-checked={paymentMethod === 'WiraPay'}
+                    onClick={() => setPaymentMethod('WiraPay')}
+                    className={cx(
+                      'flex min-h-[60px] min-w-0 items-center gap-2.5 rounded-control bg-card text-left transition-colors',
+                      paymentMethod === 'WiraPay' ? 'border-2 border-brand px-[11px] py-[9px]' : 'border border-line px-3 py-2.5 hover:border-line-strong',
+                    )}
                   >
-                    {t('common.remove')}
+                    <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-[13px] font-semibold text-ink">WiraPay</span>
+                      <Money value={balance} tone="muted" className="text-xs" />
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={paymentMethod === 'Tunai'}
+                    onClick={() => setPaymentMethod('Tunai')}
+                    className={cx(
+                      'flex min-h-[60px] min-w-0 items-center gap-2.5 rounded-control bg-card text-left transition-colors',
+                      paymentMethod === 'Tunai' ? 'border-2 border-brand px-[11px] py-[9px]' : 'border border-line px-3 py-2.5 hover:border-line-strong',
+                    )}
+                  >
+                    <Banknote size={18} className="shrink-0 text-success" aria-hidden="true" />
+                    <span className="min-w-0 text-[13px] font-semibold leading-snug text-ink">{t('common.pay_cash_cod')}</span>
                   </button>
                 </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder={t('promo.placeholder')}
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
-                  />
-                  <Button
-                    variant="outline"
-                    className="text-xs px-3"
-                    onClick={handleCheckPromo}
-                    disabled={checkingPromo || !promoCode.trim()}
-                  >
-                    {checkingPromo ? t('promo.checking') : t('promo.apply')}
-                  </Button>
+              </div>
+
+              {insufficientBalance && (
+                <Notice tone="danger">{t('ride.insufficient_balance')}</Notice>
+              )}
+
+              {activePromo && selectedVehicle && (
+                <div className="flex items-center gap-2 text-[13px]">
+                  <span className="flex-1 text-ink-muted">{selectedVehicle.name}</span>
+                  <Money value={selectedVehicle.price} tone="muted" className="line-through" />
+                  <Badge tone="success">{activePromo.code}</Badge>
                 </div>
               )}
-              {promoError && (
-                <p className="text-[11px] text-red-500 font-semibold">{promoError}</p>
-              )}
             </div>
 
-            {/* Metode Pembayaran */}
-            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                {t('common.payment_method')}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('WiraPay')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    paymentMethod === 'WiraPay'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  WiraPay ({formatRupiah(balance)})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('Tunai')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    paymentMethod === 'Tunai'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {t('common.pay_cash_cod')}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
+            <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-line px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pb-5">
               <Button
-                variant="outline"
-                className="flex-1 text-xs"
+                variant="secondary"
+                size="lg"
                 onClick={() => setStep('input')}
               >
                 {t('ride.change_route')}
               </Button>
               <Button
-                className="flex-1 font-bold text-xs sm:text-sm"
+                size="lg"
                 onClick={handleStartBooking}
               >
                 {t('ride.book_now', { price: formatRupiah(calculateFinalPrice()) })}
               </Button>
             </div>
-          </div>
+          </>
         )}
-
-      </div>
-
-      </div>
+      </section>
     </div>
   );
 }

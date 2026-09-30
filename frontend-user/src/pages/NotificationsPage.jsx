@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
-import Card from '../components/common/Card';
+import { Bell, CheckCheck } from 'lucide-react';
+import { Button, Card, EmptyState, IconTile, PageHeader, Spinner, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { useNotification } from '../context/NotificationContext';
@@ -49,34 +49,45 @@ export default function NotificationsPage() {
   };
 
   if (loading) {
-    return <div className="p-10 text-center animate-pulse">{t('notifications.loading')}</div>;
+    return (
+      <div className="flex items-center justify-center gap-2.5 py-16 text-sm text-ink-muted">
+        <Spinner size={18} className="text-brand-ink" /> {t('notifications.loading')}
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold dark:text-white">{t('notifications.title')}</h2>
-        <button className="text-sm text-primary" onClick={handleMarkAllRead}>{t('notifications.mark_all_read')}</button>
-      </div>
-      <div className="space-y-3">
-        {notifs.length === 0 ? (
-          <div className="text-center py-12">
-            <Bell className="mx-auto text-slate-300 mb-3" size={40} />
-            <p className="text-slate-500 font-medium">{t('notifications.empty')}</p>
-          </div>
-        ) : (
-          notifs.map(n => (
-            <Card key={n.id} className={`p-4 flex gap-4 ${n.is_read ? 'opacity-70' : 'bg-primary/5 border-l-4 border-l-primary'}`}>
-              <div className="mt-1"><Bell size={20} className={n.is_read ? 'text-slate-400' : 'text-primary'} /></div>
-              <div>
-                <h3 className={`font-semibold ${n.is_read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">{n.description}</p>
-                <p className="text-xs text-slate-400 mt-2">{new Date(n.created_at).toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID')}</p>
-              </div>
-            </Card>
-          ))
+    <div className="flex flex-col gap-6 pb-6">
+      <PageHeader
+        title={t('notifications.title')}
+        className="!mb-0"
+        actions={(
+          <Button variant="ghost" size="sm" className="min-h-11" leftIcon={<CheckCheck size={16} aria-hidden="true" />} onClick={handleMarkAllRead}>
+            {t('notifications.mark_all_read')}
+          </Button>
         )}
-      </div>
+      />
+      {notifs.length === 0 ? (
+        <EmptyState icon={<Bell size={24} />} title={t('notifications.empty')} />
+      ) : (
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          {notifs.map(n => (
+            <div key={n.id} className={cx('flex gap-3 px-4 py-3.5', !n.is_read && 'bg-brand-soft/50')}>
+              <IconTile size="sm" tone={n.is_read ? 'neutral' : 'brand'}>
+                <Bell size={17} aria-hidden="true" />
+              </IconTile>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-start gap-2">
+                  <h3 className={cx('min-w-0 flex-1 break-words text-[14px] leading-snug', n.is_read ? 'font-semibold text-ink-muted' : 'font-bold text-ink')}>{n.title}</h3>
+                  {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" aria-hidden="true" />}
+                </div>
+                <p className="break-words text-[13px] leading-relaxed text-ink-muted">{n.description}</p>
+                <p className="font-mono text-[11.5px] text-ink-muted">{new Date(n.created_at).toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID')}</p>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
     </div>
   );
 }

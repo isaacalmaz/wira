@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { supabase } from '../../config/supabase';
-import { Star, X } from 'lucide-react';
-import Button from './Button';
+import { Star } from 'lucide-react';
+import { Button, Sheet, Field, Textarea, cx } from '../ui';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../../i18n';
 
@@ -12,6 +12,8 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
   const [reviewText, setReviewText] = useState('');
   const [tipAmount, setTipAmount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formId = useId();
+  const commentId = useId();
 
   const presetTips = [0, 2000, 5000, 10000];
 
@@ -49,26 +51,25 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
   if (!order) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 animate-in slide-in-from-bottom-10 sm:zoom-in shadow-2xl relative max-h-[90vh] overflow-y-auto">
-        <button 
-          onClick={onClose}
-          title={t('common.close')}
-          aria-label={t('common.close')}
-          className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-800 dark:hover:text-white"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">{t('review.title')}</h2>
-          <p className="text-sm text-slate-500">{t('review.subtitle')}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Star Rating */}
-          <div className="flex justify-center gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
+    <Sheet
+      open
+      onClose={onClose}
+      title={t('review.title')}
+      description={t('review.subtitle')}
+      icon={<Star size={22} />}
+      closeLabel={t('common.close')}
+      footer={
+        <Button type="submit" form={formId} size="lg" isLoading={isSubmitting}>
+          {isSubmitting ? t('common.processing') : t('review.submit')}
+        </Button>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-6">
+        {/* Star Rating */}
+        <div className="flex justify-center gap-1" role="group" aria-label={t('review.title')}>
+          {[1, 2, 3, 4, 5].map((star) => {
+            const lit = (hoverRating || rating) >= star;
+            return (
               <button
                 key={star}
                 type="button"
@@ -77,64 +78,60 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
                 onClick={() => setRating(star)}
                 title={t('review.star_label', { count: star })}
                 aria-label={t('review.star_label', { count: star })}
-                className="transition-transform hover:scale-110 active:scale-95"
+                aria-pressed={rating >= star}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-control transition-transform hover:scale-105 active:scale-95"
               >
                 <Star
-                  size={40}
-                  className={`${
-                    (hoverRating || rating) >= star 
-                      ? 'fill-amber-400 text-amber-400' 
-                      : 'fill-slate-100 text-slate-200 dark:fill-slate-800 dark:text-slate-700'
-                  } transition-colors`}
+                  size={36}
+                  strokeWidth={1.6}
+                  className={cx('transition-colors', lit ? 'fill-brand text-brand' : 'fill-sunken text-line-strong')}
                 />
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Review Text */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              {t('review.comment_label')}
-            </label>
-            <textarea
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-              placeholder={t('review.comment_placeholder')}
-              rows={3}
-              className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl dark:text-white focus:ring-2 focus:ring-primary/50 resize-none placeholder-slate-400"
-            />
-          </div>
+        {/* Review Text */}
+        <Field label={t('review.comment_label')} htmlFor={commentId}>
+          <Textarea
+            id={commentId}
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+            placeholder={t('review.comment_placeholder')}
+            rows={3}
+            className="resize-none"
+          />
+        </Field>
 
-          {/* Tipping (Only if driver exists) */}
-          {order.driver_id && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                {t('review.tip_label')}
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {presetTips.map((amount) => (
+        {/* Tipping (Only if driver exists) */}
+        {order.driver_id && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-semibold text-ink">{t('review.tip_label')}</span>
+            <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">
+              {presetTips.map((amount) => {
+                const selected = tipAmount === amount;
+                return (
                   <button
                     key={amount}
                     type="button"
                     onClick={() => setTipAmount(amount)}
-                    className={`py-2 rounded-xl text-sm font-bold border-2 transition-all ${
-                      tipAmount === amount 
-                        ? 'border-primary bg-primary/10 text-primary' 
-                        : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'
-                    }`}
+                    aria-pressed={selected}
+                    className={cx(
+                      'min-h-11 rounded-control border px-2 py-2 text-[13px] font-semibold leading-tight transition-colors',
+                      selected
+                        ? 'border-brand bg-brand-soft text-brand-ink ring-1 ring-brand'
+                        : 'border-line-strong bg-card text-ink hover:bg-sunken',
+                      amount !== 0 && 'font-mono font-medium',
+                    )}
                   >
                     {amount === 0 ? t('review.tip_none') : `Rp${amount / 1000}k`}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-
-          <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
-            {isSubmitting ? t('common.processing') : t('review.submit')}
-          </Button>
-        </form>
-      </div>
-    </div>
+          </div>
+        )}
+      </form>
+    </Sheet>
   );
 }

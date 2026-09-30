@@ -101,7 +101,10 @@
     "password_mismatch": "Those two passwords don't match yet. Check them both and try again.",
     "register_success": "Your account is ready. Open your inbox (check Spam too) to verify it before signing in.",
     "register_failed": "We couldn't create that account. Make sure the email isn't already registered and your password is at least 6 characters.",
-    "session_expired": "Your session has ended. Sign in again to continue."
+    "session_expired": "Your session has ended. Sign in again to continue.",
+    "name_label": "Full name",
+    "phone_label": "Phone number",
+    "confirm_password_label": "Confirm password"
   },
   "home": {
     "wallet_balance": "WiraPay Balance",
@@ -115,7 +118,11 @@
     "move_down": "Move down",
     "toggle_service": "Show or hide this service",
     "recent": "Recent Activity",
-    "recent_empty": "No orders yet. Try a WiraRide or order with WiraFood to get started."
+    "recent_empty": "No orders yet. Try a WiraRide or order with WiraFood to get started.",
+    "greeting_morning": "Good morning",
+    "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening",
+    "greeting_night": "Good evening"
   },
   "ride": {
     "pickup_placeholder": "Your pickup point (e.g. Ampenan or Home)",
@@ -506,7 +513,12 @@
     "create_failed": "We couldn't create that order: {{message}}",
     "create_failed_generic": "We couldn't create that order. Check your connection and try again.",
     "login_required": "Please sign in to place an order.",
-    "update_status_failed": "We couldn't update the order status. Please try again in a moment."
+    "update_status_failed": "We couldn't update the order status. Please try again in a moment.",
+    "cancel_confirm_title": "Cancel this order?",
+    "cancel_desc_pending": "No partner has accepted this order yet, so cancelling is free.",
+    "cancel_desc_accepted": "Your partner is already on the way. Cancelling is still free within 3 minutes of the order being accepted.",
+    "cancel_keep": "Keep my order",
+    "call_driver": "Call partner"
   },
   "review": {
     "title": "Leave a Review",
@@ -527,7 +539,8 @@
     "empty": "No messages yet. Say hello to your driver.",
     "placeholder": "Write a message...",
     "send_image": "Send a photo",
-    "uploading": "Sending photo..."
+    "uploading": "Sending photo...",
+    "send": "Send message"
   },
   "notifications": {
     "title": "Notifications",

@@ -47,7 +47,7 @@ export default function Root() {
                   <OrderProvider>
                     <BrowserRouter>
                       <Toaster position="top-center" />
-                      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div></div>}>
+                      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-ground text-brand-ink"><div className="animate-spin h-8 w-8 border-2 border-current border-t-transparent rounded-full"></div></div>}>
                         <Routes>
                           {/* Pelanggan (User) Authentication */}
                           <Route path="/login" element={<LoginPage />} />

@@ -4,16 +4,17 @@ import { useTranslation } from '../../i18n';
 /**
  * QRISCard Component
  * Displays the real, scannable Wira QRIS code (Standar Pembayaran Nasional).
+ * The code always sits on white, in both themes, so every scanner can read it.
  */
 export default function QRISCard({ className = '' }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200 shadow-md max-w-[280px] mx-auto overflow-hidden ${className}`}>
+    <div className={`mx-auto w-full max-w-[260px] overflow-hidden rounded-card border border-line bg-white p-2 ${className}`}>
       <img
         src={qrisImg}
         alt={t('wallet.qris_alt')}
-        className="w-full h-auto block"
+        className="block h-auto w-full rounded-[10px]"
       />
     </div>
   );
