@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Ticket, X } from 'lucide-react';
-import { Button, Card, Field, Input, Textarea, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
-import SavedAddressPicker from '../components/common/SavedAddressPicker';
+import { Button, Card, Field, Input, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
+import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchCoordinates } from '../utils/osmHelpers';
 import { useWallet } from '../context/WalletContext';
@@ -35,11 +35,13 @@ export default function SendPage() {
   const [senderPhone, setSenderPhone] = useState('');
   const [senderAddress, setSenderAddress] = useState('');
   const [senderNote, setSenderNote] = useState('');
+  const [senderCoords, setSenderCoords] = useState(null);
 
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [receiverAddress, setReceiverAddress] = useState('');
   const [receiverNote, setReceiverNote] = useState('');
+  const [receiverCoords, setReceiverCoords] = useState(null);
   const [itemNote, setItemNote] = useState('');
 
   // `name` stays Indonesian on purpose: it is written into the order's
@@ -118,14 +120,16 @@ export default function SendPage() {
       // - SendPage previously had no coordinates at all, only free-text
       // addresses. A failed/empty geocode just means no nearby-courier
       // notification fires below; it must never block the booking itself.
-      let pickupLat = null;
-      let pickupLng = null;
-      let dropoffLat = null;
-      let dropoffLng = null;
+      // Points picked on the map (search, GPS or dragged pin) win; the text
+      // geocode is only the fallback for an address typed without a pin.
+      let pickupLat = senderCoords?.lat ?? null;
+      let pickupLng = senderCoords?.lng ?? null;
+      let dropoffLat = receiverCoords?.lat ?? null;
+      let dropoffLng = receiverCoords?.lng ?? null;
       try {
         const [pickupCoords, dropoffCoords] = await Promise.all([
-          fetchCoordinates(senderAddress),
-          fetchCoordinates(receiverAddress),
+          senderCoords ? null : fetchCoordinates(senderAddress),
+          receiverCoords ? null : fetchCoordinates(receiverAddress),
         ]);
         if (pickupCoords) {
           pickupLat = pickupCoords.lat;
@@ -256,18 +260,19 @@ export default function SendPage() {
                 />
               </Field>
             </div>
-            <Field label={t('addresses.address_field')} htmlFor="send-sender-address" required>
-              <Textarea
-                id="send-sender-address"
-                placeholder={t('send.sender_address')}
-                value={senderAddress}
-                onChange={(e) => setSenderAddress(e.target.value)}
-                rows={2}
-                required
-              />
-            </Field>
-            <SavedAddressPicker requireCoords={false} onSelect={({ address, note }) => { setSenderAddress(address); setSenderNote(note || ''); }} className="self-start" />
-            <AddressNoteField id="send-sender-note" address={senderAddress} note={senderNote} onNoteChange={setSenderNote} />
+            <AddressMapPicker
+              id="send-sender-address"
+              label={t('addresses.address_field')}
+              placeholder={t('send.sender_address')}
+              address={senderAddress}
+              onAddressChange={setSenderAddress}
+              coords={senderCoords}
+              onCoordsChange={setSenderCoords}
+              onNoteChange={setSenderNote}
+              markerType="pickup"
+              pinLabel={t('send.sender_section')}
+            />
+            <AddressNoteField id="send-sender-note" address={senderAddress} lat={senderCoords?.lat} lng={senderCoords?.lng} note={senderNote} onNoteChange={setSenderNote} />
           </Card>
 
           {/* Detail Penerima */}
@@ -299,18 +304,19 @@ export default function SendPage() {
                 />
               </Field>
             </div>
-            <Field label={t('addresses.address_field')} htmlFor="send-receiver-address" required>
-              <Textarea
-                id="send-receiver-address"
-                placeholder={t('send.receiver_address')}
-                value={receiverAddress}
-                onChange={(e) => setReceiverAddress(e.target.value)}
-                rows={2}
-                required
-              />
-            </Field>
-            <SavedAddressPicker requireCoords={false} onSelect={({ address, note }) => { setReceiverAddress(address); setReceiverNote(note || ''); }} className="self-start" />
-            <AddressNoteField id="send-receiver-note" address={receiverAddress} note={receiverNote} onNoteChange={setReceiverNote} />
+            <AddressMapPicker
+              id="send-receiver-address"
+              label={t('addresses.address_field')}
+              placeholder={t('send.receiver_address')}
+              address={receiverAddress}
+              onAddressChange={setReceiverAddress}
+              coords={receiverCoords}
+              onCoordsChange={setReceiverCoords}
+              onNoteChange={setReceiverNote}
+              markerType="dropoff"
+              pinLabel={t('send.receiver_section')}
+            />
+            <AddressNoteField id="send-receiver-note" address={receiverAddress} lat={receiverCoords?.lat} lng={receiverCoords?.lng} note={receiverNote} onNoteChange={setReceiverNote} />
             <Field label={t('wallet.transfer_note_label')} htmlFor="send-item-note">
               <Input
                 id="send-item-note"
