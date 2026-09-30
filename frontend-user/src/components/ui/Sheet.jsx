@@ -21,12 +21,17 @@ export default function Sheet({
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef(null);
+  // Callers usually pass an inline arrow; keep the latest one in a ref so the
+  // open effect below runs once per open, not on every parent re-render
+  // (re-running it moved focus back to the first field on each keystroke).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKey = (e) => { if (e.key === 'Escape' && dismissible) onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape' && dismissible) onCloseRef.current?.(); };
     document.addEventListener('keydown', onKey);
     const t = setTimeout(() => {
       const el = panelRef.current?.querySelector('[data-autofocus], input, textarea, select, button:not([data-sheet-close])');
@@ -37,7 +42,7 @@ export default function Sheet({
       document.removeEventListener('keydown', onKey);
       clearTimeout(t);
     };
-  }, [open, dismissible, onClose]);
+  }, [open, dismissible]);
 
   if (!open) return null;
 
