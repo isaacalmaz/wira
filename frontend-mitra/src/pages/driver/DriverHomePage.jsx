@@ -110,6 +110,9 @@ const DriverHomePage = () => {
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [weekEarnings, setWeekEarnings] = useState(0);
   const [completedTrips, setCompletedTrips] = useState(0);
+  // { offered, accepted } over the last 30 days from the dispatcher's offer
+  // log (migrations/0087); null while loading or before that migration.
+  const [acceptance, setAcceptance] = useState(null);
 
   const mataramPos = [-8.5833, 116.1167];
 
@@ -134,6 +137,15 @@ const DriverHomePage = () => {
         .from('orders')
         .select('*')
         .eq('driver_id', user.id);
+
+      supabase.rpc('get_my_acceptance_rate', { p_days: 30 }).then(({ data: rate, error }) => {
+        if (error) {
+          if (error.code !== 'PGRST202') console.error('Acceptance rate error:', error);
+          return;
+        }
+        const row = Array.isArray(rate) ? rate[0] : rate;
+        if (row) setAcceptance({ offered: Number(row.offered) || 0, accepted: Number(row.accepted) || 0 });
+      });
 
       if (data) {
         const completed = data.filter(d => d.status === 'completed');
@@ -596,7 +608,15 @@ const DriverHomePage = () => {
               />
               <div className="grid grid-cols-2 gap-3">
                 <Stat label="Trip Selesai" value={completedTrips} icon={<Target size={18} />} />
-                <Stat label="Tingkat Penerimaan" value={completedTrips > 0 ? '100%' : '0%'} icon={<Activity size={18} />} tone="success" />
+                <Stat
+                  label="Tingkat Penerimaan"
+                  value={acceptance && acceptance.offered > 0 ? `${Math.round((acceptance.accepted / acceptance.offered) * 100)}%` : '—'}
+                  icon={<Activity size={18} />}
+                  tone="success"
+                  hint={acceptance && acceptance.offered > 0
+                    ? `${acceptance.accepted} dari ${acceptance.offered} tawaran, 30 hari`
+                    : 'Belum ada tawaran 30 hari terakhir'}
+                />
               </div>
             </>
           ) : (

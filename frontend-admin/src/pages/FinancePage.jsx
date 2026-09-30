@@ -28,10 +28,18 @@ const FinancePage = () => {
     setLoading(true);
     try {
       // Fetch Revenue
-      const { data: ordersData, error: ordersError } = await supabase.from('orders').select('total_price').eq('status', 'completed');
-      if (ordersError) throw ordersError;
-      if (ordersData) {
-        setRevenue(ordersData.reduce((sum, o) => sum + (o.total_price || 0), 0));
+      // GMV is summed in the database (migrations/0087); the old path that
+      // downloads every completed order only runs until that is applied.
+      const { data: agg, error: aggError } = await supabase.rpc('admin_order_stats');
+      if (!aggError && agg) {
+        setRevenue(Number(agg.gmv) || 0);
+      } else {
+        if (aggError && aggError.code !== 'PGRST202') throw aggError;
+        const { data: ordersData, error: ordersError } = await supabase.from('orders').select('total_price').eq('status', 'completed');
+        if (ordersError) throw ordersError;
+        if (ordersData) {
+          setRevenue(ordersData.reduce((sum, o) => sum + (o.total_price || 0), 0));
+        }
       }
 
       // Fetch Topup Requests

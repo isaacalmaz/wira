@@ -6,6 +6,7 @@ import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
+import MerchantFormSheet from '../components/common/MerchantFormSheet';
 
 const isVillaType = m => m.service_type === 'villa' || m.service_type === 'WiraVilla';
 
@@ -19,6 +20,7 @@ const MerchantsPage = () => {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('live'); // 'live' or 'pending'
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -209,7 +211,7 @@ const MerchantsPage = () => {
               <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={18} aria-hidden="true" />
               <Input type="text" aria-label="Cari nama merchant" placeholder="Cari nama merchant..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <Button leftIcon={<Plus size={18} />} onClick={() => toast('Fitur tambah manual dalam pengembangan')}>
+            <Button leftIcon={<Plus size={18} />} onClick={() => setIsAddOpen(true)}>
               Tambah
             </Button>
           </div>
@@ -325,6 +327,7 @@ const MerchantsPage = () => {
         onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); handleDeleteLive(id); }}
         onCancel={() => setDeleteTarget(null)}
       />
+      <MerchantFormSheet open={isAddOpen} kind="food" onClose={() => setIsAddOpen(false)} onSaved={fetchData} />
     </div>
   );
 };

@@ -4,12 +4,14 @@ import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import { Button, Input, PageHeader, Table } from '../components/ui';
+import MerchantFormSheet from '../components/common/MerchantFormSheet';
 
 const VillasPage = () => {
   const [villas, setVillas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const fetchVillas = async () => {
     setLoading(true);
@@ -53,7 +55,7 @@ const VillasPage = () => {
             <Button variant="secondary" onClick={fetchVillas} aria-label="Muat ulang" className="px-3">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </Button>
-            <Button leftIcon={<Plus size={18} />} onClick={() => toast('Fitur tambah vila dalam pengembangan')}>
+            <Button leftIcon={<Plus size={18} />} onClick={() => setIsAddOpen(true)}>
               Tambah Vila
             </Button>
           </>
@@ -105,6 +107,7 @@ const VillasPage = () => {
         onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); handleDelete(id); }}
         onCancel={() => setDeleteTarget(null)}
       />
+      <MerchantFormSheet open={isAddOpen} kind="villa" onClose={() => setIsAddOpen(false)} onSaved={fetchVillas} />
     </div>
   );
 };

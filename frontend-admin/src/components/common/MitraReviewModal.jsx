@@ -16,9 +16,13 @@ const Item = ({ label, children }) => (
 const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   const [adminNotes, setAdminNotes] = useState(mitra?.admin_notes || '');
   const [isZoomed, setIsZoomed] = useState(false);
+  // Rejecting is irreversible for the applicant, so it asks first:
+  // null | 'plain' | 'wa' (also open the WhatsApp message after confirming).
+  const [rejectMode, setRejectMode] = useState(null);
 
   useEffect(() => {
     setAdminNotes(mitra?.admin_notes || '');
+    setRejectMode(null);
   }, [mitra?.id]);
 
   if (!isOpen || !mitra) return null;
@@ -50,7 +54,9 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   };
 
   const handleReject = () => {
+    if (rejectMode === 'wa') window.open(waRejectUrl, '_blank', 'noopener,noreferrer');
     onVerify(mitra.id, false, adminNotes);
+    setRejectMode(null);
     onClose();
   };
 
@@ -73,20 +79,27 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
           <span className="font-mono">{mitra.created_at ? new Date(mitra.created_at).toLocaleString('id-ID') : 'Baru saja'}</span>
         </>
       )}
-      footer={(
+      footer={rejectMode ? (
+        <>
+          <p className="text-sm leading-relaxed text-danger-ink sm:mr-auto sm:self-center">
+            Yakin menolak pendaftaran <span className="font-semibold">{mitra.name}</span>?
+            {rejectMode === 'wa' ? ' Pesan penolakan WhatsApp akan dibuka setelahnya.' : ''}
+          </p>
+          <Button variant="secondary" onClick={() => setRejectMode(null)}>Batal</Button>
+          <Button variant="danger" onClick={handleReject} leftIcon={<XCircle size={16} />}>Ya, tolak</Button>
+        </>
+      ) : (
         <>
           <div className="flex flex-col-reverse gap-2.5 sm:mr-auto sm:flex-row">
-            <a
-              href={waRejectUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={handleReject}
-              className={`${btnBase} border border-danger-line bg-danger-soft text-danger-ink hover:brightness-[0.98]`}
+            <Button
+              variant="danger-soft"
+              onClick={() => setRejectMode('wa')}
+              leftIcon={<MessageSquare size={16} />}
               title="Tolak Pendaftaran dan beri tahu mitra via WA"
             >
-              <MessageSquare size={16} /> Tolak &amp; WA
-            </a>
-            <Button variant="ghost" onClick={handleReject} leftIcon={<XCircle size={16} />} className="!text-danger-ink hover:!bg-danger-soft">
+              Tolak &amp; WA
+            </Button>
+            <Button variant="ghost" onClick={() => setRejectMode('plain')} leftIcon={<XCircle size={16} />} className="!text-danger-ink hover:!bg-danger-soft">
               Tolak Saja
             </Button>
           </div>

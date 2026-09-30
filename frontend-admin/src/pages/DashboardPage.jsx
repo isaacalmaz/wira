@@ -15,6 +15,8 @@ import { orderStatusLabel } from '../config/orderStatus';
 
 // Calendar day in the browser's timezone (WITA for the Lombok team), not UTC:
 // toISOString() made each "day" run from 08:00 to 08:00 local time.
+const SERVICE_LABELS = { ride: 'WiraRide', food: 'WiraFood', send: 'WiraSend', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa' };
+
 const localDayKey = (value) => {
   const d = new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -105,6 +107,40 @@ const DashboardPage = () => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
+        // Aggregates come from the database (migrations/0087). Until that
+        // migration is applied the RPC is missing (PGRST202) and the legacy
+        // fetch-everything path below still runs.
+        const { data: agg, error: aggError } = await supabase.rpc('admin_order_stats');
+        if (!aggError && agg) {
+          const [usersRes, merchantsRes] = await Promise.all([
+            supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
+            supabase.from('merchants').select('*', { count: 'exact', head: true }),
+          ]);
+          if (usersRes.error) throw usersRes.error;
+          if (merchantsRes.error) throw merchantsRes.error;
+          const gmv = Number(agg.gmv) || 0;
+          setStats({
+            users: usersRes.count || 0,
+            drivers: Number(agg.drivers) || 0,
+            merchants: merchantsRes.count || 0,
+            transactions: Number(agg.completed_count) || 0,
+            revenue: gmv * PLATFORM_COMMISSION_RATE,
+            gmv,
+            ordersToday: Number(agg.orders_today) || 0,
+          });
+          setChartData((agg.daily || []).map((d) => ({
+            name: new Date(`${d.day}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
+            Pendapatan: (Number(d.gmv) || 0) * PLATFORM_COMMISSION_RATE,
+          })));
+          setServiceData(
+            Object.entries(agg.by_service || {})
+              .map(([type, n]) => ({ name: SERVICE_LABELS[type] || type, Pesanan: Number(n) || 0 }))
+              .sort((a, b) => b.Pesanan - a.Pesanan),
+          );
+          return;
+        }
+        if (aggError && aggError.code !== 'PGRST202') throw aggError;
+
         const [usersRes, allUsersRes, merchantsRes, ordersRes] = await Promise.all([
           supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'user'),
           supabase.from('users').select('*'),

@@ -92,6 +92,9 @@ const UsersPage = () => {
   };
 
 
+  // { kind: 'status', user, isActive } | { kind: 'access', user, roleKey, label, active }
+  const [pendingAction, setPendingAction] = useState(null);
+
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
@@ -199,7 +202,7 @@ const UsersPage = () => {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => toggleMitraAccess(u, key)}
+                          onClick={() => setPendingAction({ kind: 'access', user: u, roleKey: key, label, active })}
                           title={active ? `Cabut akses ${label}` : `Berikan akses ${label}`}
                           aria-pressed={active}
                           className={cx(
@@ -230,7 +233,7 @@ const UsersPage = () => {
                     <Button
                       size="sm"
                       variant={isActive ? 'danger-soft' : 'secondary'}
-                      onClick={() => toggleStatus(u.id, u.status || 'Aktif')}
+                      onClick={() => setPendingAction({ kind: 'status', user: u, isActive })}
                       title={isActive ? 'Blokir' : 'Aktifkan'}
                       leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
                       className="whitespace-nowrap"
@@ -295,6 +298,32 @@ const UsersPage = () => {
           </Field>
         </form>
       </Sheet>
+
+      {/* Blokir / aktifkan akun dan ubah akses mitra: selalu lewat konfirmasi */}
+      <ConfirmModal
+        isOpen={!!pendingAction}
+        tone={pendingAction && ((pendingAction.kind === 'status' && pendingAction.isActive) || (pendingAction.kind === 'access' && pendingAction.active)) ? 'danger' : 'default'}
+        title={!pendingAction ? '' : pendingAction.kind === 'status'
+          ? (pendingAction.isActive ? `Blokir ${pendingAction.user.name}?` : `Aktifkan ${pendingAction.user.name}?`)
+          : (pendingAction.active ? `Cabut akses ${pendingAction.label}?` : `Berikan akses ${pendingAction.label}?`)}
+        message={!pendingAction ? '' : pendingAction.kind === 'status'
+          ? (pendingAction.isActive
+            ? 'Akun ini tidak akan bisa memakai Wira sampai diaktifkan lagi.'
+            : 'Akun ini akan bisa memakai Wira lagi.')
+          : (pendingAction.active
+            ? `${pendingAction.user.name} tidak akan bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`
+            : `${pendingAction.user.name} akan bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`)}
+        confirmLabel={!pendingAction ? 'Konfirmasi' : pendingAction.kind === 'status'
+          ? (pendingAction.isActive ? 'Blokir' : 'Aktifkan')
+          : (pendingAction.active ? 'Cabut akses' : 'Berikan akses')}
+        onConfirm={async () => {
+          const a = pendingAction;
+          setPendingAction(null);
+          if (a.kind === 'status') await toggleStatus(a.user.id, a.user.status || 'Aktif');
+          else await toggleMitraAccess(a.user, a.roleKey);
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
 
       {/* Konfirmasi Koreksi Saldo - ringkasan saldo lama -> baru sebelum RPC
           benar-benar dijalankan, agar salah ketik nominal tidak langsung

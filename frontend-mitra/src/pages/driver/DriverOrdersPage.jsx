@@ -7,6 +7,7 @@ import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';
+import { fetchCounterpartyProfiles } from '../../services/profileService';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
@@ -37,6 +38,7 @@ const DriverOrdersPage = () => {
   // anymore (see DriverHomePage.jsx's identical rationale).
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customerNames, setCustomerNames] = useState({});
 
   const fetchOrders = async () => {
     if (!user) return;
@@ -49,6 +51,15 @@ const DriverOrdersPage = () => {
 
     setOrders(data || []);
     setLoading(false);
+
+    // Customer names via the same RPC the home screen uses (a driver may
+    // only read the profile of someone whose order they hold).
+    const ids = (data || []).map((o) => o.user_id).filter(Boolean);
+    if (ids.length) {
+      fetchCounterpartyProfiles(supabase, ids)
+        .then((profiles) => setCustomerNames(Object.fromEntries(Object.entries(profiles || {}).map(([id, p]) => [id, p?.name]))))
+        .catch((err) => console.error('Customer names error:', err));
+    }
   };
 
   useEffect(() => {
@@ -98,7 +109,7 @@ const DriverOrdersPage = () => {
             <div className="flex items-center gap-3">
               <IconTile tone="neutral" size="sm"><User size={18} /></IconTile>
               <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-ink">Pemesan: <span className="font-mono font-medium">{activeOrder.user_id?.slice(0, 8)}</span></p>
+                <p className="text-[14px] font-semibold text-ink">Pemesan: <span className="font-medium">{customerNames[activeOrder.user_id] || 'Pelanggan'}</span></p>
                 <p className="text-xs text-ink-muted">Bayar via: <span className="capitalize">{activeOrder.payment_method}</span></p>
               </div>
             </div>
@@ -123,7 +134,10 @@ const DriverOrdersPage = () => {
                   <li key={order.id} className="flex items-start gap-3 px-4 py-3.5">
                     <IconTile tone="neutral" size="sm"><Icon size={18} /></IconTile>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <span className="text-[14px] font-semibold capitalize leading-snug text-ink">{order.service_type}</span>
+                      <span className="text-[14px] font-semibold leading-snug text-ink">
+                        <span className="capitalize">{order.service_type}</span>
+                        {customerNames[order.user_id] && <span className="font-normal text-ink-muted"> · {customerNames[order.user_id]}</span>}
+                      </span>
                       <span className="font-mono text-[12px] text-ink-muted">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</span>
                       {order.payment_method === 'cash' && (
                         <span className="text-[11.5px] leading-snug text-ink-muted">Tunai: komisi dipotong dari saldo</span>
