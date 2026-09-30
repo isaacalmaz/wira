@@ -5,6 +5,8 @@ import { renderToString } from 'react-dom/server';
 import 'leaflet/dist/leaflet.css';
 import AnimatedMarker from './AnimatedMarker';
 import L from 'leaflet';
+import { useTranslation } from '../../i18n';
+import { toast } from 'react-hot-toast';
 
 // Custom Icons
 const createIcon = (iconComponent) => {
@@ -85,6 +87,7 @@ const MapAutoFitter = ({ markers, route }) => {
 
 // Main Map Component
 export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd }) {
+  const { t } = useTranslation();
   const mapCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
   const [mapInstance, setMapInstance] = useState(null);
 
@@ -96,11 +99,11 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         },
         (err) => {
           console.error("Geolocation error:", err);
-          let errorMsg = 'Gagal mendapatkan lokasi.';
-          if (err.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
-          else if (err.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
-          else if (err.code === 3) errorMsg = 'Pencarian lokasi timeout.';
-          alert(errorMsg);
+          let errorMsg = t('location.failed');
+          if (err.code === 1) errorMsg = t('location.denied');
+          else if (err.code === 2) errorMsg = t('location.unavailable');
+          else if (err.code === 3) errorMsg = t('location.timeout');
+          toast.error(errorMsg, { duration: 6000 });
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
@@ -149,7 +152,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
                 }
               }}
             >
-              <Popup>{m.label || (idx === 0 ? 'Pickup' : 'Dropoff')}</Popup>
+              <Popup>{m.label || (idx === 0 ? t('activity.route_pickup') : t('activity.route_dropoff'))}</Popup>
             </MarkerComponent>
           )
         })}
@@ -161,6 +164,8 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
       {/* Floating Action Button */}
       <button 
         onClick={locateUser}
+        title={t('common.use_current_location')}
+        aria-label={t('common.use_current_location')}
         className="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
       >
         <LocateFixed className="w-6 h-6 text-slate-700" />

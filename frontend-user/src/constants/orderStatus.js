@@ -20,21 +20,16 @@ export const OrderStatus = {
   CANCELLED: 'cancelled',
 };
 
-const DISPLAY_LABEL_ID = {
-  [OrderStatus.AWAITING_PAYMENT]: 'Menunggu Pembayaran',
-  [OrderStatus.PENDING]: 'Sedang Mencari',
-  [OrderStatus.ACCEPTED]: 'Dikonfirmasi',
-  [OrderStatus.PREPARING]: 'Sedang Disiapkan',
-  [OrderStatus.READY]: 'Siap Diambil',
-  [OrderStatus.PICKING_UP]: 'Sedang Dijemput',
-  [OrderStatus.IN_TRIP]: 'Sedang Berjalan',
-  [OrderStatus.ON_THE_WAY]: 'Teknisi Menuju Lokasi',
-  [OrderStatus.WORKING]: 'Sedang Dikerjakan',
-  [OrderStatus.COMPLETED]: 'Selesai',
-  [OrderStatus.CANCELLED]: 'Dibatalkan',
-};
+const STATUS_KEYS = new Set(Object.values(OrderStatus));
 
-/** Indonesian display label for a raw DB status value. Falls back to the raw value if unknown. */
-export function getDisplayStatus(rawStatus) {
-  return DISPLAY_LABEL_ID[rawStatus] || rawStatus;
+/**
+ * Dictionary key for a raw DB status value, e.g. 'pending' -> 'status.pending'.
+ * Unknown/legacy values fall back to 'status.unknown' so a customer never sees
+ * a raw database token like `picking_up` on screen. Pass the result to the
+ * `t()` returned by useTranslation(); every key here exists in id.json and
+ * en.json.
+ */
+export function getStatusKey(rawStatus) {
+  const normalized = typeof rawStatus === 'string' ? rawStatus.toLowerCase() : '';
+  return STATUS_KEYS.has(normalized) ? `status.${normalized}` : 'status.unknown';
 }

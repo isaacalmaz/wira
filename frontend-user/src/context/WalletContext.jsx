@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { useTranslation } from '../i18n';
 
 const WalletContext = createContext();
 
@@ -14,6 +15,7 @@ export const WalletProvider = ({ children }) => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const { user } = useAuth();
+  const { t, lang } = useTranslation();
 
   const fetchWallet = useCallback(async (signal) => {
     if (!user) return;
@@ -29,18 +31,20 @@ export const WalletProvider = ({ children }) => {
 
       if (userRow) setBalance(Number(userRow.wallet_balance) || 0);
       if (txRows) {
-        setTransactions(txRows.map(t => ({
-          id: t.id,
-          type: INCOME_TYPES.has(t.type) ? 'income' : 'expense',
-          desc: t.description,
-          date: new Date(t.created_at).toLocaleDateString('id-ID'),
-          amount: t.amount,
+        setTransactions(txRows.map(tx => ({
+          id: tx.id,
+          type: INCOME_TYPES.has(tx.type) ? 'income' : 'expense',
+          desc: tx.description,
+          // Raw ledger fields for display-time localization (utils/localizeDbText).
+          rawType: tx.type,
+          date: new Date(tx.created_at).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID'),
+          amount: tx.amount,
         })));
       }
     } catch (err) {
       if (err.name !== 'AbortError') console.error('Error fetching wallet:', err);
     }
-  }, [user]);
+  }, [user, lang]);
 
   useEffect(() => {
     if (!user) {
@@ -62,16 +66,16 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message || 'Transfer gagal. Silakan coba lagi.');
+        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.transfer_generic_failed'));
         throw error;
       }
       if (data !== true) {
-        toast.error('Saldo WiraPay Anda tidak mencukupi');
-        throw new Error('Saldo WiraPay Anda tidak mencukupi');
+        toast.error(t('wallet.transfer_insufficient'));
+        throw new Error(t('wallet.transfer_insufficient'));
       }
 
       await fetchWallet();
-      toast.success('Transfer berhasil');
+
       return true;
     } catch (err) {
       console.error('Transfer failed:', err);
@@ -88,16 +92,16 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message || 'Pembayaran gagal. Silakan coba lagi.');
+        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.payment_failed'));
         throw error;
       }
       if (data !== true) {
-        toast.error('Saldo WiraPay tidak mencukupi');
-        throw new Error('Saldo WiraPay tidak mencukupi');
+        toast.error(t('wallet.transfer_insufficient'));
+        throw new Error(t('wallet.transfer_insufficient'));
       }
 
       await fetchWallet();
-      toast.success('Pembayaran berhasil');
+      toast.success(t('wallet.payment_success'));
       return true;
     } catch (err) {
       console.error('Payment failed:', err);
@@ -119,7 +123,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message || 'Refund gagal.');
+        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.refund_failed'));
         throw error;
       }
 
@@ -151,7 +155,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message || 'Pembatalan gagal.');
+        toast.error(error.message ? t('wallet.cancel_failed', { message: error.message }) : t('wallet.cancel_order_failed'));
         throw error;
       }
 

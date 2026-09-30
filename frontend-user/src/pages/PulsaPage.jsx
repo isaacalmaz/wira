@@ -13,8 +13,10 @@ import {
   Construction,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from '../i18n';
 
 export default function PulsaPage() {
+  const { t } = useTranslation();
   const { balance } = useWallet();
 
   const [tab, setTab] = useState('Pulsa');
@@ -23,11 +25,11 @@ export default function PulsaPage() {
   const [showModal, setShowModal] = useState(false);
 
   const tabs = [
-    { id: 'Pulsa', icon: Smartphone, label: 'Pulsa Reguler' },
-    { id: 'Data', icon: Smartphone, label: 'Paket Data' },
-    { id: 'PLN', icon: Zap, label: 'Token PLN' },
-    { id: 'PDAM', icon: Droplet, label: 'Air PDAM' },
-    { id: 'BPJS', icon: ShieldPlus, label: 'BPJS' },
+    { id: 'Pulsa', icon: Smartphone, labelKey: 'pulsa.tab_pulsa' },
+    { id: 'Data', icon: Smartphone, labelKey: 'pulsa.tab_data' },
+    { id: 'PLN', icon: Zap, labelKey: 'pulsa.tab_pln' },
+    { id: 'PDAM', icon: Droplet, labelKey: 'pulsa.tab_pdam' },
+    { id: 'BPJS', icon: ShieldPlus, labelKey: 'pulsa.tab_bpjs' },
   ];
 
   // Deteksi Operator Otomatis dari Prefix Nomor HP
@@ -48,41 +50,43 @@ export default function PulsaPage() {
     if (clean.startsWith('0881') || clean.startsWith('0882') || clean.startsWith('0883') || clean.startsWith('0888')) {
       return { name: 'Smartfren', color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/30' };
     }
-    return clean.length >= 4 ? { name: 'Operator Lain', color: 'text-slate-500 bg-slate-100' } : null;
+    return clean.length >= 4 ? { name: t('pulsa.operator_other'), color: 'text-slate-500 bg-slate-100' } : null;
   };
 
   const currentOperator = detectOperator(targetNumber);
 
   // Daftar Produk Berdasarkan Tab
+  // Product catalogue. Each id maps to a `pulsa.products.<id>` label so the
+  // wording follows the customer's language; amounts stay numeric.
   const products = {
     Pulsa: [
-      { id: 'P10', nominal: 10000, price: 11500, label: 'Pulsa 10.000' },
-      { id: 'P20', nominal: 20000, price: 21500, label: 'Pulsa 20.000' },
-      { id: 'P50', nominal: 50000, price: 51000, label: 'Pulsa 50.000 (Populer)' },
-      { id: 'P100', nominal: 100000, price: 100500, label: 'Pulsa 100.000' },
-      { id: 'P150', nominal: 150000, price: 150500, label: 'Pulsa 150.000' },
-      { id: 'P200', nominal: 200000, price: 199500, label: 'Pulsa 200.000' },
+      { id: 'P10', nominal: 10000, price: 11500 },
+      { id: 'P20', nominal: 20000, price: 21500 },
+      { id: 'P50', nominal: 50000, price: 51000 },
+      { id: 'P100', nominal: 100000, price: 100500 },
+      { id: 'P150', nominal: 150000, price: 150500 },
+      { id: 'P200', nominal: 200000, price: 199500 },
     ],
     Data: [
-      { id: 'D1', nominal: 35000, price: 35000, label: '5GB / 30 Hari' },
-      { id: 'D2', nominal: 60000, price: 60000, label: '15GB Unlimited / 30 Hari' },
-      { id: 'D3', nominal: 95000, price: 95000, label: '35GB Jumbo / 30 Hari' },
-      { id: 'D4', nominal: 130000, price: 130000, label: '60GB Bebas Kuota / 30 Hari' },
+      { id: 'D1', nominal: 35000, price: 35000 },
+      { id: 'D2', nominal: 60000, price: 60000 },
+      { id: 'D3', nominal: 95000, price: 95000 },
+      { id: 'D4', nominal: 130000, price: 130000 },
     ],
     PLN: [
-      { id: 'PLN20', nominal: 20000, price: 22000, label: 'Token Listrik 20.000' },
-      { id: 'PLN50', nominal: 50000, price: 52000, label: 'Token Listrik 50.000' },
-      { id: 'PLN100', nominal: 100000, price: 102000, label: 'Token Listrik 100.000' },
-      { id: 'PLN200', nominal: 200000, price: 202000, label: 'Token Listrik 200.000' },
-      { id: 'PLN500', nominal: 500000, price: 502000, label: 'Token Listrik 500.000' },
-      { id: 'PLN1000', nominal: 1000000, price: 1002000, label: 'Token Listrik 1.000.000' },
+      { id: 'PLN20', nominal: 20000, price: 22000 },
+      { id: 'PLN50', nominal: 50000, price: 52000 },
+      { id: 'PLN100', nominal: 100000, price: 102000 },
+      { id: 'PLN200', nominal: 200000, price: 202000 },
+      { id: 'PLN500', nominal: 500000, price: 502000 },
+      { id: 'PLN1000', nominal: 1000000, price: 1002000 },
     ],
     PDAM: [
-      { id: 'PDAM1', nominal: 85000, price: 87500, label: 'Tagihan Air PDAM Giri Menang' },
+      { id: 'PDAM1', nominal: 85000, price: 87500 },
     ],
     BPJS: [
-      { id: 'BPJS1', nominal: 70000, price: 72500, label: 'Iuran BPJS Kelas 3 (2 Jiwa)' },
-      { id: 'BPJS2', nominal: 100000, price: 102500, label: 'Iuran BPJS Kelas 2 (1 Jiwa)' },
+      { id: 'BPJS1', nominal: 70000, price: 72500 },
+      { id: 'BPJS2', nominal: 100000, price: 102500 },
     ],
   };
 
@@ -91,7 +95,7 @@ export default function PulsaPage() {
 
   const handleCheckout = () => {
     if (!targetNumber || targetNumber.length < 9) {
-      toast.error(tab === 'PLN' ? 'Masukkan nomor ID Meter PLN yang valid' : 'Masukkan nomor HP yang valid');
+      toast.error(tab === 'PLN' ? t('pulsa.invalid_pln') : t('pulsa.invalid_phone'));
       return;
     }
     setShowModal(true);
@@ -109,24 +113,24 @@ export default function PulsaPage() {
     <div className="space-y-6 max-w-xl mx-auto pb-16">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Pulsa & Tagihan
+          {t('pulsa.title')}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Beli pulsa, paket kuota, token PLN, PDAM, dan BPJS instan di Lombok
+          {t('pulsa.subtitle')}
         </p>
       </div>
 
       {/* Tabs Kategori Layanan */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {tabs.map((t) => {
-          const Icon = t.icon;
-          const isActive = tab === t.id;
+        {tabs.map((tabItem) => {
+          const Icon = tabItem.icon;
+          const isActive = tab === tabItem.id;
           return (
             <button
-              key={t.id}
+              key={tabItem.id}
               onClick={() => {
-                setTab(t.id);
-                setSelectedNominal(products[t.id]?.[0]?.nominal || 50000);
+                setTab(tabItem.id);
+                setSelectedNominal(products[tabItem.id]?.[0]?.nominal || 50000);
               }}
               className={`px-4 py-2.5 rounded-2xl whitespace-nowrap flex items-center gap-2 text-xs sm:text-sm font-bold transition shadow-sm ${
                 isActive
@@ -134,7 +138,7 @@ export default function PulsaPage() {
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Icon size={16} /> {t.label}
+              <Icon size={16} /> {t(tabItem.labelKey)}
             </button>
           );
         })}
@@ -144,21 +148,17 @@ export default function PulsaPage() {
       <Card className="p-5 space-y-2 border border-slate-200 dark:border-slate-700">
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
           {tab === 'PLN'
-            ? 'Nomor Meter / ID Pelanggan PLN'
+            ? t('pulsa.label_pln')
             : tab === 'PDAM'
-            ? 'Nomor Sambungan PDAM Lombok Barat/Mataram'
+            ? t('pulsa.label_pdam')
             : tab === 'BPJS'
-            ? 'Nomor Kartu Keluarga / BPJS'
-            : 'Nomor Handphone Penerima'}
+            ? t('pulsa.label_bpjs')
+            : t('pulsa.label_phone')}
         </label>
         <div className="relative">
           <input
             type="tel"
-            placeholder={
-              tab === 'PLN'
-                ? 'Contoh: 1423 8921 9021'
-                : 'Contoh: 081234567890'
-            }
+            placeholder={tab === 'PLN' ? t('pulsa.placeholder_pln') : t('pulsa.placeholder_phone')}
             value={targetNumber}
             onChange={(e) => setTargetNumber(e.target.value)}
             className="w-full p-3.5 pr-28 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-base font-bold tracking-wide focus:ring-2 focus:ring-primary focus:outline-none"
@@ -176,7 +176,7 @@ export default function PulsaPage() {
       {/* Daftar Pilihan Nominal / Paket */}
       <div>
         <h3 className="font-bold text-base mb-3 text-slate-900 dark:text-white">
-          Pilih Paket / Nominal
+          {t('pulsa.choose_package')}
         </h3>
         <div className="grid grid-cols-2 gap-3">
           {activeProducts.map((p) => {
@@ -198,7 +198,7 @@ export default function PulsaPage() {
                   />
                 )}
                 <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
-                  {p.label}
+                  {t(`pulsa.products.${p.id}`)}
                 </p>
                 <p className="text-xs font-bold text-primary mt-2">
                   {formatRupiah(p.price)}
@@ -216,7 +216,7 @@ export default function PulsaPage() {
           onClick={handleCheckout}
           disabled={!targetNumber}
         >
-          Beli Sekarang • {formatRupiah(selectedProduct.price)}
+          {t('pulsa.buy_now', { price: formatRupiah(selectedProduct.price) })}
         </Button>
       </div>
 
@@ -233,41 +233,41 @@ export default function PulsaPage() {
 
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Konfirmasi Pembelian
+                {t('pulsa.confirm_title')}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Periksa kembali rincian transaksi Anda
+                {t('pulsa.confirm_subtitle')}
               </p>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-900/70 p-4 rounded-2xl space-y-3 text-sm border border-slate-100 dark:border-slate-700">
               <div className="flex justify-between">
-                <span className="text-slate-500">Layanan:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{tab}</span>
+                <span className="text-slate-500">{t('pulsa.service_label')}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{t(tabs.find((x) => x.id === tab)?.labelKey || 'pulsa.tab_pulsa')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Nomor Tujuan:</span>
+                <span className="text-slate-500">{t('pulsa.target_label')}</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
                   {targetNumber}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Produk:</span>
+                <span className="text-slate-500">{t('pulsa.product_label')}</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {selectedProduct.label}
+                  {t(`pulsa.products.${selectedProduct.id}`)}
                 </span>
               </div>
               <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  Total Bayar:
+                  {t('pulsa.total_label')}
                 </span>
                 <span className="font-extrabold text-lg text-primary">
                   {formatRupiah(selectedProduct.price)}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-slate-500 pt-1">
-                <span>Metode: WiraPay</span>
-                <span>Sisa Saldo: {formatRupiah(balance)}</span>
+                <span>{t('pulsa.method_label')}</span>
+                <span>{t('pulsa.remaining_balance', { amount: formatRupiah(balance) })}</span>
               </div>
             </div>
 
@@ -278,7 +278,7 @@ export default function PulsaPage() {
             <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-xl text-left">
               <Construction size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                Fitur pembayaran Pulsa & Tagihan sedang dalam pengembangan, segera hadir. Belum ada saldo yang dipotong.
+                {t('pulsa.under_construction')}
               </p>
             </div>
 
@@ -288,13 +288,13 @@ export default function PulsaPage() {
                 className="flex-1"
                 onClick={() => setShowModal(false)}
               >
-                Tutup
+                {t('common.close')}
               </Button>
               <Button
                 className="flex-1 font-bold"
                 disabled
               >
-                Segera Hadir
+                {t('pulsa.coming_soon')}
               </Button>
             </div>
           </div>

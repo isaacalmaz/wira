@@ -2,11 +2,13 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { useTranslation } from '../i18n';
 
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -28,8 +30,8 @@ export const NotificationProvider = ({ children }) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Gagal memuat notifikasi:', error);
-      toast.error('Gagal memuat notifikasi: ' + error.message);
+      console.error('Failed to load notifications:', error);
+      toast.error(t('notifications.load_failed', { message: error.message }));
       return;
     }
 

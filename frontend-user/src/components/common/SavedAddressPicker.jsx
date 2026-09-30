@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { Bookmark, Home, Briefcase, MapPin, ChevronDown } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 const LABEL_ICON = { rumah: Home, home: Home, kantor: Briefcase, office: Briefcase };
 
@@ -20,6 +21,7 @@ const LABEL_ICON = { rumah: Home, home: Home, kantor: Briefcase, office: Briefca
  */
 export default function SavedAddressPicker({ onSelect, className = '', requireCoords = true }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [addresses, setAddresses] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -62,7 +64,7 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
         onClick={() => setIsOpen((v) => !v)}
         className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
       >
-        <Bookmark size={12} /> Alamat Tersimpan <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <Bookmark size={12} /> {t('common.saved_addresses')} <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -80,7 +82,7 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
                   setIsOpen(false);
                 }}
                 className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                title={usable ? undefined : 'Alamat ini belum punya koordinat tersimpan'}
+                title={usable ? undefined : t('common.saved_address_no_coords')}
               >
                 <Icon size={14} className="text-primary mt-0.5 shrink-0" />
                 <span className="min-w-0">

@@ -3,13 +3,17 @@ import { Link } from 'react-router-dom';
 import { Search, Star, Clock } from 'lucide-react';
 import Card from '../components/common/Card';
 import { supabase } from '../config/supabase';
+import { useTranslation } from '../i18n';
 
 export default function FoodPage() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Semua');
   const [restaurants, setRestaurants] = useState([]);
   const [, setLoading] = useState(true);
   
+  // These values are the merchant `category` values stored in the database,
+  // so they stay as-is for filtering; only their labels are translated.
   const categories = ['Semua', 'Ayam', 'Daging', 'Seafood', 'Minuman'];
 
   useEffect(() => {
@@ -40,7 +44,7 @@ export default function FoodPage() {
       <div className="relative">
         <input 
           type="text" 
-          placeholder="Cari restoran atau makanan..." 
+          placeholder={t('food.search_placeholder')} 
           className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary dark:text-white"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -55,10 +59,14 @@ export default function FoodPage() {
             onClick={() => setCategory(c)}
             className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition ${category === c ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
           >
-            {c}
+            {t(`food.categories.${c}`)}
           </button>
         ))}
       </div>
+
+      {filtered.length === 0 && (
+        <p className="text-center text-sm text-slate-500 py-10">{t('food.empty')}</p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map(rest => (

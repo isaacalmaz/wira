@@ -8,8 +8,11 @@ import { ArrowLeft, Send, Phone, MessageSquare, Loader } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
-import { OrderStatus, getDisplayStatus } from '../constants/orderStatus';
+import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
+import { formatRupiah } from '../utils/formatRupiah';
+import { useTranslation } from '../i18n';
+import { localizeOrderTitle } from '../utils/localizeDbText';
 
 // Icons for map
 const driverIcon = new L.Icon({
@@ -50,6 +53,7 @@ export default function ActiveOrderPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, session } = useAuth();
+  const { t } = useTranslation();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -90,7 +94,7 @@ export default function ActiveOrderPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Gagal memuat pesanan: ' + (err.message || err.toString()));
+      toast.error(t('order.load_failed', { message: err.message || err.toString() }));
       navigate('/');
     } finally {
       setLoading(false);
@@ -118,7 +122,7 @@ export default function ActiveOrderPage() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, (payload) => {
         setOrder(prev => ({ ...prev, ...payload.new }));
         if (['cancelled', 'completed'].includes(payload.new.status)) {
-          toast(payload.new.status === 'completed' ? 'Pesanan Selesai!' : 'Pesanan Dibatalkan');
+          toast(payload.new.status === 'completed' ? t('order.completed_toast') : t('order.cancelled_toast'));
           setTimeout(() => navigate('/'), 2000);
         }
       })
@@ -131,7 +135,7 @@ export default function ActiveOrderPage() {
   const prevStatusRef = useRef(null);
   useEffect(() => {
     if (prevStatusRef.current === OrderStatus.AWAITING_PAYMENT && order?.status === OrderStatus.PENDING) {
-      toast.success('Pembayaran QRIS diterima! Pesanan diteruskan ke mitra.');
+      toast.success(t('order.qris_paid'));
     }
     prevStatusRef.current = order?.status ?? null;
   }, [order?.status]);
@@ -202,7 +206,7 @@ export default function ActiveOrderPage() {
     const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
     if (error) {
       console.error(error);
-      toast.error('Gagal mengirim pesan');
+      toast.error(t('order.chat_send_failed'));
     }
   };
 
@@ -217,10 +221,10 @@ export default function ActiveOrderPage() {
           p_description: 'Refund Batal Pelanggan (Dalam Grace Period)'
         });
       if (error) throw error;
-      toast.success('Pesanan berhasil dibatalkan');
+      toast.success(t('order.cancel_success'));
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Gagal membatalkan pesanan');
+      toast.error(t('order.cancel_failed', { message: err.message }));
     } finally {
       setIsCancelling(false);
     }
@@ -246,9 +250,9 @@ export default function ActiveOrderPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 -mx-4 md:-mx-0 -mt-4 md:-mt-0">
       <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
-        <button onClick={() => navigate('/')} className="mr-3"><ArrowLeft size={24} /></button>
-        <h1 className="text-lg font-bold flex-1">Status Pesanan</h1>
-        <span className="font-semibold bg-white/20 px-2 py-1 rounded text-sm">{getDisplayStatus(order.status)}</span>
+        <button onClick={() => navigate('/')} title={t('common.back')} aria-label={t('common.back')} className="mr-3"><ArrowLeft size={24} /></button>
+        <h1 className="text-lg font-bold flex-1">{t('order.title')}</h1>
+        <span className="font-semibold bg-white/20 px-2 py-1 rounded text-sm">{t(getStatusKey(order.status))}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col">
@@ -274,12 +278,12 @@ export default function ActiveOrderPage() {
               <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Mencari driver terdekat...
+              {t('order.searching_driver')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {totalCandidates > 0
-                ? `${pingedCount} dari ${totalCandidates} driver di sekitar sudah dihubungi, menunggu salah satu menerima.`
-                : 'Sistem Wira sedang menghubungkan pesanan Anda dengan mitra di sekitar.'}
+                ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
+                : t('order.dispatch_connecting')}
             </p>
           </div>
         )}
@@ -287,23 +291,23 @@ export default function ActiveOrderPage() {
         {['accepted', 'picking_up'].includes(order.status) && (
           <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 text-center">
             {order.service_type === 'food' ? (
-              <p className="text-sm text-gray-600 dark:text-gray-400">Driver sedang mengambil pesanan di Restoran (PIN diverifikasi oleh Restoran)</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('order.food_pin_note')}</p>
             ) : securityPin ? (
               <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat bertemu:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{t('order.pin_label')}</p>
                 <div className="text-3xl font-bold tracking-[0.3em] text-primary">{securityPin}</div>
               </>
             ) : (
-              <p className="text-sm text-gray-400">Memuat PIN...</p>
+              <p className="text-sm text-gray-400">{t('order.pin_loading')}</p>
             )}
           </div>
         )}
 
 
         <div className="bg-white dark:bg-slate-800 p-4 mb-2 shadow-sm shrink-0 border-b dark:border-slate-700">
-          <h2 className="font-bold text-lg mb-1 capitalize">Wira {order.service_type}</h2>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">{order.title}</p>
-          <div className="font-bold text-primary mt-2">Rp {order.total_price?.toLocaleString('id-ID')}</div>
+          <h2 className="font-bold text-lg mb-1">{t(`order.service_title.${order.service_type}`)}</h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">{localizeOrderTitle(order, t)}</p>
+          <div className="font-bold text-primary mt-2">{formatRupiah(order.total_price)}</div>
         </div>
 
         {order.driver && (
@@ -325,15 +329,15 @@ export default function ActiveOrderPage() {
               disabled={isCancelling}
               className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold border border-red-200"
             >
-              {isCancelling ? 'Membatalkan...' : 'Batalkan Pesanan'}
+              {isCancelling ? t('common.cancelling') : t('order.cancel_order')}
             </button>
           </div>
         )}
 
         <div className="flex-1 bg-white dark:bg-slate-800 shadow-sm p-4 flex flex-col">
-          <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat</h3>
+          <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> {t('order.chat_title')}</h3>
           <div className="flex-1 overflow-y-auto min-h-[150px] mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
-            {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
+            {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">{t('order.chat_empty')}</div>}
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
                 <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
@@ -349,7 +353,7 @@ export default function ActiveOrderPage() {
             <input 
               value={inputText} 
               onChange={e => setInputText(e.target.value)} 
-              placeholder="Ketik pesan..." 
+              placeholder={t('order.chat_placeholder')} 
               className="flex-1 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
             />
             <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 transition-colors"><Send size={16}/></button>

@@ -23,11 +23,13 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
-              {user?.user_metadata?.name || user?.name || 'Pengguna Wira'}
+              {user?.user_metadata?.name || user?.name || t('nav.guest_name')}
             </p>
-            <p className="text-xs text-slate-500 truncate max-w-[150px]">
-              {user?.user_metadata?.phone || user?.phone || '+62 812-3456-7890'}
-            </p>
+            {(user?.user_metadata?.phone || user?.phone) && (
+              <p className="text-xs text-slate-500 truncate max-w-[150px]">
+                {user?.user_metadata?.phone || user?.phone}
+              </p>
+            )}
           </div>
         </div>
 
@@ -52,11 +54,11 @@ export default function Sidebar() {
       <div className="mt-auto p-6 border-t border-slate-200 dark:border-slate-700">
         <Link to="/profile" className="flex items-center gap-3 p-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700">
           <Settings size={20} />
-          <span>Pengaturan</span>
+          <span>{t('nav.settings')}</span>
         </Link>
         <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
           <LogOut size={20} />
-          <span>Keluar</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
     </div>

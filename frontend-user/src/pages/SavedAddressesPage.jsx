@@ -9,12 +9,14 @@ import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide-react';
 import { APP_CONFIG } from '../config/app';
+import { useTranslation } from '../i18n';
 
 const DEFAULT_COORDS = { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng };
 
 export default function SavedAddressesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function SavedAddressesPage() {
       setAddresses(data || []);
     } catch (err) {
       console.error("Error fetching addresses:", err);
-      toast.error('Gagal memuat alamat');
+      toast.error(t('addresses.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -61,11 +63,11 @@ export default function SavedAddressesPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.label || !formData.address) {
-      toast.error('Label dan Alamat wajib diisi');
+      toast.error(t('addresses.required'));
       return;
     }
     if (!hasPickedLocation) {
-      toast.error('Tentukan titik lokasi yang tepat: cari alamat, geser pin di peta, atau gunakan lokasi saat ini');
+      toast.error(t('addresses.need_point'));
       return;
     }
 
@@ -82,23 +84,23 @@ export default function SavedAddressesPage() {
 
       if (error) throw error;
 
-      toast.success('Alamat berhasil disimpan');
+      toast.success(t('addresses.saved'));
       setIsModalOpen(false);
       setFormData({ label: '', address: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
       setHasPickedLocation(false);
       fetchAddresses();
     } catch (err) {
       console.error('Error saving address:', err);
-      toast.error('Gagal menyimpan alamat');
+      toast.error(t('addresses.save_failed'));
     }
   };
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      toast.error(t('location.unsupported'));
       return;
     }
-    const toastId = toast.loading('Mencari lokasi Anda...');
+    const toastId = toast.loading(t('location.searching'));
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -113,14 +115,14 @@ export default function SavedAddressesPage() {
         } catch (e) {
           console.error(e);
         }
-        toast.success('Lokasi ditemukan!', { id: toastId });
+        toast.success(t('location.found'), { id: toastId });
       },
       (error) => {
         console.error('GPS Error:', error);
-        let errorMsg = 'Gagal mendapatkan lokasi.';
-        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
-        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
-        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout.';
+        let errorMsg = t('location.failed');
+        if (error.code === 1) errorMsg = t('location.denied');
+        else if (error.code === 2) errorMsg = t('location.unavailable');
+        else if (error.code === 3) errorMsg = t('location.timeout');
         toast.error(errorMsg, { id: toastId, duration: 6000 });
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -150,12 +152,12 @@ export default function SavedAddressesPage() {
         .select();
       
       if (error) throw error;
-      if (!data || data.length === 0) throw new Error('Akses ditolak atau alamat tidak ditemukan.');
-      toast.success('Alamat dihapus');
+      if (!data || data.length === 0) throw new Error(t('addresses.delete_denied'));
+      toast.success(t('addresses.deleted'));
       fetchAddresses();
     } catch (err) {
       console.error('Error deleting:', err);
-      toast.error('Gagal menghapus alamat');
+      toast.error(err.message === t('addresses.delete_denied') ? err.message : t('addresses.delete_failed'));
     }
   };
 
@@ -169,10 +171,10 @@ export default function SavedAddressesPage() {
   return (
     <div className="space-y-6 pb-20">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
+        <button onClick={() => navigate(-1)} title={t('common.back')} aria-label={t('common.back')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
           <ArrowLeft size={20} className="dark:text-white" />
         </button>
-        <h1 className="text-xl font-bold dark:text-white">Alamat Tersimpan</h1>
+        <h1 className="text-xl font-bold dark:text-white">{t('addresses.title')}</h1>
       </div>
 
       <Button
@@ -183,16 +185,16 @@ export default function SavedAddressesPage() {
         }}
         className="w-full mb-4 flex items-center justify-center gap-2"
       >
-        <Plus size={18} /> Tambah Alamat Baru
+        <Plus size={18} /> {t('addresses.add')}
       </Button>
 
       {loading ? (
-        <div className="text-center p-8 text-slate-400">Memuat alamat...</div>
+        <div className="text-center p-8 text-slate-400">{t('addresses.loading')}</div>
       ) : addresses.length === 0 ? (
         <Card className="p-8 text-center border-dashed border-2 border-slate-200 bg-transparent shadow-none">
           <MapPin size={48} className="mx-auto text-slate-300 mb-4" />
-          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">Belum ada alamat</h3>
-          <p className="text-sm text-slate-500">Simpan alamat rumah atau kantor Anda agar lebih mudah saat memesan.</p>
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">{t('addresses.empty_title')}</h3>
+          <p className="text-sm text-slate-500">{t('addresses.empty_desc')}</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -205,7 +207,7 @@ export default function SavedAddressesPage() {
                 <h3 className="font-bold text-slate-800 dark:text-white">{addr.label}</h3>
                 <p className="text-sm text-slate-500 line-clamp-2">{addr.address}</p>
               </div>
-              <button onClick={() => handleDelete(addr.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition">
+              <button onClick={() => handleDelete(addr.id)} title={t('addresses.delete_label')} aria-label={t('addresses.delete_label')} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition">
                 <Trash2 size={18} />
               </button>
             </Card>
@@ -217,10 +219,10 @@ export default function SavedAddressesPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold mb-4 dark:text-white">Tambah Alamat</h2>
+            <h2 className="text-lg font-bold mb-4 dark:text-white">{t('addresses.modal_title')}</h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Label (Contoh: Rumah Budi)</label>
+                <label className="block text-sm font-medium mb-1 dark:text-slate-300">{t('addresses.label_field')}</label>
                 <input 
                   type="text" 
                   value={formData.label}
@@ -230,9 +232,9 @@ export default function SavedAddressesPage() {
                 />
               </div>
               <div className="relative z-10">
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Detail Alamat</label>
+                <label className="block text-sm font-medium mb-1 dark:text-slate-300">{t('addresses.address_field')}</label>
                 <LocationAutocomplete
-                  placeholder="Cari alamat (cth: Jl. Pejanggik, Mataram)"
+                  placeholder={t('location.search_placeholder')}
                   icon={MapPin}
                   iconColor="text-red-500"
                   value={formData.address}
@@ -249,29 +251,29 @@ export default function SavedAddressesPage() {
                   onClick={handleLocateMe}
                   className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
                 >
-                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                  <LocateFixed size={12} /> {t('common.use_current_location')}
                 </button>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-slate-300">
-                  Titik Lokasi di Peta {hasPickedLocation && <span className="text-green-600 font-normal">(dipilih)</span>}
+                  {t('addresses.map_label')} {hasPickedLocation && <span className="text-green-600 font-normal">{t('addresses.map_picked')}</span>}
                 </label>
                 <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                   <WiraMap
                     center={{ lat: formData.lat, lng: formData.lng }}
                     zoom={16}
-                    markers={[{ lat: formData.lat, lng: formData.lng, type: 'dropoff', label: formData.label || 'Alamat' }]}
+                    markers={[{ lat: formData.lat, lng: formData.lng, type: 'dropoff', label: formData.label || t('addresses.title') }]}
                     onMarkerDragEnd={handleMarkerDrag}
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">Geser pin di peta untuk menyesuaikan titik lokasi yang tepat.</p>
+                <p className="text-[11px] text-slate-400 mt-1">{t('common.map_pin_hint')}</p>
               </div>
               <div className="flex gap-3 mt-6">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" className="flex-1">
-                  Simpan
+                  {t('common.save')}
                 </Button>
               </div>
             </form>

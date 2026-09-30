@@ -1,4 +1,5 @@
 import { useTranslation } from '../i18n';
+import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { formatRupiah } from '../utils/formatRupiah';
 import { Link } from 'react-router-dom';
@@ -104,13 +105,13 @@ export default function HomePage() {
             to="/wallet"
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center justify-center text-white"
           >
-            + {t('wallet.top_up')}
+            + {t('home.top_up')}
           </Link>
           <Link
             to="/wallet"
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center justify-center text-white"
           >
-            ➔ {t('wallet.transfer')}
+            ➔ {t('home.transfer')}
           </Link>
         </div>
       </div>
@@ -119,13 +120,13 @@ export default function HomePage() {
       {/* Header & Atur Menu */}
       <div className="flex justify-between items-center mt-6 mb-2 px-2 sm:px-0">
         <h2 className="font-bold text-lg text-slate-900 dark:text-white">
-          {t('home.services') || 'Layanan'}
+          {t('home.services')}
         </h2>
         <button
           onClick={() => setIsMenuModalOpen(true)}
           className="text-xs font-bold text-primary flex items-center gap-1 bg-primary/10 hover:bg-primary/20 transition px-3 py-1.5 rounded-full"
         >
-          <Settings2 size={14} /> Atur Menu
+          <Settings2 size={14} /> {t('home.arrange_menu')}
         </button>
       </div>
 
@@ -179,14 +180,14 @@ export default function HomePage() {
             to="/activity"
             className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
           >
-            Lihat Semua <ArrowRight size={13} />
+            {t('common.see_all')} <ArrowRight size={13} />
           </Link>
         </div>
 
         <div className="space-y-2.5">
           {recentOrders.length === 0 ? (
             <div className="p-6 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-              Belum ada pesanan terbaru. Yuk coba pesan WiraRide atau WiraFood!
+              {t('home.recent_empty')}
             </div>
           ) : (
             recentOrders.map((ord) => (
@@ -197,10 +198,10 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                      {ord.title}
+                      {localizeOrderTitle(ord, t)}
                     </p>
                     <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Clock size={10} /> {ord.date} • <span className="font-medium text-green-600">{ord.status}</span>
+                      <Clock size={10} /> {ord.date} • <span className="font-medium text-green-600">{t(ord.statusKey)}</span>
                     </p>
                   </div>
                   <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
@@ -217,11 +218,12 @@ export default function HomePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-2xl transform transition-all">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-xl text-slate-900 dark:text-white">Atur Menu</h3>
-              <button onClick={() => setIsMenuModalOpen(false)} className="text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 p-2 rounded-full transition-colors">
+              <h3 className="font-bold text-xl text-slate-900 dark:text-white">{t('home.arrange_menu_title')}</h3>
+              <button onClick={() => setIsMenuModalOpen(false)} title={t('common.close')} aria-label={t('common.close')} className="text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 p-2 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
+            <p className="text-xs text-slate-500 -mt-4 mb-4">{t('home.arrange_menu_hint')}</p>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
               {activeServices
               .slice()
@@ -266,10 +268,10 @@ export default function HomePage() {
                   <div key={service.id} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <div className="flex items-center gap-2">
                       <div className="flex flex-col gap-1 mr-1">
-                        <button onClick={moveUp} disabled={index === 0} className={`p-0.5 rounded transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
+                        <button onClick={moveUp} disabled={index === 0} title={t('home.move_up')} aria-label={t('home.move_up')} className={`p-0.5 rounded transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
                           <ChevronUp size={16} />
                         </button>
-                        <button onClick={moveDown} disabled={index === array.length - 1} className={`p-0.5 rounded transition-colors ${index === array.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
+                        <button onClick={moveDown} disabled={index === array.length - 1} title={t('home.move_down')} aria-label={t('home.move_down')} className={`p-0.5 rounded transition-colors ${index === array.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'}`}>
                           <ChevronDown size={16} />
                         </button>
                       </div>
@@ -290,6 +292,8 @@ export default function HomePage() {
                           console.error("Failed to save hidden services to local storage", e);
                         }
                       }}
+                      title={t('home.toggle_service')}
+                      aria-label={t('home.toggle_service')}
                       className={`w-14 h-7 rounded-full relative transition-colors duration-300 ease-in-out shadow-inner ${!isHidden ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
                     >
                       <div className={`absolute top-1 left-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 ease-in-out shadow-sm ${!isHidden ? 'translate-x-7' : 'translate-x-0'}`} />

@@ -6,6 +6,8 @@ import Button from '../components/common/Button';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useOrders } from '../context/OrderContext';
 import { OrderStatus } from '../constants/orderStatus';
+import { useTranslation } from '../i18n';
+import { localizeOrderTitle, localizeOrderDetails, localizePaymentMethod } from '../utils/localizeDbText';
 import {
   ShoppingBag,
   Bike,
@@ -41,26 +43,11 @@ const IN_PROGRESS_STATUSES = [
 
 export default function ActivityPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { orders } = useOrders();
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [reviewingOrder, setReviewingOrder] = useState(null);
-
-  // Helper untuk memformat details yang mungkin berisi JSON kordinat map
-  const formatOrderDetails = (detailsStr) => {
-    if (!detailsStr) return '';
-    try {
-      const parsed = JSON.parse(detailsStr);
-      // Jika ini format order dari WiraRide (ada pickup dan dropoff)
-      if (parsed.pickup && parsed.dropoff) {
-        return `${parsed.pickup.name || 'Lokasi Jemput'} ➔ ${parsed.dropoff.name || 'Tujuan'}`;
-      }
-      return detailsStr; // fallback jika json lain
-    } catch (e) {
-      // Bukan JSON, berarti plain text
-      return detailsStr;
-    }
-  };
 
   const tabs = [
     'Semua',
@@ -100,26 +87,26 @@ export default function ActivityPage() {
     <div className="space-y-6 max-w-2xl mx-auto pb-16">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Aktivitas Saya
+          {t('activity.title')}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Daftar riwayat seluruh pesanan dan transaksi Anda di Wira
+          {t('activity.subtitle')}
         </p>
       </div>
 
       {/* Tabs Filter */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {tabs.map((t) => (
+        {tabs.map((tabName) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabName}
+            onClick={() => setTab(tabName)}
             className={`px-4 py-2 rounded-full whitespace-nowrap text-xs font-bold transition shadow-sm ${
-              tab === t
+              tab === tabName
                 ? 'bg-primary text-white ring-2 ring-primary/30'
                 : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
-            {t}
+            {tabName === 'Semua' ? t('common.all') : tabName}
           </button>
         ))}
       </div>
@@ -130,7 +117,7 @@ export default function ActivityPage() {
           <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
             <Receipt size={40} className="mx-auto text-slate-300 mb-2" />
             <p className="text-slate-500 text-sm font-medium">
-              Belum ada aktivitas di kategori ini.
+              {t('activity.empty')}
             </p>
           </div>
         ) : (
@@ -150,7 +137,7 @@ export default function ActivityPage() {
                       {act.service}
                     </span>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
-                      {act.title}
+                      {localizeOrderTitle(act, t)}
                     </h3>
                   </div>
                 </div>
@@ -163,13 +150,13 @@ export default function ActivityPage() {
                       : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 animate-pulse'
                   }`}
                 >
-                  {act.status}
+                  {t(act.statusKey)}
                 </span>
               </div>
 
               {act.details && (
                 <p className="text-xs text-slate-500 line-clamp-1 mb-2.5 pl-12">
-                  {formatOrderDetails(act.details)}
+                  {localizeOrderDetails(act, t)}
                 </p>
               )}
 
@@ -202,51 +189,51 @@ export default function ActivityPage() {
                 {getServiceIcon(selectedOrder.service)}
               </div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                Rincian Transaksi
+                {t('activity.receipt_title')}
               </h3>
-              <p className="text-xs text-slate-400 font-mono">ID: {selectedOrder.id}</p>
+              <p className="text-xs text-slate-400 font-mono">{t('activity.receipt_id', { id: selectedOrder.id })}</p>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">Layanan:</span>
+                <span className="text-slate-500">{t('activity.service_label')}</span>
                 <span className="font-bold text-slate-900 dark:text-white">
                   {selectedOrder.service}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Judul Pesanan:</span>
+                <span className="text-slate-500">{t('activity.order_label')}</span>
                 <span className="font-semibold text-slate-900 dark:text-white text-right max-w-[200px]">
-                  {selectedOrder.title}
+                  {localizeOrderTitle(selectedOrder, t)}
                 </span>
               </div>
               {selectedOrder.details && (
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Rincian:</span>
+                  <span className="text-slate-500">{t('activity.detail_label')}</span>
                   <span className="font-medium text-slate-700 dark:text-slate-300 text-right max-w-[200px]">
-                    {formatOrderDetails(selectedOrder.details)}
+                    {localizeOrderDetails(selectedOrder, t)}
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-slate-500">Waktu Transaksi:</span>
+                <span className="text-slate-500">{t('activity.time_label')}</span>
                 <span className="font-medium text-slate-700 dark:text-slate-300">
                   {selectedOrder.date}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Metode Bayar:</span>
+                <span className="text-slate-500">{t('activity.payment_label')}</span>
                 <span className="font-bold text-primary">
-                  {selectedOrder.paymentMethod || 'WiraPay'}
+                  {localizePaymentMethod(selectedOrder, t)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Status:</span>
-                <span className="font-bold text-green-600">{selectedOrder.status}</span>
+                <span className="text-slate-500">{t('activity.status_label')}</span>
+                <span className="font-bold text-green-600">{t(selectedOrder.statusKey)}</span>
               </div>
               <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 flex justify-between items-center text-sm">
                 <span className="font-bold text-slate-900 dark:text-white">
-                  Total Biaya:
+                  {t('activity.total_label')}
                 </span>
                 <span className="font-extrabold text-base text-primary">
                   {formatRupiah(selectedOrder.price)}
@@ -263,7 +250,7 @@ export default function ActivityPage() {
                   setSelectedOrder(null);
                 }}
               >
-                ⭐ Beri Ulasan & Tip
+                ⭐ {t('activity.review_cta')}
               </Button>
             )}
 
@@ -272,7 +259,7 @@ export default function ActivityPage() {
               onClick={() => setSelectedOrder(null)}
 
             >
-              Tutup Rincian
+              {t('activity.close_receipt')}
             </Button>
           </div>
 

@@ -3,8 +3,10 @@ import { supabase } from '../../config/supabase';
 import { Star, X } from 'lucide-react';
 import Button from './Button';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from '../../i18n';
 
 export default function ReviewModal({ order, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
@@ -16,7 +18,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (rating === 0) {
-      toast.error('Silakan pilih rating bintang terlebih dahulu');
+      toast.error(t('review.no_rating'));
       return;
     }
 
@@ -33,12 +35,12 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
         throw error;
       }
 
-      toast.success('Terima kasih atas ulasan Anda!');
+      toast.success(t('review.success'));
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.error('Submit review error:', err);
-      toast.error(err.message || 'Gagal mengirim ulasan');
+      toast.error(t('review.failed', { message: err.message }));
     } finally {
       setIsSubmitting(false);
     }
@@ -51,14 +53,16 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 animate-in slide-in-from-bottom-10 sm:zoom-in shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button 
           onClick={onClose}
+          title={t('common.close')}
+          aria-label={t('common.close')}
           className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-800 dark:hover:text-white"
         >
           <X size={20} />
         </button>
 
         <div className="text-center mb-6">
-          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">Beri Ulasan</h2>
-          <p className="text-sm text-slate-500">Bagaimana pengalaman Anda dengan pesanan ini?</p>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">{t('review.title')}</h2>
+          <p className="text-sm text-slate-500">{t('review.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -71,6 +75,8 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
                 onClick={() => setRating(star)}
+                title={t('review.star_label', { count: star })}
+                aria-label={t('review.star_label', { count: star })}
                 className="transition-transform hover:scale-110 active:scale-95"
               >
                 <Star
@@ -88,12 +94,12 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
           {/* Review Text */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              Komentar (Opsional)
+              {t('review.comment_label')}
             </label>
             <textarea
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
-              placeholder="Ceritakan pengalaman Anda..."
+              placeholder={t('review.comment_placeholder')}
               rows={3}
               className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl dark:text-white focus:ring-2 focus:ring-primary/50 resize-none placeholder-slate-400"
             />
@@ -103,7 +109,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
           {order.driver_id && (
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                Beri Tip untuk Driver (Dari WiraPay)
+                {t('review.tip_label')}
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {presetTips.map((amount) => (
@@ -117,7 +123,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
                         : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:border-slate-200 dark:hover:border-slate-700'
                     }`}
                   >
-                    {amount === 0 ? 'Tidak Ada' : `Rp${amount / 1000}k`}
+                    {amount === 0 ? t('review.tip_none') : `Rp${amount / 1000}k`}
                   </button>
                 ))}
               </div>
@@ -125,7 +131,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
           )}
 
           <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={isSubmitting}>
-            {isSubmitting ? 'Memproses...' : 'Kirim Ulasan'}
+            {isSubmitting ? t('common.processing') : t('review.submit')}
           </Button>
         </form>
       </div>

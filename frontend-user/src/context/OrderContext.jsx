@@ -9,14 +9,20 @@ import {
   broadcastEcosystemEvent,
   toDbPaymentMethod
 } from '../services/ecosystemService';
-import { getDisplayStatus } from '../constants/orderStatus';
+import { getStatusKey } from '../constants/orderStatus';
+import { useTranslation } from '../i18n';
 
 const OrderContext = createContext();
 
 export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
   const { user } = useAuth();
+  const { t, lang } = useTranslation();
 
+  // NOTE: `...o` is spread FIRST so the presentation fields below actually
+  // win. It used to be spread last, which silently overwrote `status` with
+  // the raw DB token, so Activity/Home showed customers `picking_up` and
+  // `completed` instead of a readable label.
   const mapDbOrderToUi = (o) => {
     let uiService = 'WiraRide';
     if (o.service_type === 'food') uiService = 'WiraFood';
@@ -26,14 +32,15 @@ export const OrderProvider = ({ children }) => {
     else if (o.service_type === 'pool') uiService = 'WiraPool';
     else if (o.service_type === 'pulsa') uiService = 'WiraPulsa';
 
-    const formattedStatus = getDisplayStatus(o.status);
-
     return {
+      ...o,
       id: o.id,
       service: uiService,
-      title: o.title || `Pesanan ${uiService}`,
-      date: new Date(o.created_at || Date.now()).toLocaleDateString('id-ID'),
-      status: formattedStatus,
+      // Kept null when the DB has no title; the screen renders a translated
+      // fallback so the label follows the customer's chosen language.
+      title: o.title || null,
+      date: new Date(o.created_at || Date.now()).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID'),
+      statusKey: getStatusKey(o.status),
       price: o.total_price || 0,
 
       rawStatus: o.status,
@@ -42,7 +49,6 @@ export const OrderProvider = ({ children }) => {
       driver_id: o.driver_id,
       merchant_id: o.merchant_id,
       is_reviewed: o.is_reviewed,
-      ...o
     };
   };
 
@@ -113,7 +119,7 @@ export const OrderProvider = ({ children }) => {
       // without a session, so this only triggers if the session expired
       // mid-page. The DB rejects anonymous inserts anyway (migrations/0074).
       if (!user && !session?.user) {
-        throw new Error('Silakan login terlebih dahulu untuk membuat pesanan.');
+        throw new Error(t('order.login_required'));
       }
 
       let createdOrder = null;
@@ -192,11 +198,11 @@ export const OrderProvider = ({ children }) => {
 
       const uiOrder = { ...mapDbOrderToUi(createdOrder), qrisAmount };
       setOrders((prev) => [uiOrder, ...prev.filter(o => o.id !== uiOrder.id)]);
-      toast.success(qrisAmount ? 'Pesanan dibuat. Silakan bayar via QRIS.' : 'Pesanan berhasil dibuat');
+      toast.success(qrisAmount ? t('order.created_qris') : t('order.created'));
       return uiOrder;
     } catch (err) {
-      console.error('Gagal membuat pesanan:', err);
-      toast.error(err?.message ? `Gagal membuat pesanan: ${err.message}` : 'Gagal membuat pesanan. Silakan coba lagi.');
+      console.error('Failed to create order:', err);
+      toast.error(err?.message ? t('order.create_failed', { message: err.message }) : t('order.create_failed_generic'));
       throw err; // Proper error handling instead of local fallback
     }
   };
@@ -208,7 +214,7 @@ export const OrderProvider = ({ children }) => {
 
     // Optimistic Update
     setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: newStatus, rawStatus: newStatus, ...extraData } : o))
+      prev.map((o) => (o.id === id ? { ...o, rawStatus: newStatus, statusKey: getStatusKey(newStatus), ...extraData } : o))
     );
 
     try {
@@ -216,7 +222,7 @@ export const OrderProvider = ({ children }) => {
       await updateOrderStatusEcosystem(id, newStatus, extraData);
     } catch (err) {
       console.error('Failed to update order status:', err);
-      toast.error('Gagal memperbarui status pesanan');
+      toast.error(t('order.update_status_failed'));
       // Rollback
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? originalOrder : o))

@@ -25,10 +25,12 @@ import {
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from '../i18n';
 
 export default function RestaurantPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [rest, setRest] = useState(null);
 
   const { cart, addItem, removeItem, updateQty, subtotal, clearCart } = useCart();
@@ -117,31 +119,31 @@ export default function RestaurantPage() {
           <X size={28} />
         </div>
         <h2 className="font-bold text-lg text-slate-900 dark:text-white mb-1">
-          Restoran Tidak Ditemukan
+          {t('restaurant.not_found_title')}
         </h2>
         <p className="text-sm text-slate-500 mb-6">
-          Restoran ini mungkin sudah tidak tersedia, atau terjadi gangguan jaringan. Silakan coba lagi.
+          {t('restaurant.not_found_desc')}
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>Coba Lagi</Button>
-          <Button onClick={() => navigate('/food')}>Kembali ke WiraFood</Button>
+          <Button variant="outline" onClick={() => window.location.reload()}>{t('common.retry')}</Button>
+          <Button onClick={() => navigate('/food')}>{t('restaurant.back_to_food')}</Button>
         </div>
       </div>
     );
   }
 
   if (!rest) {
-    return <div className="p-10 text-center animate-pulse">Memuat data restoran...</div>;
+    return <div className="p-10 text-center animate-pulse">{t('restaurant.loading')}</div>;
   }
 
   const grandTotal = Math.max(0, subtotal + dynamicDeliveryFee - discount);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      toast.error(t('location.unsupported'));
       return;
     }
-    const toastId = toast.loading('Mencari lokasi Anda...');
+    const toastId = toast.loading(t('location.searching'));
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -155,14 +157,14 @@ export default function RestaurantPage() {
         } catch (e) {
           console.error(e);
         }
-        toast.success('Lokasi ditemukan!', { id: toastId });
+        toast.success(t('location.found'), { id: toastId });
       },
       (error) => {
         console.error('GPS Error:', error);
-        let errorMsg = 'Gagal mendapatkan lokasi.';
-        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
-        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
-        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout.';
+        let errorMsg = t('location.failed');
+        if (error.code === 1) errorMsg = t('location.denied');
+        else if (error.code === 2) errorMsg = t('location.unavailable');
+        else if (error.code === 3) errorMsg = t('location.timeout');
         toast.error(errorMsg, { id: toastId, duration: 6000 });
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -195,19 +197,19 @@ export default function RestaurantPage() {
         .eq('code', promoCode.toUpperCase().trim())
         .single();
 
-      if (error || !data) throw new Error('Kode promo tidak ditemukan');
-      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
-      if (data.service_type && data.service_type !== 'food') throw new Error('Promo tidak berlaku untuk restoran');
+      if (error || !data) throw new Error(t('promo.not_found'));
+      if (data.status !== 'Active') throw new Error(t('promo.inactive'));
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (data.service_type && data.service_type !== 'food') throw new Error(t('promo.wrong_service'));
 
       setActivePromo(data);
       const promoDiscount = data.type === 'Percentage'
         ? Math.round((subtotal * Number(data.discount)) / 100)
         : Number(data.discount) || 0;
       setDiscount(Math.max(0, Math.min(promoDiscount, subtotal)));
-      toast.success('Promo berhasil digunakan!');
+      toast.success(t('promo.success'));
     } catch (err) {
-      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setPromoError(err.message || t('promo.failed'));
       setActivePromo(null);
       setDiscount(0);
     } finally {
@@ -224,7 +226,7 @@ export default function RestaurantPage() {
 
   const handleConfirmOrder = async () => {
     if (cart.items.length === 0) {
-      toast.error('Keranjang Anda masih kosong');
+      toast.error(t('restaurant.empty_cart'));
       return;
     }
     // RestaurantPage is already mounted under Layout, which redirects any
@@ -233,12 +235,12 @@ export default function RestaurantPage() {
     // without a reload) rather than the primary guard; addOrder() and the
     // DB (migrations/0074) also refuse to create an order without a login.
     if (!user) {
-      toast.error('Silakan login terlebih dahulu untuk memesan makanan');
+      toast.error(t('restaurant.login_required'));
       navigate('/login');
       return;
     }
     if (paymentMethod === 'WiraPay' && balance < grandTotal) {
-      toast.error('Saldo WiraPay Anda tidak mencukupi untuk pembayaran ini');
+      toast.error(t('restaurant.insufficient_balance'));
       return;
     }
 
@@ -275,9 +277,9 @@ export default function RestaurantPage() {
       navigate(`/active-order/${order.id}`);
       clearCart();
       handleRemovePromo(); // don't let a used promo silently discount the next order
-      toast.success('Menunggu konfirmasi dari restoran...');
+      toast.success(t('restaurant.order_placed'));
     } catch (err) {
-      toast.error(err.message || 'Pemesanan gagal');
+      toast.error(t('restaurant.order_failed', { message: err.message }));
     }
     setLoading(false);
   };
@@ -314,12 +316,12 @@ export default function RestaurantPage() {
           </div>
           <div className="p-3 bg-white dark:bg-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1 font-bold text-amber-500">
-              <Star size={15} fill="currentColor" /> {rest.rating} (500+ Ulasan)
+              <Star size={15} fill="currentColor" /> {t('restaurant.reviews_count', { rating: rest.rating })}
             </span>
             <span className="flex items-center gap-1">
               <Clock size={15} /> {rest.deliveryTime}
             </span>
-            <span className="text-green-600 font-bold">Buka Sekarang</span>
+            <span className="text-green-600 font-bold">{t('restaurant.open_now')}</span>
           </div>
         </Card>
       </div>
@@ -328,7 +330,7 @@ export default function RestaurantPage() {
       {step === 'menu' && (
         <div className="space-y-3">
           <h2 className="font-bold text-base text-slate-900 dark:text-white px-1">
-            Menu Makanan & Minuman
+            {t('restaurant.menu_title')}
           </h2>
           {rest.menuItems.map((item) => {
             const inCart = cart.items.find((i) => i.id === item.id);
@@ -347,7 +349,7 @@ export default function RestaurantPage() {
                     />
                     {!isAvailable && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl text-white text-[10px] font-bold">
-                        Habis
+                        {t('restaurant.sold_out')}
                       </span>
                     )}
                   </div>
@@ -365,7 +367,7 @@ export default function RestaurantPage() {
                   </p>
                   {!isAvailable && !item.image && (
                     <span className="inline-block mt-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">
-                      Habis
+                      {t('restaurant.sold_out')}
                     </span>
                   )}
                 </div>
@@ -401,10 +403,10 @@ export default function RestaurantPage() {
                       className="text-xs px-3.5 py-1.5 font-bold"
                       onClick={() => {
                         addItem({ ...item, qty: 1 });
-                        toast.success(`${item.name} ditambahkan ke keranjang`);
+                        toast.success(t('restaurant.added_to_cart', { name: item.name }));
                       }}
                     >
-                      + Tambah
+                      + {t('restaurant.add')}
                     </Button>
                   )}
                 </div>
@@ -424,7 +426,7 @@ export default function RestaurantPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-300 font-medium">
-                  {cart.items.reduce((acc, curr) => acc + curr.qty, 0)} Item Dipilih
+                  {t('restaurant.items_selected', { count: cart.items.reduce((acc, curr) => acc + curr.qty, 0) })}
                 </p>
                 <p className="font-extrabold text-base">{formatRupiah(subtotal)}</p>
               </div>
@@ -433,7 +435,7 @@ export default function RestaurantPage() {
               className="py-2.5 px-5 font-bold text-xs sm:text-sm shadow-md"
               onClick={() => setStep('checkout')}
             >
-              Lanjut Checkout ➔
+              {t('restaurant.to_checkout')} ➔
             </Button>
           </div>
         </div>
@@ -444,11 +446,11 @@ export default function RestaurantPage() {
         <div className="space-y-4 animate-in fade-in zoom-in duration-150">
           <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700 !overflow-visible">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">
-              Alamat Pengantaran
+              {t('restaurant.delivery_address')}
             </h3>
             <div className="relative z-10">
               <LocationAutocomplete
-                placeholder="Cari alamat pengantaran..."
+                placeholder={t('restaurant.delivery_address_placeholder')}
                 icon={MapPin}
                 iconColor="text-red-500"
                 value={deliveryAddress}
@@ -468,24 +470,24 @@ export default function RestaurantPage() {
                 onClick={handleLocateMe}
                 className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
               >
-                <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                <LocateFixed size={12} /> {t('common.use_current_location')}
               </button>
             </div>
             <div className="h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
               <WiraMap
                 center={deliveryCoords}
                 zoom={16}
-                markers={[{ ...deliveryCoords, type: 'dropoff', label: 'Alamat Pengantaran' }]}
+                markers={[{ ...deliveryCoords, type: 'dropoff', label: t('restaurant.delivery_pin_label') }]}
                 onMarkerDragEnd={handleMarkerDrag}
               />
             </div>
-            <p className="text-[11px] text-slate-400">Geser pin di peta untuk menyesuaikan titik pengantaran yang tepat.</p>
+            <p className="text-[11px] text-slate-400">{t('common.map_pin_hint')}</p>
           </Card>
 
           {/* Rincian Pesanan */}
           <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2">
-              Ringkasan Pesanan
+              {t('restaurant.order_summary')}
             </h3>
             <div className="space-y-2 divide-y divide-slate-100 dark:divide-slate-700/50">
               {cart.items.map((i) => (
@@ -507,27 +509,27 @@ export default function RestaurantPage() {
               {activePromo ? (
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
-                    <Tag size={12} /> Promo "{activePromo.code}" diterapkan
+                    <Tag size={12} /> {t('promo.applied', { code: activePromo.code })}
                   </span>
                   <button
                     type="button"
                     className="text-slate-400 hover:text-red-500 font-semibold"
                     onClick={handleRemovePromo}
                   >
-                    Hapus
+                    {t('common.remove')}
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Kode Promo: WIRALOMBOK"
+                    placeholder={t('promo.placeholder')}
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
                     className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white uppercase font-bold"
                   />
                   <Button size="sm" variant="outline" onClick={handleCheckPromo} disabled={checkingPromo || !promoCode.trim()}>
-                    {checkingPromo ? '...' : 'Pakai'}
+                    {checkingPromo ? t('promo.checking') : t('promo.apply')}
                   </Button>
                 </div>
               )}
@@ -539,27 +541,27 @@ export default function RestaurantPage() {
             {/* Hitung Rincian */}
             <div className="pt-2 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500">
-                <span>Subtotal Makanan:</span>
+                <span>{t('restaurant.subtotal')}</span>
                 <span>{formatRupiah(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Ongkos Kirim:</span>
+                <span>{t('restaurant.delivery_fee')}</span>
                 <span>{formatRupiah(dynamicDeliveryFee)}</span>
               </div>
               {distance > 0 && (
                 <div className="flex justify-between text-[10px] text-slate-400 -mt-1">
-                  <span>Jarak Pengantaran:</span>
+                  <span>{t('restaurant.delivery_distance')}</span>
                   <span>{distance.toFixed(1)} km</span>
                 </div>
               )}
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-bold">
-                  <span>Diskon Promo:</span>
+                  <span>{t('restaurant.discount')}</span>
                   <span>-{formatRupiah(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-extrabold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
-                <span>Total Pembayaran:</span>
+                <span>{t('restaurant.grand_total')}</span>
                 <span className="text-primary">{formatRupiah(grandTotal)}</span>
               </div>
             </div>
@@ -568,7 +570,7 @@ export default function RestaurantPage() {
           {/* Metode Pembayaran */}
           <Card className="p-4 space-y-3 border border-slate-200 dark:border-slate-700">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-              Pilih Metode Bayar
+              {t('restaurant.choose_payment')}
             </h3>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -581,7 +583,7 @@ export default function RestaurantPage() {
                 }`}
               >
                 <p className="font-bold text-xs text-slate-900 dark:text-white">WiraPay</p>
-                <p className="text-[10px] text-slate-500">Saldo: {formatRupiah(balance)}</p>
+                <p className="text-[10px] text-slate-500">{t('common.balance_with_amount', { amount: formatRupiah(balance) })}</p>
               </button>
               <button
                 type="button"
@@ -592,8 +594,8 @@ export default function RestaurantPage() {
                     : 'border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <p className="font-bold text-xs text-slate-900 dark:text-white">Tunai (COD)</p>
-                <p className="text-[10px] text-slate-500">Bayar ke kurir</p>
+                <p className="font-bold text-xs text-slate-900 dark:text-white">{t('common.pay_cash_cod')}</p>
+                <p className="text-[10px] text-slate-500">{t('common.pay_cash_to_courier')}</p>
               </button>
             </div>
           </Card>
@@ -604,14 +606,14 @@ export default function RestaurantPage() {
               className="flex-1"
               onClick={() => setStep('menu')}
             >
-              Kembali
+              {t('common.back')}
             </Button>
             <Button
               className="flex-1 font-bold"
               onClick={handleConfirmOrder}
               disabled={loading}
             >
-              {loading ? 'Memproses...' : `Pesan Sekarang • ${formatRupiah(grandTotal)}`}
+              {loading ? t('common.processing') : t('restaurant.place_order', { price: formatRupiah(grandTotal) })}
             </Button>
           </div>
         </div>

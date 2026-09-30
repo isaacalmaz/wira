@@ -1,4 +1,5 @@
 import React from 'react';
+import { translateStatic } from '../../i18n';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -34,9 +35,9 @@ export default class ErrorBoundary extends React.Component {
             <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
               ⚠️
             </div>
-            <h1 className="text-xl font-black text-slate-900 mb-2">Terjadi Sedikit Kendala</h1>
+            <h1 className="text-xl font-black text-slate-900 mb-2">{translateStatic('error_boundary.title')}</h1>
             <p className="text-sm text-slate-500 mb-2">
-              Aplikasi mengalami kendala saat memuat data. Silakan muat ulang halaman.
+              {translateStatic('error_boundary.desc')}
             </p>
             {this.state.error && (
               <div className="text-xs text-left text-red-500 bg-red-50 p-2 rounded mb-4 overflow-auto max-h-32">
@@ -50,7 +51,7 @@ export default class ErrorBoundary extends React.Component {
               }}
               className="w-full py-3 bg-cyan-600 text-white rounded-2xl font-bold hover:bg-cyan-700 transition shadow-md"
             >
-              Muat Ulang Aplikasi
+              {translateStatic('error_boundary.reload')}
             </button>
           </div>
         </div>

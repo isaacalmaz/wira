@@ -9,9 +9,11 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import API_BASE_URL from '../config/api';
+import { useTranslation } from '../i18n';
 
 export default function VillaPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
@@ -38,9 +40,16 @@ export default function VillaPage() {
           rating: v.rating || 5.0,
           pricePerNight: v.price_per_night || 750000,
           image: v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600',
-          desc: v.description || 'Villa eksklusif di Pulau Lombok dengan pemandangan asri.',
+          desc: v.description || t('villa.default_desc'),
           bedrooms: v.bedrooms || 2,
-          amenities: v.amenities || ['WiFi Cepat', 'Kolam Renang', 'Sarapan Gratis']
+          // Merchant-supplied amenities are data and stay untouched; only
+          // this placeholder set (shown when a villa has none yet) follows
+          // the customer's language.
+          amenities: v.amenities || [
+            t('villa.default_amenity_wifi'),
+            t('villa.default_amenity_pool'),
+            t('villa.default_amenity_breakfast'),
+          ]
         })));
       }
       setFetchLoading(false);
@@ -81,15 +90,15 @@ export default function VillaPage() {
         .eq('code', promoCode.toUpperCase().trim())
         .single();
 
-      if (error || !data) throw new Error('Kode promo tidak ditemukan');
-      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
-      if (data.service_type && data.service_type !== 'villa') throw new Error('Promo tidak berlaku untuk layanan ini');
+      if (error || !data) throw new Error(t('promo.not_found'));
+      if (data.status !== 'Active') throw new Error(t('promo.inactive'));
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (data.service_type && data.service_type !== 'villa') throw new Error(t('promo.wrong_service'));
 
       setActivePromo(data);
-      toast.success('Promo berhasil digunakan!');
+      toast.success(t('promo.success'));
     } catch (err) {
-      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setPromoError(err.message || t('promo.failed'));
       setActivePromo(null);
     } finally {
       setCheckingPromo(false);
@@ -114,7 +123,7 @@ export default function VillaPage() {
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (paymentMethod === 'WiraPay' && balance < totalPrice) {
-      toast.error('Saldo WiraPay tidak mencukupi. Pilih QRIS untuk bayar langsung.');
+      toast.error(t('villa.insufficient_balance'));
       return;
     }
 
@@ -168,9 +177,9 @@ export default function VillaPage() {
       }
 
       handleRemovePromo(); // don't let a used promo silently discount the next booking
-      if (paymentMethod !== 'QRIS') toast.success('Permintaan reservasi terkirim, menunggu konfirmasi pemilik villa.');
+      if (paymentMethod !== 'QRIS') toast.success(t('villa.success'));
     } catch (err) {
-      toast.error(err.message || 'Reservasi gagal');
+      toast.error(t('villa.failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -180,10 +189,10 @@ export default function VillaPage() {
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          WiraVilla (Sewa Villa & Penginapan)
+          {t('villa.title')}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Pilihan villa pantai Senggigi, bukit Kuta Mandalika, & sejuknya Sembalun Rinjani
+          {t('villa.subtitle')}
         </p>
       </div>
 
@@ -199,10 +208,14 @@ export default function VillaPage() {
                 : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
-            {a === 'Semua' ? '🏖️ Semua Lokasi' : `📍 ${a}`}
+            {a === 'Semua' ? `🏖️ ${t('villa.all_areas')}` : `📍 ${a}`}
           </button>
         ))}
       </div>
+
+      {filtered.length === 0 && (
+        <p className="text-center text-sm text-slate-500 py-10">{t('villa.empty')}</p>
+      )}
 
       {/* Daftar Kartu Villa */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -238,11 +251,11 @@ export default function VillaPage() {
                   </h3>
                   <span className="text-sm font-extrabold text-primary whitespace-nowrap ml-2">
                     {formatRupiah(villa.pricePerNight)}
-                    <span className="text-[10px] text-slate-400 font-normal">/mlm</span>
+                    <span className="text-[10px] text-slate-400 font-normal">{t('villa.per_night_short')}</span>
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mb-3">
-                  <MapPin size={13} /> {villa.bedrooms} Kamar Tidur • Kolam Renang Privat
+                  <MapPin size={13} /> {t('villa.bedrooms_line', { count: villa.bedrooms })}
                 </p>
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   {villa.amenities.map((am) => (
@@ -257,7 +270,7 @@ export default function VillaPage() {
               </div>
 
               <Button size="sm" className="w-full font-bold text-xs">
-                Lihat & Pesan Villa
+                {t('villa.view_and_book')}
               </Button>
             </div>
           </Card>
@@ -278,10 +291,10 @@ export default function VillaPage() {
             <form onSubmit={handleConfirmBooking} className="space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Reservasi {selectedVilla.name}
+                    {t('villa.reserve_title', { name: selectedVilla.name })}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                    <MapPin size={12} /> {selectedVilla.area}, Lombok
+                    <MapPin size={12} /> {t('villa.location_line', { area: selectedVilla.area })}
                   </p>
                 </div>
 
@@ -292,14 +305,14 @@ export default function VillaPage() {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2.5 py-1 rounded-lg">
-                    {formatRupiah(selectedVilla.pricePerNight)} / malam
+                    {t('villa.per_night', { price: formatRupiah(selectedVilla.pricePerNight) })}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Tanggal Check-In
+                      {t('villa.check_in')}
                     </label>
                     <input
                       type="date"
@@ -311,7 +324,7 @@ export default function VillaPage() {
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Berapa Malam
+                      {t('villa.nights_label')}
                     </label>
                     <select
                       value={nights}
@@ -320,7 +333,7 @@ export default function VillaPage() {
                     >
                       {[1, 2, 3, 4, 5, 7, 14].map((n) => (
                         <option key={n} value={n}>
-                          {n} Malam
+                          {t('villa.nights_option', { count: n })}
                         </option>
                       ))}
                     </select>
@@ -329,7 +342,7 @@ export default function VillaPage() {
 
                 <div>
                   <label className="font-semibold text-xs text-slate-700 dark:text-slate-300 block mb-1">
-                    Jumlah Tamu
+                    {t('villa.guests_label')}
                   </label>
                   <select
                     value={guests}
@@ -338,7 +351,7 @@ export default function VillaPage() {
                   >
                     {[1, 2, 3, 4, 6, 8, 10].map((g) => (
                       <option key={g} value={g}>
-                        {g} Tamu
+                        {t('villa.guests_option', { count: g })}
                       </option>
                     ))}
                   </select>
@@ -347,7 +360,7 @@ export default function VillaPage() {
                 {/* Pilihan Metode Bayar */}
                 <div>
                   <label className="font-semibold text-xs text-slate-700 dark:text-slate-300 block mb-1">
-                    Metode Pembayaran
+                    {t('common.payment_method')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -360,7 +373,7 @@ export default function VillaPage() {
                       }`}
                     >
                       <p className="font-bold text-slate-900 dark:text-white">WiraPay</p>
-                      <p className="text-[10px] text-slate-500">Saldo: {formatRupiah(balance)}</p>
+                      <p className="text-[10px] text-slate-500">{t('common.balance_with_amount', { amount: formatRupiah(balance) })}</p>
                     </button>
                     <button
                       type="button"
@@ -371,8 +384,8 @@ export default function VillaPage() {
                           : 'border-slate-200 dark:border-slate-700'
                       }`}
                     >
-                      <p className="font-bold text-slate-900 dark:text-white">QRIS</p>
-                      <p className="text-[10px] text-slate-500">Scan &amp; bayar langsung</p>
+                      <p className="font-bold text-slate-900 dark:text-white">{t('common.pay_qris')}</p>
+                      <p className="text-[10px] text-slate-500">{t('common.pay_qris_desc')}</p>
                     </button>
                   </div>
                 </div>
@@ -382,21 +395,21 @@ export default function VillaPage() {
                   {activePromo ? (
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-green-600 dark:text-green-400">
-                        Promo "{activePromo.code}" diterapkan
+                        {t('promo.applied', { code: activePromo.code })}
                       </span>
                       <button
                         type="button"
                         className="text-slate-400 hover:text-red-500 font-semibold"
                         onClick={handleRemovePromo}
                       >
-                        Hapus
+                        {t('common.remove')}
                       </button>
                     </div>
                   ) : (
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Kode Promo (opsional)"
+                        placeholder={t('promo.placeholder')}
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value)}
                         className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
@@ -408,7 +421,7 @@ export default function VillaPage() {
                         onClick={handleCheckPromo}
                         disabled={checkingPromo || !promoCode.trim()}
                       >
-                        {checkingPromo ? '...' : 'Pakai'}
+                        {checkingPromo ? t('promo.checking') : t('promo.apply')}
                       </Button>
                     </div>
                   )}
@@ -420,7 +433,7 @@ export default function VillaPage() {
                 {/* Total Biaya */}
                 <div className="bg-slate-50 dark:bg-slate-900 p-3.5 rounded-2xl flex justify-between items-center text-xs">
                   <div>
-                    <p className="text-slate-500">Total Reservasi ({nights} malam):</p>
+                    <p className="text-slate-500">{t('villa.total_label', { count: nights })}</p>
                     {activePromo && (
                       <p className="text-[10px] text-slate-400 line-through">{formatRupiah(subtotalPrice)}</p>
                     )}
@@ -436,14 +449,14 @@ export default function VillaPage() {
                     className="flex-1 text-xs"
                     onClick={() => setSelectedVilla(null)}
                   >
-                    Batal
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     type="submit"
                     className="flex-1 font-bold text-xs"
                     disabled={loading}
                   >
-                    {loading ? 'Memproses...' : 'Konfirmasi Reservasi'}
+                    {loading ? t('common.processing') : t('villa.submit')}
                   </Button>
                 </div>
               </form>

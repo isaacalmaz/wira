@@ -6,10 +6,12 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, User, Camera } from 'lucide-react';
+import { useTranslation } from '../i18n';
 
 export default function EditProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
@@ -89,13 +91,13 @@ export default function EditProfilePage() {
         .select();
 
       if (updateError) throw updateError;
-      if (!updatedRows || updatedRows.length === 0) throw new Error('Akses ditolak atau profil tidak ditemukan.');
-      
-      toast.success('Profil berhasil diperbarui!');
+      if (!updatedRows || updatedRows.length === 0) throw new Error(t('edit_profile.denied'));
+
+      toast.success(t('edit_profile.success'));
       navigate('/profile');
     } catch (err) {
       console.error('Error updating profile:', err);
-      toast.error('Gagal memperbarui profil.');
+      toast.error(err.message === t('edit_profile.denied') ? err.message : t('edit_profile.failed'));
     } finally {
       setLoading(false);
     }
@@ -104,10 +106,10 @@ export default function EditProfilePage() {
   return (
     <div className="space-y-6 pb-20">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
+        <button onClick={() => navigate(-1)} title={t('common.back')} aria-label={t('common.back')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
           <ArrowLeft size={20} className="dark:text-white" />
         </button>
-        <h1 className="text-xl font-bold dark:text-white">Edit Profil</h1>
+        <h1 className="text-xl font-bold dark:text-white">{t('edit_profile.title')}</h1>
       </div>
 
       <Card className="p-6">
@@ -133,11 +135,11 @@ export default function EditProfilePage() {
                 />
               </label>
             </div>
-            <p className="text-xs text-slate-400 mt-2">Ketuk ikon kamera untuk mengubah</p>
+            <p className="text-xs text-slate-400 mt-2">{t('edit_profile.avatar_hint')}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Lengkap</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('edit_profile.name_label')}</label>
             <input 
               type="text" 
               value={profile.name}
@@ -148,7 +150,7 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('edit_profile.email_label')}</label>
             <input 
               type="email" 
               value={profile.email}
@@ -158,18 +160,18 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nomor HP</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('edit_profile.phone_label')}</label>
             <input 
               type="text" 
               value={profile.phone}
               disabled
               className="w-full p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 cursor-not-allowed"
             />
-            <p className="text-xs text-slate-400 mt-1">Nomor HP tidak dapat diubah demi keamanan akun.</p>
+            <p className="text-xs text-slate-400 mt-1">{t('edit_profile.phone_hint')}</p>
           </div>
 
           <Button type="submit" className="w-full mt-6" disabled={loading}>
-            {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
+            {loading ? t('common.saving') : t('edit_profile.submit')}
           </Button>
         </form>
       </Card>

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import QRISCard from './QRISCard';
 import { supabase } from '../../config/supabase';
 import { formatAmountWithUniqueHighlight } from '../../services/topupService';
+import { formatRupiah } from '../../utils/formatRupiah';
+import { useTranslation } from '../../i18n';
 
 // Must match expire_awaiting_qris_orders() in migrations/0078.
 const PAY_WINDOW_MS = 15 * 60 * 1000;
@@ -13,6 +15,7 @@ const PAY_WINDOW_MS = 15 * 60 * 1000;
 // topup_requests row; the Mutasiku webhook verifies the transfer and the DB
 // moves the order on to 'pending', which ActiveOrderPage picks up.
 export default function QrisOrderPayment({ order, onCancel, cancelling }) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState(null);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -49,13 +52,13 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Gagal menyalin nominal');
+      toast.error(t('order.qris_copy_failed'));
     }
   };
 
   return (
     <div className="bg-white dark:bg-slate-800 p-4 shrink-0 shadow-sm mb-2 border-b dark:border-slate-700 space-y-3 text-center">
-      <p className="text-sm font-bold text-slate-900 dark:text-white">Bayar dengan QRIS</p>
+      <p className="text-sm font-bold text-slate-900 dark:text-white">{t('order.qris_pay_title')}</p>
       <QRISCard />
       {formatted ? (
         <div className="flex items-center justify-center gap-2">
@@ -63,24 +66,23 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
             {formatted.prefix}
             <span className="text-primary">{formatted.uniqueDigits}</span>
           </span>
-          <button type="button" onClick={copyAmount} className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button type="button" onClick={copyAmount} title={t('common.copy')} aria-label={t('common.copy')} className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700">
             {copied ? <Check size={16} /> : <Copy size={16} />}
           </button>
         </div>
       ) : (
-        <p className="text-sm text-slate-400">Memuat nominal...</p>
+        <p className="text-sm text-slate-400">{t('order.qris_loading_amount')}</p>
       )}
       <p className="text-xs text-slate-600 dark:text-slate-300">
-        Bayar <b>tepat</b> sesuai nominal, termasuk 3 digit terakhir, agar terverifikasi otomatis.
-        {uniqueCode > 0 && ` Kelebihan Rp ${uniqueCode.toLocaleString('id-ID')} masuk ke saldo WiraPay Anda.`}
+        {t('order.qris_exact_note')}
+        {uniqueCode > 0 && ` ${t('order.qris_overpay_note', { amount: formatRupiah(uniqueCode) })}`}
       </p>
       <p className={`text-xs font-semibold inline-flex items-center gap-1 ${remainingMs > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
         <Clock size={14} />
-        {remainingMs > 0 ? `Selesaikan pembayaran dalam ${mm}:${ss}` : 'Waktu pembayaran habis, pesanan akan dibatalkan otomatis.'}
+        {remainingMs > 0 ? t('order.qris_countdown', { time: `${mm}:${ss}` }) : t('order.qris_expired')}
       </p>
       <p className="text-[11px] text-slate-500">
-        Pesanan diteruskan ke mitra setelah pembayaran terverifikasi (biasanya 1-2 menit).
-        Jika Anda membayar setelah waktu habis, dana masuk ke saldo WiraPay.
+        {t('order.qris_footer')}
       </p>
       <button
         type="button"
@@ -88,7 +90,7 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
         disabled={cancelling}
         className="w-full bg-red-50 text-red-600 py-2.5 rounded-xl font-bold border border-red-200 text-sm"
       >
-        {cancelling ? 'Membatalkan...' : 'Batalkan Pesanan'}
+        {cancelling ? t('common.cancelling') : t('order.cancel_order')}
       </button>
     </div>
   );

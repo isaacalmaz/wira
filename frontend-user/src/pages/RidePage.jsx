@@ -17,9 +17,11 @@ import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
+import { useTranslation } from '../i18n';
 
 export default function RidePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
 
@@ -49,7 +51,7 @@ export default function RidePage() {
           perKmRate: v.per_km_rate,
           time: v.duration,
           icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
-          desc: `Kapasitas: ${v.capacity} orang`
+          desc: t('ride.capacity', { count: v.capacity })
         })));
       }
     };
@@ -68,11 +70,11 @@ export default function RidePage() {
 
   const handleLocateMe = (idx = 0) => {
     if (!navigator.geolocation) {
-      toast.error('Browser Anda tidak mendukung fitur lokasi');
+      toast.error(t('location.unsupported'));
       return;
     }
-    
-    const toastId = toast.loading('Mencari lokasi Anda...');
+
+    const toastId = toast.loading(t('location.searching'));
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -98,14 +100,14 @@ export default function RidePage() {
           console.error(e);
         }
         
-        toast.success('Lokasi ditemukan!', { id: toastId });
+        toast.success(t('location.found'), { id: toastId });
       },
       (error) => {
-        console.error("GPS Error:", error);
-        let errorMsg = 'Gagal mendapatkan lokasi.';
-        if (error.code === 1) errorMsg = 'Akses lokasi ditolak browser/sistem. Izinkan akses lokasi di pengaturan privasi Anda.';
-        else if (error.code === 2) errorMsg = 'Sinyal lokasi tidak tersedia. Coba aktifkan Wi-Fi Anda (Desktop) atau nyalakan GPS (Mobile).';
-        else if (error.code === 3) errorMsg = 'Pencarian lokasi timeout. Sinyal GPS lemah.';
+        console.error('GPS Error:', error);
+        let errorMsg = t('location.failed');
+        if (error.code === 1) errorMsg = t('location.denied');
+        else if (error.code === 2) errorMsg = t('location.unavailable');
+        else if (error.code === 3) errorMsg = t('location.timeout');
         toast.error(errorMsg, { id: toastId, duration: 6000 });
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -132,9 +134,11 @@ export default function RidePage() {
     }
   }, [mapState.markers, pickup, dropoff, step]);
 
+  // Fallback fleet, used only until the `vehicles` table loads. Names match
+  // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
   const defaultVehicles = [
-    { id: 'motor', name: 'WiraRide Motor', basePrice: 12000, price: 12000, icon: '🛵', desc: 'Kapasitas: 1 orang' },
-    { id: 'mobil', name: 'WiraRide Mobil', basePrice: 25000, price: 25000, icon: '🚗', desc: 'Kapasitas: 4 orang' }
+    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, icon: '🛵', desc: t('ride.capacity_motor') },
+    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, icon: '🚗', desc: t('ride.capacity_car') }
   ];
 
   const sourceVehicles = vehicles.length > 0 ? vehicles : defaultVehicles;
@@ -146,12 +150,12 @@ export default function RidePage() {
     const perKmRate = v.perKmRate || (v.id === 'motor' ? 3000 : 5000);
     const dynamicPrice = (v.basePrice || v.price || 15000) + Math.ceil(extraKm * perKmRate);
     const estMins = Math.ceil(routeInfo.duration / 60);
-    return { ...v, price: dynamicPrice, time: `~${estMins} mnt` };
+    return { ...v, price: dynamicPrice, time: t('ride.eta_minutes', { minutes: estMins }) };
   });
 
   const handleLanjut = () => {
     if (!pickup || !dropoff) {
-      toast.error('Mohon isi titik jemput dan tujuan Anda');
+      toast.error(t('ride.missing_points'));
       return;
     }
     if (dynamicVehicles.length > 0) {
@@ -181,15 +185,15 @@ export default function RidePage() {
         .eq('code', promoCode.toUpperCase().trim())
         .single();
       
-      if (error || !data) throw new Error('Kode promo tidak ditemukan');
-      if (data.status !== 'Active') throw new Error('Promo sudah tidak aktif');
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error('Promo sudah kadaluarsa');
-      if (data.service_type && data.service_type !== 'ride') throw new Error('Promo tidak berlaku untuk layanan ini');
-      
+      if (error || !data) throw new Error(t('promo.not_found'));
+      if (data.status !== 'Active') throw new Error(t('promo.inactive'));
+      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (data.service_type && data.service_type !== 'ride') throw new Error(t('promo.wrong_service'));
+
       setActivePromo(data);
-      toast.success('Promo berhasil digunakan!');
+      toast.success(t('promo.success'));
     } catch (err) {
-      setPromoError(err.message || 'Gagal memverifikasi promo');
+      setPromoError(err.message || t('promo.failed'));
       setActivePromo(null);
     } finally {
       setCheckingPromo(false);
@@ -211,7 +215,7 @@ export default function RidePage() {
   const handleStartBooking = async () => {
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
-      toast.error('Saldo WiraPay tidak cukup, silakan gunakan Tunai atau Top Up dulu');
+      toast.error(t('ride.insufficient_balance'));
       return;
     }
 
@@ -275,12 +279,12 @@ export default function RidePage() {
       // Dispatch is handled in ActiveOrderPage
 
       if (driverCount === 0) {
-        toast.error('Saat ini belum ada driver WiraRide terdekat yang online, tapi pesanan Anda tetap kami carikan.', { duration: 6000 });
+        toast.error(t('ride.no_driver_nearby'), { duration: 6000 });
       } else {
-        toast.success('Mencari driver di sekitar Anda...');
+        toast.success(t('ride.searching_driver'));
       }
     } catch (err) {
-      toast.error(`Gagal: ${err.message}`);
+      toast.error(t('ride.book_failed', { message: err.message }));
     }
   };
 
@@ -326,7 +330,7 @@ export default function RidePage() {
           <div className="absolute top-3 left-3 right-3 md:right-auto md:left-1/2 md:-translate-x-1/2 md:top-6 md:w-[28rem] z-[400] max-w-md mx-auto md:mx-0">
             <Card className="p-3.5 space-y-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700 !overflow-visible">
               <LocationAutocomplete
-                placeholder="Lokasi Penjemputan Anda (cth: Ampenan / Rumah)"
+                placeholder={t('ride.pickup_placeholder')}
                 icon={Navigation}
                 iconColor="text-blue-500"
                 value={pickup}
@@ -354,12 +358,12 @@ export default function RidePage() {
                   onClick={() => handleLocateMe(0)}
                   className="flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-dark"
                 >
-                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                  <LocateFixed size={12} /> {t('common.use_current_location')}
                 </button>
               </div>
 
               <LocationAutocomplete
-                placeholder="Mau ke mana? (cth: Epicentrum Mall / Senggigi)"
+                placeholder={t('ride.dropoff_placeholder')}
                 icon={MapPin}
                 iconColor="text-red-500"
                 value={dropoff}
@@ -387,7 +391,7 @@ export default function RidePage() {
                   onClick={() => handleLocateMe(1)}
                   className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600"
                 >
-                  <LocateFixed size={12} /> Gunakan Lokasi Saat Ini
+                  <LocateFixed size={12} /> {t('common.use_current_location')}
                 </button>
               </div>
             </Card>
@@ -405,7 +409,7 @@ export default function RidePage() {
             {routeInfo && (
               <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Navigation size={14} className="text-primary" /> Jarak Tempuh
+                  <Navigation size={14} className="text-primary" /> {t('ride.distance')}
                 </span>
                 <span className="text-sm font-bold text-slate-800 dark:text-white">
                   {(routeInfo.distance / 1000).toFixed(1)} km
@@ -417,7 +421,7 @@ export default function RidePage() {
               onClick={handleLanjut}
               disabled={!pickup || !dropoff || isSearching || !routeInfo}
             >
-              {isSearching ? 'Menghitung Rute...' : 'Lanjut Pilih Kendaraan'} <ArrowRight size={16} className="ml-1 inline" />
+              {isSearching ? t('ride.calculating') : t('ride.continue')} <ArrowRight size={16} className="ml-1 inline" />
             </Button>
           </div>
         )}
@@ -428,14 +432,14 @@ export default function RidePage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  Pilih Kendaraan
+                  {t('ride.select_vehicle')}
                 </h3>
                 <p className="text-xs text-slate-500 truncate max-w-xs">
                   {pickup} ➔ {dropoff}
                 </p>
               </div>
               <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 font-medium">
-                Jarak {routeInfo ? `± ${(routeInfo.distance / 1000).toFixed(1)} km` : ''}
+                {routeInfo ? t('ride.distance_badge', { km: (routeInfo.distance / 1000).toFixed(1) }) : ''}
               </span>
             </div>
 
@@ -477,7 +481,7 @@ export default function RidePage() {
               {activePromo ? (
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    Promo "{activePromo.code}" diterapkan
+                    {t('promo.applied', { code: activePromo.code })}
                   </span>
                   <button
                     type="button"
@@ -488,14 +492,14 @@ export default function RidePage() {
                       setPromoError('');
                     }}
                   >
-                    Hapus
+                    {t('common.remove')}
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Kode Promo (opsional)"
+                    placeholder={t('promo.placeholder')}
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
                     className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white uppercase font-bold"
@@ -506,7 +510,7 @@ export default function RidePage() {
                     onClick={handleCheckPromo}
                     disabled={checkingPromo || !promoCode.trim()}
                   >
-                    {checkingPromo ? '...' : 'Pakai'}
+                    {checkingPromo ? t('promo.checking') : t('promo.apply')}
                   </Button>
                 </div>
               )}
@@ -518,7 +522,7 @@ export default function RidePage() {
             {/* Metode Pembayaran */}
             <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                Metode Pembayaran:
+                {t('common.payment_method')}
               </span>
               <div className="flex gap-2">
                 <button
@@ -541,7 +545,7 @@ export default function RidePage() {
                       : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Tunai (COD)
+                  {t('common.pay_cash_cod')}
                 </button>
               </div>
             </div>
@@ -552,13 +556,13 @@ export default function RidePage() {
                 className="flex-1 text-xs"
                 onClick={() => setStep('input')}
               >
-                Ganti Rute
+                {t('ride.change_route')}
               </Button>
               <Button
                 className="flex-1 font-bold text-xs sm:text-sm"
                 onClick={handleStartBooking}
               >
-                Pesan Sekarang • {formatRupiah(calculateFinalPrice())}
+                {t('ride.book_now', { price: formatRupiah(calculateFinalPrice()) })}
               </Button>
             </div>
           </div>

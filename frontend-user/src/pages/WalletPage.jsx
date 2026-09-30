@@ -30,8 +30,11 @@ import {
   formatAmountWithUniqueHighlight,
 } from '../services/topupService';
 import { toast } from 'react-hot-toast';
+import { useTranslation } from '../i18n';
+import { localizeTransaction } from '../utils/localizeDbText';
 
 export default function WalletPage() {
+  const { t } = useTranslation();
   const { balance, transactions, transfer } = useWallet();
 
   // Modal States
@@ -87,12 +90,12 @@ export default function WalletPage() {
 
   const handleCancelPending = async (requestId) => {
     if (!requestId || loading) return;
-    if (!window.confirm('Batalkan permintaan Top Up ini? Kode unik akan dibebaskan.')) return;
+    if (!window.confirm(t('wallet.cancel_confirm'))) return;
 
     setLoading(true);
     try {
       await cancelTopUpRequest(supabase, requestId, user?.id);
-      toast.success('Permintaan Top Up berhasil dibatalkan');
+      toast.success(t('wallet.cancel_success'));
       if (viewingPendingId === requestId) {
         setModalType(null);
         setViewingPendingId(null);
@@ -100,13 +103,14 @@ export default function WalletPage() {
       }
       await loadPendingTopUps();
     } catch (err) {
-      toast.error(err.message || 'Gagal membatalkan permintaan');
+      toast.error(t('wallet.cancel_failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = async (text, label = 'Nominal') => {
+  const copyToClipboard = async (text, label) => {
+    const copyLabel = label || t('wallet.copy_label_amount');
     let copied = false;
     if (navigator?.clipboard?.writeText) {
       try {
@@ -130,10 +134,10 @@ export default function WalletPage() {
       } catch (_) {}
     }
     if (copied) {
-      toast.success(`${label} disalin!`);
+      toast.success(t('wallet.copy_success', { label: copyLabel }));
       return true;
     } else {
-      toast.error('Gagal menyalin ke clipboard');
+      toast.error(t('wallet.copy_failed'));
       return false;
     }
   };
@@ -148,11 +152,11 @@ export default function WalletPage() {
   const handleProceedToPayment = async () => {
     if (loading) return;
     if (!user) {
-      toast.error('Silakan login terlebih dahulu untuk melakukan Top Up');
+      toast.error(t('wallet.login_to_topup'));
       return;
     }
     if (!baseAmount || Number(baseAmount) < 10000) {
-      toast.error('Minimal top up adalah Rp 10.000');
+      toast.error(t('wallet.min_topup'));
       return;
     }
     setLoading(true);
@@ -165,7 +169,7 @@ export default function WalletPage() {
       setViewingPendingId(null);
       setTopUpStep(2);
     } catch (err) {
-      toast.error(err.message || 'Nominal tidak valid');
+      toast.error(t('wallet.topup_prepare_failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -174,7 +178,7 @@ export default function WalletPage() {
   const handleCopyNominal = async () => {
     const ok = await copyToClipboard(
       finalAmount,
-      `Nominal Rp ${finalAmount.toLocaleString('id-ID')}`
+      t('wallet.copy_label_amount_value', { amount: formatRupiah(finalAmount) })
     );
     if (ok) {
       setCopiedNominal(true);
@@ -195,7 +199,7 @@ export default function WalletPage() {
     // insertions - they're just re-opening the QRIS screen to re-scan/
     // re-copy the nominal, not making a second request.
     if (viewingPendingId) {
-      toast.success('Permintaan Top Up ini sudah tercatat dan sedang menunggu verifikasi admin.');
+      toast.success(t('wallet.topup_already_recorded'));
       setModalType(null);
       setViewingPendingId(null);
       setTopUpStep(1);
@@ -203,7 +207,7 @@ export default function WalletPage() {
     }
 
     if (!user) {
-      toast.error('Silakan login terlebih dahulu');
+      toast.error(t('wallet.login_to_topup'));
       return;
     }
     setLoading(true);
@@ -213,13 +217,13 @@ export default function WalletPage() {
         amount: finalAmount,
       });
       const recordedAmount = created?.amount ? Number(created.amount) : finalAmount;
-      toast.success(`Permintaan Top Up Rp ${recordedAmount.toLocaleString('id-ID')} berhasil. Menunggu verifikasi admin.`);
+      toast.success(t('wallet.topup_created', { amount: formatRupiah(recordedAmount) }));
       setModalType(null);
       setViewingPendingId(null);
       setTopUpStep(1);
       await loadPendingTopUps();
     } catch (err) {
-      toast.error(err.message || 'Gagal membuat permintaan top up');
+      toast.error(t('wallet.topup_create_failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -233,7 +237,7 @@ export default function WalletPage() {
     if (loading) return;
 
     if (!user) {
-      toast.error('Silakan login terlebih dahulu');
+      toast.error(t('wallet.login_to_topup'));
       return;
     }
     setLoading(true);
@@ -247,7 +251,7 @@ export default function WalletPage() {
       // backend's auth middleware expects it everywhere else.
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        throw new Error('Sesi login tidak ditemukan, silakan login ulang');
+        throw new Error(t('auth.session_expired'));
       }
 
       const response = await fetch(`${apiUrl}/api/midtrans/charge`, {
@@ -265,36 +269,36 @@ export default function WalletPage() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Gagal menghubungi server pembayaran');
+      if (!response.ok) throw new Error(data.error || t('wallet.midtrans_gateway_failed'));
 
       // Tampilkan popup Snap Midtrans
       window.snap.pay(data.token, {
         onSuccess: function(result){
-          toast.success('Pembayaran berhasil! Saldo WiraPay akan masuk sebentar lagi.');
+          toast.success(t('wallet.midtrans_success'));
           setModalType(null);
           setTopUpStep(1);
           loadPendingTopUps();
         },
         onPending: function(result){
-          toast.success('Menunggu pembayaran diselesaikan.');
+          toast.success(t('wallet.midtrans_pending'));
           setModalType(null);
           setTopUpStep(1);
           loadPendingTopUps();
         },
         onError: function(result){
-          toast.error('Pembayaran gagal atau dibatalkan.');
+          toast.error(t('wallet.midtrans_error'));
           setModalType(null);
           setTopUpStep(1);
         },
         onClose: function(){
-          toast.error('Anda menutup popup pembayaran.');
+          toast.error(t('wallet.midtrans_closed'));
           setModalType(null);
           setTopUpStep(1);
         }
       });
 
     } catch (err) {
-      toast.error(err.message || 'Gagal memulai pembayaran Midtrans');
+      toast.error(t('wallet.midtrans_start_failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -303,16 +307,16 @@ export default function WalletPage() {
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
     if (!transferPhone || !transferAmount) {
-      toast.error('Mohon isi nomor HP dan nominal transfer');
+      toast.error(t('wallet.transfer_incomplete'));
       return;
     }
     const amt = Number(transferAmount);
     if (amt <= 0) {
-      toast.error('Nominal tidak valid');
+      toast.error(t('wallet.transfer_invalid_amount'));
       return;
     }
     if (amt > balance) {
-      toast.error('Saldo WiraPay Anda tidak mencukupi');
+      toast.error(t('wallet.transfer_insufficient'));
       return;
     }
 
@@ -320,13 +324,13 @@ export default function WalletPage() {
     try {
       await new Promise((r) => setTimeout(r, 800));
       await transfer(amt, transferPhone);
-      toast.success(`Berhasil transfer ${formatRupiah(amt)} ke ${transferPhone}`);
+      toast.success(t('wallet.transfer_success', { amount: formatRupiah(amt), phone: transferPhone }));
       setModalType(null);
       setTransferPhone('');
       setTransferAmount('');
       setTransferNote('');
     } catch (err) {
-      toast.error(err.message || 'Transfer gagal');
+      toast.error(t('wallet.transfer_failed', { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -341,12 +345,12 @@ export default function WalletPage() {
         </div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-            WiraPay Dompet Digital
+            {t('wallet.card_label')}
           </span>
           <Sparkles size={18} className="text-amber-300 animate-pulse" />
         </div>
 
-        <p className="text-sm opacity-90 mb-1">Saldo Tersedia</p>
+        <p className="text-sm opacity-90 mb-1">{t('wallet.available_balance')}</p>
         <p className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
           {formatRupiah(balance)}
         </p>
@@ -362,23 +366,23 @@ export default function WalletPage() {
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
             <ArrowUpRight size={18} className="text-green-300" />
-            <span>Top Up</span>
+            <span>{t('wallet.top_up')}</span>
           </button>
           <button
             onClick={() => setModalType('transfer')}
             className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
             <ArrowDownLeft size={18} className="text-amber-300" />
-            <span>Transfer</span>
+            <span>{t('wallet.transfer')}</span>
           </button>
           <button
             // Dimatikan sementara: pembayaran ini dulu memotong saldo tanpa
             // meneruskannya ke merchant mana pun (tidak ada penerima).
-            onClick={() => toast('Bayar Merchant sedang disiapkan. Segera hadir!', { icon: '🚧' })}
+            onClick={() => toast(t('wallet.merchant_coming_soon'), { icon: '🚧' })}
             className="flex-1 opacity-60 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-3 px-2 rounded-2xl text-xs sm:text-sm font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
           >
             <Building2 size={18} className="text-cyan-200" />
-            <span>Bayar Merchant</span>
+            <span>{t('wallet.pay_merchant')}</span>
           </button>
         </div>
       </div>
@@ -388,9 +392,9 @@ export default function WalletPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <Clock size={16} /> Menunggu Verifikasi Pembayaran ({pendingTopUps.length})
+              <Clock size={16} /> {t('wallet.pending_title', { count: pendingTopUps.length })}
             </h3>
-            <span className="text-[11px] text-slate-400">QRIS Statis</span>
+            <span className="text-[11px] text-slate-400">{t('wallet.pending_badge')}</span>
           </div>
 
           <div className="space-y-2.5">
@@ -410,23 +414,23 @@ export default function WalletPage() {
                         </span>
                       </span>
                       <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold px-2 py-0.5 rounded-full">
-                        Menunggu Admin
+                        {t('wallet.pending_waiting_admin')}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Wajib transfer tepat <strong className="text-amber-700 dark:text-amber-300">{pFormatted.fullFormatted}</strong> (termasuk 3 digit unik).
+                      {t('wallet.pending_instruction', { amount: pFormatted.fullFormatted })}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(p.amount, `Nominal ${pFormatted.fullFormatted}`)}
+                      onClick={() => copyToClipboard(p.amount, t('wallet.copy_label_amount_value', { amount: pFormatted.fullFormatted }))}
                       className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 hover:bg-amber-200 px-2.5 py-1.5 rounded-xl transition"
-                      title="Salin nominal untuk transfer"
+                      title={t('wallet.copy_amount_title')}
                     >
                       <Copy size={13} />
-                      <span>Salin</span>
+                      <span>{t('common.copy')}</span>
                     </button>
                     <button
                       type="button"
@@ -443,17 +447,17 @@ export default function WalletPage() {
                       className="flex items-center gap-1 text-xs font-bold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-xl transition shadow-sm"
                     >
                       <QrCode size={13} />
-                      <span>Lihat QRIS</span>
+                      <span>{t('wallet.view_qris')}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleCancelPending(p.id)}
                       disabled={loading}
                       className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 px-2 py-1.5 rounded-xl transition border border-rose-200/60 dark:border-rose-800/60"
-                      title="Batalkan permintaan top up"
+                      title={t('wallet.cancel_request_title')}
                     >
                       <X size={13} />
-                      <span>Batal</span>
+                      <span>{t('common.cancel')}</span>
                     </button>
                   </div>
                 </div>
@@ -467,18 +471,20 @@ export default function WalletPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-            Riwayat Mutasi WiraPay
+            {t('wallet.history_title')}
           </h3>
-          <span className="text-xs text-slate-500">{transactions.length} transaksi</span>
+          <span className="text-xs text-slate-500">{t('wallet.history_count', { count: transactions.length })}</span>
         </div>
 
         <Card className="divide-y divide-slate-100 dark:divide-slate-800 p-0 overflow-hidden shadow-sm">
           {transactions.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-sm">
-              Belum ada riwayat transaksi
+              {t('wallet.history_empty')}
             </div>
           ) : (
-            transactions.map((trx) => (
+            transactions.map((trx) => {
+              const shown = localizeTransaction({ type: trx.rawType, description: trx.desc }, t);
+              return (
               <div
                 key={trx.id}
                 className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
@@ -495,10 +501,10 @@ export default function WalletPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-sm text-slate-900 dark:text-white leading-tight">
-                      {trx.desc}
+                      {shown.title}
                     </p>
                     <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                      <Clock size={11} /> {trx.date}
+                      <Clock size={11} /> {trx.date}{shown.detail ? ` • ${shown.detail}` : ''}
                     </p>
                   </div>
                 </div>
@@ -514,11 +520,12 @@ export default function WalletPage() {
                     {formatRupiah(trx.amount)}
                   </span>
                   <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">
-                    {trx.status || 'Berhasil'}
+                    {trx.status || t('wallet.transaction_success')}
                   </p>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </Card>
       </div>
@@ -542,16 +549,16 @@ export default function WalletPage() {
               <>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Top Up WiraPay
+                    {t('wallet.topup_title')}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Pilih nominal isi ulang saldo dompet digital Anda
+                    {t('wallet.topup_subtitle')}
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Pilih Nominal Cepat
+                    {t('wallet.quick_amount')}
                   </label>
                   <div className="grid grid-cols-3 gap-2.5">
                     {quickAmounts.map((amt) => (
@@ -572,7 +579,7 @@ export default function WalletPage() {
 
                   <div className="pt-2">
                     <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">
-                      Atau Masukkan Nominal Lain
+                      {t('wallet.other_amount')}
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm">
@@ -582,7 +589,7 @@ export default function WalletPage() {
                         type="number"
                         min="10000"
                         step="1000"
-                        placeholder="Min. 10.000"
+                        placeholder={t('wallet.min_amount_placeholder')}
                         value={baseAmount || ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -595,7 +602,7 @@ export default function WalletPage() {
 
                   <div className="pt-2">
                     <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">
-                      Metode Pembayaran
+                      {t('common.payment_method')}
                     </label>
                     {/* Single QRIS Payment Flow - VA options eliminated */}
                     <div className="p-3.5 rounded-2xl border-2 border-primary bg-primary/5 dark:bg-primary/10 flex items-center justify-between shadow-sm">
@@ -605,13 +612,13 @@ export default function WalletPage() {
                         </div>
                         <div>
                           <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                            Pembayaran via QRIS (Wajib Sesuai Nominal)
+                            {t('wallet.qris_option_title')}
                             <span className="text-[10px] bg-green-500 text-white font-semibold px-2 py-0.5 rounded-full">
-                              Aktif
+                              {t('wallet.qris_option_active')}
                             </span>
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            QRIS Statis • Semua E-Wallet & M-Banking
+                            {t('wallet.qris_option_desc')}
                           </p>
                         </div>
                       </div>
@@ -628,8 +635,8 @@ export default function WalletPage() {
                   disabled={loading || !baseAmount || Number(baseAmount) < 10000}
                 >
                   {loading
-                    ? 'Menyiapkan Kode Unik...'
-                    : `Lanjut ke Pembayaran QRIS (${formatRupiah(Number(baseAmount) || 0)})`}
+                    ? t('wallet.preparing_code')
+                    : t('wallet.continue_to_qris', { amount: formatRupiah(Number(baseAmount) || 0) })}
                 </Button>
               </>
             ) : (
@@ -639,10 +646,10 @@ export default function WalletPage() {
                     <QrCode size={26} />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Pembayaran QRIS Statis
+                    {t('wallet.qris_title')}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Scan barcode di bawah lalu transfer tepat sesuai nominal unik
+                    {t('wallet.qris_subtitle')}
                   </p>
                 </div>
 
@@ -656,23 +663,23 @@ export default function WalletPage() {
                     <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                           Total Tagihan Pembayaran
+                          {t('wallet.bill_total')}
                         </span>
                         <button
                           type="button"
                           onClick={handleCopyNominal}
                           className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-cyan-700 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition shrink-0"
-                          title="Salin Nominal Pembayaran"
+                          title={t('wallet.copy_amount_title')}
                         >
                           {copiedNominal ? (
                             <>
                               <Check size={13} className="text-green-600" />
-                              <span className="text-green-600 font-bold">Tersalin!</span>
+                              <span className="text-green-600 font-bold">{t('common.copied')}</span>
                             </>
                           ) : (
                             <>
                               <Copy size={13} />
-                              <span>Salin Nominal</span>
+                              <span>{t('wallet.copy_amount')}</span>
                             </>
                           )}
                         </button>
@@ -687,10 +694,7 @@ export default function WalletPage() {
                           </span>
                         </p>
                         <p className="text-[11px] text-slate-500 mt-1">
-                          Nominal Pokok: Rp {Number(baseAmount).toLocaleString('id-ID')} + Kode Unik:{' '}
-                          <span className="font-bold text-amber-600 dark:text-amber-400">
-                            +{uniqueCode}
-                          </span>
+                          {t('wallet.amount_breakdown', { base: formatRupiah(Number(baseAmount)), code: `+${uniqueCode}` })}
                         </p>
                       </div>
 
@@ -698,7 +702,7 @@ export default function WalletPage() {
                       {viewingPendingId && (
                         <div className="text-center text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/50 py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-700 flex items-center justify-center gap-1.5">
                           <Clock size={14} className="shrink-0" />
-                          <span>Status: Menunggu verifikasi admin untuk transfer ini</span>
+                          <span>{t('wallet.pending_status_note')}</span>
                         </div>
                       )}
 
@@ -707,10 +711,10 @@ export default function WalletPage() {
                         <AlertTriangle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                         <div className="space-y-1">
                           <p className="font-bold">
-                            PENTING: Wajib transfer tepat hingga 3 digit terakhir ({formatted.uniqueDigits})!
+                            {t('wallet.warning_title', { digits: formatted.uniqueDigits })}
                           </p>
                           <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                            Jangan bulatkan nominal. 3 digit terakhir adalah kode verifikasi otomatis admin. Seluruh nominal akan masuk 100% ke saldo WiraPay Anda.
+                            {t('wallet.warning_body')}
                           </p>
                         </div>
                       </div>
@@ -718,16 +722,16 @@ export default function WalletPage() {
                       {/* Step-by-Step Instructions */}
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pt-1">
                         <p className="font-semibold text-slate-700 dark:text-slate-300">
-                          Panduan Transfer:
+                          {t('wallet.guide_title')}
                         </p>
                         <ol className="list-decimal list-inside space-y-0.5 pl-1">
-                          <li>Buka aplikasi pembayaran (DANA, BCA, Mandiri, GoPay, OVO, ShopeePay, dll).</li>
-                          <li>Scan QRIS di atas.</li>
-                          <li>Masukkan nominal transfer PERSIS: <strong>Rp {finalAmount.toLocaleString('id-ID')}</strong>.</li>
-                          <li>Setelah pembayaran selesai, tekan tombol konfirmasi di bawah.</li>
+                          <li>{t('wallet.guide_step_1')}</li>
+                          <li>{t('wallet.guide_step_2')}</li>
+                          <li>{t('wallet.guide_step_3', { amount: formatRupiah(finalAmount) })}</li>
+                          <li>{t('wallet.guide_step_4')}</li>
                         </ol>
                         <p className="text-amber-700 dark:text-amber-300">
-                          Pembayaran dalam 2 jam diverifikasi otomatis. Lewat dari itu, admin memverifikasi manual hingga 24 jam; setelahnya permintaan kedaluwarsa. Hubungi CS jika sudah membayar tapi saldo belum masuk.
+                          {t('wallet.guide_note')}
                         </p>
                       </div>
                     </div>
@@ -743,14 +747,14 @@ export default function WalletPage() {
                       setTopUpStep(1);
                     }}
                   >
-                    {viewingPendingId ? 'Top Up Baru' : 'Ubah Nominal'}
+                    {viewingPendingId ? t('wallet.new_topup') : t('wallet.change_amount')}
                   </Button>
                   <Button
                     className="flex-1 font-bold shadow-lg shadow-primary/20"
                     onClick={handleTopUpConfirm}
                     disabled={loading}
                   >
-                    {loading ? 'Memproses...' : viewingPendingId ? 'Tutup (Sudah Transfer)' : 'Saya Sudah Transfer'}
+                    {loading ? t('common.processing') : viewingPendingId ? t('wallet.close_paid') : t('wallet.i_have_paid')}
                   </Button>
                 </div>
 
@@ -762,7 +766,7 @@ export default function WalletPage() {
                     className="w-full text-center text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition flex items-center justify-center gap-1 border border-dashed border-rose-200 dark:border-rose-900/50"
                   >
                     <X size={14} />
-                    <span>Batalkan Permintaan Top Up Ini</span>
+                    <span>{t('wallet.cancel_this_request')}</span>
                   </button>
                 )}
               </>
@@ -784,23 +788,23 @@ export default function WalletPage() {
 
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Transfer WiraPay
+                {t('wallet.transfer_title')}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Kirim saldo ke sesama pengguna Wira secara instan dan bebas biaya admin
+                {t('wallet.transfer_subtitle')}
               </p>
             </div>
 
             <form onSubmit={handleTransferSubmit} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  Nomor HP Penerima (WhatsApp)
+                  {t('wallet.recipient_label')}
                 </label>
                 <div className="relative">
                   <PhoneCall size={16} className="absolute left-3 top-3.5 text-slate-400" />
                   <input
                     type="tel"
-                    placeholder="Contoh: 081234567890"
+                    placeholder={t('wallet.recipient_placeholder')}
                     value={transferPhone}
                     onChange={(e) => setTransferPhone(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:outline-none font-medium"
@@ -812,10 +816,10 @@ export default function WalletPage() {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Nominal Transfer
+                    {t('wallet.transfer_amount_label')}
                   </label>
                   <span className="text-[11px] text-slate-500">
-                    Saldo: {formatRupiah(balance)}
+                    {t('common.balance_with_amount', { amount: formatRupiah(balance) })}
                   </span>
                 </div>
                 <div className="relative">
@@ -826,7 +830,7 @@ export default function WalletPage() {
                     type="number"
                     min="5000"
                     max={balance}
-                    placeholder="Minimal Rp 5.000"
+                    placeholder={t('wallet.transfer_amount_placeholder')}
                     value={transferAmount}
                     onChange={(e) => setTransferAmount(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-base font-bold focus:ring-2 focus:ring-primary focus:outline-none"
@@ -837,11 +841,11 @@ export default function WalletPage() {
 
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                  Catatan (Opsional)
+                  {t('wallet.transfer_note_label')}
                 </label>
                 <input
                   type="text"
-                  placeholder="Untuk bayar makan / patungan..."
+                  placeholder={t('wallet.transfer_note_placeholder')}
                   value={transferNote}
                   onChange={(e) => setTransferNote(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-white text-xs focus:ring-2 focus:ring-primary focus:outline-none"
@@ -855,14 +859,14 @@ export default function WalletPage() {
                   className="flex-1"
                   onClick={() => setModalType(null)}
                 >
-                  Batal
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   className="flex-1 font-bold"
                   disabled={loading || balance < Number(transferAmount)}
                 >
-                  {loading ? 'Mengirim...' : 'Kirim Sekarang'}
+                  {loading ? t('common.sending') : t('wallet.transfer_send')}
                 </Button>
               </div>
             </form>

@@ -5,10 +5,12 @@ import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../i18n';
 
 export default function NotificationsPage() {
   const { notifications: notifs, setNotifications } = useNotification();
   const { user } = useAuth();
+  const { t, lang } = useTranslation();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function NotificationsPage() {
     if (!user) return;
     const hasUnread = notifs.some(n => !n.is_read);
     if (!hasUnread) {
-      toast.success("Semua notifikasi sudah dibaca");
+      toast.success(t('notifications.all_read_already'));
       return;
     }
 
@@ -37,30 +39,30 @@ export default function NotificationsPage() {
       .select();
 
     if (error) {
-      toast.error("Gagal menandai dibaca: " + error.message);
+      toast.error(t('notifications.mark_all_failed', { message: error.message }));
     } else if (!data || data.length === 0) {
-      toast.error("Gagal menandai dibaca (Akses Ditolak)");
+      toast.error(t('notifications.mark_all_denied'));
     } else {
       setNotifications(notifs.map(n => ({ ...n, is_read: true })));
-      toast.success("Semua notifikasi ditandai dibaca");
+      toast.success(t('notifications.mark_all_success'));
     }
   };
 
   if (loading) {
-    return <div className="p-10 text-center animate-pulse">Memuat notifikasi...</div>;
+    return <div className="p-10 text-center animate-pulse">{t('notifications.loading')}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold dark:text-white">Notifikasi</h2>
-        <button className="text-sm text-primary" onClick={handleMarkAllRead}>Tandai semua dibaca</button>
+        <h2 className="text-xl font-bold dark:text-white">{t('notifications.title')}</h2>
+        <button className="text-sm text-primary" onClick={handleMarkAllRead}>{t('notifications.mark_all_read')}</button>
       </div>
       <div className="space-y-3">
         {notifs.length === 0 ? (
           <div className="text-center py-12">
             <Bell className="mx-auto text-slate-300 mb-3" size={40} />
-            <p className="text-slate-500 font-medium">Belum ada notifikasi baru</p>
+            <p className="text-slate-500 font-medium">{t('notifications.empty')}</p>
           </div>
         ) : (
           notifs.map(n => (
@@ -69,7 +71,7 @@ export default function NotificationsPage() {
               <div>
                 <h3 className={`font-semibold ${n.is_read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</h3>
                 <p className="text-sm text-slate-500 mt-1">{n.description}</p>
-                <p className="text-xs text-slate-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
+                <p className="text-xs text-slate-400 mt-2">{new Date(n.created_at).toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID')}</p>
               </div>
             </Card>
           ))
