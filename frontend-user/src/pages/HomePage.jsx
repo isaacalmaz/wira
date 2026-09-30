@@ -102,6 +102,25 @@ export default function HomePage() {
   }, [globalFlags]);
 
   const recentOrders = orders.slice(0, 3);
+
+  // Customer's own order (localStorage), unknown ids last. Services an admin
+  // switched off are not shown at all, in the grid or in "Arrange".
+  const orderIndex = (id) => (serviceOrder.indexOf(id) !== -1 ? serviceOrder.indexOf(id) : 999);
+  const orderedServices = activeServices.slice().sort((a, b) => orderIndex(a.id) - orderIndex(b.id));
+  const availableServices = orderedServices.filter((s) => s.enabled);
+  const moveService = (id, neighborId) => {
+    const order = orderedServices.map((s) => s.id);
+    const i = order.indexOf(id);
+    const j = order.indexOf(neighborId);
+    if (i === -1 || j === -1) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    setServiceOrder(order);
+    try {
+      localStorage.setItem('serviceOrder', JSON.stringify(order));
+    } catch (e) {
+      console.error('Failed to save service order to local storage', e);
+    }
+  };
   const hour = new Date().getHours();
   const greetingKey = hour < 11 ? 'home.greeting_morning' : hour < 15 ? 'home.greeting_afternoon' : hour < 18 ? 'home.greeting_evening' : 'home.greeting_night';
   const displayName = user?.user_metadata?.name || user?.name || t('nav.guest_name');
@@ -160,13 +179,7 @@ export default function HomePage() {
 
         {/* Grid Layanan Utama */}
         <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 sm:gap-x-4">
-          {activeServices
-          .slice()
-          .sort((a, b) => {
-            const indexA = serviceOrder.indexOf(a.id) !== -1 ? serviceOrder.indexOf(a.id) : 999;
-            const indexB = serviceOrder.indexOf(b.id) !== -1 ? serviceOrder.indexOf(b.id) : 999;
-            return indexA - indexB;
-          })
+          {availableServices
           .filter(s => !hiddenServices.includes(s.id))
           .map((service) => {
             const IconComponent = service.icon;
@@ -174,19 +187,15 @@ export default function HomePage() {
             return (
               <Link
                 key={service.id}
-                to={service.enabled ? service.path : '#'}
-                aria-disabled={!service.enabled || undefined}
-                className={cx('group flex min-w-0 flex-col items-center gap-1.5', !service.enabled && 'cursor-not-allowed opacity-45')}
-                onClick={(e) => { if(!service.enabled) e.preventDefault(); }}
+                to={service.path}
+                className="group flex min-w-0 flex-col items-center gap-1.5"
               >
                 <span
                   className={cx(
                     'flex h-14 w-full items-center justify-center rounded-tile border transition-colors sm:h-16',
-                    !service.enabled
-                      ? 'border-line bg-sunken text-ink-muted'
-                      : isPay
-                        ? 'border-pay-line bg-pay-soft text-pay-ink group-hover:border-pay'
-                        : 'border-brand-line bg-brand-soft text-brand-ink group-hover:border-brand',
+                    isPay
+                      ? 'border-pay-line bg-pay-soft text-pay-ink group-hover:border-pay'
+                      : 'border-brand-line bg-brand-soft text-brand-ink group-hover:border-brand',
                   )}
                 >
                   {IconComponent ? (
@@ -257,44 +266,12 @@ export default function HomePage() {
         )}
       >
         <Card padding="none" className="divide-y divide-line overflow-hidden">
-          {activeServices
-          .slice()
-          .sort((a, b) => {
-            const indexA = serviceOrder.indexOf(a.id) !== -1 ? serviceOrder.indexOf(a.id) : 999;
-            const indexB = serviceOrder.indexOf(b.id) !== -1 ? serviceOrder.indexOf(b.id) : 999;
-            return indexA - indexB;
-          })
+          {availableServices
           .map((service, index, array) => {
                 const isHidden = hiddenServices.includes(service.id);
                 
-                const moveUp = () => {
-                  if (index === 0) return;
-                  const newOrder = [...serviceOrder];
-                  // Ensure all items are in serviceOrder
-                  const currentIds = array.map(s => s.id);
-                  const completeOrder = newOrder.length === currentIds.length ? newOrder : currentIds;
-                  
-                  const temp = completeOrder[index - 1];
-                  completeOrder[index - 1] = completeOrder[index];
-                  completeOrder[index] = temp;
-                  
-                  setServiceOrder(completeOrder);
-                  localStorage.setItem('serviceOrder', JSON.stringify(completeOrder));
-                };
-
-                const moveDown = () => {
-                  if (index === array.length - 1) return;
-                  const newOrder = [...serviceOrder];
-                  const currentIds = array.map(s => s.id);
-                  const completeOrder = newOrder.length === currentIds.length ? newOrder : currentIds;
-                  
-                  const temp = completeOrder[index + 1];
-                  completeOrder[index + 1] = completeOrder[index];
-                  completeOrder[index] = temp;
-                  
-                  setServiceOrder(completeOrder);
-                  localStorage.setItem('serviceOrder', JSON.stringify(completeOrder));
-                };
+                const moveUp = () => { if (index > 0) moveService(service.id, array[index - 1].id); };
+                const moveDown = () => { if (index < array.length - 1) moveService(service.id, array[index + 1].id); };
 
                 const isPay = service.id === 'wira_pay';
                 const stepBtn = 'inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-[10px] text-ink-muted transition-colors hover:bg-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
