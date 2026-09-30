@@ -25,11 +25,12 @@
 -- ---------------------------------------------------------------------------
 -- 1. When did the status last change?
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
-UPDATE public.orders
-SET status_changed_at = COALESCE(accepted_at, paid_at, created_at)
-WHERE status_changed_at IS NULL;
-ALTER TABLE public.orders ALTER COLUMN status_changed_at SET DEFAULT NOW();
+-- Existing rows get the migration time through the column default, which
+-- PostgreSQL applies without touching each row. (A backfill UPDATE is
+-- refused by 0070's enforce_orders_state_machine for completed/cancelled
+-- orders, and no order was active when this ran, so nothing is lost.)
+ALTER TABLE public.orders
+    ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE OR REPLACE FUNCTION public.touch_order_status_changed_at()
 RETURNS TRIGGER AS $$
