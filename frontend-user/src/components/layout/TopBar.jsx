@@ -4,6 +4,7 @@ import { useTranslation } from '../../i18n';
 import { useTheme } from '../../context/ThemeContext';
 import { APP_CONFIG } from '../../config/app';
 import { useNotification } from '../../context/NotificationContext';
+import WiraMark from '../brand/WiraMark';
 
 export default function TopBar() {
   const { t, lang, toggleLang } = useTranslation();
@@ -13,7 +14,7 @@ export default function TopBar() {
   return (
     <header className="h-16 flex items-center justify-between px-4 bg-white dark:bg-slate-800 shadow-sm z-10">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">W</div>
+        <WiraMark size={32} />
         <h1 className="text-xl font-bold text-primary dark:text-primary-light">{APP_CONFIG.name}</h1>
       </div>
 

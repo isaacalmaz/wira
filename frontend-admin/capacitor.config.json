@@ -1,5 +1,14 @@
 {
   "appId": "com.wira.admin",
-  "appName": "WiraAdmin",
-  "webDir": "dist"
+  "appName": "Wira Admin",
+  "webDir": "dist",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_wira",
+      "iconColor": "#21201D"
+    },
+    "SplashScreen": {
+      "backgroundColor": "#21201D"
+    }
+  }
 }

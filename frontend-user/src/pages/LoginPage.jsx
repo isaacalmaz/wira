@@ -5,6 +5,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+import WiraMark from '../components/brand/WiraMark';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -35,7 +36,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-primary-dark via-primary to-primary-light flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8 bg-white/95 backdrop-blur">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-2xl mx-auto flex items-center justify-center text-3xl text-white font-bold mb-4 shadow-lg">W</div>
+          <WiraMark size={64} title="Wira" className="block mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-slate-800">{t('auth.login_title')}</h1>
           <p className="text-slate-500 text-sm mt-1">{t('auth.login_subtitle')}</p>
         </div>

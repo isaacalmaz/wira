@@ -17,6 +17,7 @@ import {
   Tag
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
+import WiraMark from '../brand/WiraMark';
 
 const AdminSidebar = ({ isCollapsed }) => {
   const location = useLocation();
@@ -74,7 +75,7 @@ const AdminSidebar = ({ isCollapsed }) => {
       {/* Logo Area */}
       <div className="h-16 flex items-center justify-center border-b border-slate-200 dark:border-slate-800 shrink-0">
         <div className="flex items-center gap-2 text-primary font-bold text-2xl">
-          <span className="bg-primary text-white p-1 rounded-lg">W</span>
+          <WiraMark size={32} className="shrink-0" />
           {!isCollapsed && <span>Wira Admin</span>}
         </div>
       </div>

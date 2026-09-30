@@ -1,6 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench } from 'lucide-react';
+import WiraMark from '../brand/WiraMark';
 
 // The underlying mitra_access value for the restaurant portal is still the
 // literal string 'merchant' (kept as-is so existing accounts/routes don't
@@ -67,7 +68,10 @@ const MitraLayout = ({ children }) => {
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 shadow-lg h-screen sticky top-0">
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
+          <div className="flex items-center gap-2.5">
+            <WiraMark size={32} />
+            <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
+          </div>
           <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
             {ActiveRoleIcon && <ActiveRoleIcon size={14} />}
             {ROLE_DISPLAY_LABEL[activeRole] || activeRole}

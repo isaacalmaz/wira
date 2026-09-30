@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Car, Store, Home, Wrench } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import WiraMark from '../components/brand/WiraMark';
 
 // Single source of truth for the 4 mitra portals - label, icon, and the
 // active/button color per role, so adding a role later only means adding
@@ -68,9 +69,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md mx-auto">
 
           <div className="text-center mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-              <span className="text-3xl font-black text-primary tracking-tighter">W</span>
-            </div>
+            <WiraMark size={64} title="Wira Mitra" className="block mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight mb-2">
               Wira Mitra
             </h1>

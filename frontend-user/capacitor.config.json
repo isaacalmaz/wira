@@ -1,8 +1,17 @@
 {
   "appId": "com.wira.user",
-  "appName": "Wira User",
+  "appName": "Wira",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_wira",
+      "iconColor": "#0B4F5E"
+    },
+    "SplashScreen": {
+      "backgroundColor": "#0B4F5E"
+    }
   }
 }
