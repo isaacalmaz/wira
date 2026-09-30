@@ -345,10 +345,11 @@ export default function ServicePage() {
       </div>
 
       {/* Daftar Teknisi Rekomendasi */}
+      {technicians.length > 0 && (
       <section>
         <SectionHeader title={t('service.recommended')} />
         {technicians.length === 0 ? (
-          <EmptyState icon={<Wrench size={22} />} title={t('service.empty')} />
+          null
         ) : (
           <Card padding="none" className="divide-y divide-line overflow-hidden">
             {technicians.map((tech) => {
@@ -388,6 +389,7 @@ export default function ServicePage() {
           </Card>
         )}
       </section>
+      )}
 
       {/* SHEET BOOKING TEKNISI */}
       <Sheet

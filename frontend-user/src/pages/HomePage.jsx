@@ -2,13 +2,13 @@ import { useTranslation } from '../i18n';
 import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { Link } from 'react-router-dom';
-import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package, Clock } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
-import { Badge, Button, Card, EmptyState, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
+import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
 
 // Order status -> Badge tone (DESIGN.md §5): searching/pending = warning,
 // active = brand, completed = success, cancelled = danger.
@@ -170,9 +170,11 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setIsMenuModalOpen(true)}
-              className="-my-2 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2.5 hover:bg-brand-soft"
+              aria-label={t('home.arrange_menu')}
+              title={t('home.arrange_menu')}
+              className="-my-2 -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-control hover:bg-brand-soft"
             >
-              <Settings2 size={15} aria-hidden="true" /> {t('home.arrange_menu')}
+              <Settings2 size={18} aria-hidden="true" />
             </button>
           )}
         />
@@ -214,6 +216,7 @@ export default function HomePage() {
       </section>
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
+      {recentOrders.length > 0 && (
       <section>
         <SectionHeader
           title={t('home.recent')}
@@ -221,7 +224,7 @@ export default function HomePage() {
         />
 
         {recentOrders.length === 0 ? (
-          <EmptyState icon={<Clock size={22} />} title={t('home.recent_empty')} className="py-8" />
+          null
         ) : (
           <div className="flex flex-col gap-2">
             {recentOrders.map((ord) => {
@@ -251,6 +254,7 @@ export default function HomePage() {
           </div>
         )}
       </section>
+      )}
 
       {/* Menu Customization Sheet */}
       <Sheet
