@@ -3,36 +3,174 @@
 @tailwind utilities;
 
 /* =========================================
-   🎨 STYLE DASAR WIRA MITRA DASHBOARD
+   Tenun Laut: theme tokens (RGB triplets, used via tailwind.config.js)
    ========================================= */
+@layer base {
+  :root {
+    --ground: 247 246 243;      /* #F7F6F3 */
+    --card: 255 255 255;
+    --sunken: 239 237 232;      /* #EFEDE8 */
+    --line: 228 225 218;        /* #E4E1DA */
+    --line-strong: 214 210 201; /* #D6D2C9 */
+    --ink: 33 32 29;            /* #21201D */
+    --muted: 107 104 98;        /* #6B6862 */
+    --ink-inverse: 255 255 255;
 
-body {
-  @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --brand: 11 79 94;          /* Laut 700 */
+    --brand-hover: 6 47 60;     /* Laut 900 */
+    --brand-ink: 11 79 94;
+    --brand-soft: 230 239 241;
+    --brand-line: 211 226 229;
+
+    --pay: 168 121 31;          /* Emas 600: money & WiraPay only */
+    --pay-ink: 138 99 24;
+    --pay-soft: 245 238 221;
+    --pay-line: 234 221 194;
+
+    --danger: 168 58 48;        /* Bara 600 */
+    --danger-ink: 122 47 39;
+    --danger-soft: 251 241 239;
+    --danger-line: 240 217 213;
+
+    --success: 30 107 79;
+    --success-ink: 22 84 62;
+    --success-soft: 228 241 234;
+    --success-line: 200 226 212;
+
+    --warning: 154 91 11;
+    --warning-ink: 122 72 9;
+    --warning-soft: 251 240 220;
+    --warning-line: 239 220 180;
+
+    --tenun-a: 168 121 31;
+    --tenun-b: 22 120 140;
+    color-scheme: light;
+  }
+
+  .dark {
+    --ground: 12 22 26;         /* #0C161A */
+    --card: 20 35 40;           /* #142328 */
+    --sunken: 8 16 19;
+    --line: 34 54 60;           /* #22363C */
+    --line-strong: 50 74 81;
+    --ink: 236 234 229;
+    --muted: 154 167 170;
+    --ink-inverse: 255 255 255;
+
+    --brand: 22 120 140;        /* Laut 500: keeps white text legible */
+    --brand-hover: 15 98 115;
+    --brand-ink: 127 196 210;   /* Laut 300 for text/links on dark */
+    --brand-soft: 16 52 60;
+    --brand-line: 28 76 86;
+
+    --pay: 196 145 47;
+    --pay-ink: 226 186 110;
+    --pay-soft: 50 40 19;
+    --pay-line: 84 66 30;
+
+    --danger: 196 82 74;
+    --danger-ink: 240 164 154;
+    --danger-soft: 56 26 23;
+    --danger-line: 92 42 37;
+
+    --success: 46 140 103;
+    --success-ink: 140 210 175;
+    --success-soft: 18 50 38;
+    --success-line: 30 78 60;
+
+    --warning: 196 128 36;
+    --warning-ink: 240 200 130;
+    --warning-soft: 56 40 16;
+    --warning-line: 90 64 26;
+
+    --tenun-a: 196 145 47;
+    --tenun-b: 63 163 181;
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-ground text-ink font-sans antialiased transition-colors duration-200;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* A photo that fails to load shows the tile behind it, not its alt text */
+  img {
+    font-size: 0;
+    color: transparent;
+  }
+
+  /* Numbers that line up: money, codes, times */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--brand-ink));
+    outline-offset: 2px;
+  }
 }
 
-/* Padding aman untuk notch/home-indicator di layar HP asli (dipakai bottom
-   nav di MitraLayout.jsx) - bukan utility bawaan Tailwind, harus didefinisikan
-   manual. Fallback 0 di browser yang tidak mendukung env(). */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+@layer components {
+  /* Legacy helpers kept for any remaining callers */
+  .card {
+    @apply bg-card rounded-card border border-line p-6;
+  }
+  .input-field {
+    @apply w-full rounded-control border-line-strong bg-card text-ink focus:ring-brand/20 focus:border-brand;
+  }
+  .btn-primary {
+    @apply bg-brand hover:bg-brand-hover text-white font-semibold py-2 px-4 rounded-control transition-colors;
+  }
 }
 
-/* Scrollbar kustom */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-600 rounded-full;
+@layer utilities {
+  /* The woven diagonal band: Tenun Laut's one signature ornament.
+     Use sparingly (wallet card top edge, section heads), never as a fill. */
+  .tenun-band {
+    background-image:
+      repeating-linear-gradient(135deg, rgb(var(--tenun-a)) 0 2px, transparent 2px 11px),
+      repeating-linear-gradient(45deg, rgb(var(--tenun-b)) 0 2px, transparent 2px 11px);
+  }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
 }
 
-/* Transisi smooth untuk dark mode */
-* {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+/* Leaflet in dark mode */
+.dark .leaflet-layer,
+.dark .leaflet-control-zoom-in,
+.dark .leaflet-control-zoom-out,
+.dark .leaflet-control-attribution {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
 
-/* Leaflet map overrides */
 .leaflet-container {
-  @apply rounded-xl;
+  @apply rounded-card;
   z-index: 0;
+  font-family: inherit;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  .data-table { @apply w-full text-left text-[13.5px]; border-collapse: separate; border-spacing: 0; }
+  .data-table thead th { @apply whitespace-nowrap border-b border-line bg-sunken/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted; }
+  .data-table tbody td { @apply border-b border-line px-4 py-3 align-middle text-ink; }
+  .data-table tbody tr:last-child td { @apply border-b-0; }
+  .data-table tbody tr:hover td { @apply bg-sunken/40; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--line-strong)); border-radius: 9999px; }

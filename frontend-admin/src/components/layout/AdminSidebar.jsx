@@ -1,27 +1,63 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  ToggleLeft, 
-  Users, 
-  ShoppingBag, 
-  Car, 
-  Store, 
-  Wrench, 
-  Home, 
+import {
+  LayoutDashboard,
+  ToggleLeft,
+  Users,
+  ShoppingBag,
+  Car,
+  Store,
+  Wrench,
+  Home,
   Wallet,
   Ticket,
   MessageCircle, MessageSquare,
   Settings,
-  Tag
+  Tag,
+  LogOut,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import WiraMark from '../brand/WiraMark';
+import { Badge, cx } from '../ui';
+import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEATURE_FLAG_ROLES } from '../../config/roles';
+
+// Daftar menu sesuai dengan instruksi. Names, paths and role sets are the
+// source of truth for navigation; `group` only decides the visual section.
+// Each item's roles are the same set its route in App.jsx allows.
+export const MENU_ITEMS = [
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ADMIN_ROLES, group: 'ringkasan' },
+  { name: 'Feature Flags', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
+  { name: 'Users', icon: Users, path: '/users', roles: CS_ADMIN_ROLES, group: 'operasional' },
+  { name: 'Orders', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
+  { name: 'Drivers', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
+  { name: 'Merchants', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
+  { name: 'Technicians', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
+  { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: CS_ADMIN_ROLES, group: 'layanan' },
+  { name: 'Pusat Bantuan', icon: MessageSquare, path: '/support', roles: CS_ADMIN_ROLES, group: 'layanan' },
+  { name: 'Settings', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
+];
+
+const GROUPS = [
+  { key: 'ringkasan', label: 'Ringkasan' },
+  { key: 'operasional', label: 'Operasional' },
+  { key: 'mitra', label: 'Mitra' },
+  { key: 'bisnis', label: 'Bisnis & Keuangan' },
+  { key: 'layanan', label: 'Layanan Pelanggan' },
+  { key: 'sistem', label: 'Sistem' },
+];
+
+const initialsOf = (name = '') =>
+  name.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'A';
 
 const AdminSidebar = ({ isCollapsed }) => {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [pendingCounts, setPendingCounts] = useState({ driver: 0, merchant: 0, technician: 0 });
 
   const fetchPendingCounts = async () => {
@@ -49,79 +85,140 @@ const AdminSidebar = ({ isCollapsed }) => {
     return subscribeToApplications('realtime-sidebar-counts', fetchPendingCounts);
   }, []);
 
-  // Daftar menu sesuai dengan instruksi
-  const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['Superadmin', 'Admin Ops', 'Admin Keuangan', 'CS'] },
-    { name: 'Feature Flags', icon: ToggleLeft, path: '/features', roles: ['Superadmin'] },
-    { name: 'Users', icon: Users, path: '/users', roles: ['Superadmin', 'Admin Ops', 'CS'] },
-    { name: 'Orders', icon: ShoppingBag, path: '/orders', roles: ['Superadmin', 'Admin Ops', 'CS'] },
-    { name: 'Drivers', icon: Car, path: '/drivers', roles: ['Superadmin', 'Admin Ops'], countKey: 'driver' },
-    { name: 'Merchants', icon: Store, path: '/merchants', roles: ['Superadmin', 'Admin Ops'], countKey: 'merchant' },
-    { name: 'Technicians', icon: Wrench, path: '/technicians', roles: ['Superadmin', 'Admin Ops'], countKey: 'technician' },
-    { name: 'Villas', icon: Home, path: '/villas', roles: ['Superadmin', 'Admin Ops'] },
-    { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: ['Superadmin', 'Admin Ops'] },
-    { name: 'Keuangan', icon: Wallet, path: '/finance', roles: ['Superadmin', 'Admin Keuangan'] },
-    { name: 'Promo', icon: Ticket, path: '/promos', roles: ['Superadmin', 'Admin Ops'] },
-    { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: ['Superadmin', 'CS'] },
-    { name: 'Pusat Bantuan', icon: MessageSquare, path: '/support', roles: ['Superadmin', 'CS'] },
-    { name: 'Settings', icon: Settings, path: '/settings', roles: ['Superadmin'] },
-  ];
-
   // Filter menu berdasarkan role pengguna
-  const filteredMenu = menuItems.filter(item => item.roles.includes(user?.role));
+  const filteredMenu = MENU_ITEMS.filter(item => item.roles.includes(user?.role));
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const renderItem = (item) => {
+    const Icon = item.icon;
+    const isNestedInAdmin = location.pathname.startsWith('/admin');
+    const fullPath = isNestedInAdmin ? `/admin${item.path}` : item.path;
+    const isActive = isNestedInAdmin
+      ? location.pathname === fullPath || (item.path !== '/' && location.pathname.startsWith(fullPath))
+      : location.pathname.startsWith(item.path);
+    const badgeCount = item.countKey ? pendingCounts[item.countKey] : 0;
+
+    return (
+      <Link
+        key={item.name}
+        to={fullPath}
+        aria-current={isActive ? 'page' : undefined}
+        className={cx(
+          'relative flex min-h-10 items-center gap-3 rounded-[10px] text-[13.5px] transition-colors',
+          isCollapsed ? 'justify-center px-0' : 'px-3',
+          isActive
+            ? 'bg-brand-soft text-brand-ink font-bold'
+            : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink',
+        )}
+        title={isCollapsed ? `${item.name}${badgeCount > 0 ? ` (${badgeCount} menunggu)` : ''}` : undefined}
+      >
+        <span className="relative inline-flex shrink-0">
+          <Icon size={19} />
+          {isCollapsed && badgeCount > 0 && (
+            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-warning" aria-hidden="true" />
+          )}
+        </span>
+        {!isCollapsed && (
+          <>
+            <span className="min-w-0 flex-1 truncate">{item.name}</span>
+            {badgeCount > 0 && (
+              <Badge tone="warning" className="font-mono !px-2">{badgeCount}</Badge>
+            )}
+          </>
+        )}
+      </Link>
+    );
+  };
+
+  const userName = user?.name || 'Administrator';
 
   return (
-    <aside className={`fixed top-0 left-0 z-50 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'} flex flex-col h-screen shadow-sm`}>
-      {/* Logo Area */}
-      <div className="h-16 flex items-center justify-center border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="flex items-center gap-2 text-primary font-bold text-2xl">
+    <aside
+      className={cx(
+        'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-line bg-card transition-[width] duration-300',
+        isCollapsed ? 'w-20' : 'w-64',
+      )}
+    >
+      {/* Logo lockup */}
+      <div className={cx('flex h-16 shrink-0 items-center border-b border-line', isCollapsed ? 'justify-center' : 'px-5')}>
+        <Link to="/dashboard" className="flex items-center gap-2.5" aria-label="Wira Admin">
           <WiraMark size={32} className="shrink-0" />
-          {!isCollapsed && <span>Wira Admin</span>}
-        </div>
+          {!isCollapsed && (
+            <span className="flex items-baseline gap-1.5 leading-none">
+              <span className="text-[22px] font-extrabold tracking-[-0.035em] text-ink">wira</span>
+              <span className="text-[15px] font-medium tracking-tight text-ink-muted">admin</span>
+            </span>
+          )}
+        </Link>
       </div>
 
       {/* Navigasi */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {filteredMenu.map((item) => {
-          const Icon = item.icon;
-          const isNestedInAdmin = location.pathname.startsWith('/admin');
-          const fullPath = isNestedInAdmin ? `/admin${item.path}` : item.path;
-          const isActive = isNestedInAdmin 
-            ? location.pathname === fullPath || (item.path !== '/' && location.pathname.startsWith(fullPath))
-            : location.pathname.startsWith(item.path);
-          const badgeCount = item.countKey ? pendingCounts[item.countKey] : 0;
-
+      <nav className="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+        {GROUPS
+          .map((group) => ({ ...group, items: filteredMenu.filter((item) => item.group === group.key) }))
+          .filter((group) => group.items.length > 0)
+          .map((group, index) => {
+          const { items } = group;
           return (
-            <Link
-              key={item.name}
-              to={fullPath}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative ${
-                isActive 
-                  ? 'bg-primary/10 text-primary dark:bg-primary/20 font-semibold' 
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-              title={isCollapsed ? `${item.name}${badgeCount > 0 ? ` (${badgeCount} menunggu)` : ''}` : ''}
-            >
-              <div className="relative">
-                <Icon size={20} className={isActive ? 'text-primary' : ''} />
-                {isCollapsed && badgeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-                )}
-              </div>
-              {!isCollapsed && (
-                <>
-                  <span className="font-medium text-sm">{item.name}</span>
-                  {badgeCount > 0 && (
-                    <span className="ml-auto bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
-                      {badgeCount}
-                    </span>
-                  )}
-                </>
+            <div key={group.key} className="flex flex-col gap-0.5">
+              {isCollapsed ? (
+                index > 0 && <span className="mx-3 mb-1 h-px bg-line" aria-hidden="true" />
+              ) : (
+                <span className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted/80">
+                  {group.label}
+                </span>
               )}
-            </Link>
+              {items.map(renderItem)}
+            </div>
           );
         })}
       </nav>
+
+      {/* User + logout */}
+      <div className={cx('shrink-0 border-t border-line p-3', isCollapsed && 'flex flex-col items-center gap-2')}>
+        {isCollapsed ? (
+          <>
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-[12px] font-bold text-brand-ink"
+              title={`${userName} · ${user?.role || ''}`}
+            >
+              {initialsOf(userName)}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Keluar Sistem"
+              aria-label="Keluar Sistem"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-danger-ink hover:bg-danger-soft"
+            >
+              <LogOut size={18} />
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center gap-3 rounded-control px-2 py-1.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[12px] font-bold text-brand-ink">
+              {initialsOf(userName)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13.5px] font-bold leading-tight text-ink">{userName}</p>
+              <p className="truncate text-xs text-ink-muted">{user?.role || 'Super Admin'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Keluar Sistem"
+              aria-label="Keluar Sistem"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger-ink"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 };

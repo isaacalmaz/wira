@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
+import { Card, Badge, Button, EmptyState, PageHeader, Money, IconTile } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { Clock, MessageCircle, Wrench, Waves } from 'lucide-react';
+import { Clock, MessageCircle, Wrench, Waves, User } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { OrderStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
@@ -72,48 +72,55 @@ const TechOrdersPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Pekerjaan Aktif</h1>
+    <div className="flex flex-col gap-6 pb-20">
+      <PageHeader title="Pekerjaan Aktif" className="mb-0" />
 
       {activeOrder ? (
-        <Card className="p-4 border-primary/50 shadow-md">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <Badge variant={isPoolOrder(activeOrder) ? 'primary' : 'gray'} className="mb-2 capitalize flex items-center gap-1 w-fit">
-                {isPoolOrder(activeOrder) ? <Waves size={12} /> : <Wrench size={12} />}
-                {isPoolOrder(activeOrder) ? 'Kolam Renang' : activeOrder.service_type}
-              </Badge>
-              <h3 className="font-bold text-lg">{activeOrder.title || 'Pekerjaan'}</h3>
-              <p className="text-sm font-medium mt-1">Klien: {customerName}</p>
+        <Card padding="none" className="border-brand-line">
+          <div className="flex items-start gap-3 border-b border-line p-4">
+            <IconTile tone="brand" size="sm">
+              {isPoolOrder(activeOrder) ? <Waves size={18} /> : <Wrench size={18} />}
+            </IconTile>
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge tone={isPoolOrder(activeOrder) ? 'brand' : 'neutral'} className="capitalize">
+                  {isPoolOrder(activeOrder) ? 'Kolam Renang' : activeOrder.service_type}
+                </Badge>
+                <Badge tone="brand" dot>{getDisplayStatus(activeOrder.status)}</Badge>
+              </div>
+              <h2 className="break-words text-[16px] font-bold leading-snug tracking-tight text-ink text-balance">{activeOrder.title || 'Pekerjaan'}</h2>
             </div>
-            <span className="font-bold text-primary">~Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
+            <span className="shrink-0 pt-0.5 text-[17px] font-medium text-ink">
+              <span className="font-mono text-ink-muted">~</span><Money value={activeOrder.total_price || 0} />
+            </span>
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg space-y-2 mb-4">
-            <div className="flex items-start gap-2 text-sm">
-              <Clock size={16} className="text-slate-400 mt-0.5" />
-              <span>{parseOrderDetails(activeOrder.details) || 'Tidak ada detail tambahan'}</span>
+          <div className="flex flex-col gap-3 p-4">
+            <div className="flex items-center gap-2.5 text-[14px]">
+              <User size={16} className="shrink-0 text-ink-muted" aria-hidden="true" />
+              <span className="min-w-0 break-words font-semibold text-ink">Klien: {customerName}</span>
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex items-center justify-center gap-1.5" onClick={() => setIsChatOpen(true)}>
-              <MessageCircle size={16} /> Chat
+            <div className="flex items-start gap-2.5 rounded-control border border-line bg-sunken px-3.5 py-3 text-[13px] leading-relaxed text-ink">
+              <Clock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+              <span className="min-w-0 break-words">{parseOrderDetails(activeOrder.details) || 'Tidak ada detail tambahan'}</span>
+            </div>
+
+            <Button variant="secondary" block leftIcon={<MessageCircle size={17} />} onClick={() => setIsChatOpen(true)}>
+              Chat
             </Button>
-          </div>
 
-          {activeOrder.status === OrderStatus.WORKING && (
-             <div className="mt-4 p-4 border-2 border-dashed border-slate-300 rounded-lg text-center cursor-pointer hover:bg-slate-50">
-               <p className="text-sm font-medium text-slate-500">Selesaikan pekerjaan lalu tandai selesai di bawah</p>
-             </div>
-          )}
+            {activeOrder.status === OrderStatus.WORKING && (
+              <p className="rounded-control border border-dashed border-line-strong px-4 py-3 text-center text-[13px] font-medium text-ink-muted">
+                Selesaikan pekerjaan lalu tandai selesai di bawah
+              </p>
+            )}
 
-          <div className="mt-4">
             <StatusUpdater currentStatus={activeOrder.status} role="technician" onUpdate={updateStatus} />
           </div>
         </Card>
       ) : (
-        <Card><EmptyState icon={Wrench} title="Tidak ada pekerjaan aktif" description="Pekerjaan yang Anda terima akan muncul di sini." /></Card>
+        <EmptyState icon={<Wrench size={24} />} title="Tidak ada pekerjaan aktif" description="Pekerjaan yang Anda terima akan muncul di sini." />
       )}
 
       {isChatOpen && activeOrder && (

@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
-  X, CheckCircle, XCircle, MessageSquare, Car, Store, Wrench, Package,
-  FileText, AlertCircle, ZoomIn, ShieldCheck
+  CheckCircle, XCircle, MessageSquare, Car, Store, Wrench, Package,
+  FileText, ZoomIn, ShieldCheck
 } from 'lucide-react';
+import { Badge, Button, EmptyState, Notice, Sheet, Textarea } from '../ui';
+
+// One labelled value in the review panels.
+const Item = ({ label, children }) => (
+  <div className="flex min-w-0 flex-col gap-0.5">
+    <p className="text-xs text-ink-muted">{label}</p>
+    <div className="min-w-0 break-words text-sm font-semibold text-ink">{children}</div>
+  </div>
+);
 
 const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   const [adminNotes, setAdminNotes] = useState(mitra?.admin_notes || '');
@@ -45,209 +54,155 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
     onClose();
   };
 
+  const statusLabel = mitra.status === 'Active' ? 'Sudah Aktif' : mitra.status === 'Inactive' ? 'Ditolak' : 'Menunggu Review';
+  const statusTone = mitra.status === 'Active' ? 'success' : mitra.status === 'Inactive' ? 'danger' : 'warning';
+  const eyebrow = 'text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted';
+  const panel = 'rounded-card border border-line bg-card p-4';
+  const btnBase = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-center text-sm font-semibold leading-tight transition-[background-color,filter,color] duration-150';
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header Modal */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <RoleIconComponent size={22} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                Review Berkas Mitra: {mitra.name}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                ID Pendaftar: <span className="font-mono font-semibold">{mitra.id}</span> • Terdaftar:{' '}
-                {mitra.created_at ? new Date(mitra.created_at).toLocaleString('id-ID') : 'Baru saja'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Isi Konten Review */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
-          
-          {/* Status Badge & Alert */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-200">
-            <div className="flex items-center gap-2 font-medium">
-              <AlertCircle size={18} />
-              <span>Status Saat Ini: <strong>{mitra.status || 'Pending'}</strong></span>
-            </div>
-            <span className="text-xs bg-amber-200/80 dark:bg-amber-900/60 px-2.5 py-1 rounded-full font-bold">
-              {mitra.status === 'Active' ? 'Sudah Aktif' : mitra.status === 'Inactive' ? 'Ditolak' : 'Menunggu Review'}
-            </span>
-          </div>
-
-          {/* Grid Informasi Pribadi & Kontak */}
-          <div>
-            <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-xs uppercase tracking-wider text-slate-500">
-              1. Identitas & Kontak
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
-              <div>
-                <p className="text-xs text-slate-500">Nama Lengkap</p>
-                <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{mitra.name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Nomor Telepon / WA</p>
-                <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{mitra.phone || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Alamat Email</p>
-                <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{mitra.email || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Peran Layanan</p>
-                <span className="inline-block mt-0.5 text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                  {roleTitle}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Data Detail Spesifik Mitra */}
-          <div>
-            <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-xs uppercase tracking-wider text-slate-500">
-              2. Detail Operasional & Kendaraan
-            </h4>
-            {(role === 'driver' || role === 'courier') && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
-                <div>
-                  <p className="text-xs text-slate-500">Jenis & Tipe Kendaraan</p>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-base">{mitra.vehicle || 'Motor'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Nomor Plat Kendaraan</p>
-                  <p className="font-mono font-bold text-primary mt-0.5 text-base">{mitra.plate || '-'}</p>
-                </div>
-              </div>
-            )}
-
-            {role === 'merchant' && (
-              <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
-                <div>
-                  <p className="text-xs text-slate-500">{isVillaMerchant ? 'Nama Villa / Penginapan' : 'Nama Usaha / Restoran'}</p>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-base">{mitra.restaurant_name || mitra.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Alamat Lengkap</p>
-                  <p className="text-slate-800 dark:text-slate-200 mt-0.5">{mitra.address || 'Mataram, Lombok'}</p>
-                </div>
-              </div>
-            )}
-
-            {role === 'technician' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
-                <div>
-                  <p className="text-xs text-slate-500">Bidang Keahlian</p>
-                  <p className="font-bold text-primary mt-0.5 text-base">{mitra.specialization || 'Umum'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Pengalaman Kerja</p>
-                  <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{mitra.experience || 1} Tahun</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Dokumen Lampiran (SIM / STNK / Foto Tempat) */}
-          <div>
-            <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-xs uppercase tracking-wider text-slate-500">
-              3. Berkas Dokumen (Foto SIM / STNK / Legalitas)
-            </h4>
-            {mitra.sim_photo ? (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div className="relative group cursor-pointer overflow-hidden rounded-lg max-w-sm mx-auto bg-slate-900" onClick={() => setIsZoomed(!isZoomed)}>
-                  <img
-                    src={mitra.sim_photo}
-                    alt="Dokumen Mitra"
-                    className={`w-full object-contain rounded-lg transition duration-300 ${isZoomed ? 'scale-125' : 'group-hover:opacity-90 max-h-60'}`}
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white gap-2 font-medium text-xs">
-                    <ZoomIn size={16} /> Klik untuk {isZoomed ? 'Memperkecil' : 'Memperbesar'}
-                  </div>
-                </div>
-                <p className="text-center text-xs text-green-600 dark:text-green-400 font-semibold mt-2 flex items-center justify-center gap-1">
-                  <ShieldCheck size={14} /> Dokumen terlampir dan siap diverifikasi
-                </p>
-              </div>
-            ) : (
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-center border-2 border-dashed border-slate-200 dark:border-slate-700">
-                <FileText size={32} className="mx-auto text-slate-400 mb-1" />
-                <p className="text-xs text-slate-500">Calon mitra belum melampirkan foto dokumen atau menggunakan pendaftaran cepat.</p>
-                <p className="text-[11px] text-slate-400 mt-1">Anda dapat menghubungi calon mitra via WhatsApp untuk meminta foto SIM/dokumen pendukung.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Catatan Verifikator */}
-          <div>
-            <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-xs uppercase tracking-wider text-slate-500">
-              4. Catatan Admin / Alasan Verifikasi
-            </h4>
-            <textarea
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-              placeholder="Tulis catatan (cth: SIM & STNK telah diverifikasi valid, motor sesuai spesifikasi...)"
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-primary outline-none"
-              rows={2}
-            ></textarea>
-          </div>
-
-        </div>
-
-        {/* Footer Aksi Modal */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+    <Sheet
+      open={isOpen && !!mitra}
+      onClose={onClose}
+      size="xl"
+      icon={<RoleIconComponent size={21} />}
+      title={`Review Berkas Mitra: ${mitra.name}`}
+      description={(
+        <>
+          ID Pendaftar: <span className="font-mono text-ink">{mitra.id}</span> · Terdaftar:{' '}
+          <span className="font-mono">{mitra.created_at ? new Date(mitra.created_at).toLocaleString('id-ID') : 'Baru saja'}</span>
+        </>
+      )}
+      footer={(
+        <>
+          <div className="flex flex-col-reverse gap-2.5 sm:mr-auto sm:flex-row">
             <a
               href={waRejectUrl}
               target="_blank"
               rel="noreferrer"
               onClick={handleReject}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 dark:bg-slate-800 dark:hover:bg-red-950/30 dark:border-red-800/50 text-xs font-semibold transition shadow-sm"
+              className={`${btnBase} border border-danger-line bg-danger-soft text-danger-ink hover:brightness-[0.98]`}
               title="Tolak Pendaftaran dan beri tahu mitra via WA"
             >
-              <MessageSquare size={14} /> Tolak & WA
+              <MessageSquare size={16} /> Tolak &amp; WA
             </a>
-            <button
-              onClick={handleReject}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 text-xs font-semibold transition"
-            >
-              <XCircle size={14} /> Tolak Saja
-            </button>
+            <Button variant="ghost" onClick={handleReject} leftIcon={<XCircle size={16} />} className="!text-danger-ink hover:!bg-danger-soft">
+              Tolak Saja
+            </Button>
           </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-             <button
-              onClick={handleApprove}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-slate-500 hover:text-primary hover:bg-primary/10 dark:hover:bg-slate-800 text-xs font-semibold transition"
-            >
-              <CheckCircle size={14} /> Setuju Saja
-            </button>
+          <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
+            <Button variant="secondary" onClick={handleApprove} leftIcon={<CheckCircle size={16} />}>
+              Setuju Saja
+            </Button>
             <a
               href={waApproveUrl}
               target="_blank"
               rel="noreferrer"
               onClick={handleApprove}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:bg-cyan-700 text-white text-xs font-bold shadow-md shadow-primary/20 transition active:scale-95"
+              className={`${btnBase} bg-brand text-white hover:bg-brand-hover`}
               title="Setujui pendaftaran dan kirim ucapan selamat via WA"
             >
-              <MessageSquare size={14} /> Setuju & WA
+              <MessageSquare size={16} /> Setuju &amp; WA
             </a>
           </div>
+        </>
+      )}
+    >
+      <div className="flex flex-col gap-6 text-sm">
+
+        {/* Status Badge & Alert */}
+        <div data-autofocus tabIndex={-1} className="outline-none">
+          <Notice tone="warning" action={<Badge tone={statusTone} dot>{statusLabel}</Badge>}>
+            Status Saat Ini: <strong>{mitra.status || 'Pending'}</strong>
+          </Notice>
         </div>
 
+        {/* Grid Informasi Pribadi & Kontak */}
+        <section className="flex flex-col gap-2.5">
+          <h4 className={eyebrow}>1. Identitas &amp; Kontak</h4>
+          <div className={`${panel} grid grid-cols-1 gap-4 sm:grid-cols-2`}>
+            <Item label="Nama Lengkap">{mitra.name}</Item>
+            <Item label="Nomor Telepon / WA"><span className="font-mono font-medium">{mitra.phone || '-'}</span></Item>
+            <Item label="Alamat Email">{mitra.email || '-'}</Item>
+            <Item label="Peran Layanan"><Badge tone="brand">{roleTitle}</Badge></Item>
+          </div>
+        </section>
+
+        {/* Data Detail Spesifik Mitra */}
+        <section className="flex flex-col gap-2.5">
+          <h4 className={eyebrow}>2. Detail Operasional &amp; Kendaraan</h4>
+          {(role === 'driver' || role === 'courier') && (
+            <div className={`${panel} grid grid-cols-1 gap-4 sm:grid-cols-2`}>
+              <Item label="Jenis & Tipe Kendaraan"><span className="text-[15px] font-bold">{mitra.vehicle || 'Motor'}</span></Item>
+              <Item label="Nomor Plat Kendaraan"><span className="font-mono text-[15px] font-medium text-brand-ink">{mitra.plate || '-'}</span></Item>
+            </div>
+          )}
+
+          {role === 'merchant' && (
+            <div className={`${panel} flex flex-col gap-4`}>
+              <Item label={isVillaMerchant ? 'Nama Villa / Penginapan' : 'Nama Usaha / Restoran'}>
+                <span className="text-[15px] font-bold">{mitra.restaurant_name || mitra.name}</span>
+              </Item>
+              <Item label="Alamat Lengkap"><span className="font-medium">{mitra.address || 'Mataram, Lombok'}</span></Item>
+            </div>
+          )}
+
+          {role === 'technician' && (
+            <div className={`${panel} grid grid-cols-1 gap-4 sm:grid-cols-2`}>
+              <Item label="Bidang Keahlian"><span className="text-[15px] font-bold text-brand-ink">{mitra.specialization || 'Umum'}</span></Item>
+              <Item label="Pengalaman Kerja"><span><span className="font-mono">{mitra.experience || 1}</span> Tahun</span></Item>
+            </div>
+          )}
+        </section>
+
+        {/* Dokumen Lampiran (SIM / STNK / Foto Tempat) */}
+        <section className="flex flex-col gap-2.5">
+          <h4 className={eyebrow}>3. Berkas Dokumen (Foto SIM / STNK / Legalitas)</h4>
+          {mitra.sim_photo ? (
+            <div className={`${panel} flex flex-col items-center gap-3`}>
+              <button
+                type="button"
+                className="group relative mx-auto block w-full max-w-sm cursor-zoom-in overflow-hidden rounded-control bg-laut-900"
+                onClick={() => setIsZoomed(!isZoomed)}
+              >
+                <img
+                  src={mitra.sim_photo}
+                  alt="Dokumen Mitra"
+                  className={`w-full rounded-control object-contain transition duration-300 ${isZoomed ? 'scale-125' : 'max-h-60 group-hover:opacity-90'}`}
+                />
+                <span className="absolute inset-0 flex items-center justify-center gap-2 bg-laut-900/50 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <ZoomIn size={16} /> Klik untuk {isZoomed ? 'Memperkecil' : 'Memperbesar'}
+                </span>
+              </button>
+              <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-success-ink">
+                <ShieldCheck size={14} /> Dokumen terlampir dan siap diverifikasi
+              </p>
+            </div>
+          ) : (
+            <EmptyState
+              icon={<FileText size={22} />}
+              title="Calon mitra belum melampirkan foto dokumen atau menggunakan pendaftaran cepat."
+              description="Anda dapat menghubungi calon mitra via WhatsApp untuk meminta foto SIM/dokumen pendukung."
+              className="py-7"
+            />
+          )}
+        </section>
+
+        {/* Catatan Verifikator */}
+        <section className="flex flex-col gap-2.5">
+          <label htmlFor="mitra-admin-notes" className={eyebrow}>4. Catatan Admin / Alasan Verifikasi</label>
+          <Textarea
+            id="mitra-admin-notes"
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            placeholder="Tulis catatan (cth: SIM & STNK telah diverifikasi valid, motor sesuai spesifikasi...)"
+            className="!text-sm"
+            rows={2}
+          />
+        </section>
+
       </div>
-    </div>
+    </Sheet>
   );
 };
 

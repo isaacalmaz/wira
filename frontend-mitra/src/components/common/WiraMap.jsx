@@ -21,9 +21,13 @@ const createIcon = (iconComponent) => {
   });
 };
 
-const pickupIcon = createIcon(<MapPin className="text-emerald-500 fill-emerald-100 w-8 h-8" />);
-const dropoffIcon = createIcon(<MapPin className="text-red-500 fill-red-100 w-8 h-8" />);
-const driverIcon = createIcon(<Navigation className="text-slate-800 fill-yellow-400 w-8 h-8 transform rotate-45" />);
+// Tenun Laut markers (same pins as the customer app): pickup = brand (laut),
+// destination = danger (bara), driver = a solid brand arrow. Colours are
+// semantic classes, so they follow the theme; the tile layer is inverted in
+// dark mode, the marker pane is not.
+const pickupIcon = createIcon(<MapPin strokeWidth={2.2} className="text-brand fill-brand-soft w-8 h-8" />);
+const dropoffIcon = createIcon(<MapPin strokeWidth={2.2} className="text-danger fill-danger-soft w-8 h-8" />);
+const driverIcon = createIcon(<Navigation strokeWidth={1.8} className="text-white fill-brand w-8 h-8 transform rotate-45" />);
 
 // Leaflet mengukur ukuran container-nya sekali saat mount. Jika layout di
 // sekitarnya masih berubah bentuk setelah itu (mis. sidebar baru selesai
@@ -135,21 +139,29 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
                 }
               }}
             >
-              <Popup>{m.label || (idx === 0 ? 'Pickup' : 'Dropoff')}</Popup>
+              <Popup>
+                {/* Leaflet popups are always white, so a fixed dark ink is used here. */}
+                <span className="text-[13px] font-semibold text-laut-900">
+                  {m.label || (idx === 0 ? 'Pickup' : 'Dropoff')}
+                </span>
+              </Popup>
             </LeafletMarker>
           )
         })}
         {route && (
-          <Polyline positions={route} color="#0ea5e9" weight={5} opacity={0.8} />
+          <Polyline positions={route} color="#16788C" weight={5} opacity={0.9} />
         )}
       </MapContainer>
       
       {/* Floating Action Button */}
-      <button 
+      <button
+        type="button"
         onClick={locateUser}
-        className="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+        title="Lokasi saya"
+        aria-label="Lokasi saya"
+        className="absolute bottom-6 right-6 z-[1000] inline-flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
       >
-        <LocateFixed className="w-6 h-6 text-slate-700" />
+        <LocateFixed size={20} aria-hidden="true" />
       </button>
     </div>
   );

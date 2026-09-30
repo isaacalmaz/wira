@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Car, Store, Home, Wrench } from 'lucide-react';
-import { Card } from '../components/shared/UIComponents';
+import { LogOut, Car, Store, Home, Wrench, Bike } from 'lucide-react';
+import { Button, Card, Field, Input, Textarea, Segmented, cx } from '../components/ui';
+import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { submitMitraApplication } from '../services/mitraApplicationService';
@@ -15,6 +16,48 @@ const DEFAULT_JOB_PREFS_BY_VEHICLE = {
   motor: ['ride', 'send', 'food'],
   mobil: ['ride', 'send'],
 };
+
+// ---- display-only helpers (markup only) ----
+const Brand = () => (
+  <div className="flex items-center gap-2.5" aria-hidden="true">
+    <WiraMark size={34} />
+    <span className="flex items-baseline gap-1.5 leading-none">
+      <span className="text-[24px] font-extrabold tracking-[-0.035em] text-brand-ink">wira</span>
+      <span className="text-[18px] font-medium tracking-[-0.02em] text-ink-muted">mitra</span>
+    </span>
+  </div>
+);
+
+const CheckRow = ({ checked, onChange, children }) => (
+  <label
+    className={cx(
+      'flex min-h-11 cursor-pointer items-center gap-3 rounded-control border px-3.5 py-2.5 transition-colors',
+      checked ? 'border-brand-line bg-brand-soft' : 'border-line-strong bg-card hover:bg-sunken',
+    )}
+  >
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="h-5 w-5 shrink-0 rounded-[6px] border-line-strong bg-card text-brand focus:ring-2 focus:ring-brand/30 focus:ring-offset-0"
+    />
+    <span className="min-w-0 flex-1 text-sm font-medium text-ink">{children}</span>
+  </label>
+);
+
+const ROLE_OPTIONS = [
+  { value: 'driver', label: 'Driver', icon: Car },
+  { value: 'merchant', label: 'Restoran', icon: Store },
+  { value: 'villa', label: 'Villa', icon: Home },
+  { value: 'technician', label: 'Teknisi', icon: Wrench },
+].map(({ value, label, icon: Icon }) => ({
+  value,
+  label: (
+    <span className="inline-flex items-center justify-center gap-2">
+      <Icon size={16} aria-hidden="true" /> {label}
+    </span>
+  ),
+}));
 
 const UnauthorizedPage = () => {
   const { user, logout } = useAuth();
@@ -87,154 +130,146 @@ const UnauthorizedPage = () => {
 
   if (showUpgrade) {
     return (
-      <div className="min-h-screen p-4 flex items-center justify-center bg-slate-50">
-        <Card className="w-full max-w-lg p-6">
-          <h1 className="text-2xl font-bold text-center text-primary mb-6">Daftar Menjadi Mitra</h1>
-          
-          <div className="grid grid-cols-2 gap-2 mb-6">
-            <button onClick={() => setRole('driver')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'driver' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Car size={18} className="mx-auto mb-1"/> Driver</button>
-            <button onClick={() => setRole('merchant')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'merchant' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Store size={18} className="mx-auto mb-1"/> Restoran</button>
-            <button onClick={() => setRole('villa')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'villa' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Home size={18} className="mx-auto mb-1"/> Villa</button>
-            <button onClick={() => setRole('technician')} className={`py-2 text-sm font-semibold rounded-lg ${role === 'technician' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}><Wrench size={18} className="mx-auto mb-1"/> Teknisi</button>
-          </div>
+      <div className="flex min-h-[100dvh] flex-col items-center gap-6 bg-ground px-4 py-8 sm:justify-center sm:py-12">
+        <Brand />
+        <Card padding="none" className="w-full max-w-lg overflow-hidden">
+          <div className="h-1.5 tenun-band" aria-hidden="true" />
+          <div className="flex flex-col gap-6 p-5 sm:p-7">
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">Daftar Menjadi Mitra</h1>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {role === 'driver' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Kendaraan (Merek & Tipe)</label>
-                  <input required type="text" className="w-full p-3 border rounded-xl" placeholder="Honda Vario 150" value={formData.vehicle} onChange={e => setFormData({...formData, vehicle: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Plat Nomor</label>
-                  <input required type="text" className="w-full p-3 border rounded-xl" placeholder="DR 1234 AB" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} />
-                </div>
+            <Segmented
+              ariaLabel="Jenis Mitra"
+              options={ROLE_OPTIONS}
+              value={role}
+              onChange={setRole}
+              className="grid w-full grid-cols-2"
+            />
 
-                {/* Kategori kendaraan - menentukan layanan apa saja yang bisa
-                    dipilih di bawah (mobil tidak pernah bisa Antar Makanan).
-                    Sama seperti RegisterPage.jsx langkah 3, wajib diisi di
-                    sini juga agar driver yang upgrade lewat form ini tidak
-                    terjebak tanpa vehicle_type (lihat DriverHomePage.jsx). */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'motor', label: 'Motor' },
-                      { id: 'mobil', label: 'Mobil' },
-                    ].map((v) => (
-                      <label
-                        key={v.id}
-                        className={`p-3 border rounded-xl cursor-pointer text-center font-semibold text-sm transition-all ${
-                          formData.vehicleType === v.id
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-slate-200'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="vehicleType"
-                          value={v.id}
-                          checked={formData.vehicleType === v.id}
-                          onChange={() => handleVehicleTypeChange(v.id)}
-                          className="hidden"
-                        />
-                        {v.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {role === 'driver' && (
+                <>
+                  <Field label="Kendaraan (Merek & Tipe)" htmlFor="up-vehicle" required>
+                    <Input id="up-vehicle" required type="text" placeholder="Honda Vario 150" value={formData.vehicle} onChange={e => setFormData({...formData, vehicle: e.target.value})} />
+                  </Field>
+                  <Field label="Plat Nomor" htmlFor="up-plate" required>
+                    <Input id="up-plate" required type="text" className="font-mono uppercase" placeholder="DR 1234 AB" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} />
+                  </Field>
 
-                {/* Preferensi layanan - Antar Makanan tidak pernah muncul
-                    untuk mobil, sama seperti RegisterPage.jsx. */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Layanan yang Ingin Diterima</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
-                      <input type="checkbox" checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
-                      <span className="text-sm">Ride (Antar Penumpang)</span>
-                    </label>
-                    <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
-                      <input type="checkbox" checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')} />
-                      <span className="text-sm">
-                        Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
-                      </span>
-                    </label>
+                  {/* Kategori kendaraan - menentukan layanan apa saja yang bisa
+                      dipilih di bawah (mobil tidak pernah bisa Antar Makanan).
+                      Sama seperti RegisterPage.jsx langkah 3, wajib diisi di
+                      sini juga agar driver yang upgrade lewat form ini tidak
+                      terjebak tanpa vehicle_type (lihat DriverHomePage.jsx). */}
+                  <fieldset className="flex flex-col">
+                    <legend className="mb-1.5 text-[13px] font-semibold text-ink">Kategori Kendaraan</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'motor', label: 'Motor', icon: Bike },
+                        { id: 'mobil', label: 'Mobil', icon: Car },
+                      ].map((v) => {
+                        const checked = formData.vehicleType === v.id;
+                        return (
+                          <label
+                            key={v.id}
+                            className={cx(
+                              'flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-control border px-3 py-2.5 text-sm font-semibold text-ink transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40',
+                              checked ? 'border-brand bg-brand-soft' : 'border-line-strong bg-card hover:bg-sunken',
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name="vehicleType"
+                              value={v.id}
+                              checked={checked}
+                              onChange={() => handleVehicleTypeChange(v.id)}
+                              className="sr-only"
+                            />
+                            <v.icon size={18} className={checked ? 'text-brand-ink' : 'text-ink-muted'} aria-hidden="true" />
+                            {v.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  {/* Preferensi layanan - Antar Makanan tidak pernah muncul
+                      untuk mobil, sama seperti RegisterPage.jsx. */}
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="mb-1.5 text-[13px] font-semibold text-ink">Layanan yang Ingin Diterima</legend>
+                    <CheckRow checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')}>
+                      Ride (Antar Penumpang)
+                    </CheckRow>
+                    <CheckRow checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')}>
+                      Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
+                    </CheckRow>
                     {formData.vehicleType !== 'mobil' && (
-                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 cursor-pointer">
-                        <input type="checkbox" checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')} />
-                        <span className="text-sm">Antar Makanan (WiraFood)</span>
-                      </label>
+                      <CheckRow checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')}>
+                        Antar Makanan (WiraFood)
+                      </CheckRow>
                     )}
-                  </div>
-                </div>
-              </>
-            )}
+                  </fieldset>
+                </>
+              )}
 
-            {(role === 'merchant' || role === 'villa') && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium mb-1">{role === 'villa' ? 'Nama Villa/Penginapan' : 'Nama Toko/Restoran'}</label>
-                  <input required type="text" className="w-full p-3 border rounded-xl" placeholder={role === 'villa' ? 'Villa Senggigi Sunset' : 'Warung Nasi Wira'} value={formData.restaurantName} onChange={e => setFormData({...formData, restaurantName: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Alamat Lengkap</label>
-                  <textarea required className="w-full p-3 border rounded-xl" placeholder="Jl. Raya Wira No. 1" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-                </div>
-              </>
-            )}
+              {(role === 'merchant' || role === 'villa') && (
+                <>
+                  <Field label={role === 'villa' ? 'Nama Villa/Penginapan' : 'Nama Toko/Restoran'} htmlFor="up-restaurant" required>
+                    <Input id="up-restaurant" required type="text" placeholder={role === 'villa' ? 'Villa Senggigi Sunset' : 'Warung Nasi Wira'} value={formData.restaurantName} onChange={e => setFormData({...formData, restaurantName: e.target.value})} />
+                  </Field>
+                  <Field label="Alamat Lengkap" htmlFor="up-address" required>
+                    <Textarea id="up-address" required placeholder="Jl. Raya Wira No. 1" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+                  </Field>
+                </>
+              )}
 
-            {role === 'technician' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Spesialisasi</label>
-                  <input required type="text" className="w-full p-3 border rounded-xl" placeholder="AC, Kulkas, Mesin Cuci" value={formData.specialization} onChange={e => setFormData({...formData, specialization: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Pengalaman (Tahun)</label>
-                  <input required type="number" className="w-full p-3 border rounded-xl" placeholder="2" value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} />
-                </div>
-              </>
-            )}
+              {role === 'technician' && (
+                <>
+                  <Field label="Spesialisasi" htmlFor="up-specialization" required>
+                    <Input id="up-specialization" required type="text" placeholder="AC, Kulkas, Mesin Cuci" value={formData.specialization} onChange={e => setFormData({...formData, specialization: e.target.value})} />
+                  </Field>
+                  <Field label="Pengalaman (Tahun)" htmlFor="up-experience" required>
+                    <Input id="up-experience" required type="number" inputMode="numeric" className="font-mono" placeholder="2" value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} />
+                  </Field>
+                </>
+              )}
 
-            <div className="flex gap-4 pt-4">
-              <button type="button" onClick={() => setShowUpgrade(false)} className="w-1/3 p-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300">Batal</button>
-              <button type="submit" disabled={loading} className="w-2/3 p-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 shadow-lg disabled:opacity-50">
-                {loading ? 'Mengirim...' : 'Kirim Pendaftaran'}
-              </button>
-            </div>
-          </form>
+              <div className="mt-2 flex flex-col-reverse gap-2.5 border-t border-line pt-5 sm:flex-row">
+                <Button type="button" variant="secondary" size="lg" className="sm:w-1/3" onClick={() => setShowUpgrade(false)}>Batal</Button>
+                <Button type="submit" size="lg" className="sm:flex-1" isLoading={loading}>
+                  {loading ? 'Mengirim...' : 'Kirim Pendaftaran'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50">
-      <Card className="max-w-md w-full p-8 text-center space-y-6">
-        <div className="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <LogOut size={40} />
-        </div>
-        
-        <h1 className="text-2xl font-bold text-slate-800">Akses Ditolak</h1>
-        <p className="text-slate-600">
-          Akun Anda belum terdaftar sebagai Mitra Wira (Driver, Restoran, Villa, atau Teknisi).
-        </p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-7 bg-ground px-4 py-10">
+      <Brand />
+      <Card padding="none" className="w-full max-w-[420px] overflow-hidden">
+        <div className="flex flex-col items-center gap-5 p-6 text-center sm:p-7">
+          <span className="inline-flex h-14 w-14 items-center justify-center rounded-tile border border-danger-line bg-danger-soft text-danger">
+            <LogOut size={26} aria-hidden="true" />
+          </span>
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">Akses Ditolak</h1>
+            <p className="text-sm leading-relaxed text-ink-muted">
+              Akun Anda belum terdaftar sebagai Mitra Wira (Driver, Restoran, Villa, atau Teknisi).
+            </p>
+          </div>
 
-        <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm text-slate-500 font-medium">Ingin bergabung menjadi Mitra?</p>
-          <button 
-            onClick={() => setShowUpgrade(true)}
-            className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 shadow-md"
-          >
-            Daftar Menjadi Mitra
-          </button>
-          
-          <button 
-            onClick={logout}
-            className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200"
-          >
-            Ganti Akun
-          </button>
+          <div className="flex w-full flex-col gap-2.5 border-t border-line pt-5">
+            <p className="text-[13px] font-semibold text-ink-muted">Ingin bergabung menjadi Mitra?</p>
+            <Button size="lg" block onClick={() => setShowUpgrade(true)}>
+              Daftar Menjadi Mitra
+            </Button>
+            <Button variant="secondary" size="lg" block onClick={logout}>
+              Ganti Akun
+            </Button>
+          </div>
         </div>
       </Card>
     </div>

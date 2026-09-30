@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
 import MitraLayout from './components/layout/MitraLayout';
+import Spinner from './components/ui/Spinner';
 
 // Eager: LoginPage is the first screen for a logged-out mitra, and MitraLayout
 // wraps every protected route, so both ship in the entry chunk. Every other
@@ -36,8 +37,8 @@ const ActiveOrderPage = lazy(() => import('./pages/shared/ActiveOrderPage'));
 const SupportPage = lazy(() => import('./pages/shared/SupportPage'));
 
 const PageFallback = () => (
-  <div className="flex h-screen w-full items-center justify-center">
-    <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+  <div className="flex min-h-[60vh] w-full items-center justify-center bg-ground text-brand-ink">
+    <Spinner size={28} label="Memuat" />
   </div>
 );
 

@@ -1,85 +1,78 @@
+// Legacy shared components, now thin wrappers over the Tenun Laut kit in
+// components/ui so every existing caller picks up the new look. New code
+// should import from '../ui' directly (see DESIGN.md).
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Star } from 'lucide-react';
+import UICard from '../ui/Card';
+import UIButton from '../ui/Button';
+import UIBadge from '../ui/Badge';
+import UIEmptyState from '../ui/EmptyState';
+import IconTile from '../ui/IconTile';
 
-export const Card = ({ children, className = '' }) => (
-  <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden ${className}`}>
-    {children}
-  </div>
+export const Card = ({ children, className = '', ...props }) => (
+  <UICard padding="none" className={`overflow-hidden ${className}`} {...props}>{children}</UICard>
 );
 
-export const Badge = ({ children, variant = 'primary' }) => {
-  const variants = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    danger: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    gray: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-  };
-  return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${variants[variant] || variants.primary}`}>{children}</span>;
-};
+const BADGE_TONES = { primary: 'brand', success: 'success', warning: 'warning', danger: 'danger', gray: 'neutral' };
+export const Badge = ({ children, variant = 'primary', dot = false }) => (
+  <UIBadge tone={BADGE_TONES[variant] || 'brand'} dot={dot}>{children}</UIBadge>
+);
 
-export const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-  const base = "px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
-  const variants = {
-    primary: "bg-primary text-white hover:bg-primary/90 focus:ring-primary",
-    secondary: "bg-secondary text-white hover:bg-secondary/90 focus:ring-secondary",
-    outline: "border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary",
-    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
-    ghost: "bg-transparent text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-  };
-  return <button className={`${base} ${variants[variant]} ${className}`} {...props}>{children}</button>;
-};
+const BUTTON_VARIANTS = { outline: 'secondary', secondary: 'secondary' };
+export const Button = ({ variant = 'primary', ...props }) => (
+  <UIButton variant={BUTTON_VARIANTS[variant] || variant} {...props} />
+);
 
 export const StarRating = ({ rating = 5 }) => (
-  <div className="flex text-yellow-400">
+  <div className="flex text-ink" aria-label={`${rating}/5`}>
     {[...Array(5)].map((_, i) => (
-      <Star key={i} size={16} fill={i < rating ? "currentColor" : "none"} className={i >= rating ? "text-slate-300" : ""} />
+      <Star key={i} size={16} fill={i < rating ? 'currentColor' : 'none'} className={i >= rating ? 'text-line-strong' : ''} />
     ))}
   </div>
 );
 
-export const EmptyState = ({ icon: Icon, title, description }) => (
-  <div className="flex flex-col items-center justify-center p-8 text-center">
-    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4 text-slate-400">
-      <Icon size={32} />
-    </div>
-    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">{title}</h3>
-    <p className="text-slate-500 dark:text-slate-400">{description}</p>
-  </div>
+export const EmptyState = ({ icon: Icon, title, description, action }) => (
+  <UIEmptyState icon={Icon ? <Icon size={24} /> : null} title={title} description={description} action={action} />
 );
 
 /**
- * Shared modal shell - was reimplemented 5 separate times (ChatModal,
- * PayoutPanel, the driver/merchant incoming-order prompts, MerchantMenuPage's
- * add/edit form) each with its own z-index (z-50 / z-[100] / z-[200]), a
- * latent stacking bug if two ever ended up open at once. One managed
- * z-modal token now, from tailwind.config.js.
+ * Generic modal shell (callers render their own header/body inside).
+ * Bottom sheet on phones, centred dialog from md up; one managed z-index.
+ * Prefer components/ui/Sheet for new dialogs.
  */
 export const Modal = ({ isOpen, onClose, children, className = '', closeOnBackdrop = true }) => {
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape' && closeOnBackdrop) onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
+  }, [isOpen, closeOnBackdrop, onClose]);
+
   if (!isOpen) return null;
-  return (
-    <div
-      className="fixed inset-0 bg-black/60 z-modal flex items-center justify-center p-4"
-      onClick={closeOnBackdrop ? onClose : undefined}
-    >
+  return createPortal(
+    <div className="fixed inset-0 z-modal flex items-end md:items-center justify-center md:p-4">
+      <div className="absolute inset-0 bg-laut-900/55" onClick={closeOnBackdrop ? onClose : undefined} aria-hidden="true" />
       <div
-        className={`bg-white dark:bg-slate-800 rounded-modal shadow-2xl w-full ${className}`}
+        role="dialog"
+        aria-modal="true"
+        className={`relative w-full max-h-[92dvh] overflow-y-auto bg-ground text-ink shadow-sheet rounded-t-sheet md:rounded-sheet pb-[env(safe-area-inset-bottom)] ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
-/**
- * Shared "icon + big number + label" tile - was copy-pasted inline in
- * DriverHomePage.jsx and MerchantHomePage.jsx with only color/content
- * differing.
- */
-export const StatTile = ({ icon: Icon, value, label, iconClassName = 'text-primary' }) => (
-  <Card className="p-4 flex flex-col items-center justify-center text-center shadow-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-100 dark:border-slate-700">
-    <Icon className={`${iconClassName} mb-2`} size={28} />
-    <span className="text-2xl font-bold">{value}</span>
-    <span className="text-xs text-slate-500">{label}</span>
-  </Card>
+/** "icon + big number + label" tile for home dashboards. */
+export const StatTile = ({ icon: Icon, value, label, tone = 'brand' }) => (
+  <UICard padding="md" className="flex flex-col items-start gap-3">
+    {Icon && <IconTile tone={tone} size="sm"><Icon size={18} /></IconTile>}
+    <span className="font-mono text-[24px] font-medium leading-none tracking-tight text-ink">{value}</span>
+    <span className="text-xs text-ink-muted">{label}</span>
+  </UICard>
 );

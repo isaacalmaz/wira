@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, FileSearch, Trash2, Plus } from 'lucide-react';
+import { Search, RefreshCw, FileSearch, Trash2, Plus, Store, Home, Utensils, Star, Clock } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
+import { ConfirmModal } from '../components/common/UIComponents';
+import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
+
+const isVillaType = m => m.service_type === 'villa' || m.service_type === 'WiraVilla';
 
 const MerchantsPage = () => {
   const [liveMerchants, setLiveMerchants] = useState([]);
@@ -14,6 +18,7 @@ const MerchantsPage = () => {
   const [selectedMerchant, setSelectedMerchant] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('live'); // 'live' or 'pending'
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -143,7 +148,7 @@ const MerchantsPage = () => {
   };
 
   const handleDeleteLive = async (id) => {
-    if (!window.confirm('Hapus merchant ini dari aplikasi?')) return;
+    // Confirmation now happens in the ConfirmModal below (deleteTarget).
     try {
       const { error, data } = await supabase.from('merchants').delete().eq('id', id).select();
       if (error) throw error;
@@ -159,112 +164,145 @@ const MerchantsPage = () => {
   const filteredLive = liveMerchants.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Manajemen Merchant</h1>
-          <p className="text-sm text-slate-500">Kelola WiraFood & WiraVilla dan persetujuan pendaftaran merchant baru.</p>
-        </div>
-        <button onClick={fetchData} className="p-2 border rounded-xl hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 transition">
-          <RefreshCw size={20} className={`text-slate-600 dark:text-slate-300 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        className="!mb-0"
+        title="Manajemen Merchant"
+        subtitle="Kelola WiraFood & WiraVilla dan persetujuan pendaftaran merchant baru."
+        actions={(
+          <Button variant="secondary" onClick={fetchData} aria-label="Muat ulang" className="px-3">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        )}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label="Merchant Aktif" value={liveMerchants.length} icon={<Store size={18} />} />
+        <Stat label="WiraVilla" value={liveMerchants.filter(isVillaType).length} icon={<Home size={18} />} tone="neutral" />
+        <Stat label="Menunggu Verifikasi" value={pendingMerchants.length} icon={<Clock size={18} />} tone="neutral" />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-slate-200 dark:border-slate-700">
-        <button onClick={() => setActiveTab('live')} className={`pb-3 font-medium transition ${activeTab === 'live' ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-700'}`}>
-          Merchant Aktif ({liveMerchants.length})
-        </button>
-        <button onClick={() => setActiveTab('pending')} className={`pb-3 font-medium transition flex items-center gap-2 ${activeTab === 'pending' ? 'text-amber-600 border-b-2 border-amber-600' : 'text-slate-500 hover:text-slate-700'}`}>
-          Menunggu Verifikasi 
-          {pendingMerchants.length > 0 && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">{pendingMerchants.length}</span>}
-        </button>
-      </div>
+      <Segmented
+        ariaLabel="Daftar merchant"
+        className="self-start"
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          { value: 'live', label: <>Merchant Aktif <span className="font-mono">({liveMerchants.length})</span></> },
+          {
+            value: 'pending',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                Menunggu Verifikasi
+                {pendingMerchants.length > 0 && <Badge tone="warning" className="px-2 py-0 font-mono">{pendingMerchants.length}</Badge>}
+              </span>
+            ),
+          },
+        ]}
+      />
 
       {activeTab === 'live' ? (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex gap-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={20} />
-              <input type="text" placeholder="Cari nama merchant..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-primary dark:text-white" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={18} aria-hidden="true" />
+              <Input type="text" aria-label="Cari nama merchant" placeholder="Cari nama merchant..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl font-medium" onClick={() => toast('Fitur tambah manual dalam pengembangan')}>
-              <Plus size={20} /> Tambah
-            </button>
+            <Button leftIcon={<Plus size={18} />} onClick={() => toast('Fitur tambah manual dalam pengembangan')}>
+              Tambah
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                <tr>
-                  <th className="p-4 font-semibold">Nama</th>
-                  <th className="p-4 font-semibold">Jenis</th>
-                  <th className="p-4 font-semibold">Alamat</th>
-                  <th className="p-4 font-semibold">Rating</th>
-                  <th className="p-4 font-semibold">Aksi</th>
+          <Table>
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Jenis</th>
+                <th>Alamat</th>
+                <th className="text-right">Rating</th>
+                <th className="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLive.map(m => {
+                const isVilla = m.service_type === 'villa' || m.service_type === 'WiraVilla';
+                return (
+                <tr key={m.id}>
+                  <td className="whitespace-nowrap font-semibold">{m.name}</td>
+                  <td>
+                    <Badge tone="neutral">
+                      {isVilla ? <Home size={12} aria-hidden="true" /> : <Utensils size={12} aria-hidden="true" />}
+                      {isVilla ? 'WiraVilla' : 'WiraFood'}
+                    </Badge>
+                  </td>
+                  <td className="max-w-[260px] truncate text-ink-muted" title={m.address}>{m.address}</td>
+                  <td className="text-right">
+                    <span className="inline-flex items-center gap-1 font-mono">
+                      <Star size={13} className="fill-current text-warning" aria-hidden="true" />
+                      {m.rating}
+                    </span>
+                  </td>
+                  <td className="text-right">
+                    <Button size="sm" variant="danger-soft" leftIcon={<Trash2 size={15} />} onClick={() => setDeleteTarget(m)}>
+                      Hapus
+                    </Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {filteredLive.map(m => {
-                  const isVilla = m.service_type === 'villa' || m.service_type === 'WiraVilla';
-                  return (
-                  <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                    <td className="p-4 font-bold text-slate-900 dark:text-white">{m.name}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isVilla ? 'bg-violet-100 text-violet-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {isVilla ? 'WiraVilla' : 'WiraFood'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-500 truncate max-w-[200px]">{m.address}</td>
-                    <td className="p-4 text-amber-500 font-bold">★ {m.rating}</td>
-                    <td className="p-4 flex gap-2">
-                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" onClick={() => handleDeleteLive(m.id)}>
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+              {filteredLive.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="py-10 text-center text-ink-muted">
+                    {loading ? 'Memuat...' : 'Tidak ada merchant.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {pendingMerchants.map(merchant => {
             const isVilla = merchant.service_type === 'villa' || merchant.service_type === 'WiraVilla';
             return (
-            <div key={merchant.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:border-primary transition flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{merchant.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${isVilla ? 'bg-violet-100 text-violet-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {isVilla ? 'WiraVilla' : 'WiraFood'}
-                      </span>
-                      <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        Menunggu Verifikasi
-                      </p>
-                    </div>
+            <Card key={merchant.id} className="flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <IconTile tone="neutral" size="sm">{isVilla ? <Home size={17} /> : <Store size={17} />}</IconTile>
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <h3 className="truncate text-[14px] font-semibold text-ink">{merchant.name}</h3>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone="neutral">{isVilla ? 'WiraVilla' : 'WiraFood'}</Badge>
+                    <Badge tone="warning" dot>Menunggu Verifikasi</Badge>
                   </div>
                 </div>
-                <div className="space-y-1 mb-5">
-                  <p className="text-sm text-slate-600 dark:text-slate-300"><strong>Pemilik:</strong> {merchant.owner}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300"><strong>HP:</strong> {merchant.phone}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 truncate"><strong>Lokasi:</strong> {merchant.address}</p>
-                </div>
               </div>
-              <button onClick={() => { setSelectedMerchant(merchant); setIsReviewOpen(true); }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white py-2.5 rounded-xl text-sm font-bold transition">
-                <FileSearch size={16} /> Review Berkas
-              </button>
-            </div>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+                <dt className="text-ink-muted">Pemilik</dt>
+                <dd className="min-w-0 truncate text-ink">{merchant.owner}</dd>
+                <dt className="text-ink-muted">HP</dt>
+                <dd className="min-w-0 truncate font-mono text-ink">{merchant.phone}</dd>
+                <dt className="text-ink-muted">Lokasi</dt>
+                <dd className="min-w-0 truncate text-ink" title={merchant.address}>{merchant.address}</dd>
+              </dl>
+              <Button
+                variant="secondary"
+                size="sm"
+                block
+                className="mt-auto"
+                leftIcon={<FileSearch size={15} />}
+                onClick={() => { setSelectedMerchant(merchant); setIsReviewOpen(true); }}
+              >
+                Review Berkas
+              </Button>
+            </Card>
             );
           })}
           {pendingMerchants.length === 0 && (
-            <div className="col-span-full p-10 text-center text-slate-500 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-              Tidak ada pendaftaran merchant baru saat ini.
-            </div>
+            <EmptyState
+              className="col-span-full"
+              icon={<FileSearch size={24} />}
+              title="Tidak ada pendaftaran merchant baru saat ini."
+            />
           )}
         </div>
       )}
@@ -277,6 +315,16 @@ const MerchantsPage = () => {
           onVerify={handleVerify}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        tone="danger"
+        title="Hapus Merchant"
+        message={deleteTarget ? `Hapus merchant "${deleteTarget.name}" dari aplikasi?` : ''}
+        confirmLabel="Hapus"
+        onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); handleDeleteLive(id); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

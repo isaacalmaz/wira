@@ -1,8 +1,47 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { Users, Car, Store, ArrowUpRight, TrendingUp, DollarSign, Activity } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import {
+  Users, Car, Store, TrendingUp, Activity, ShoppingBag, UserPlus, Wallet, Package, Home, Wrench, Inbox, ChevronRight,
+} from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import {
+  Badge, Button, Card, EmptyState, IconTile, ListRow, Money, PageHeader, SectionHeader, Spinner, Stat, Table,
+} from '../components/ui';
+import { useTheme } from '../context/ThemeContext';
+import { fetchPendingApplications } from '../services/mitraApplicationService';
+import { orderStatusLabel } from '../config/orderStatus';
+
+// Calendar day in the browser's timezone (WITA for the Lombok team), not UTC:
+// toISOString() made each "day" run from 08:00 to 08:00 local time.
+const localDayKey = (value) => {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Chart colours. Recharts needs raw values, so these mirror the Tenun Laut
+// tokens (index.css) for each theme: line = hairline, muted = axis text.
+const CHART_LIGHT = { grid: '#E4E1DA', axis: '#6B6862', money: '#A8791F', bars: ['#0B4F5E', '#3FA3B5'], card: '#FFFFFF', ink: '#21201D' };
+const CHART_NIGHT = { grid: '#22363C', axis: '#9AA7AA', money: '#D9A845', bars: ['#16788C', '#3FA3B5'], card: '#142328', ink: '#ECEAE5' };
+
+// Where each pending application is reviewed (same mapping as the header
+// notifications in AdminLayout).
+const ROLE_META = {
+  driver: { title: 'Driver', link: '/drivers', icon: Car },
+  courier: { title: 'Kurir', link: '/drivers', icon: Package },
+  merchant: { title: 'Restoran', link: '/merchants', icon: Store },
+  villa: { title: 'Villa', link: '/merchants', icon: Home },
+  technician: { title: 'Teknisi', link: '/technicians', icon: Wrench },
+};
+
+const ORDER_STATUS_TONE = (status) => {
+  const s = String(status || '').toLowerCase();
+  if (s === 'completed') return 'success';
+  if (s === 'cancelled' || s === 'canceled' || s === 'rejected') return 'danger';
+  if (s === 'pending' || s === 'searching') return 'warning';
+  return 'brand';
+};
 
 // Platform commission on every completed order — 20%, mitras (merchant+driver
 // combined, or driver alone for non-food services) keep the other 80%. This
@@ -25,12 +64,42 @@ const DashboardPage = () => {
     merchants: 0,
     transactions: 0,
     revenue: 0,
-    gmv: 0
+    gmv: 0,
+    ordersToday: 0
   });
   
   const [chartData, setChartData] = useState([]);
   const [serviceData, setServiceData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
+  const palette = isDarkMode ? CHART_NIGHT : CHART_LIGHT;
+
+  // Read-only extras for the dashboard widgets (recent orders, attention
+  // list). Kept apart from fetchDashboard so a failure here never blanks
+  // the key figures above.
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [pendingApps, setPendingApps] = useState([]);
+
+  useEffect(() => {
+    const fetchExtras = async () => {
+      try {
+        const [recentRes, pendings] = await Promise.all([
+          supabase.from('orders')
+            .select('id, service_type, total_price, status, created_at, user:users!user_id(name), driver:users!driver_id(name)')
+            .order('created_at', { ascending: false })
+            .limit(8),
+          fetchPendingApplications(null, 'id, role, name, phone, created_at'),
+        ]);
+        if (recentRes.error) throw recentRes.error;
+        setRecentOrders(recentRes.data || []);
+        setPendingApps(pendings || []);
+      } catch (err) {
+        console.error('Dashboard extras error:', err);
+      }
+    };
+    fetchExtras();
+  }, []);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -75,18 +144,19 @@ const DashboardPage = () => {
           merchants: merchants || 0,
           transactions: completedOrders.length,
           revenue: totalRev,
-          gmv: totalGMV
+          gmv: totalGMV,
+          ordersToday: allOrders.filter(o => o.created_at && localDayKey(o.created_at) === localDayKey(new Date())).length
         });
 
         // Generate Chart Data (Last 7 Days)
         const last7Days = [...Array(7)].map((_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
-          return d.toISOString().split('T')[0];
+          return localDayKey(d);
         });
 
         const dailyRevenue = last7Days.map(date => {
-          const dayOrders = completedOrders.filter(o => o.created_at && o.created_at.startsWith(date));
+          const dayOrders = completedOrders.filter(o => o.created_at && localDayKey(o.created_at) === date);
           const dayGMV = dayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
           return {
             name: new Date(date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
@@ -100,8 +170,8 @@ const DashboardPage = () => {
         const foodCount = allOrders.filter(o => o.service_type === 'food').length;
         
         setServiceData([
-          { name: 'WiraRide', Pesanan: rideCount, fill: '#3b82f6' },
-          { name: 'WiraFood', Pesanan: foodCount, fill: '#f59e0b' }
+          { name: 'WiraRide', Pesanan: rideCount },
+          { name: 'WiraFood', Pesanan: foodCount }
         ]);
 
       } catch (err) {
@@ -114,104 +184,217 @@ const DashboardPage = () => {
     fetchDashboard();
   }, []);
 
-  if (loading) return <div className="p-10 text-center animate-pulse">Memuat Dasbor Wira...</div>;
+  const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const header = (
+    <PageHeader
+      eyebrow={today}
+      title="Dasbor Wira"
+      subtitle="Ringkasan aktivitas seluruh ekosistem Wira di Pulau Lombok"
+      actions={<Badge tone="success" dot>Live</Badge>}
+      className="!mb-0"
+    />
+  );
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        {header}
+        <Card className="flex items-center justify-center gap-3 py-16 text-[13.5px] text-ink-muted">
+          <Spinner size={18} className="text-brand" /> Memuat Dasbor Wira...
+        </Card>
+      </div>
+    );
+  }
+
+  const tooltipStyle = {
+    backgroundColor: palette.card,
+    border: `1px solid ${palette.grid}`,
+    borderRadius: 12,
+    boxShadow: '0 16px 40px -12px rgba(6, 47, 60, 0.28)',
+    fontSize: 12.5,
+    color: palette.ink,
+  };
+  const axisTick = { fontSize: 12, fill: palette.axis };
+  // Big money figures sit a step smaller than counts so long rupiah fits the tile.
+  const moneyValue = (n) => <Money value={n} className="text-[22px]" />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dasbor Wira (Live)</h1>
-          <p className="text-sm text-slate-500">Ringkasan aktivitas seluruh ekosistem Wira di Pulau Lombok</p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      {header}
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Total Pengguna" value={stats.users} icon={<Users size={20} />} trend="Aktif" color="blue" />
-        <StatCard title="Total Driver" value={stats.drivers} icon={<Car size={20} />} trend="Aktif" color="indigo" />
-        <StatCard title="Total Merchant" value={stats.merchants} icon={<Store size={20} />} trend="Aktif" color="amber" />
-        <StatCard title="Transaksi Berhasil" value={stats.transactions} icon={<Activity size={20} />} trend="Selesai" color="emerald" />
-        <StatCard title="Volume Transaksi (GMV)" value={stats.gmv} icon={<TrendingUp size={20} />} trend="Kotor" color="rose" isCurrency />
+      {/* Key figures */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Stat label="Pesanan Hari Ini" value={stats.ordersToday.toLocaleString('id-ID')} icon={<ShoppingBag size={18} />} hint="Semua status layanan" />
+        <Stat label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
+        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi 20% dari GMV" />
+        <Stat label="Menunggu Verifikasi" value={pendingApps.length.toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={pendingApps.length > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
+        <Stat label="Total Pengguna" value={stats.users.toLocaleString('id-ID')} icon={<Users size={18} />} tone="neutral" hint="Aktif" />
+        <Stat label="Total Driver" value={stats.drivers.toLocaleString('id-ID')} icon={<Car size={18} />} tone="neutral" hint="Aktif" />
+        <Stat label="Total Merchant" value={stats.merchants.toLocaleString('id-ID')} icon={<Store size={18} />} tone="neutral" hint="Aktif" />
+        <Stat label="Transaksi Berhasil" value={stats.transactions.toLocaleString('id-ID')} icon={<Activity size={18} />} tone="success" hint="Selesai" />
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Revenue Line Chart */}
-        <div className="card lg:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-lg font-bold">Pendapatan Platform (Komisi 20%)</h2>
-              <p className="text-2xl font-extrabold text-slate-800 dark:text-white mt-1">Rp {stats.revenue.toLocaleString('id-ID')}</p>
-              <p className="text-xs text-slate-400 mt-0.5">dari Rp {stats.gmv.toLocaleString('id-ID')} volume transaksi (GMV)</p>
+        <Card padding="lg" className="min-w-0 xl:col-span-2">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Pendapatan Platform (Komisi 20%)</h2>
+              <Money value={stats.revenue} tone="pay" className="text-[26px] font-medium leading-tight tracking-tight" />
+              <p className="text-xs text-ink-muted">
+                dari <Money value={stats.gmv} className="text-ink" /> volume transaksi (GMV)
+              </p>
             </div>
-            <div className="p-2 bg-green-100 text-green-700 rounded-lg"><DollarSign size={20}/></div>
+            <Badge tone="neutral">7 hari terakhir</Badge>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748b' }}
-                  tickFormatter={(val) => `Rp ${val/1000}k`}
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke={palette.grid} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={6} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ ...axisTick, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
+                  tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000).toLocaleString('id-ID')}rb` : String(Math.round(v)))}
+                  width={56}
                 />
                 <RechartsTooltip
-                  formatter={(value) => ['Rp ' + value.toLocaleString('id-ID'), 'Komisi Platform']}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value) => ['Rp ' + Math.round(value).toLocaleString('id-ID'), 'Komisi Platform']}
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: palette.axis, marginBottom: 2 }}
+                  itemStyle={{ color: palette.ink, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
+                  cursor={{ stroke: palette.grid, strokeWidth: 1 }}
                 />
-                <Line type="monotone" dataKey="Pendapatan" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Pendapatan" stroke={palette.money} strokeWidth={2.5} dot={{ r: 3.5, fill: palette.money, strokeWidth: 2, stroke: palette.card }} activeDot={{ r: 5.5, stroke: palette.card, strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
 
         {/* Orders by Service */}
-        <div className="card">
-          <h2 className="text-lg font-bold mb-6">Sebaran Layanan</h2>
+        <Card padding="lg" className="min-w-0">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Sebaran Layanan</h2>
+              <p className="text-xs text-ink-muted">Jumlah pesanan per layanan</p>
+            </div>
+          </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={serviceData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
-                <RechartsTooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              <BarChart data={serviceData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke={palette.grid} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={6} />
+                <YAxis axisLine={false} tickLine={false} tick={{ ...axisTick, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }} allowDecimals={false} width={40} />
+                <RechartsTooltip
+                  cursor={{ fill: palette.grid, fillOpacity: 0.35 }}
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: palette.axis, marginBottom: 2 }}
+                  itemStyle={{ color: palette.ink, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
                 />
-                <Bar dataKey="Pesanan" radius={[6, 6, 0, 0]} barSize={40} />
+                <Bar dataKey="Pesanan" radius={[6, 6, 0, 0]} barSize={40}>
+                  {serviceData.map((entry, i) => (
+                    <Cell key={entry.name} fill={palette.bars[i % palette.bars.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
       </div>
-    </div>
-  );
-};
 
-const StatCard = ({ title, value, icon, trend, color, isCurrency }) => {
-  const colorMap = {
-    blue: 'bg-blue-100 text-blue-600',
-    indigo: 'bg-indigo-100 text-indigo-600',
-    amber: 'bg-amber-100 text-amber-600',
-    emerald: 'bg-emerald-100 text-emerald-600',
-    rose: 'bg-rose-100 text-rose-600',
-  };
+      {/* Recent orders + attention */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <section className="flex min-w-0 flex-col xl:col-span-2">
+          <SectionHeader
+            title="Pesanan Terbaru"
+            action={(
+              <button type="button" onClick={() => navigate('/orders')} className="inline-flex items-center gap-0.5 hover:underline">
+                Lihat semua <ChevronRight size={15} />
+              </button>
+            )}
+          />
+          {recentOrders.length === 0 ? (
+            <EmptyState icon={<ShoppingBag size={22} />} title="Belum ada pesanan." />
+          ) : (
+            <Table>
+              <thead>
+                <tr>
+                  <th>ID Pesanan</th>
+                  <th>Layanan</th>
+                  <th>Pelanggan</th>
+                  <th className="text-right">Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map((o) => (
+                  <tr key={o.id}>
+                    <td className="whitespace-nowrap">
+                      <span className="font-mono text-[12.5px] text-ink">{o.id.slice(0, 8)}</span>
+                      <span className="block font-mono text-[11.5px] text-ink-muted">
+                        {o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
+                    <td className="max-w-[220px]">
+                      <span className="block truncate font-semibold">{o.user?.name || 'Anonim'}</span>
+                      <span className="block truncate text-xs text-ink-muted">{o.driver?.name || '-'}</span>
+                    </td>
+                    <td className="text-right"><Money value={o.total_price || 0} /></td>
+                    <td><Badge tone={ORDER_STATUS_TONE(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </section>
 
-  return (
-    <div className="card hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-xl ${colorMap[color]}`}>
-          {icon}
-        </div>
-        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-          <ArrowUpRight size={14} /> {trend.split(' ')[0]}
-        </span>
-      </div>
-      <div>
-        <h3 className="text-sm font-medium text-slate-500 mb-1">{title}</h3>
-        <h4 className="text-2xl font-bold text-slate-800 dark:text-white">{isCurrency ? `Rp ${value.toLocaleString('id-ID')}` : value.toLocaleString('id-ID')}</h4>
+        <section className="flex min-w-0 flex-col">
+          <SectionHeader
+            title="Perlu Tindakan"
+            action={pendingApps.length > 0 ? <Badge tone="warning" className="font-mono">{pendingApps.length}</Badge> : null}
+          />
+          {pendingApps.length === 0 ? (
+            <EmptyState icon={<Inbox size={22} />} title="Tidak ada notifikasi riil baru" description="Pendaftaran mitra yang menunggu verifikasi akan muncul di sini." />
+          ) : (
+            <Card padding="none" className="overflow-hidden">
+              <ul className="divide-y divide-line">
+                {pendingApps.slice(0, 6).map((m) => {
+                  const meta = ROLE_META[m.role] || { title: m.role || 'Mitra', link: '/users', icon: UserPlus };
+                  const RoleIcon = meta.icon;
+                  return (
+                    <li key={m.id}>
+                      <ListRow
+                        className="px-4 py-3"
+                        leading={<IconTile tone="brand" size="sm"><RoleIcon size={17} /></IconTile>}
+                        title={m.name}
+                        subtitle={(
+                          <>
+                            {`Pendaftaran ${meta.title} Baru`}
+                            {m.phone && <> · <span className="font-mono">{m.phone}</span></>}
+                          </>
+                        )}
+                        trailing={(
+                          <Button size="sm" variant="secondary" onClick={() => navigate(meta.link)}>
+                            Tinjau
+                          </Button>
+                        )}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+              {pendingApps.length > 6 && (
+                <p className="border-t border-line bg-sunken/50 px-4 py-2.5 text-center text-xs text-ink-muted">
+                  +<span className="font-mono">{pendingApps.length - 6}</span> pendaftaran lainnya menunggu verifikasi
+                </p>
+              )}
+            </Card>
+          )}
+        </section>
       </div>
     </div>
   );

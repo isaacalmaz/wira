@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, X, UtensilsCrossed, RefreshCw, Camera } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit2, Trash2, Search, UtensilsCrossed, RefreshCw, Camera, Image as ImageIcon, CheckCircle2, PauseCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Modal } from '../../components/shared/UIComponents';
+import { Button, Card, Sheet, Field, Input, Select, Textarea, Badge, Money, PageHeader, EmptyState, Segmented, Spinner, cx } from '../../components/ui';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 
 const categories = [
@@ -12,6 +12,23 @@ const categories = [
   { id: 'minuman', name: 'Minuman' },
   { id: 'snack', name: 'Camilan / Penutup' }
 ];
+
+// Availability switch for a product row: 44px tap target; the Badge beside
+// it carries the state in words, so it never relies on colour alone.
+const AvailabilitySwitch = ({ checked, onChange, label }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    onClick={onChange}
+    className="-ml-1.5 inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full"
+  >
+    <span className={cx('relative h-7 w-12 rounded-full transition-colors duration-200', checked ? 'bg-success' : 'bg-line-strong')}>
+      <span className={cx('absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.25)] transition-transform duration-200', checked ? 'translate-x-5' : 'translate-x-0')} />
+    </span>
+  </button>
+);
 
 const MerchantMenuPage = () => {
   const { user } = useAuth();
@@ -36,6 +53,9 @@ const MerchantMenuPage = () => {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // Stable identity: Sheet re-runs its focus effect when onClose changes,
+  // which would pull focus back to the first field on every keystroke.
+  const closeModal = useCallback(() => setIsModalOpen(false), []);
 
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -213,7 +233,7 @@ const MerchantMenuPage = () => {
       if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
       setMenuItems(prev => prev.map(m => m.id === id ? { ...m, isAvailable: newStatus } : m));
       toast(newStatus ? `Menu sekarang Tersedia` : `Menu ditandai Habis`, {
-        icon: newStatus ? '✅' : '⏸️',
+        icon: newStatus ? <CheckCircle2 size={18} className="text-success" /> : <PauseCircle size={18} className="text-ink-muted" />,
       });
     } catch (err) {
       toast.error('Gagal mengubah status');
@@ -232,284 +252,235 @@ const MerchantMenuPage = () => {
   // daripada merender menu/tombol tambah yang tidak seharusnya bisa dipakai.
   if (!loading && profileNotLinked) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto pb-12">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-          Manajemen Menu Makanan
-        </h1>
-        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <UtensilsCrossed size={40} className="mx-auto text-slate-300 mb-3" />
-          <h2 className="font-bold text-slate-700 dark:text-slate-200 mb-1">
-            Profil Merchant Anda Belum Terdaftar
-          </h2>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
-            Akun ini belum terhubung ke toko manapun. Jika Anda baru saja
-            mendaftar, pendaftaran mitra masih menunggu persetujuan admin -
-            silakan cek kembali nanti atau hubungi dukungan Wira jika ini
-            berlangsung lebih dari 1x24 jam.
-          </p>
-          <button
-            onClick={fetchMenu}
-            className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"
-          >
-            <RefreshCw size={14} /> Coba Muat Ulang
-          </button>
-        </div>
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 pb-12">
+        <PageHeader title="Manajemen Menu Makanan" className="mb-0" />
+        <EmptyState
+          icon={<UtensilsCrossed size={24} />}
+          title="Profil Merchant Anda Belum Terdaftar"
+          description="Akun ini belum terhubung ke toko manapun. Jika Anda baru saja mendaftar, pendaftaran mitra masih menunggu persetujuan admin - silakan cek kembali nanti atau hubungi dukungan Wira jika ini berlangsung lebih dari 1x24 jam."
+          action={
+            <Button variant="secondary" leftIcon={<RefreshCw size={16} />} onClick={fetchMenu}>
+              Coba Muat Ulang
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-            Manajemen Menu Makanan
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Atur hidangan, harga, foto, dan status ketersediaan di WiraFood
-          </p>
-        </div>
-        <button
-          onClick={handleOpenAdd}
-          className="bg-primary text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:bg-opacity-90 shadow-sm transition"
-        >
-          <Plus size={18} /> <span>Tambah Menu Baru</span>
-        </button>
-      </div>
-
-      {/* Kategori Tabs */}
-      <div className="flex overflow-x-auto pb-2 gap-2 hide-scrollbar">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all ${
-              activeCategory === cat.id
-                ? 'bg-primary text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:bg-slate-50'
-            }`}
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-12">
+      <PageHeader
+        title="Manajemen Menu Makanan"
+        subtitle="Atur hidangan, harga, foto, dan status ketersediaan di WiraFood"
+        className="mb-0"
+        actions={
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            leftIcon={<Plus size={18} />}
+            aria-label="Tambah Menu Baru"
+            className="max-sm:w-11 max-sm:gap-0 max-sm:px-0"
           >
-            {cat.name}
-          </button>
-        ))}
-      </div>
+            <span className="hidden sm:inline">Tambah Menu Baru</span>
+          </Button>
+        }
+      />
 
-      {/* Pencarian */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
-        <input
-          type="text"
-          placeholder="Cari nama menu hidangan..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary focus:outline-none text-xs sm:text-sm"
+      <div className="flex flex-col gap-3">
+        {/* Kategori Tabs */}
+        <Segmented
+          scroll
+          ariaLabel="Kategori menu"
+          options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+          value={activeCategory}
+          onChange={setActiveCategory}
         />
+
+        {/* Pencarian */}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={18} aria-hidden="true" />
+          <Input
+            type="search"
+            placeholder="Cari nama menu hidangan..."
+            aria-label="Cari nama menu hidangan"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Daftar Menu */}
-      <div className="space-y-3">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex gap-4 items-center transition hover:shadow-md"
-            >
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-20 h-20 rounded-xl object-cover bg-slate-100 shrink-0"
-              />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white truncate">
-                    {item.name}
-                  </h3>
-                  <span className="font-extrabold text-sm text-primary whitespace-nowrap ml-2">
-                    Rp {item.price.toLocaleString('id-ID')}
-                  </span>
-                </div>
-                <span className="inline-block text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full mt-1">
-                  {categories.find((c) => c.id === item.category)?.name || item.category}
-                </span>
-                <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                  {item.description}
-                </p>
-
-                <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleStatus(item.id)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        item.isAvailable ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          item.isAvailable ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                    <span
-                      className={`text-xs font-bold ${
-                        item.isAvailable ? 'text-green-600' : 'text-slate-400'
-                      }`}
-                    >
-                      {item.isAvailable ? 'Tersedia' : 'Habis'}
+      {loading && menuItems.length === 0 ? (
+        <div className="flex justify-center py-12 text-brand-ink" role="status">
+          <Spinner size={24} />
+        </div>
+      ) : filteredItems.length > 0 ? (
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="flex flex-col gap-3 p-3.5">
+              <div className="flex gap-3.5">
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className={cx('h-20 w-20 shrink-0 rounded-control bg-sunken object-cover transition-opacity', !item.isAvailable && 'opacity-50 grayscale')}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <h3 className="break-words text-[14px] font-semibold leading-snug text-ink">{item.name}</h3>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Money value={item.price} className="text-[14px] font-medium text-ink" />
+                    <span className="text-line-strong" aria-hidden="true">·</span>
+                    <span className="text-[12px] text-ink-muted">
+                      {categories.find((c) => c.id === item.category)?.name || item.category}
                     </span>
                   </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleOpenEdit(item)}
-                      className="p-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 rounded-lg hover:bg-blue-100 transition-colors"
-                      title="Edit Menu"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id, item.name)}
-                      className="p-2 text-red-600 bg-red-50 dark:bg-red-950/30 rounded-lg hover:bg-red-100 transition-colors"
-                      title="Hapus Menu"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {item.description && (
+                    <p className="line-clamp-2 text-[12.5px] leading-relaxed text-ink-muted">{item.description}</p>
+                  )}
                 </div>
               </div>
+
+              <div className="flex items-center gap-2">
+                <AvailabilitySwitch
+                  checked={item.isAvailable}
+                  onChange={() => toggleStatus(item.id)}
+                  label={`${item.name}: ${item.isAvailable ? 'Tersedia' : 'Habis'}`}
+                />
+                <Badge tone={item.isAvailable ? 'success' : 'neutral'}>{item.isAvailable ? 'Tersedia' : 'Habis'}</Badge>
+                <span className="flex-1" />
+                <Button
+                  variant="secondary"
+                  onClick={() => handleOpenEdit(item)}
+                  title="Edit Menu"
+                  aria-label={`Edit Menu ${item.name}`}
+                  className="w-11 px-0"
+                >
+                  <Edit2 size={16} />
+                </Button>
+                <Button
+                  variant="danger-soft"
+                  onClick={() => handleDelete(item.id, item.name)}
+                  title="Hapus Menu"
+                  aria-label={`Hapus Menu ${item.name}`}
+                  className="w-11 px-0"
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </div>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <UtensilsCrossed size={36} className="mx-auto text-slate-300 mb-2" />
-            <p className="text-slate-500 text-sm">Tidak ada menu di kategori ini.</p>
-            <button
-              onClick={handleOpenAdd}
-              className="mt-3 text-xs font-bold text-primary hover:underline"
-            >
-              + Tambah Menu Baru Sekarang
-            </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </Card>
+      ) : (
+        <EmptyState
+          icon={<UtensilsCrossed size={24} />}
+          title="Tidak ada menu di kategori ini."
+          action={
+            <Button variant="secondary" leftIcon={<Plus size={16} />} onClick={handleOpenAdd}>
+              Tambah Menu Baru Sekarang
+            </Button>
+          }
+        />
+      )}
 
       {/* MODAL TAMBAH / EDIT MENU */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-md p-6 space-y-4 relative">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+      <Sheet
+        open={isModalOpen}
+        onClose={closeModal}
+        title={editingItem ? 'Edit Menu Hidangan' : 'Tambah Menu Baru'}
+        description="Isi rincian makanan atau minuman yang ingin dijual"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal}>
+              Batal
+            </Button>
+            <Button type="submit" form="menu-form" variant="primary" disabled={isUploadingImage}>
+              {editingItem ? 'Simpan Perubahan' : 'Tambah Menu'}
+            </Button>
+          </>
+        }
+      >
+        <form id="menu-form" onSubmit={handleSaveMenu} className="flex flex-col gap-4 text-left">
+          <Field label="Nama Menu" htmlFor="menu-name" required>
+            <Input
+              id="menu-name"
+              type="text"
+              placeholder="Contoh: Sate Rembiga Pedas Manis"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
+            <Field label="Harga (Rp)" htmlFor="menu-price" required>
+              <Input
+                id="menu-price"
+                type="number"
+                inputMode="numeric"
+                min="1000"
+                placeholder="Contoh: 35000"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="font-mono"
+                required
+              />
+            </Field>
+            <Field label="Kategori" htmlFor="menu-category">
+              <Select id="menu-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {categories
+                  .filter((c) => c.id !== 'all')
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Deskripsi Menu" htmlFor="menu-description">
+            <Textarea
+              id="menu-description"
+              placeholder="Bumbu khas rembiga disajikan dengan lontong dan sambal..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </Field>
+
+          <Field label="Foto Makanan" htmlFor="menu-image">
+            <label
+              htmlFor="menu-image"
+              className={cx(
+                'flex cursor-pointer items-center gap-3.5 rounded-control border border-dashed border-line-strong bg-card p-3 transition-colors',
+                'hover:border-brand hover:bg-brand-soft/40 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20',
+                isUploadingImage && 'pointer-events-none opacity-70',
+              )}
             >
-              <X size={20} />
-            </button>
-
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                {editingItem ? 'Edit Menu Hidangan' : 'Tambah Menu Baru'}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Isi rincian makanan atau minuman yang ingin dijual
-              </p>
-            </div>
-
-            <form onSubmit={handleSaveMenu} className="space-y-3 text-left">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Nama Menu
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Sate Rembiga Pedas Manis"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Harga (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min="1000"
-                    placeholder="Contoh: 35000"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full p-2.5 border rounded-xl text-xs font-bold dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Kategori
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                  >
-                    {categories
-                      .filter((c) => c.id !== 'all')
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Deskripsi Menu
-                </label>
-                <textarea
-                  placeholder="Bumbu khas rembiga disajikan dengan lontong dan sambal..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 border rounded-xl text-xs dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                  rows="2"
-                ></textarea>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Foto Makanan
-                </label>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 shrink-0 border border-slate-200 dark:border-slate-600">
-                    {image && <img src={image} alt="Pratinjau" className="w-full h-full object-cover" />}
-                  </div>
-                  <label className="flex-1 cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} disabled={isUploadingImage} />
-                    <div className="flex items-center justify-center gap-2 p-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors">
-                      <Camera size={16} />
-                      {isUploadingImage ? 'Mengunggah...' : 'Pilih Foto dari Perangkat'}
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 border rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUploadingImage}
-                  className="flex-1 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-md hover:bg-opacity-90 disabled:opacity-50"
-                >
-                  {editingItem ? 'Simpan Perubahan' : 'Tambah Menu'}
-                </button>
-              </div>
-            </form>
-      </Modal>
+              <input
+                id="menu-image"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleImageSelect}
+                disabled={isUploadingImage}
+              />
+              <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-sunken text-ink-muted">
+                {image ? (
+                  <img src={image} alt="Pratinjau" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon size={22} aria-hidden="true" />
+                )}
+              </span>
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-[14px] font-semibold text-brand-ink">
+                {isUploadingImage ? <Spinner size={16} className="shrink-0" /> : <Camera size={18} className="shrink-0" aria-hidden="true" />}
+                <span className="min-w-0">{isUploadingImage ? 'Mengunggah...' : 'Pilih Foto dari Perangkat'}</span>
+              </span>
+            </label>
+          </Field>
+        </form>
+      </Sheet>
     </div>
   );
 };

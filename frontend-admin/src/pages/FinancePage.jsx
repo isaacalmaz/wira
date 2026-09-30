@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { DollarSign, TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, Percent } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Sheet, Spinner, Stat, Table } from '../components/ui';
 
 // Platform commission on every completed order - 20%, matching
 // DashboardPage.jsx's PLATFORM_COMMISSION_RATE (which itself must match
@@ -22,6 +23,7 @@ const FinancePage = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('requests');
   const [transactions, setTransactions] = useState([]);
+  const [confirmAction, setConfirmAction] = useState(null); // { kind, row }
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -80,7 +82,6 @@ const FinancePage = () => {
   }, []);
 
   const handleApprove = async (id) => {
-    if (!window.confirm('Yakin ingin menyetujui top-up ini?')) return;
     setActionLoading(true);
     try {
       const { data, error } = await supabase.rpc('approve_topup_request', { request_id: id });
@@ -99,7 +100,6 @@ const FinancePage = () => {
   };
 
   const handleReject = async (id) => {
-    if (!window.confirm('Yakin ingin menolak top-up ini?')) return;
     setActionLoading(true);
     try {
       const { data, error } = await supabase.rpc('reject_topup_request', { request_id: id });
@@ -118,7 +118,6 @@ const FinancePage = () => {
   };
 
   const handleApprovePayout = async (id) => {
-    if (!window.confirm('Konfirmasi dana SUDAH ditransfer manual ke mitra ini?')) return;
     setActionLoading(true);
     try {
       const { data, error } = await supabase.rpc('approve_payout_request', { request_id: id });
@@ -137,7 +136,6 @@ const FinancePage = () => {
   };
 
   const handleRejectPayout = async (id) => {
-    if (!window.confirm('Yakin ingin menolak pencairan ini? Saldo akan dikembalikan ke mitra.')) return;
     setActionLoading(true);
     try {
       const { data, error } = await supabase.rpc('reject_payout_request', { request_id: id });
@@ -155,287 +153,323 @@ const FinancePage = () => {
     }
   };
 
+  const pendingTopups = topups.filter(t => t.status === 'pending').length;
+  const pendingPayouts = payouts.filter(p => p.status === 'pending').length;
+
+  // Confirmation step for every money action (was window.confirm inside each
+  // handler). The handlers themselves are unchanged apart from that gate.
+  const CONFIRM_COPY = {
+    approveTopup: { title: 'Setujui Top-Up', message: 'Yakin ingin menyetujui top-up ini?', label: 'Setujui', tone: 'default', run: handleApprove },
+    rejectTopup: { title: 'Tolak Top-Up', message: 'Yakin ingin menolak top-up ini?', label: 'Tolak', tone: 'danger', run: handleReject },
+    approvePayout: { title: 'Tandai Sudah Ditransfer', message: 'Konfirmasi dana SUDAH ditransfer manual ke mitra ini?', label: 'Tandai Sudah Ditransfer', tone: 'default', run: handleApprovePayout },
+    rejectPayout: { title: 'Tolak Pencairan', message: 'Yakin ingin menolak pencairan ini? Saldo akan dikembalikan ke mitra.', label: 'Tolak', tone: 'danger', run: handleRejectPayout },
+  };
+  const confirmCopy = confirmAction ? CONFIRM_COPY[confirmAction.kind] : null;
+  const runConfirmed = () => {
+    if (!confirmAction) return;
+    const { kind, row } = confirmAction;
+    setConfirmAction(null);
+    CONFIRM_COPY[kind].run(row.id);
+  };
+
+  const statusTone = (s) => (
+    s === 'pending' ? 'warning' : s === 'approved' ? 'success' : s === 'cancelled' ? 'neutral' : 'danger'
+  );
+
+  const loadingBlock = (
+    <Card className="flex items-center justify-center gap-2 py-10 text-sm text-ink-muted">
+      <Spinner size={16} /> Memuat data...
+    </Card>
+  );
+
+  const userCell = (u) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="font-semibold text-ink">{u?.name || 'Unknown'}</span>
+      <span className="font-mono text-[12px] text-ink-muted">{u?.phone || '-'}</span>
+    </div>
+  );
+
+  const timeCell = (iso) => (
+    <span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{new Date(iso).toLocaleString('id-ID')}</span>
+  );
+
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><DollarSign className="text-primary"/> Keuangan & Top-Up</h1>
-        <p className="text-sm text-slate-500">Laporan pendapatan asli dan permintaan saldo pengguna</p>
+    <div className="flex flex-col gap-6 pb-12">
+      <PageHeader
+        className="!mb-0"
+        title="Keuangan & Top-Up"
+        subtitle="Laporan pendapatan asli dan permintaan saldo pengguna"
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_1.35fr_1fr_1fr]">
+        <Stat
+          label="Total Nilai Transaksi (GMV)"
+          value={<Money value={revenue} />}
+          icon={<TrendingUp size={18} />}
+          tone="pay"
+          hint="Seluruh pesanan selesai"
+        />
+        <Stat
+          label="Estimasi Komisi Aplikasi (20%)"
+          value={<Money value={revenue * PLATFORM_COMMISSION_RATE} />}
+          icon={<Percent size={18} />}
+          tone="pay"
+        />
+        <Stat label="Top-Up Menunggu" value={loading ? '–' : pendingTopups} icon={<Clock size={18} />} tone="neutral" />
+        <Stat label="Pencairan Menunggu" value={loading ? '–' : pendingPayouts} icon={<Landmark size={18} />} tone="neutral" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card bg-gradient-to-br from-green-500 to-emerald-700 text-white border-none shadow-lg">
-          <p className="text-green-100 font-semibold mb-2">Total Nilai Transaksi (GMV)</p>
-          <h2 className="text-4xl font-black mb-4">Rp {revenue.toLocaleString('id-ID')}</h2>
-          <p className="text-sm opacity-80 flex items-center gap-2"><TrendingUp size={16}/> Seluruh pesanan selesai</p>
-        </div>
-        <div className="card shadow-md">
-          <p className="text-slate-500 font-semibold mb-2">Estimasi Komisi Aplikasi (20%)</p>
-          <h2 className="text-4xl font-black text-slate-800 mb-4">Rp {(revenue * PLATFORM_COMMISSION_RATE).toLocaleString('id-ID')}</h2>
-        </div>
-      </div>
-
-
-      <div className="flex gap-2 mt-6 mb-4">
-        <button
-          onClick={() => setActiveTab('requests')}
-          className={`px-4 py-2 rounded-lg font-semibold transition ${
-            activeTab === 'requests' ? 'bg-primary text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          Permintaan (Top-Up & Pencairan)
-        </button>
-        <button
-          onClick={() => setActiveTab('transactions')}
-          className={`px-4 py-2 rounded-lg font-semibold transition ${
-            activeTab === 'transactions' ? 'bg-primary text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          Semua Transaksi (Buku Besar)
-        </button>
-      </div>
+      <Segmented
+        ariaLabel="Tampilan keuangan"
+        className="self-start"
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          { value: 'requests', label: 'Permintaan (Top-Up & Pencairan)' },
+          { value: 'transactions', label: 'Semua Transaksi (Buku Besar)' },
+        ]}
+      />
 
       {activeTab === 'requests' && (
-        <div className="space-y-6">
-      <div className="card shadow-md">
-        <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-          <Clock size={20} className="text-slate-500"/> Permintaan Top-Up WiraPay
-        </h3>
-        
-        {loading ? (
-          <div className="text-center py-8 text-slate-500">Memuat data...</div>
-        ) : topups.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl">Belum ada permintaan top-up.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 border-b">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Waktu</th>
-                  <th className="px-4 py-3 font-semibold">Pengguna</th>
-                  <th className="px-4 py-3 font-semibold">Nominal</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {topups.map(t => (
-                  <tr key={t.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {new Date(t.created_at).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{t.users?.name || 'Unknown'}</div>
-                      <div className="text-xs text-slate-500">{t.users?.phone || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-900">
-                      {(() => {
-                        const amt = Number(t.amount);
-                        const str = amt.toLocaleString('id-ID');
-                        const code = amt % 1000;
-                        if (code > 0 && str.length >= 3) {
-                          return (
-                            <div>
-                              <span>Rp {str.slice(0, -3)}</span>
-                              <span className="text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-200">
-                                {str.slice(-3)}
-                              </span>
-                              <span className="block text-[10px] text-amber-700 font-semibold mt-0.5">
-                                Kode Unik: +{code}
-                              </span>
-                            </div>
-                          );
-                        }
-                        return `Rp ${str}`;
-                      })()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        t.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        t.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        t.status === 'cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {t.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {t.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(t.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition"
-                            title="Setujui"
-                          >
-                            <CheckCircle size={18}/>
-                          </button>
-                          <button
-                            onClick={() => handleReject(t.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition"
-                            title="Tolak"
-                          >
-                            <XCircle size={18}/>
-                          </button>
-                        </div>
-                      )}
-                    </td>
+        <div className="flex flex-col gap-6">
+          <section>
+            <SectionHeader
+              title="Permintaan Top-Up WiraPay"
+              action={pendingTopups > 0 ? <Badge tone="warning" dot>{pendingTopups} menunggu</Badge> : null}
+            />
+            {loading ? loadingBlock : topups.length === 0 ? (
+              <EmptyState icon={<Clock size={24} />} title="Belum ada permintaan top-up." />
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Pengguna</th>
+                    <th className="text-right">Nominal</th>
+                    <th>Status</th>
+                    <th className="text-right">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {topups.map(t => (
+                    <tr key={t.id}>
+                      <td>{timeCell(t.created_at)}</td>
+                      <td>{userCell(t.users)}</td>
+                      <td className="text-right">
+                        {(() => {
+                          const amt = Number(t.amount);
+                          const str = amt.toLocaleString('id-ID');
+                          const code = amt % 1000;
+                          if (code > 0 && str.length >= 3) {
+                            return (
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="whitespace-nowrap font-mono font-medium text-ink">
+                                  Rp {str.slice(0, -3)}
+                                  <span className="rounded-[5px] border border-pay-line bg-pay-soft px-1 text-pay-ink">{str.slice(-3)}</span>
+                                </span>
+                                <span className="text-[11.5px] font-semibold text-pay-ink">
+                                  Kode Unik: <span className="font-mono">+{code}</span>
+                                </span>
+                              </div>
+                            );
+                          }
+                          return <Money value={amt} className="font-medium text-ink" />;
+                        })()}
+                      </td>
+                      <td>
+                        <Badge tone={statusTone(t.status)} dot className="capitalize">{t.status}</Badge>
+                      </td>
+                      <td className="text-right">
+                        {t.status === 'pending' && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              leftIcon={<CheckCircle size={15} />}
+                              onClick={() => setConfirmAction({ kind: 'approveTopup', row: t })}
+                              disabled={actionLoading}
+                            >
+                              Setujui
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger-soft"
+                              leftIcon={<XCircle size={15} />}
+                              onClick={() => setConfirmAction({ kind: 'rejectTopup', row: t })}
+                              disabled={actionLoading}
+                            >
+                              Tolak
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </section>
 
-      <div className="card shadow-md">
-        <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-          <Landmark size={20} className="text-slate-500"/> Permintaan Pencairan Mitra
-        </h3>
-
-        {loading ? (
-          <div className="text-center py-8 text-slate-500">Memuat data...</div>
-        ) : payouts.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl">Belum ada permintaan pencairan.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 border-b">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Waktu</th>
-                  <th className="px-4 py-3 font-semibold">Mitra</th>
-                  <th className="px-4 py-3 font-semibold">Nominal</th>
-                  <th className="px-4 py-3 font-semibold">Tujuan Transfer</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payouts.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {new Date(p.created_at).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{p.users?.name || 'Unknown'}</div>
-                      <div className="text-xs text-slate-500">{p.users?.phone || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-900">
-                      Rp {Number(p.amount).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{p.payout_destination}</div>
-                      <div className="text-xs text-slate-500">
-                        {p.payout_method === 'ewallet' ? 'E-Wallet' : 'Transfer Bank'}
-                        {p.payout_account_name ? ` • a.n. ${p.payout_account_name}` : ''}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        p.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        p.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        p.status === 'cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {p.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {p.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprovePayout(p.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition"
-                            title="Tandai Sudah Ditransfer"
-                          >
-                            <CheckCircle size={18}/>
-                          </button>
-                          <button
-                            onClick={() => handleRejectPayout(p.id)}
-                            disabled={actionLoading}
-                            className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition"
-                            title="Tolak"
-                          >
-                            <XCircle size={18}/>
-                          </button>
-                        </div>
-                      )}
-                    </td>
+          <section>
+            <SectionHeader
+              title="Permintaan Pencairan Mitra"
+              action={pendingPayouts > 0 ? <Badge tone="warning" dot>{pendingPayouts} menunggu</Badge> : null}
+            />
+            {loading ? loadingBlock : payouts.length === 0 ? (
+              <EmptyState icon={<Landmark size={24} />} title="Belum ada permintaan pencairan." />
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Mitra</th>
+                    <th className="text-right">Nominal</th>
+                    <th>Tujuan Transfer</th>
+                    <th>Status</th>
+                    <th className="text-right">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
+                </thead>
+                <tbody>
+                  {payouts.map(p => (
+                    <tr key={p.id}>
+                      <td>{timeCell(p.created_at)}</td>
+                      <td>{userCell(p.users)}</td>
+                      <td className="text-right">
+                        <Money value={p.amount} className="font-medium text-ink" />
+                      </td>
+                      <td>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono font-medium text-ink">{p.payout_destination}</span>
+                          <span className="text-[12px] text-ink-muted">
+                            {p.payout_method === 'ewallet' ? 'E-Wallet' : 'Transfer Bank'}
+                            {p.payout_account_name ? ` • a.n. ${p.payout_account_name}` : ''}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <Badge tone={statusTone(p.status)} dot className="capitalize">{p.status}</Badge>
+                      </td>
+                      <td className="text-right">
+                        {p.status === 'pending' && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              leftIcon={<CheckCircle size={15} />}
+                              onClick={() => setConfirmAction({ kind: 'approvePayout', row: p })}
+                              disabled={actionLoading}
+                            >
+                              Tandai Sudah Ditransfer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger-soft"
+                              leftIcon={<XCircle size={15} />}
+                              onClick={() => setConfirmAction({ kind: 'rejectPayout', row: p })}
+                              disabled={actionLoading}
+                            >
+                              Tolak
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </section>
         </div>
       )}
 
       {activeTab === 'transactions' && (
-        <div className="card shadow-md">
-          <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-            <List size={20} className="text-slate-500"/> Semua Transaksi (Buku Besar)
-          </h3>
-          <p className="text-xs text-slate-500 mb-4">
+        <section>
+          <SectionHeader title="Semua Transaksi (Buku Besar)" className="!mb-1" />
+          <p className="mb-3 text-[13px] text-ink-muted">
             Menampilkan 200 transaksi uang terakhir (Top-Up, Pembayaran Pesanan, Pencairan, Koreksi).
           </p>
 
-          {loading ? (
-            <div className="text-center py-8 text-slate-500">Memuat data...</div>
-          ) : transactions.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl">Belum ada transaksi tercatat.</div>
+          {loading ? loadingBlock : transactions.length === 0 ? (
+            <EmptyState icon={<List size={24} />} title="Belum ada transaksi tercatat." />
           ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 border-b">
+            <Table>
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Waktu</th>
-                  <th className="px-4 py-3 font-semibold">Pengguna</th>
-                  <th className="px-4 py-3 font-semibold">Tipe</th>
-                  <th className="px-4 py-3 font-semibold text-right">Nominal</th>
-                  <th className="px-4 py-3 font-semibold">Deskripsi</th>
+                  <th>Waktu</th>
+                  <th>Pengguna</th>
+                  <th>Tipe</th>
+                  <th className="text-right">Nominal</th>
+                  <th>Deskripsi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {transactions.map(tx => {
                   const isIncoming = tx.type === 'topup' || tx.type === 'correction_in' || tx.type === 'refund' || tx.amount > 0;
-                  
+
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 whitespace-nowrap text-xs">
-                        {new Date(tx.created_at).toLocaleString('id-ID')}
+                    <tr key={tx.id}>
+                      <td>{timeCell(tx.created_at)}</td>
+                      <td>{userCell(tx.users)}</td>
+                      <td>
+                        <Badge tone="neutral" className="font-mono">{tx.type}</Badge>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-900">{tx.users?.name || 'Unknown'}</div>
-                        <div className="text-[10px] text-slate-500">{tx.users?.phone || '-'}</div>
+                      <td className="text-right">
+                        <Money
+                          value={tx.amount}
+                          sign={isIncoming ? 'plus' : 'minus'}
+                          tone={isIncoming ? 'in' : 'default'}
+                          className="font-medium"
+                        />
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase">
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className={`px-4 py-3 font-bold text-right ${isIncoming ? 'text-green-600' : 'text-slate-800'}`}>
-                        <div className="flex items-center justify-end gap-1">
-                          {isIncoming ? <ArrowDownLeft size={14}/> : <ArrowUpRight size={14} className="text-red-500" />}
-                          Rp {Number(tx.amount).toLocaleString('id-ID')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs">
+                      <td className="min-w-[220px] text-[13px]">
                         {tx.description || '-'}
-                        {tx.reference_id && <div className="text-[9px] text-slate-400 mt-0.5 break-all font-mono">{tx.reference_id}</div>}
+                        {tx.reference_id && <div className="mt-0.5 break-all font-mono text-[11px] text-ink-muted">{tx.reference_id}</div>}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+            </Table>
           )}
-        </div>
+        </section>
       )}
 
+      <Sheet
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        title={confirmCopy?.title}
+        description={confirmCopy?.message}
+        tone={confirmCopy?.tone === 'danger' ? 'danger' : 'pay'}
+        icon={confirmCopy?.tone === 'danger' ? <XCircle size={20} /> : <CheckCircle size={20} />}
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setConfirmAction(null)}>Batal</Button>
+            <Button
+              variant={confirmCopy?.tone === 'danger' ? 'danger' : 'primary'}
+              onClick={runConfirmed}
+              isLoading={actionLoading}
+            >
+              {confirmCopy?.label}
+            </Button>
+          </>
+        )}
+      >
+        {confirmAction && (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-control border border-line bg-card px-4 py-3 text-[13px]">
+            <dt className="text-ink-muted">{confirmAction.kind.endsWith('Payout') ? 'Mitra' : 'Pengguna'}</dt>
+            <dd className="text-right font-semibold text-ink">{confirmAction.row.users?.name || 'Unknown'}</dd>
+            <dt className="text-ink-muted">Nominal</dt>
+            <dd className="text-right"><Money value={confirmAction.row.amount} className="font-semibold text-ink" /></dd>
+            {confirmAction.kind.endsWith('Payout') && (
+              <>
+                <dt className="text-ink-muted">Tujuan Transfer</dt>
+                <dd className="text-right font-mono text-ink">{confirmAction.row.payout_destination}</dd>
+              </>
+            )}
+          </dl>
+        )}
+      </Sheet>
     </div>
   );
 };

@@ -1,17 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Card, Button } from '../../components/shared/UIComponents';
+import { Badge, Button, Card, Field, IconTile, Input, ListRow, PageHeader, cx } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, ChevronLeft, Moon, Camera, Store, Car, Package, Utensils, Loader2, MessageSquare } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { User, Phone, Save, Moon, Camera, Store, Car, Package, Utensils, MessageSquare, Bike } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
+
+// ---- display-only helpers ----
+const uploadBtnCls = 'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-control border border-line-strong bg-card px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60';
+
+const PrefRow = ({ icon: Icon, checked, onChange, children }) => (
+  <label
+    className={cx(
+      'flex min-h-11 cursor-pointer items-center gap-3 rounded-control border px-3.5 py-3 transition-colors',
+      checked ? 'border-brand-line bg-brand-soft' : 'border-line-strong bg-card hover:bg-sunken',
+    )}
+  >
+    <Icon size={18} className="shrink-0 text-brand-ink" aria-hidden="true" />
+    <span className="min-w-0 flex-1 text-sm font-medium text-ink">{children}</span>
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="h-5 w-5 shrink-0 rounded-[6px] border-line-strong bg-card text-brand focus:ring-2 focus:ring-brand/30 focus:ring-offset-0"
+    />
+  </label>
+);
 
 const SettingsPage = () => {
   const { user, mitraAccess, refreshProfile } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -168,210 +188,207 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full dark:hover:bg-slate-800">
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold">Pengaturan Akun</h1>
-      </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <PageHeader title="Pengaturan Akun" back className="mb-0" />
 
-      <Card className="p-6 flex flex-col items-center text-center">
-        <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 mb-3">
+      <Card className="flex items-center gap-4">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-line bg-sunken">
           {avatarUrl ? (
-            <img src={avatarUrl} alt="Foto Profil" className="w-full h-full object-cover" />
+            <img src={avatarUrl} alt="Foto Profil" className="h-full w-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400"><User size={36} /></div>
+            <div className="flex h-full w-full items-center justify-center text-ink-muted"><User size={32} /></div>
           )}
         </div>
-        <label className="cursor-pointer">
-          <input type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} disabled={isUploadingAvatar} />
-          <div className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors">
-            <Camera size={16} />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <p className="truncate text-[15px] font-bold text-ink max-w-full">{formData.name || user?.name}</p>
+          <label className={uploadBtnCls}>
+            <input type="file" accept="image/*" className="sr-only" onChange={handleAvatarSelect} disabled={isUploadingAvatar} />
+            <Camera size={16} className="shrink-0" aria-hidden="true" />
             {isUploadingAvatar ? 'Mengunggah...' : 'Ganti Foto Profil'}
-          </div>
-        </label>
+          </label>
+        </div>
       </Card>
 
       {hasBusiness && merchant && (
-        <Card className="p-6 flex flex-col items-center text-center">
-          <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 mb-3">
+        <Card className="flex items-center gap-4">
+          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-tile border border-line bg-sunken">
             {merchant.image ? (
-              <img src={merchant.image} alt="Logo Usaha" className="w-full h-full object-cover" />
+              <img src={merchant.image} alt="Logo Usaha" className="h-full w-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-400"><Store size={36} /></div>
+              <div className="flex h-full w-full items-center justify-center text-ink-muted"><Store size={32} /></div>
             )}
           </div>
-          <label className="cursor-pointer">
-            <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} disabled={isUploadingLogo} />
-            <div className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-colors">
-              <Camera size={16} />
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+            <label className={uploadBtnCls}>
+              <input type="file" accept="image/*" className="sr-only" onChange={handleLogoSelect} disabled={isUploadingLogo} />
+              <Camera size={16} className="shrink-0" aria-hidden="true" />
               {isUploadingLogo ? 'Mengunggah...' : 'Ganti Logo / Foto Usaha'}
-            </div>
-          </label>
-          <p className="text-[11px] text-slate-400 mt-2">Ditampilkan ke pelanggan yang melihat toko/villa Anda.</p>
+            </label>
+            <p className="text-xs leading-relaxed text-ink-muted">Ditampilkan ke pelanggan yang melihat toko/villa Anda.</p>
+          </div>
         </Card>
       )}
 
       {isDriver && (
-        <Card className="p-6 space-y-5">
-          <div>
-            <h2 className="font-bold text-base">Preferensi Layanan Driver</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Pilih kategori kendaraan dan layanan yang ingin Anda terima.</p>
+        <Card padding="lg" className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">Preferensi Layanan Driver</h2>
+            <p className="text-[13px] leading-relaxed text-ink-muted">Pilih kategori kendaraan dan layanan yang ingin Anda terima.</p>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-semibold text-ink">Kategori Kendaraan</span>
             <div className="grid grid-cols-2 gap-2">
-              {[{ id: 'motor', label: 'Motor' }, { id: 'mobil', label: 'Mobil' }].map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => handleVehicleTypeChange(v.id)}
-                  className={`p-3 border rounded-xl text-center font-semibold text-sm transition-all ${
-                    vehicleType === v.id
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary text-primary'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
+              {[{ id: 'motor', label: 'Motor', icon: Bike }, { id: 'mobil', label: 'Mobil', icon: Car }].map((v) => {
+                const active = vehicleType === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleVehicleTypeChange(v.id)}
+                    className={cx(
+                      'inline-flex min-h-11 items-center justify-center gap-2 rounded-control border px-3 py-2.5 text-sm font-semibold transition-colors',
+                      active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-card text-ink hover:bg-sunken',
+                    )}
+                  >
+                    <v.icon size={18} aria-hidden="true" />
+                    {v.label}
+                  </button>
+                );
+              })}
             </div>
             {!user?.vehicle_type && (
-              <p className="text-[11px] text-amber-600 mt-1.5 font-medium">
+              <p className="text-xs font-medium text-warning-ink">
                 Wajib dipilih dan disimpan sebelum Anda bisa mulai Online.
               </p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Layanan yang Diterima</label>
+          <div className="flex flex-col gap-2">
+            <span className="text-[13px] font-semibold text-ink">Layanan yang Diterima</span>
 
-            <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
-              <span className="flex items-center gap-2.5">
-                <Car size={18} className="text-blue-600 shrink-0" />
-                <span className="text-sm font-medium">Ride (Antar Penumpang)</span>
-              </span>
-              <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
-            </label>
+            <PrefRow icon={Car} checked={jobTypePrefs.includes('ride')} onChange={() => toggleJobTypePreference('ride')}>
+              Ride (Antar Penumpang)
+            </PrefRow>
 
-            <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
-              <span className="flex items-center gap-2.5">
-                <Package size={18} className="text-rose-600 shrink-0" />
-                <span className="text-sm font-medium">
-                  Kurir (Antar Barang)
-                  {vehicleType === 'mobil' && <span className="block text-[11px] font-normal text-slate-400">Khusus paket sedang &amp; besar</span>}
-                </span>
-              </span>
-              <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('send')} onChange={() => toggleJobTypePreference('send')} />
-            </label>
+            <PrefRow icon={Package} checked={jobTypePrefs.includes('send')} onChange={() => toggleJobTypePreference('send')}>
+              Kurir (Antar Barang)
+              {vehicleType === 'mobil' && <span className="block text-xs font-normal text-ink-muted">Khusus paket sedang &amp; besar</span>}
+            </PrefRow>
 
             {vehicleType === 'mobil' ? (
-              <p className="text-[11px] text-slate-400 px-1">
+              <p className="px-1 text-xs text-ink-muted">
                 Antar Makanan tidak tersedia untuk kendaraan Mobil.
               </p>
             ) : (
-              <label className="flex items-center justify-between gap-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 cursor-pointer">
-                <span className="flex items-center gap-2.5">
-                  <Utensils size={18} className="text-amber-600 shrink-0" />
-                  <span className="text-sm font-medium">Antar Makanan (WiraFood)</span>
-                </span>
-                <input type="checkbox" className="w-4 h-4" checked={jobTypePrefs.includes('food')} onChange={() => toggleJobTypePreference('food')} />
-              </label>
+              <PrefRow icon={Utensils} checked={jobTypePrefs.includes('food')} onChange={() => toggleJobTypePreference('food')}>
+                Antar Makanan (WiraFood)
+              </PrefRow>
             )}
           </div>
 
           <Button
             variant="primary"
-            className="w-full flex items-center justify-center gap-1.5 text-sm py-2.5"
+            size="lg"
+            block
             onClick={handleSaveDriverPrefs}
-            disabled={isSavingDriverPrefs}
+            isLoading={isSavingDriverPrefs}
+            leftIcon={<Save size={18} />}
           >
-            {isSavingDriverPrefs ? <Loader2 size={14} className="animate-spin" /> : <Save size={16} />}
             Simpan Preferensi
           </Button>
         </Card>
       )}
 
-      <Card className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Lengkap</label>
+      <Card padding="lg">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Nama Lengkap" htmlFor="settings-name">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><User size={18} /></span>
-              <input
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"><User size={18} /></span>
+              <Input
+                id="settings-name"
                 type="text"
                 name="name"
+                autoComplete="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-primary outline-none transition-all"
+                className="pl-11"
                 placeholder="Masukkan nama lengkap"
                 required
               />
             </div>
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nomor Telepon</label>
+          <Field label="Nomor Telepon" htmlFor="settings-phone" hint="Gunakan format internasional (misal: +62)">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></span>
-              <input
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"><Phone size={18} /></span>
+              <Input
+                id="settings-phone"
                 type="tel"
                 name="phone"
+                autoComplete="tel"
+                inputMode="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-primary outline-none transition-all"
+                className="pl-11 font-mono"
                 placeholder="+62 8..."
                 required
               />
             </div>
-            <p className="text-xs text-slate-500 mt-1">Gunakan format internasional (misal: +62)</p>
-          </div>
+          </Field>
 
-          <Button type="submit" variant="primary" className="w-full py-3 mt-4 flex items-center justify-center gap-2" disabled={loading}>
-            <Save size={18} />
+          <Button type="submit" variant="primary" size="lg" block className="mt-2" isLoading={loading} leftIcon={<Save size={18} />}>
             {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
           </Button>
         </form>
       </Card>
 
-
-      <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-        <Link to="../support" className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition block">
-          <div className="flex items-center gap-4">
-            <MessageSquare className="text-slate-500" />
-            <span className="font-medium dark:text-white">Pusat Bantuan & Komplain</span>
-          </div>
-          <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold">Baru</span>
-        </Link>
+      <Card padding="none" className="overflow-hidden">
+        <ListRow
+          as={Link}
+          to="../support"
+          className="min-h-11 px-4 py-3.5"
+          leading={<IconTile tone="brand" size="sm"><MessageSquare size={18} /></IconTile>}
+          title="Pusat Bantuan & Komplain"
+          trailing={<Badge tone="brand">Baru</Badge>}
+          chevron
+        />
       </Card>
 
-      <Card className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Moon className="text-slate-400" size={20} />
-          <div>
-            <p className="font-semibold text-sm">Mode Gelap</p>
-            <p className="text-xs text-slate-500">Lebih nyaman di mata saat malam</p>
-          </div>
+      <Card className="flex items-center gap-3">
+        <IconTile tone="neutral" size="sm"><Moon size={18} /></IconTile>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="text-[14px] font-semibold text-ink">Mode Gelap</p>
+          <p className="text-xs text-ink-muted">Lebih nyaman di mata saat malam</p>
         </div>
         <button
+          type="button"
+          role="switch"
+          aria-checked={!!darkMode}
           onClick={toggleDarkMode}
-          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none shadow-inner shrink-0 ${
-            darkMode ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'
-          }`}
+          className="group inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
         >
           <span className="sr-only">Aktifkan Mode Gelap</span>
           <span
-            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${
-              darkMode ? 'translate-x-7' : 'translate-x-1'
-            }`}
-          />
+            aria-hidden="true"
+            className={cx(
+              'relative inline-flex h-8 w-14 items-center rounded-full border transition-colors group-focus-visible:ring-2 group-focus-visible:ring-brand/40 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-card',
+              darkMode ? 'border-brand bg-brand' : 'border-line-strong bg-sunken',
+            )}
+          >
+            <span
+              className={cx(
+                'inline-block h-6 w-6 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.25)] transition-transform',
+                darkMode ? 'translate-x-[27px]' : 'translate-x-[3px]',
+              )}
+            />
+          </span>
         </button>
       </Card>
 
       {/* Penjelasan Arsitektur */}
-      <div className="text-center text-sm text-slate-500 pt-4">
+      <div className="flex flex-col gap-0.5 pt-2 text-center text-xs leading-relaxed text-ink-muted">
         <p>Halaman ini dikelola secara dinamis via session (JWT)</p>
         <p>Bukan menggunakan parameter URL Publik (seperti /driver/:id)</p>
       </div>

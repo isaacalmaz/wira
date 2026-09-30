@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Card } from '../components/shared/UIComponents';
+import { useNavigate, Link } from 'react-router-dom';
+import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike } from 'lucide-react';
+import { Button, Card, Field, Input, Select, Textarea, IconTile, cx } from '../components/ui';
+import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { submitMitraApplication } from '../services/mitraApplicationService';
@@ -51,6 +53,48 @@ const DEFAULT_JOB_PREFS_BY_VEHICLE = {
   mobil: ['ride', 'send'],
 };
 
+// ---- display-only helpers (markup only, no state of their own) ----
+const ROLE_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench };
+
+// A selectable card wrapping a visually hidden radio, so it stays keyboard
+// reachable (the old `hidden` input was not).
+const ChoiceCard = ({ checked, className = '', children, ...inputProps }) => (
+  <label
+    className={cx(
+      'flex min-h-11 cursor-pointer items-center gap-3 rounded-control border px-3.5 py-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40',
+      checked ? 'border-brand bg-brand-soft' : 'border-line-strong bg-card hover:bg-sunken',
+      className,
+    )}
+  >
+    <input type="radio" checked={checked} className="sr-only" {...inputProps} />
+    {children}
+  </label>
+);
+
+const CheckRow = ({ checked, onChange, children }) => (
+  <label
+    className={cx(
+      'flex min-h-11 cursor-pointer items-center gap-3 rounded-control border px-3.5 py-2.5 transition-colors',
+      checked ? 'border-brand-line bg-brand-soft' : 'border-line-strong bg-card hover:bg-sunken',
+    )}
+  >
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="h-5 w-5 shrink-0 rounded-[6px] border-line-strong bg-card text-brand focus:ring-2 focus:ring-brand/30 focus:ring-offset-0"
+    />
+    <span className="min-w-0 flex-1 text-sm font-medium text-ink">{children}</span>
+  </label>
+);
+
+const SummaryRow = ({ label, children }) => (
+  <div className="flex items-start gap-3 border-b border-line py-2.5 last:border-b-0">
+    <span className="w-28 shrink-0 text-[13px] text-ink-muted">{label}</span>
+    <span className="min-w-0 flex-1 break-words text-[13.5px] font-semibold text-ink">{children}</span>
+  </div>
+);
+
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('driver');
@@ -69,7 +113,7 @@ const RegisterPage = () => {
     jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE.motor,
     restaurantName: '',
     address: '',
-    specialization: 'ac',
+    specialization: 'AC & Pendingin', // must match an <option> value below (ServicePage matches on it)
     experience: '1',
     simPhoto: null,
   });
@@ -105,7 +149,7 @@ const RegisterPage = () => {
       try {
         const compressed = await compressImage(file);
         setFormData((prev) => ({ ...prev, simPhoto: compressed }));
-        toast.success('Foto dokumen berhasil dipilih & dikompres!', { icon: '📸' });
+        toast.success('Foto dokumen berhasil dipilih & dikompres!', { icon: <Camera size={18} /> });
       } catch (err) {
         toast.error('Gagal memproses foto');
       }
@@ -185,336 +229,363 @@ const RegisterPage = () => {
     }
   };
 
+  const step3Title = role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian';
+  const stepTitle = { 1: 'Pilih Jenis Mitra', 2: 'Data Pribadi', 3: step3Title, 4: 'Konfirmasi Pendaftaran' }[step];
+
   return (
-    <div className="min-h-screen p-4 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-      <Card className="w-full max-w-lg p-6">
-        <h1 className="text-2xl font-bold text-center text-primary mb-6">Daftar Mitra Wira</h1>
-        <div className="flex justify-between mb-6 px-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors ${
-                step >= i ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
-              }`}
-            >
-              {i}
-            </div>
-          ))}
-        </div>
+    <div className="flex min-h-[100dvh] flex-col items-center gap-6 bg-ground px-4 py-8 sm:justify-center sm:py-12">
+      <Link to="/login" className="flex items-center gap-2.5" aria-label="Wira Mitra">
+        <WiraMark size={34} />
+        <span className="flex items-baseline gap-1.5 leading-none" aria-hidden="true">
+          <span className="text-[24px] font-extrabold tracking-[-0.035em] text-brand-ink">wira</span>
+          <span className="text-[18px] font-medium tracking-[-0.02em] text-ink-muted">mitra</span>
+        </span>
+      </Link>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {step === 1 && (
-            <div className="space-y-4">
-              <h2 className="font-bold text-lg dark:text-white">Pilih Jenis Mitra</h2>
-              {[
-                { id: 'driver', title: 'Driver (Ride/Kurir/Makanan)', desc: 'Antar penumpang, paket, dan/atau makanan keliling Lombok - pilih layanan yang Anda mau di langkah berikutnya' },
-                { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
-                { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
-                { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
-              ].map((r) => (
-                <label
-                  key={r.id}
-                  className={`block p-4 border rounded-xl cursor-pointer transition-all ${
-                    role === r.id
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="role"
-                    value={r.id}
-                    checked={role === r.id}
-                    onChange={() => setRole(r.id)}
-                    className="hidden"
+      <Card padding="none" className="w-full max-w-lg overflow-hidden">
+        <div className="h-1.5 tenun-band" aria-hidden="true" />
+        <div className="flex flex-col gap-6 p-5 sm:p-7">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">Daftar Mitra Wira</h1>
+            {/* Progress: 4 steps */}
+            <div className="flex items-center gap-3">
+              <ol className="flex flex-1 gap-1.5" aria-label={`${step}/4`}>
+                {[1, 2, 3, 4].map((i) => (
+                  <li
+                    key={i}
+                    aria-current={step === i ? 'step' : undefined}
+                    className={cx('h-1.5 flex-1 rounded-full transition-colors', step >= i ? 'bg-brand' : 'bg-sunken')}
                   />
-                  <span className="font-bold block text-lg dark:text-white">{r.title}</span>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{r.desc}</span>
-                </label>
-              ))}
+                ))}
+              </ol>
+              <span className="shrink-0 font-mono text-xs text-ink-muted">{step}/4</span>
             </div>
-          )}
+          </div>
 
-          {step === 2 && (
-            <div className="space-y-4">
-              <h2 className="font-bold text-lg dark:text-white">Data Pribadi</h2>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Nama Lengkap"
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                required
-              />
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Nomor Handphone (WhatsApp)"
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                required
-              />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Alamat Email"
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                required
-              />
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Kata Sandi (Minimal 6 karakter)"
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                required
-                minLength={6}
-              />
-            </div>
-          )}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <h2 className="-mb-2 text-[15px] font-bold tracking-tight text-ink">{stepTitle}</h2>
 
-          {step === 3 && (
-            <div className="space-y-4">
-              <h2 className="font-bold text-lg dark:text-white">
-                {role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian'}
-              </h2>
-              {role === 'driver' && (
-                <>
-                  <input
+            {step === 1 && (
+              <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Pilih Jenis Mitra">
+                {[
+                  { id: 'driver', title: 'Driver (Ride/Kurir/Makanan)', desc: 'Antar penumpang, paket, dan/atau makanan keliling Lombok - pilih layanan yang Anda mau di langkah berikutnya' },
+                  { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
+                  { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
+                  { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
+                ].map((r) => {
+                  const Icon = ROLE_ICON[r.id];
+                  const checked = role === r.id;
+                  return (
+                    <ChoiceCard
+                      key={r.id}
+                      name="role"
+                      value={r.id}
+                      checked={checked}
+                      onChange={() => setRole(r.id)}
+                      className="items-start p-4"
+                    >
+                      <IconTile tone={checked ? 'brand' : 'neutral'} size="sm"><Icon size={18} /></IconTile>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[14px] font-semibold text-ink">{r.title}</span>
+                        <span className="text-[13px] leading-relaxed text-ink-muted">{r.desc}</span>
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          'mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                          checked ? 'border-brand' : 'border-line-strong',
+                        )}
+                      >
+                        {checked && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+                      </span>
+                    </ChoiceCard>
+                  );
+                })}
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="flex flex-col gap-4">
+                <Field label="Nama Lengkap" htmlFor="reg-name" required>
+                  <Input
+                    id="reg-name"
                     type="text"
-                    name="vehicle"
-                    value={formData.vehicle}
+                    name="name"
+                    autoComplete="name"
+                    value={formData.name}
                     onChange={handleChange}
-                    placeholder="Tipe Kendaraan (cth: Honda Vario 160)"
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     required
                   />
-                  <input
-                    type="text"
-                    name="plate"
-                    value={formData.plate}
+                </Field>
+                <Field label="Nomor Handphone (WhatsApp)" htmlFor="reg-phone" required>
+                  <Input
+                    id="reg-phone"
+                    type="tel"
+                    name="phone"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Plat Nomor (cth: DR 1234 AB)"
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    className="font-mono"
                     required
                   />
+                </Field>
+                <Field label="Alamat Email" htmlFor="reg-email" required>
+                  <Input
+                    id="reg-email"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </Field>
+                <Field label="Kata Sandi" htmlFor="reg-password" hint="Minimal 6 karakter" required>
+                  <Input
+                    id="reg-password"
+                    type="password"
+                    name="password"
+                    autoComplete="new-password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                  />
+                </Field>
+              </div>
+            )}
 
-                  {/* Kategori kendaraan - menentukan layanan apa saja yang
-                      bisa dipilih di bawah (mobil tidak pernah bisa Antar
-                      Makanan, dan Kurir untuk mobil hanya paket besar). */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">Kategori Kendaraan</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'motor', label: 'Motor' },
-                        { id: 'mobil', label: 'Mobil' },
-                      ].map((v) => (
-                        <label
-                          key={v.id}
-                          className={`p-3 border rounded-xl cursor-pointer text-center font-semibold text-sm transition-all ${
-                            formData.vehicleType === v.id
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary dark:border-primary'
-                              : 'border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <input
-                            type="radio"
+            {step === 3 && (
+              <div className="flex flex-col gap-4">
+                {role === 'driver' && (
+                  <>
+                    <Field label="Tipe Kendaraan" htmlFor="reg-vehicle" required>
+                      <Input
+                        id="reg-vehicle"
+                        type="text"
+                        name="vehicle"
+                        value={formData.vehicle}
+                        onChange={handleChange}
+                        placeholder="cth: Honda Vario 160"
+                        required
+                      />
+                    </Field>
+                    <Field label="Plat Nomor" htmlFor="reg-plate" required>
+                      <Input
+                        id="reg-plate"
+                        type="text"
+                        name="plate"
+                        value={formData.plate}
+                        onChange={handleChange}
+                        placeholder="cth: DR 1234 AB"
+                        className="font-mono uppercase"
+                        required
+                      />
+                    </Field>
+
+                    {/* Kategori kendaraan - menentukan layanan apa saja yang
+                        bisa dipilih di bawah (mobil tidak pernah bisa Antar
+                        Makanan, dan Kurir untuk mobil hanya paket besar). */}
+                    <fieldset className="flex flex-col gap-1.5">
+                      <legend className="mb-1.5 text-[13px] font-semibold text-ink">Kategori Kendaraan</legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'motor', label: 'Motor', icon: Bike },
+                          { id: 'mobil', label: 'Mobil', icon: Car },
+                        ].map((v) => (
+                          <ChoiceCard
+                            key={v.id}
                             name="vehicleType"
                             value={v.id}
                             checked={formData.vehicleType === v.id}
                             onChange={() => handleVehicleTypeChange(v.id)}
-                            className="hidden"
-                          />
-                          {v.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                            className="justify-center text-sm font-semibold text-ink"
+                          >
+                            <v.icon size={18} className={formData.vehicleType === v.id ? 'text-brand-ink' : 'text-ink-muted'} aria-hidden="true" />
+                            {v.label}
+                          </ChoiceCard>
+                        ))}
+                      </div>
+                    </fieldset>
 
-                  {/* Preferensi layanan - defaultnya sudah dicentang sesuai
-                      kategori kendaraan, bisa diubah di sini atau nanti di
-                      Pengaturan Akun. Antar Makanan tidak pernah muncul untuk
-                      mobil - bukan sekadar default-off, tapi memang tidak
-                      tersedia sama sekali (lihat migrations/0033). */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">Layanan yang Ingin Diterima</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
-                        <input type="checkbox" checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')} />
-                        <span className="text-sm dark:text-white">Ride (Antar Penumpang)</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
-                        <input type="checkbox" checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')} />
-                        <span className="text-sm dark:text-white">
-                          Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
-                        </span>
-                      </label>
+                    {/* Preferensi layanan - defaultnya sudah dicentang sesuai
+                        kategori kendaraan, bisa diubah di sini atau nanti di
+                        Pengaturan Akun. Antar Makanan tidak pernah muncul untuk
+                        mobil - bukan sekadar default-off, tapi memang tidak
+                        tersedia sama sekali (lihat migrations/0033). */}
+                    <fieldset className="flex flex-col gap-2">
+                      <legend className="mb-1.5 text-[13px] font-semibold text-ink">Layanan yang Ingin Diterima</legend>
+                      <CheckRow checked={formData.jobTypePreferences.includes('ride')} onChange={() => toggleJobTypePreference('ride')}>
+                        Ride (Antar Penumpang)
+                      </CheckRow>
+                      <CheckRow checked={formData.jobTypePreferences.includes('send')} onChange={() => toggleJobTypePreference('send')}>
+                        Kurir (Antar Barang){formData.vehicleType === 'mobil' ? ' - khusus paket sedang/besar' : ''}
+                      </CheckRow>
                       {formData.vehicleType !== 'mobil' && (
-                        <label className="flex items-center gap-2 p-2.5 border rounded-lg border-slate-200 dark:border-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')} />
-                          <span className="text-sm dark:text-white">Antar Makanan (WiraFood)</span>
-                        </label>
+                        <CheckRow checked={formData.jobTypePreferences.includes('food')} onChange={() => toggleJobTypePreference('food')}>
+                          Antar Makanan (WiraFood)
+                        </CheckRow>
                       )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">Bisa diubah kapan saja lewat Pengaturan Akun setelah disetujui.</p>
-                  </div>
-                  {/* Upload Foto SIM & STNK */}
-                  <div>
-                    <input
-                      type="file"
-                      id="sim-upload"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-                    {formData.simPhoto ? (
-                      <div className="relative p-3 border-2 border-green-500 bg-green-50 dark:bg-green-950/20 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <p className="text-xs text-ink-muted">Bisa diubah kapan saja lewat Pengaturan Akun setelah disetujui.</p>
+                    </fieldset>
+
+                    {/* Upload Foto SIM & STNK */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[13px] font-semibold text-ink">Foto SIM & STNK <span className="text-danger">*</span></span>
+                      <input
+                        type="file"
+                        id="sim-upload"
+                        accept="image/*"
+                        className="peer sr-only"
+                        onChange={handleFileUpload}
+                      />
+                      {formData.simPhoto ? (
+                        <div className="flex items-center gap-3 rounded-control border border-success-line bg-success-soft p-3 peer-focus-visible:ring-2 peer-focus-visible:ring-brand/40">
                           <img
                             src={formData.simPhoto}
                             alt="Preview SIM"
-                            className="w-14 h-14 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                            className="h-14 w-14 shrink-0 rounded-[10px] border border-line bg-sunken object-cover"
                           />
-                          <div>
-                            <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                              Foto SIM Berhasil Dipilih ✓
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <p className="flex items-center gap-1.5 text-sm font-semibold text-success-ink">
+                              <CheckCircle2 size={16} className="shrink-0" aria-hidden="true" />
+                              Foto SIM Berhasil Dipilih
                             </p>
-                            <p className="text-xs text-slate-500">Klik tombol di samping untuk mengganti</p>
+                            <p className="text-xs text-ink-muted">Klik tombol di samping untuk mengganti</p>
                           </div>
+                          <label
+                            htmlFor="sim-upload"
+                            className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-control border border-line-strong bg-card px-3.5 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken"
+                          >
+                            Ganti
+                          </label>
                         </div>
+                      ) : (
                         <label
                           htmlFor="sim-upload"
-                          className="cursor-pointer text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded-lg font-medium hover:bg-slate-50 text-slate-700 dark:text-slate-200"
+                          className="flex cursor-pointer flex-col items-center gap-2.5 rounded-card border-2 border-dashed border-line-strong bg-card px-5 py-7 text-center transition-colors hover:border-brand hover:bg-brand-soft peer-focus-visible:border-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/30"
                         >
-                          Ganti
+                          <IconTile tone="brand" size="md"><Camera size={20} /></IconTile>
+                          <span className="flex flex-col gap-1">
+                            <span className="text-sm font-semibold text-ink">Klik untuk Upload Foto SIM & STNK</span>
+                            <span className="text-xs leading-relaxed text-ink-muted">
+                              Mendukung format JPG, PNG, atau ambil langsung dari kamera HP
+                            </span>
+                          </span>
                         </label>
-                      </div>
-                    ) : (
-                      <label
-                        htmlFor="sim-upload"
-                        className="cursor-pointer block p-6 border-2 border-dashed border-cyan-400 hover:border-cyan-600 dark:border-cyan-800 dark:hover:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-950/10 rounded-xl text-center transition-all group"
-                      >
-                        <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          📸
-                        </div>
-                        <p className="font-semibold text-sm text-cyan-900 dark:text-cyan-300">
-                          Klik untuk Upload Foto SIM & STNK
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Mendukung format JPG, PNG, atau ambil langsung dari kamera HP
-                        </p>
-                      </label>
-                    )}
-                  </div>
-                </>
-              )}
-              {(role === 'merchant' || role === 'villa') && (
-                <>
-                  <input
-                    type="text"
-                    name="restaurantName"
-                    value={formData.restaurantName}
-                    onChange={handleChange}
-                    placeholder={role === 'villa' ? 'Nama Villa / Penginapan' : 'Nama Restoran / Rumah Makan'}
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    required
-                  />
-                  <textarea
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Alamat Lengkap di Mataram/Lombok"
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    rows="3"
-                    required
-                  ></textarea>
-                </>
-              )}
-              {role === 'technician' && (
-                <>
-                  <select
-                    name="specialization"
-                    value={formData.specialization}
-                    onChange={handleChange}
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    required
-                  >
-                    <option value="AC & Pendingin">AC & Pendingin</option>
-                    <option value="Instalasi Listrik">Instalasi Listrik</option>
-                    <option value="Pipa & Pompa Air">Pipa & Pompa Air</option>
-                    <option value="Tukang Bangunan">Tukang Bangunan</option>
-                    <option value="Maintenance Kolam Renang">Maintenance Kolam Renang</option>
-                  </select>
-                  <input
-                    type="number"
-                    name="experience"
-                    value={formData.experience}
-                    onChange={handleChange}
-                    placeholder="Pengalaman Kerja (Tahun)"
-                    className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    required
-                  />
-                </>
-              )}
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-4 py-4 dark:text-white">
-              <h2 className="font-bold text-xl text-center">Konfirmasi Pendaftaran</h2>
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl space-y-2 text-sm">
-                <p><span className="text-slate-500">Peran:</span> <strong>{ROLE_LABEL[role] || role}</strong></p>
-                <p><span className="text-slate-500">Nama:</span> <strong>{formData.name}</strong></p>
-                <p><span className="text-slate-500">No. HP:</span> <strong>{formData.phone}</strong></p>
-                <p><span className="text-slate-500">Email:</span> <strong>{formData.email}</strong></p>
-                {role === 'driver' && (
-                  <>
-                    <p><span className="text-slate-500">Kendaraan:</span> <strong>{formData.vehicle} ({formData.plate}) - {formData.vehicleType === 'mobil' ? 'Mobil' : 'Motor'}</strong></p>
-                    <p>
-                      <span className="text-slate-500">Layanan:</span>{' '}
-                      <strong>
-                        {formData.jobTypePreferences
-                          .map((t) => ({ ride: 'Ride', send: 'Kurir', food: 'Antar Makanan' }[t] || t))
-                          .join(', ') || '-'}
-                      </strong>
-                    </p>
-                    {formData.simPhoto && (
-                      <div className="pt-2 flex items-center gap-3">
-                        <span className="text-slate-500">Foto Dokumen:</span>
-                        <img src={formData.simPhoto} alt="SIM Preview" className="w-12 h-12 object-cover rounded-md border" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </>
                 )}
                 {(role === 'merchant' || role === 'villa') && (
-                  <p><span className="text-slate-500">Nama:</span> <strong>{formData.restaurantName}</strong></p>
+                  <>
+                    <Field label={role === 'villa' ? 'Nama Villa / Penginapan' : 'Nama Restoran / Rumah Makan'} htmlFor="reg-restaurant" required>
+                      <Input
+                        id="reg-restaurant"
+                        type="text"
+                        name="restaurantName"
+                        value={formData.restaurantName}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Field>
+                    <Field label="Alamat Lengkap di Mataram/Lombok" htmlFor="reg-address" required>
+                      <Textarea
+                        id="reg-address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        rows={3}
+                        required
+                      />
+                    </Field>
+                  </>
                 )}
                 {role === 'technician' && (
-                  <p><span className="text-slate-500">Keahlian:</span> <strong>{formData.specialization} ({formData.experience} thn)</strong></p>
+                  <>
+                    <Field label="Spesialisasi" htmlFor="reg-specialization" required>
+                      <Select
+                        id="reg-specialization"
+                        name="specialization"
+                        value={formData.specialization}
+                        onChange={handleChange}
+                        required
+                      >
+                        <option value="AC & Pendingin">AC & Pendingin</option>
+                        <option value="Instalasi Listrik">Instalasi Listrik</option>
+                        <option value="Pipa & Pompa Air">Pipa & Pompa Air</option>
+                        <option value="Tukang Bangunan">Tukang Bangunan</option>
+                        <option value="Maintenance Kolam Renang">Maintenance Kolam Renang</option>
+                      </Select>
+                    </Field>
+                    <Field label="Pengalaman Kerja (Tahun)" htmlFor="reg-experience" required>
+                      <Input
+                        id="reg-experience"
+                        type="number"
+                        name="experience"
+                        inputMode="numeric"
+                        value={formData.experience}
+                        onChange={handleChange}
+                        className="font-mono"
+                        required
+                      />
+                    </Field>
+                  </>
                 )}
               </div>
-              <p className="text-xs text-slate-500 text-center">
-                Data akan langsung terkirim ke Admin Wira untuk proses verifikasi.
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-4">
-            {step > 1 && (
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(step - 1)}>
-                Kembali
-              </Button>
             )}
-            <Button type="submit" variant="primary" className="flex-1" disabled={loading}>
-              {loading ? 'Mengirim...' : step === 4 ? 'Kirim Pendaftaran' : 'Lanjut'}
-            </Button>
-          </div>
-        </form>
+
+            {step === 4 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col rounded-control border border-line bg-ground px-4 py-1">
+                  <SummaryRow label="Peran">{ROLE_LABEL[role] || role}</SummaryRow>
+                  <SummaryRow label="Nama">{formData.name}</SummaryRow>
+                  <SummaryRow label="No. HP"><span className="font-mono font-medium">{formData.phone}</span></SummaryRow>
+                  <SummaryRow label="Email">{formData.email}</SummaryRow>
+                  {role === 'driver' && (
+                    <>
+                      <SummaryRow label="Kendaraan">
+                        {formData.vehicle} (<span className="font-mono font-medium uppercase">{formData.plate}</span>) - {formData.vehicleType === 'mobil' ? 'Mobil' : 'Motor'}
+                      </SummaryRow>
+                      <SummaryRow label="Layanan">
+                        {formData.jobTypePreferences
+                          .map((t) => ({ ride: 'Ride', send: 'Kurir', food: 'Antar Makanan' }[t] || t))
+                          .join(', ') || '-'}
+                      </SummaryRow>
+                      {formData.simPhoto && (
+                        <SummaryRow label="Foto Dokumen">
+                          <img src={formData.simPhoto} alt="SIM Preview" className="h-12 w-12 rounded-[8px] border border-line bg-sunken object-cover" />
+                        </SummaryRow>
+                      )}
+                    </>
+                  )}
+                  {(role === 'merchant' || role === 'villa') && (
+                    <SummaryRow label="Nama">{formData.restaurantName}</SummaryRow>
+                  )}
+                  {role === 'technician' && (
+                    <SummaryRow label="Keahlian">{formData.specialization} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>
+                  )}
+                </div>
+                <p className="text-center text-xs leading-relaxed text-ink-muted">
+                  Data akan langsung terkirim ke Admin Wira untuk proses verifikasi.
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse gap-2.5 border-t border-line pt-5 sm:flex-row">
+              {step > 1 && (
+                <Button type="button" variant="secondary" size="lg" className="sm:flex-1" onClick={() => setStep(step - 1)}>
+                  Kembali
+                </Button>
+              )}
+              <Button type="submit" variant="primary" size="lg" className="sm:flex-1" isLoading={loading}>
+                {loading ? 'Mengirim...' : step === 4 ? 'Kirim Pendaftaran' : 'Lanjut'}
+              </Button>
+            </div>
+          </form>
+        </div>
       </Card>
     </div>
   );

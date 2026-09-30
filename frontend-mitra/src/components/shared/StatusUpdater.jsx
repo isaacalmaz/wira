@@ -1,4 +1,5 @@
-import { Button } from './UIComponents';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { Button } from '../ui';
 import { OrderStatus } from '../../constants/orderStatus';
 
 const StatusUpdater = ({ currentStatus, role, onUpdate, isFoodDelivery = false }) => {
@@ -22,7 +23,17 @@ const StatusUpdater = ({ currentStatus, role, onUpdate, isFoodDelivery = false }
   if (!nextStatus) return null;
 
   return (
-    <Button variant={variant} className="w-full mt-2" onClick={() => onUpdate(nextStatus)}>
+    // The kit has no green button: the brand primary carries every step,
+    // and the final ("success") step is marked with a check icon instead.
+    <Button
+      variant="primary"
+      size="lg"
+      block
+      className="mt-2"
+      leftIcon={variant === 'success' ? <CheckCircle2 size={19} /> : undefined}
+      rightIcon={variant === 'success' ? undefined : <ArrowRight size={18} />}
+      onClick={() => onUpdate(nextStatus)}
+    >
       {buttonText}
     </Button>
   );

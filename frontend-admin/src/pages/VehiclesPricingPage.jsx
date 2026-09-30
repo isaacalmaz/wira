@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw, Save, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, RefreshCw, Save, ArrowRight } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
-import PricingRulesSection from './PricingRulesSection';
+import PricingRulesSection, { MoneyCellInput, Switch, cellInputClass } from './PricingRulesSection';
+import { Button, Card, Field, Input, Money, Notice, PageHeader, SectionHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // A base price/rate of 0 or below is never a real, intentional price on a
 // live platform (it would mean a free ride/delivery/service) - it is almost
@@ -45,6 +46,8 @@ const VehiclesPricingPage = () => {
   // enough to push a live price change with no way to back out.
   const [confirmVehicle, setConfirmVehicle] = useState(null);
   const [confirmRule, setConfirmRule] = useState(null);
+  const [deleteVehicleTarget, setDeleteVehicleTarget] = useState(null);
+  const [deleteRuleTarget, setDeleteRuleTarget] = useState(null);
 
   const fetchVehicles = async () => {
     setLoading(true);
@@ -134,7 +137,7 @@ const VehiclesPricingPage = () => {
   };
 
   const handleDelete = async (v) => {
-    if (!window.confirm(`Hapus "${v.name}" dari daftar harga?`)) return;
+    // Confirmation now happens in the ConfirmModal (deleteVehicleTarget).
     try {
       const { error, data } = await supabase.from('vehicles').delete().eq('id', v.id).select();
       if (error) throw error;
@@ -223,7 +226,7 @@ const VehiclesPricingPage = () => {
   };
 
   const handleDeleteRule = async (r) => {
-    if (!window.confirm(`Hapus "${r.name}" dari daftar tarif?`)) return;
+    // Confirmation now happens in the ConfirmModal (deleteRuleTarget).
     try {
       const { error, data } = await supabase.from('pricing_rules').delete().eq('id', r.id).select();
       if (error) throw error;
@@ -261,153 +264,153 @@ const VehiclesPricingPage = () => {
     }
   };
 
+  // Stable so the Sheet doesn't re-run its focus effect on every keystroke.
+  const cancelNewVehicle = useCallback(() => { setShowNewForm(false); setNewDraft(emptyDraft); }, []);
+
+  // Before/after rows for the confirm sheets (display only).
+  const priceChanges = (row, patch, baseField) => {
+    const out = [];
+    if (patch[baseField] !== undefined) out.push({ label: 'Harga dasar', from: row[baseField], to: patch[baseField] });
+    if (patch.per_km_rate !== undefined) out.push({ label: 'Tarif/km', from: row.per_km_rate, to: patch.per_km_rate });
+    return out;
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Manajemen Harga</h1>
-          <p className="text-sm text-slate-500">Kelola tarif WiraRide, WiraSend, WiraService, WiraPool, dan ongkos kirim WiraFood. Perubahan berlaku langsung ke aplikasi pelanggan.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        className="!mb-0"
+        title="Manajemen Harga"
+        subtitle="Kelola tarif WiraRide, WiraSend, WiraService, WiraPool, dan ongkos kirim WiraFood. Perubahan berlaku langsung ke aplikasi pelanggan."
+        actions={(
+          <Button
+            variant="secondary"
             onClick={() => { fetchVehicles(); fetchPricingRules(); }}
-            className="p-2 border rounded-xl hover:bg-slate-50 dark:border-slate-700"
             title="Muat ulang semua data harga"
+            aria-label="Muat ulang semua data harga"
+            className="px-3"
           >
-            <RefreshCw size={20} className={(loading || rulesLoading) ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
+            <RefreshCw size={18} className={(loading || rulesLoading) ? 'animate-spin' : ''} />
+          </Button>
+        )}
+      />
 
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">WiraRide - Kendaraan</h2>
-          <button onClick={() => setShowNewForm(v => !v)} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl">
-            <Plus size={20} /> Tambah
-          </button>
-        </div>
-      </div>
+      <section>
+        <SectionHeader
+          title="WiraRide - Kendaraan"
+          action={(
+            <Button size="sm" leftIcon={<Plus size={15} />} onClick={() => setShowNewForm(v => !v)}>
+              Tambah
+            </Button>
+          )}
+        />
 
-      {showNewForm && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <input placeholder="Nama (mis. WiraRide Motor)" value={newDraft.name} onChange={e => setNewDraft({ ...newDraft, name: e.target.value })} className="col-span-2 px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input placeholder="Tipe (mis. motor)" value={newDraft.type} onChange={e => setNewDraft({ ...newDraft, type: e.target.value })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input placeholder="Layanan (mis. ride)" value={newDraft.service_type} onChange={e => setNewDraft({ ...newDraft, service_type: e.target.value })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input type="number" placeholder="Harga dasar" value={newDraft.price} onChange={e => setNewDraft({ ...newDraft, price: Number(e.target.value) })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input type="number" placeholder="Tarif/km" value={newDraft.per_km_rate} onChange={e => setNewDraft({ ...newDraft, per_km_rate: Number(e.target.value) })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input type="number" placeholder="Kapasitas" value={newDraft.capacity} onChange={e => setNewDraft({ ...newDraft, capacity: Number(e.target.value) })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <input placeholder="Estimasi durasi (mis. 15 mnt)" value={newDraft.duration} onChange={e => setNewDraft({ ...newDraft, duration: e.target.value })} className="px-3 py-2 rounded-lg border dark:bg-slate-900 dark:border-slate-700" />
-          <div className="col-span-2 sm:col-span-4 flex gap-2 justify-end">
-            <button onClick={() => { setShowNewForm(false); setNewDraft(emptyDraft); }} className="px-4 py-2 rounded-lg border dark:border-slate-700 flex items-center gap-1">
-              <X size={16} /> Batal
-            </button>
-            <button onClick={handleCreate} className="px-4 py-2 rounded-lg bg-primary text-white flex items-center gap-1">
-              <Save size={16} /> Simpan
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500">
-              <tr>
-                <th className="p-4 font-semibold">Layanan</th>
-                <th className="p-4 font-semibold">Nama</th>
-                <th className="p-4 font-semibold">Tipe</th>
-                <th className="p-4 font-semibold">Harga Dasar</th>
-                <th className="p-4 font-semibold">Tarif/km</th>
-                <th className="p-4 font-semibold">Kapasitas</th>
-                <th className="p-4 font-semibold">Durasi</th>
-                <th className="p-4 font-semibold">Aktif</th>
-                <th className="p-4 font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {vehicles.map(v => (
-                <tr key={v.id} className={isDirty(v.id) ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}>
-                  <td className="p-4 text-slate-500">{v.service_type}</td>
-                  <td className="p-4 font-bold text-slate-900 dark:text-white">{v.name}</td>
-                  <td className="p-4 text-slate-500">{v.type}</td>
-                  <td className="p-4">
-                    <input
-                      type="number"
+        <Table>
+          <thead>
+            <tr>
+              <th>Layanan</th>
+              <th>Nama</th>
+              <th>Tipe</th>
+              <th className="text-right">Harga Dasar</th>
+              <th className="text-right">Tarif/km</th>
+              <th className="text-right">Kapasitas</th>
+              <th>Durasi</th>
+              <th>Aktif</th>
+              <th className="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vehicles.map(v => {
+              const dirty = isDirty(v.id);
+              return (
+                <tr key={v.id} className={dirty ? '[&>td]:bg-warning-soft/60' : ''}>
+                  <td className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{v.service_type}</td>
+                  <td className="whitespace-nowrap font-semibold">{v.name}</td>
+                  <td className="whitespace-nowrap text-ink-muted">{v.type}</td>
+                  <td className="text-right">
+                    <MoneyCellInput
+                      aria-label={`Harga dasar ${v.name}`}
                       value={getField(v, 'price')}
                       onChange={e => setField(v.id, 'price', Number(e.target.value))}
-                      className="w-28 px-2 py-1 rounded border dark:bg-slate-900 dark:border-slate-700"
+                      className="ml-auto w-36"
                     />
                   </td>
-                  <td className="p-4">
-                    <input
-                      type="number"
+                  <td className="text-right">
+                    <MoneyCellInput
+                      aria-label={`Tarif/km ${v.name}`}
                       value={getField(v, 'per_km_rate')}
                       onChange={e => setField(v.id, 'per_km_rate', Number(e.target.value))}
-                      className="w-24 px-2 py-1 rounded border dark:bg-slate-900 dark:border-slate-700"
+                      className="ml-auto w-32"
                     />
                   </td>
-                  <td className="p-4">
+                  <td className="text-right">
                     <input
                       type="number"
+                      aria-label={`Kapasitas ${v.name}`}
                       value={getField(v, 'capacity')}
                       onChange={e => setField(v.id, 'capacity', Number(e.target.value))}
-                      className="w-16 px-2 py-1 rounded border dark:bg-slate-900 dark:border-slate-700"
+                      className={cx(cellInputClass, 'ml-auto w-16 text-right font-mono')}
                     />
                   </td>
-                  <td className="p-4">
+                  <td>
                     <input
+                      aria-label={`Durasi ${v.name}`}
                       value={getField(v, 'duration') || ''}
                       onChange={e => setField(v.id, 'duration', e.target.value)}
-                      className="w-24 px-2 py-1 rounded border dark:bg-slate-900 dark:border-slate-700"
+                      className={cx(cellInputClass, 'w-24 font-mono')}
                     />
                   </td>
-                  <td className="p-4">
-                    <input
-                      type="checkbox"
+                  <td className="!py-1">
+                    <Switch
                       checked={!!getField(v, 'is_active')}
-                      onChange={e => setField(v.id, 'is_active', e.target.checked)}
-                      className="w-4 h-4"
+                      onChange={() => setField(v.id, 'is_active', !getField(v, 'is_active'))}
+                      label={`Aktif ${v.name}`}
                     />
                   </td>
-                  <td className="p-4 flex gap-2">
-                    <button
-                      disabled={!isDirty(v.id)}
-                      onClick={() => handleSaveRow(v)}
-                      className="p-1.5 text-primary disabled:text-slate-300 disabled:cursor-not-allowed hover:bg-primary/10 rounded-lg transition"
-                      title="Simpan perubahan"
-                    >
-                      <Save size={16} />
-                    </button>
-                    <button onClick={() => handleDelete(v)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus">
-                      <Trash2 size={16} />
-                    </button>
+                  <td className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant={dirty ? 'primary' : 'secondary'}
+                        disabled={!dirty}
+                        onClick={() => handleSaveRow(v)}
+                        leftIcon={<Save size={15} />}
+                        title="Simpan perubahan"
+                      >
+                        Simpan
+                      </Button>
+                      <Button size="sm" variant="danger-soft" onClick={() => setDeleteVehicleTarget(v)} title="Hapus" aria-label="Hapus" className="px-2.5">
+                        <Trash2 size={15} />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
-              {vehicles.length === 0 && !loading && (
-                <tr>
-                  <td colSpan="9" className="p-8 text-center text-slate-500">Belum ada data kendaraan/harga.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              );
+            })}
+            {vehicles.length === 0 && !loading && (
+              <tr>
+                <td colSpan="9" className="py-8 text-center text-ink-muted">Belum ada data kendaraan/harga.</td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </section>
 
-      <div className="pt-2">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Tarif Layanan Lain</h2>
-        <p className="text-sm text-slate-500 mb-4">Kelola harga paket WiraSend, tarif WiraService dan WiraPool, serta ongkos kirim WiraFood.</p>
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[15px] font-bold tracking-tight text-ink">Tarif Layanan Lain</h2>
+          <p className="text-[13px] text-ink-muted">Kelola harga paket WiraSend, tarif WiraService dan WiraPool, serta ongkos kirim WiraFood.</p>
+        </div>
 
         {rulesError ? (
-          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 text-sm text-amber-800 dark:text-amber-300">
-            Data tarif layanan belum bisa dimuat ({rulesError}). Bagian ini butuh tabel <code>public.pricing_rules</code> (migrasi 0057) - jalankan migrasinya lalu klik muat ulang. Data kendaraan WiraRide di atas tidak terpengaruh.
-          </div>
+          <Notice tone="warning">
+            Data tarif layanan belum bisa dimuat ({rulesError}). Bagian ini butuh tabel <code className="font-mono">public.pricing_rules</code> (migrasi 0057) - jalankan migrasinya lalu klik muat ulang. Data kendaraan WiraRide di atas tidak terpengaruh.
+          </Notice>
         ) : rulesLoading && pricingRules.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center text-slate-500 text-sm">
-            Memuat data tarif layanan...
-          </div>
+          <Card className="flex items-center justify-center gap-2 py-8 text-sm text-ink-muted">
+            <Spinner size={16} /> Memuat data tarif layanan...
+          </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="flex flex-col gap-4">
             {RULE_GROUPS.map(g => (
               <PricingRulesSection
                 key={g.key}
@@ -420,53 +423,132 @@ const VehiclesPricingPage = () => {
                 setField={setRuleField}
                 isDirty={isRuleDirty}
                 onSave={handleSaveRule}
-                onDelete={handleDeleteRule}
+                onDelete={setDeleteRuleTarget}
                 onCreate={handleCreateRule}
               />
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <ConfirmModal
-        isOpen={!!confirmVehicle}
+      {/* Tambah kendaraan */}
+      <Sheet
+        open={showNewForm}
+        onClose={cancelNewVehicle}
+        title="Tambah Kendaraan"
+        description="WiraRide - Kendaraan"
+        icon={<Plus size={20} />}
+        size="lg"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={cancelNewVehicle}>Batal</Button>
+            <Button leftIcon={<Save size={17} />} onClick={handleCreate}>Simpan</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Nama" htmlFor="vehicle-new-name" className="sm:col-span-2">
+            <Input id="vehicle-new-name" placeholder="mis. WiraRide Motor" value={newDraft.name} onChange={e => setNewDraft({ ...newDraft, name: e.target.value })} />
+          </Field>
+          <Field label="Tipe" htmlFor="vehicle-new-type">
+            <Input id="vehicle-new-type" placeholder="mis. motor" value={newDraft.type} onChange={e => setNewDraft({ ...newDraft, type: e.target.value })} />
+          </Field>
+          <Field label="Layanan" htmlFor="vehicle-new-service">
+            <Input id="vehicle-new-service" placeholder="mis. ride" value={newDraft.service_type} onChange={e => setNewDraft({ ...newDraft, service_type: e.target.value })} />
+          </Field>
+          <Field label="Harga dasar (Rp)" htmlFor="vehicle-new-price">
+            <Input id="vehicle-new-price" type="number" value={newDraft.price} onChange={e => setNewDraft({ ...newDraft, price: Number(e.target.value) })} className="font-mono" />
+          </Field>
+          <Field label="Tarif/km (Rp)" htmlFor="vehicle-new-perkm">
+            <Input id="vehicle-new-perkm" type="number" value={newDraft.per_km_rate} onChange={e => setNewDraft({ ...newDraft, per_km_rate: Number(e.target.value) })} className="font-mono" />
+          </Field>
+          <Field label="Kapasitas" htmlFor="vehicle-new-capacity">
+            <Input id="vehicle-new-capacity" type="number" value={newDraft.capacity} onChange={e => setNewDraft({ ...newDraft, capacity: Number(e.target.value) })} className="font-mono" />
+          </Field>
+          <Field label="Estimasi durasi" htmlFor="vehicle-new-duration">
+            <Input id="vehicle-new-duration" placeholder="mis. 15 mnt" value={newDraft.duration} onChange={e => setNewDraft({ ...newDraft, duration: e.target.value })} />
+          </Field>
+        </div>
+      </Sheet>
+
+      <PriceChangeSheet
+        open={!!confirmVehicle}
         title="Konfirmasi Perubahan Harga"
-        message={confirmVehicle ? (() => {
-          const patch = edits[confirmVehicle.id] || {};
-          const parts = [`Anda akan mengubah harga "${confirmVehicle.name}":`];
-          if (patch.price !== undefined) {
-            parts.push(`Harga dasar: Rp ${Number(confirmVehicle.price || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.price).toLocaleString('id-ID')}`);
-          }
-          if (patch.per_km_rate !== undefined) {
-            parts.push(`Tarif/km: Rp ${Number(confirmVehicle.per_km_rate || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.per_km_rate).toLocaleString('id-ID')}`);
-          }
-          parts.push('Perubahan berlaku langsung ke aplikasi pelanggan.');
-          return parts.join(' ');
-        })() : ''}
+        intro={confirmVehicle ? `Anda akan mengubah harga "${confirmVehicle.name}":` : ''}
+        changes={confirmVehicle ? priceChanges(confirmVehicle, edits[confirmVehicle.id] || {}, 'price') : []}
         onConfirm={() => executeSaveVehicle(confirmVehicle)}
         onCancel={() => setConfirmVehicle(null)}
       />
 
-      <ConfirmModal
-        isOpen={!!confirmRule}
+      <PriceChangeSheet
+        open={!!confirmRule}
         title="Konfirmasi Perubahan Tarif"
-        message={confirmRule ? (() => {
-          const patch = rulesEdits[confirmRule.id] || {};
-          const parts = [`Anda akan mengubah tarif "${confirmRule.name}":`];
-          if (patch.base_price !== undefined) {
-            parts.push(`Harga dasar: Rp ${Number(confirmRule.base_price || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.base_price).toLocaleString('id-ID')}`);
-          }
-          if (patch.per_km_rate !== undefined) {
-            parts.push(`Tarif/km: Rp ${Number(confirmRule.per_km_rate || 0).toLocaleString('id-ID')} -> Rp ${Number(patch.per_km_rate).toLocaleString('id-ID')}`);
-          }
-          parts.push('Perubahan berlaku langsung ke aplikasi pelanggan.');
-          return parts.join(' ');
-        })() : ''}
+        intro={confirmRule ? `Anda akan mengubah tarif "${confirmRule.name}":` : ''}
+        changes={confirmRule ? priceChanges(confirmRule, rulesEdits[confirmRule.id] || {}, 'base_price') : []}
         onConfirm={() => executeSaveRule(confirmRule)}
         onCancel={() => setConfirmRule(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteVehicleTarget}
+        tone="danger"
+        title="Hapus Kendaraan"
+        message={deleteVehicleTarget ? `Hapus "${deleteVehicleTarget.name}" dari daftar harga?` : ''}
+        confirmLabel="Hapus"
+        onConfirm={() => { const v = deleteVehicleTarget; setDeleteVehicleTarget(null); handleDelete(v); }}
+        onCancel={() => setDeleteVehicleTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteRuleTarget}
+        tone="danger"
+        title="Hapus Tarif"
+        message={deleteRuleTarget ? `Hapus "${deleteRuleTarget.name}" dari daftar tarif?` : ''}
+        confirmLabel="Hapus"
+        onConfirm={() => { const r = deleteRuleTarget; setDeleteRuleTarget(null); handleDeleteRule(r); }}
+        onCancel={() => setDeleteRuleTarget(null)}
       />
     </div>
   );
 };
+
+// Price-change confirmation: old -> new amounts in mono, plus the
+// "applies immediately" warning.
+function PriceChangeSheet({ open, title, intro, changes, onConfirm, onCancel }) {
+  return (
+    <Sheet
+      open={open}
+      onClose={onCancel}
+      title={title}
+      description={intro}
+      tone="pay"
+      icon={<Save size={20} />}
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onCancel}>Batal</Button>
+          <Button onClick={onConfirm}>Konfirmasi</Button>
+        </>
+      )}
+    >
+      <div className="flex flex-col gap-3">
+        {changes.length > 0 && (
+          <dl className="divide-y divide-line rounded-control border border-line bg-card">
+            {changes.map(c => (
+              <div key={c.label} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13px]">
+                <dt className="flex-1 text-ink-muted">{c.label}</dt>
+                <dd className="flex items-center gap-2">
+                  <Money value={c.from || 0} tone="muted" className="line-through decoration-ink-muted/50" />
+                  <ArrowRight size={14} className="text-ink-muted" aria-hidden="true" />
+                  <Money value={c.to} className="font-semibold text-ink" />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <Notice tone="warning">Perubahan berlaku langsung ke aplikasi pelanggan.</Notice>
+      </div>
+    </Sheet>
+  );
+}
 
 export default VehiclesPricingPage;

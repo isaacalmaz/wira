@@ -2,14 +2,56 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button, EmptyState } from '../../components/shared/UIComponents';
-import { Clock, RefreshCw, MessageCircle, ClipboardList } from 'lucide-react';
+import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner } from '../../components/ui';
+import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
 import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
 import API_BASE_URL from '../../config/api';
+
+// Status badge tone (DESIGN.md §5): waiting = warning, in progress = brand,
+// done = success, cancelled = danger. Display only.
+const statusTone = (status) => {
+  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
+  if (status === OrderStatus.COMPLETED) return 'success';
+  if (status === OrderStatus.CANCELLED) return 'danger';
+  return 'brand';
+};
+// The raw status value, as before, just without the underscore.
+const statusLabel = (status) => String(status || '').replace(/_/g, ' ');
+
+// Display-only: food orders store their items as a JSON array in `details`;
+// list them one per line with the quantity in mono. Anything else falls back
+// to the existing parseOrderDetails string.
+const parseItems = (details) => {
+  if (Array.isArray(details)) return details.length ? details : null;
+  if (typeof details !== 'string') return null;
+  try {
+    const parsed = JSON.parse(details);
+    return Array.isArray(parsed) && parsed.length ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const OrderItems = ({ details, fallback }) => {
+  const items = parseItems(details);
+  if (!items) {
+    return <p className="text-[13px] leading-relaxed text-ink-muted">{parseOrderDetails(details) || fallback}</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-baseline gap-2.5 text-[13.5px] text-ink">
+          <span className="w-8 shrink-0 font-mono font-medium text-ink-muted">{item.quantity || 1}×</span>
+          <span className="min-w-0 flex-1 break-words">{item.name || 'Item'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
@@ -109,61 +151,78 @@ const MerchantOrdersPage = () => {
   const filteredOrders = orders.filter(o => tab === 'active' ? (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) : (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED));
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Daftar Pesanan</h1>
-        <button onClick={fetchOrders} className="p-2 border rounded-full hover:bg-slate-50"><RefreshCw size={18} className={loading ? 'animate-spin' : ''} /></button>
-      </div>
+    <div className="flex flex-col gap-5 pb-20">
+      <PageHeader
+        title="Daftar Pesanan"
+        className="mb-0"
+        actions={
+          <Button variant="secondary" onClick={fetchOrders} aria-label="Muat ulang" title="Muat ulang" className="w-11 px-0">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        }
+      />
 
-      <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg mb-4">
-        <button onClick={() => setTab('active')} className={`flex-1 py-2 text-sm font-medium rounded-md ${tab === 'active' ? 'bg-white dark:bg-slate-800 shadow text-primary' : 'text-slate-500'}`}>Aktif</button>
-        <button onClick={() => setTab('history')} className={`flex-1 py-2 text-sm font-medium rounded-md ${tab === 'history' ? 'bg-white dark:bg-slate-800 shadow text-primary' : 'text-slate-500'}`}>Riwayat</button>
-      </div>
+      <Segmented
+        ariaLabel="Daftar Pesanan"
+        className="w-full"
+        options={[{ value: 'active', label: 'Aktif' }, { value: 'history', label: 'Riwayat' }]}
+        value={tab}
+        onChange={setTab}
+      />
 
-      <div className="space-y-4">
-        {filteredOrders.length > 0 ? filteredOrders.map(order => {
+      <div className="flex flex-col gap-3">
+        {loading && orders.length === 0 ? (
+          <div className="flex justify-center py-12 text-brand-ink" role="status">
+            <Spinner size={24} />
+          </div>
+        ) : filteredOrders.length > 0 ? filteredOrders.map(order => {
           const isVilla = order.service_type === 'villa' || order.service_type === 'WiraVilla';
           return (
-          <Card key={order.id} className="p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <Badge variant={order.status === OrderStatus.PENDING ? 'danger' : 'primary'} className="mb-1 capitalize">{order.status}</Badge>
-                <h3 className="font-bold text-xs">{order.id.slice(0,12)}</h3>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(order.created_at).toLocaleTimeString('id-ID')} • User: {order.user_id?.slice(0,6)}</p>
+          <Card key={order.id} className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <span><Badge tone={statusTone(order.status)} dot className="capitalize">{statusLabel(order.status)}</Badge></span>
+                <h3 className="font-mono text-[13px] font-medium text-ink">{order.id.slice(0,12)}</h3>
+                <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-muted">
+                  <Clock size={12} aria-hidden="true" />
+                  <span className="font-mono">{new Date(order.created_at).toLocaleTimeString('id-ID')}</span>
+                  <span aria-hidden="true">•</span>
+                  <span>User: <span className="font-mono">{order.user_id?.slice(0,6)}</span></span>
+                </p>
               </div>
-              <span className="font-bold text-lg text-primary">Rp {(order.total_price || 0).toLocaleString('id-ID')}</span>
+              <Money value={order.total_price || 0} className="text-[16px] font-medium text-ink" />
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg mb-4 text-sm">
-               <p className="text-slate-800 dark:text-slate-200 font-bold mb-1">{order.title || (isVilla ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
-               <p className="text-slate-600 dark:text-slate-400">{parseOrderDetails(order.details) || (isVilla ? 'Tidak ada detail reservasi' : 'Tidak ada detail menu')}</p>
+            <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/60 p-3">
+              <p className="text-[14px] font-semibold text-ink">{order.title || (isVilla ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+              <OrderItems details={order.details} fallback={isVilla ? 'Tidak ada detail reservasi' : 'Tidak ada detail menu'} />
             </div>
 
             {tab === 'active' && (
-              <div className="flex gap-2">
+              <div className="flex items-stretch gap-2">
                 {order.status === OrderStatus.PENDING ? (
                   <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
                 ) : (
                   <>
                     {isVilla ? (
                       order.status === OrderStatus.ACCEPTED && (
-                        <Button variant="primary" className="flex-1 bg-green-600" onClick={() => updateStatus(order, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                        <Button variant="primary" className="flex-1" leftIcon={<CheckCircle2 size={16} />} onClick={() => updateStatus(order, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
                       )
                     ) : order.status === OrderStatus.ACCEPTED ? (
                       <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
                     ) : order.status === OrderStatus.PREPARING ? (
                       <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.READY)}>Siap Diambil</Button>
                     ) : order.status === OrderStatus.READY ? (
-                      <div className="flex-1 text-center text-sm font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 py-2.5 rounded-lg">
+                      <Notice tone="warning" className="flex-1 items-center py-2.5">
                         Menunggu kurir mengambil pesanan...
-                      </div>
+                      </Notice>
                     ) : order.status === OrderStatus.PICKING_UP || order.status === OrderStatus.IN_TRIP ? (
-                      <div className="flex-1 text-center text-sm font-medium text-primary bg-primary/10 py-2.5 rounded-lg">
+                      <Notice tone="info" className="flex-1 items-center py-2.5">
                         Kurir sedang mengantar
-                      </div>
+                      </Notice>
                     ) : null}
-                    <Button variant="outline" className="px-3 flex items-center gap-1.5" onClick={() => openChat(order)}>
-                      <MessageCircle size={16} /> Chat
+                    <Button variant="secondary" leftIcon={<MessageCircle size={16} />} onClick={() => openChat(order)}>
+                      Chat
                     </Button>
                   </>
                 )}
@@ -172,7 +231,7 @@ const MerchantOrdersPage = () => {
           </Card>
           );
         }) : (
-          <Card><EmptyState icon={ClipboardList} title="Tidak ada pesanan" description={tab === 'active' ? 'Pesanan baru akan muncul di sini.' : 'Belum ada riwayat pesanan.'} /></Card>
+          <EmptyState icon={<ClipboardList size={24} />} title="Tidak ada pesanan" description={tab === 'active' ? 'Pesanan baru akan muncul di sini.' : 'Belum ada riwayat pesanan.'} />
         )}
       </div>
 

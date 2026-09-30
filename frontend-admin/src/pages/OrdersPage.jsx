@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../config/supabase';
 import { ShoppingBag, Search } from 'lucide-react';
+import { Badge, Card, EmptyState, Input, Money, PageHeader, Select, Spinner, Table } from '../components/ui';
+import { orderStatusLabel } from '../config/orderStatus';
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -47,76 +49,88 @@ const OrdersPage = () => {
     });
   }, [orders, search, statusFilter]);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ShoppingBag className="text-primary"/> Pantauan Transaksi</h1>
-          <p className="text-sm text-slate-500">Seluruh pesanan yang masuk ke ekosistem Wira</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari ID pesanan / nama pelanggan / driver..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm w-full sm:w-72"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-          >
-            <option value="all">Semua Status</option>
-            {statusOptions.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+  const statusTone = (status) => {
+    const st = String(status || '').toLowerCase();
+    if (st === 'completed') return 'success';
+    if (st === 'pending') return 'warning';
+    if (st === 'cancelled' || st === 'canceled') return 'danger';
+    return 'brand';
+  };
 
-      <div className="card p-0 overflow-hidden">
-        {loading ? <div className="p-10 text-center">Memuat...</div> : filteredOrders.length === 0 ? (
-          <div className="p-10 text-center text-slate-500">
-            {orders.length === 0 ? 'Belum ada pesanan.' : 'Tidak ada pesanan yang cocok dengan pencarian/filter.'}
-          </div>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="px-6 py-4">ID Pesanan</th>
-                <th className="px-6 py-4">Layanan</th>
-                <th className="px-6 py-4">Pelanggan</th>
-                <th className="px-6 py-4">Driver/Mitra</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredOrders.map(o => (
-                <tr key={o.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-mono text-xs">{o.id.slice(0,8)}</td>
-                  <td className="px-6 py-4 uppercase font-bold text-xs">{o.service_type}</td>
-                  <td className="px-6 py-4">{o.user?.name || 'Anonim'}</td>
-                  <td className="px-6 py-4">{o.driver?.name || '-'}</td>
-                  <td className="px-6 py-4 font-semibold">Rp {(o.total_price || 0).toLocaleString('id-ID')}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold uppercase ${
-                      o.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                      o.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {o.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Pantauan Transaksi"
+        subtitle="Seluruh pesanan yang masuk ke ekosistem Wira"
+        className="!mb-0"
+      />
+
+      {/* Filter bar */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="relative w-full md:max-w-sm">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+          <Input
+            type="text"
+            aria-label="Cari pesanan"
+            placeholder="Cari ID pesanan / nama pelanggan / driver..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 !text-sm"
+          />
+        </div>
+        <Select
+          aria-label="Filter status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="!text-sm md:w-56"
+        >
+          <option value="all">Semua Status</option>
+          {statusOptions.map(s => (
+            <option key={s} value={s}>{orderStatusLabel(s)}</option>
+          ))}
+        </Select>
+        {!loading && (
+          <p className="text-[13px] text-ink-muted md:ml-auto">
+            <span className="font-mono font-medium text-ink">{filteredOrders.length.toLocaleString('id-ID')}</span> pesanan
+          </p>
         )}
       </div>
+
+      {loading ? (
+        <Card className="flex items-center justify-center gap-3 py-16 text-[13.5px] text-ink-muted">
+          <Spinner size={18} className="text-brand" /> Memuat...
+        </Card>
+      ) : filteredOrders.length === 0 ? (
+        <EmptyState
+          icon={<ShoppingBag size={22} />}
+          title={orders.length === 0 ? 'Belum ada pesanan.' : 'Tidak ada pesanan yang cocok dengan pencarian/filter.'}
+        />
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th>ID Pesanan</th>
+              <th>Layanan</th>
+              <th>Pelanggan</th>
+              <th>Driver/Mitra</th>
+              <th className="text-right">Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredOrders.map(o => (
+              <tr key={o.id}>
+                <td className="whitespace-nowrap font-mono text-[12.5px]">{o.id.slice(0,8)}</td>
+                <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
+                <td className="font-semibold">{o.user?.name || 'Anonim'}</td>
+                <td className={o.driver?.name ? '' : 'text-ink-muted'}>{o.driver?.name || '-'}</td>
+                <td className="text-right"><Money value={o.total_price || 0} /></td>
+                <td><Badge tone={statusTone(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </div>
   );
 };

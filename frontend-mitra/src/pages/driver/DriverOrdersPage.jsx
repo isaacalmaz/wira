@@ -1,13 +1,34 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, EmptyState } from '../../components/shared/UIComponents';
+import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
-import { User, Package, RefreshCw, History } from 'lucide-react';
+import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';
-import { formatSignedRupiah } from '../../utils/formatters';
+
+// ---- Presentational helpers (Tenun Laut) ----
+
+const SERVICE_ICON = { ride: Car, send: Package, food: Utensils };
+const serviceIcon = (order) => SERVICE_ICON[order?.service_type] || (order?.merchant_id ? Utensils : Package);
+
+// Order status -> Badge tone (DESIGN.md: pending = warning, active = brand,
+// done = success, cancelled = danger).
+const statusTone = (status) => {
+  if (status === OrderStatus.COMPLETED) return 'success';
+  if (status === OrderStatus.CANCELLED) return 'danger';
+  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
+  return 'brand';
+};
+
+/** Per-order earning: can be negative for a Tunai order (commission owed). */
+const EarnedMoney = ({ value, className = '' }) => {
+  const n = Math.round(Number(value) || 0);
+  return n < 0
+    ? <Money value={n} sign="minus" className={`text-danger-ink ${className}`} />
+    : <Money value={n} tone="in" className={className} />;
+};
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
@@ -49,60 +70,76 @@ const DriverOrdersPage = () => {
     }
   };
 
+  const ActiveIcon = activeOrder ? serviceIcon(activeOrder) : Package;
+
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Pesanan</h1>
-        <button onClick={fetchOrders} className="p-2 border rounded-full hover:bg-slate-50"><RefreshCw size={18} className={loading ? 'animate-spin' : ''} /></button>
-      </div>
-      
+    <div className="flex flex-col gap-6 pb-20">
+      <PageHeader
+        title="Pesanan"
+        className="mb-0"
+        actions={
+          <Button variant="secondary" aria-label="Muat ulang" onClick={fetchOrders} className="w-11 px-0">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        }
+      />
+
       {activeOrder ? (
-        <Card className="border-primary/50 shadow-md">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-            <Badge variant="primary" className="capitalize">{activeOrder.service_type}</Badge>
-            <span className="font-bold text-lg text-primary">Rp {(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
+        <Card padding="none" className="border-brand-line">
+          <div className="flex items-center gap-3 border-b border-line p-4">
+            <IconTile tone="brand" size="sm"><ActiveIcon size={18} /></IconTile>
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+              <span className="text-[14px] font-semibold capitalize text-ink">{activeOrder.service_type}</span>
+              <Badge tone={statusTone(activeOrder.status)} dot>{getDisplayStatus(activeOrder.status)}</Badge>
+            </div>
+            <Money value={activeOrder.total_price || 0} className="shrink-0 text-[18px] font-medium text-ink" />
           </div>
-          <div className="p-4 space-y-4">
+          <div className="flex flex-col gap-4 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><User size={20}/></div>
-              <div>
-                <p className="font-semibold text-sm">Pemesan: {activeOrder.user_id?.slice(0, 8)}</p>
-                <p className="text-xs text-slate-500">Bayar via: {activeOrder.payment_method}</p>
+              <IconTile tone="neutral" size="sm"><User size={18} /></IconTile>
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-ink">Pemesan: <span className="font-mono font-medium">{activeOrder.user_id?.slice(0, 8)}</span></p>
+                <p className="text-xs text-ink-muted">Bayar via: <span className="capitalize">{activeOrder.payment_method}</span></p>
               </div>
             </div>
-            
+
             <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} isFoodDelivery={!!activeOrder.merchant_id} />
           </div>
         </Card>
       ) : (
-        <Card>
-          <EmptyState icon={Package} title="Belum ada pesanan aktif" description="Pesanan yang Anda terima akan muncul di sini." />
-        </Card>
+        <EmptyState icon={<Package size={24} />} title="Belum ada pesanan aktif" description="Pesanan yang Anda terima akan muncul di sini." />
       )}
 
-      <div>
-        <h2 className="text-xl font-bold mb-4">Riwayat Selesai</h2>
-        <div className="space-y-3">
-          {history.length === 0 ? (
-             <Card><EmptyState icon={History} title="Belum ada riwayat" description="Pesanan yang sudah selesai akan tercatat di sini." /></Card>
-          ) : history.map(order => (
-            <Card key={order.id} className="p-4 flex justify-between items-center">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="gray" className="capitalize">{order.service_type}</Badge>
-                </div>
-                <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</p>
-              </div>
-              <div className="text-right">
-                <p className={`font-bold ${driverEarnedAmount(order) < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatSignedRupiah(driverEarnedAmount(order))}</p>
-                {order.payment_method === 'cash' && (
-                  <p className="text-[11px] text-slate-500">Tunai: komisi dipotong dari saldo</p>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
+      <section>
+        <SectionHeader title="Riwayat Selesai" />
+        {history.length === 0 ? (
+          <EmptyState icon={<History size={24} />} title="Belum ada riwayat" description="Pesanan yang sudah selesai akan tercatat di sini." />
+        ) : (
+          <Card padding="none">
+            <ul className="divide-y divide-line">
+              {history.map(order => {
+                const Icon = serviceIcon(order);
+                return (
+                  <li key={order.id} className="flex items-start gap-3 px-4 py-3.5">
+                    <IconTile tone="neutral" size="sm"><Icon size={18} /></IconTile>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-[14px] font-semibold capitalize leading-snug text-ink">{order.service_type}</span>
+                      <span className="font-mono text-[12px] text-ink-muted">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</span>
+                      {order.payment_method === 'cash' && (
+                        <span className="text-[11.5px] leading-snug text-ink-muted">Tunai: komisi dipotong dari saldo</span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <EarnedMoney value={driverEarnedAmount(order)} className="text-[14px] font-medium" />
+                      <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+      </section>
     </div>
   );
 };

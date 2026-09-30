@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
-import { Car, Package, Utensils, Ban, CheckCircle, Eye } from 'lucide-react';
+import { Car, Package, Utensils, Ban, CheckCircle, Eye, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import { ConfirmModal } from '../components/common/UIComponents';
+import { Badge, Button, Card, IconTile, ListRow, PageHeader, Spinner, Stat, Table } from '../components/ui';
 
 // Driver is now one unified mitra_access role covering Ride/Kurir/Makanan
 // together (migrations/0033 collapsed the earlier 'driver'/'courier' split
@@ -150,105 +151,121 @@ const DriversPage = () => {
     }
   };
 
+  const blockedCount = drivers.filter(d => (d.status || 'Aktif') !== 'Aktif').length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Car className="text-primary"/> Manajemen Driver & Kurir</h1>
-          <p className="text-sm text-slate-500">Daftar Mitra Pengemudi (Ride) & Kurir (Send) Wira</p>
-        </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        className="!mb-0"
+        title="Manajemen Driver & Kurir"
+        subtitle="Daftar Mitra Pengemudi (Ride) & Kurir (Send) Wira"
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label="Driver terdaftar" value={loading ? '–' : drivers.length} icon={<Car size={18} />} />
+        <Stat label="Diblokir" value={loading ? '–' : blockedCount} icon={<Ban size={18} />} tone="danger" />
+        <Stat label="Perlu Persetujuan" value={loading ? '–' : pendingDrivers.length} icon={<Clock size={18} />} tone="neutral" />
       </div>
-      
+
       {/* Antrean Persetujuan (Hanya muncul jika ada) */}
       {pendingDrivers.length > 0 && (
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-lg shadow-sm">
-          <h2 className="text-lg font-bold text-amber-800 mb-2">Perlu Persetujuan ({pendingDrivers.length})</h2>
-          <div className="space-y-3">
-            {pendingDrivers.map(pending => (
-              <div key={pending.id} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-amber-100">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-slate-800">{pending.name}</p>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
-                      Driver{pending.vehicle_type === 'mobil' ? ' (Mobil)' : ''}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">{pending.vehicle} - {pending.plate}</p>
-                </div>
-                <button 
-                  onClick={() => { setSelectedDriver(pending); setIsReviewOpen(true); }}
-                  className="px-3 py-1.5 bg-amber-100 text-amber-700 text-sm font-semibold rounded-lg hover:bg-amber-200 flex items-center gap-1"
-                >
-                  <Eye size={16}/> Tinjau
-                </button>
-              </div>
-            ))}
+        <Card padding="none" className="overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+            <h2 className="flex-1 text-[15px] font-bold tracking-tight text-ink">Perlu Persetujuan</h2>
+            <Badge tone="warning" dot>{pendingDrivers.length} menunggu</Badge>
           </div>
-        </div>
+          <ul className="divide-y divide-line">
+            {pendingDrivers.map(pending => (
+              <li key={pending.id}>
+                <ListRow
+                  className="px-4 py-3"
+                  leading={<IconTile tone="neutral" size="sm"><Car size={17} /></IconTile>}
+                  title={(
+                    <span className="flex flex-wrap items-center gap-2">
+                      {pending.name}
+                      <Badge tone="brand">Driver{pending.vehicle_type === 'mobil' ? ' (Mobil)' : ''}</Badge>
+                    </span>
+                  )}
+                  subtitle={<>{pending.vehicle} - <span className="font-mono">{pending.plate}</span></>}
+                  trailing={(
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      leftIcon={<Eye size={15} />}
+                      onClick={() => { setSelectedDriver(pending); setIsReviewOpen(true); }}
+                    >
+                      Tinjau
+                    </Button>
+                  )}
+                />
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
-      <div className="card p-0 overflow-hidden">
-        {loading ? <div className="p-10 text-center">Memuat...</div> : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="px-6 py-4">Nama Driver</th>
-                <th className="px-6 py-4">Layanan</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Telepon</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {drivers.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold">{d.name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-1.5">
+      {loading ? (
+        <Card className="flex items-center justify-center gap-2 py-10 text-sm text-ink-muted">
+          <Spinner size={16} /> Memuat...
+        </Card>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th>Nama Driver</th>
+              <th>Layanan</th>
+              <th>Email</th>
+              <th>Telepon</th>
+              <th>Status</th>
+              <th className="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {drivers.map(d => {
+              const isActive = (d.status || 'Aktif') === 'Aktif';
+              return (
+                <tr key={d.id}>
+                  <td className="font-semibold">{d.name}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1.5">
                       {hasJobType(d.job_type_preferences, 'ride') && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
-                          <Car size={11} /> Ride
-                        </span>
+                        <Badge tone="brand"><Car size={12} aria-hidden="true" /> Ride</Badge>
                       )}
                       {hasJobType(d.job_type_preferences, 'send') && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">
-                          <Package size={11} /> Kurir
-                        </span>
+                        <Badge tone="brand"><Package size={12} aria-hidden="true" /> Kurir</Badge>
                       )}
                       {hasJobType(d.job_type_preferences, 'food') && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
-                          <Utensils size={11} /> Makanan
-                        </span>
+                        <Badge tone="brand"><Utensils size={12} aria-hidden="true" /> Makanan</Badge>
                       )}
-                      <span className="flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
-                        {d.vehicle_type === 'mobil' ? 'Mobil' : 'Motor'}
-                      </span>
+                      <Badge tone="neutral">{d.vehicle_type === 'mobil' ? 'Mobil' : 'Motor'}</Badge>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-500">{d.email}</td>
-                  <td className="px-6 py-4">{d.phone}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${d.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {d.status || 'Aktif'}
-                    </span>
+                  <td className="text-ink-muted">{d.email}</td>
+                  <td className="whitespace-nowrap font-mono text-[13px]">{d.phone}</td>
+                  <td>
+                    <Badge tone={isActive ? 'success' : 'danger'} dot>{d.status || 'Aktif'}</Badge>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => toggleStatus(d.id, d.status || 'Aktif')} className="text-slate-400 hover:text-primary">
-                      {d.status === 'Aktif' ? <Ban size={18} /> : <CheckCircle size={18} />}
-                    </button>
+                  <td className="text-right">
+                    <Button
+                      size="sm"
+                      variant={isActive ? 'danger-soft' : 'secondary'}
+                      leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
+                      onClick={() => toggleStatus(d.id, d.status || 'Aktif')}
+                    >
+                      {isActive ? 'Blokir' : 'Aktifkan'}
+                    </Button>
                   </td>
                 </tr>
-              ))}
-              {drivers.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Tidak ada pengemudi atau kurir aktif</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+              );
+            })}
+            {drivers.length === 0 && (
+              <tr>
+                <td colSpan="6" className="py-10 text-center text-ink-muted">Tidak ada pengemudi atau kurir aktif</td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      )}
 
       {selectedDriver && (
         <MitraReviewModal
@@ -261,6 +278,8 @@ const DriversPage = () => {
 
       <ConfirmModal
         isOpen={!!blockTarget}
+        tone={blockTarget?.currentStatus === 'Aktif' ? 'danger' : 'default'}
+        confirmLabel={blockTarget?.currentStatus === 'Aktif' ? 'Blokir' : 'Aktifkan'}
         title={blockTarget?.currentStatus === 'Aktif' ? 'Blokir Driver' : 'Aktifkan Kembali Driver'}
         message={blockTarget ? (
           blockTarget.currentStatus === 'Aktif'

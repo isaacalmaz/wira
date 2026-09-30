@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Card } from '../../components/shared/UIComponents';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Card, PageHeader, SectionHeader } from '../../components/ui';
 import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
@@ -76,20 +76,44 @@ const MerchantEarningsPage = () => {
   }, [user]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Pendapatan Resto</h1>
+    <div className="flex flex-col gap-6 pb-20">
+      <PageHeader title="Pendapatan Resto" className="mb-0" />
       <EarningsCard today={todayTotal} week={weekTotal} cashDeduction={cashDeduction} />
 
-      <Card className="p-4 h-72">
-        <h3 className="font-semibold mb-4">Tren Pendapatan (7 Hari Terakhir)</h3>
-        <ResponsiveContainer width="100%" height="80%">
-          <LineChart data={chartData}>
-            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val/1000}k`} />
-            <Tooltip formatter={(val) => `Rp ${val.toLocaleString()}`} />
-            <Line type="monotone" dataKey="amount" stroke="#F97316" strokeWidth={3} dot={{r: 4}} />
-          </LineChart>
-        </ResponsiveContainer>
+      <Card className="flex flex-col gap-2">
+        <SectionHeader title="Tren Pendapatan (7 Hari Terakhir)" className="mb-0" />
+        {/* Axes and grid take the muted ink via currentColor; the line is money, so it is gold (pay). */}
+        <div className="h-56 text-ink-muted">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.18} />
+              <XAxis dataKey="day" stroke="currentColor" fontSize={12} tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis stroke="currentColor" fontSize={12} tickLine={false} axisLine={false} width={52} tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000).toLocaleString('id-ID')}rb` : String(v))} style={{ fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }} />
+              <Tooltip
+                formatter={(val) => `Rp ${val.toLocaleString('id-ID')}`}
+                cursor={{ stroke: 'currentColor', strokeOpacity: 0.3 }}
+                contentStyle={{
+                  background: 'rgb(var(--card))',
+                  border: '1px solid rgb(var(--line))',
+                  borderRadius: 12,
+                  boxShadow: '0 16px 40px -12px rgba(6, 47, 60, 0.28)',
+                  fontSize: 13,
+                }}
+                labelStyle={{ color: 'rgb(var(--ink))', fontWeight: 600 }}
+                itemStyle={{ color: 'rgb(var(--pay-ink))', fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="amount"
+                className="text-pay"
+                stroke="currentColor"
+                strokeWidth={2}
+                dot={{ r: 4, fill: 'currentColor', strokeWidth: 0 }}
+                activeDot={{ r: 5, className: 'text-pay', fill: 'currentColor', strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </Card>
 
       <PayoutPanel />

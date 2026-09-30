@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
+import Spinner from './components/ui/Spinner';
 
 import { Suspense, lazy } from 'react';
+import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEATURE_FLAG_ROLES } from './config/roles';
 
 // Layout
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
@@ -72,16 +74,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 // RLS to the backend-verified set until a migration adds these two roles
 // there too - unblocking navigation here does not by itself unblock every
 // query on those pages.
-const CORE_ADMIN_ROLES = ['admin', 'Superadmin', 'superadmin', 'Admin Ops'];
-const ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'CS', 'Admin Keuangan'];
-const CS_ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'CS'];
-const FINANCE_ADMIN_ROLES = [...CORE_ADMIN_ROLES, 'Admin Keuangan'];
+// Role sets live in config/roles.js (shared with the sidebar menu).
 
 function App() {
   return (
     <Router>
       <Toaster position="top-right" />
-      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div></div>}>
+      <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-ground text-brand"><Spinner size={32} label="Memuat" /></div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
@@ -100,7 +99,7 @@ function App() {
 
             {/* Fitur yang bisa diakses Superadmin & Admin Ops */}
             <Route path="features" element={
-              <ProtectedRoute allowedRoles={['Superadmin', 'Admin Ops']}>
+              <ProtectedRoute allowedRoles={FEATURE_FLAG_ROLES}>
                 <FeatureFlagsPage />
               </ProtectedRoute>
             } />

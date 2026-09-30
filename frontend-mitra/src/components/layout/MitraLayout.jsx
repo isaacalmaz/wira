@@ -1,7 +1,8 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut } from 'lucide-react';
 import WiraMark from '../brand/WiraMark';
+import { cx } from '../ui';
 
 // The underlying mitra_access value for the restaurant portal is still the
 // literal string 'merchant' (kept as-is so existing accounts/routes don't
@@ -62,68 +63,126 @@ const MitraLayout = ({ children }) => {
 
   const navItems = getNavItems();
   const ActiveRoleIcon = ROLE_ICON[activeRole];
+  const roleLabel = ROLE_DISPLAY_LABEL[activeRole] || activeRole;
+
+  // Display only: the driver home draws its own full-height map
+  // (h-[calc(100vh-4rem)]), so it gets no mobile top bar and no extra
+  // bottom padding, keeping its height maths as it was.
+  const isFullScreenPage = location.pathname === '/driver';
+
+  const sideLinkCls = ({ isActive }) => cx(
+    'flex min-h-11 items-center gap-3 rounded-control px-3 py-2.5 text-[14px] transition-colors',
+    isActive ? 'bg-brand-soft text-brand-ink font-bold' : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink',
+  );
+
+  const wordmark = (size) => (
+    <span className="flex items-baseline gap-1.5 leading-none" aria-hidden="true">
+      <span className={cx('font-extrabold tracking-[-0.035em] text-brand-ink', size === 'lg' ? 'text-[24px]' : 'text-[22px]')}>wira</span>
+      <span className={cx('font-medium tracking-[-0.02em] text-ink-muted', size === 'lg' ? 'text-[17px]' : 'text-[16px]')}>mitra</span>
+    </span>
+  );
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="flex min-h-[100dvh] bg-ground">
       {/* Sidebar (Desktop) */}
-      <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 shadow-lg h-screen sticky top-0">
-        <div className="p-6">
-          <div className="flex items-center gap-2.5">
-            <WiraMark size={32} />
-            <h1 className="text-2xl font-bold text-primary">Wira Mitra</h1>
+      <aside className="hidden md:flex w-64 shrink-0 flex-col h-screen sticky top-0 bg-card border-r border-line">
+        <div className="px-5 pt-6 pb-4 flex flex-col gap-6 min-h-0 flex-1">
+          <NavLink to={`/${activeRole}`} className="flex items-center gap-2.5" aria-label="Wira Mitra">
+            <WiraMark size={34} />
+            {wordmark('lg')}
+          </NavLink>
+
+          {/* Portal aktif */}
+          <div className="flex items-center gap-3 rounded-card border border-line bg-ground px-3 py-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border border-brand-line bg-brand-soft text-brand-ink">
+              {ActiveRoleIcon ? <ActiveRoleIcon size={19} /> : <User size={19} />}
+            </span>
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Mitra</span>
+              <span className="font-bold text-[14px] text-ink truncate">{roleLabel}</span>
+            </div>
           </div>
-          <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
-            {ActiveRoleIcon && <ActiveRoleIcon size={14} />}
-            {ROLE_DISPLAY_LABEL[activeRole] || activeRole}
-          </p>
+
+          <nav className="flex flex-col gap-1 overflow-y-auto">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === `/${activeRole}`}
+                className={sideLinkCls}
+              >
+                <item.icon size={19} />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
         </div>
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+
+        <div className="px-5 py-4 border-t border-line">
+          <button
+            type="button"
+            onClick={() => { logout(); navigate('/login'); }}
+            className="w-full min-h-11 flex items-center gap-3 rounded-control px-3 py-2.5 text-[14px] font-semibold text-danger-ink transition-colors hover:bg-danger-soft"
+          >
+            <LogOut size={19} />
+            <span>Keluar</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar (Mobile) */}
+        {!isFullScreenPage && (
+          <header className="md:hidden sticky top-0 z-30 pt-safe bg-ground/90 backdrop-blur border-b border-line">
+            <div className="h-14 flex items-center justify-between gap-3 px-4">
+              <NavLink to={`/${activeRole}`} className="flex items-center gap-2.5 min-w-0" aria-label="Wira Mitra">
+                <WiraMark size={30} />
+                {wordmark('md')}
+              </NavLink>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-brand-ink">
+                {ActiveRoleIcon && <ActiveRoleIcon size={14} aria-hidden="true" />}
+                {roleLabel}
+              </span>
+            </div>
+          </header>
+        )}
+
+        {/* Main Content */}
+        <main
+          className={cx(
+            'flex-1 w-full max-w-5xl mx-auto px-4 pt-4 md:px-8 md:pt-8 md:pb-8',
+            isFullScreenPage ? 'pb-4' : 'pb-[calc(5rem+env(safe-area-inset-bottom))]',
+          )}
+        >
+          {children}
+        </main>
+      </div>
+
+      {/* Bottom Nav (Mobile) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-card border-t border-line pb-safe">
+        <div
+          className="grid px-2 py-1.5"
+          style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+        >
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === `/${activeRole}`}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700'
-                }`
-              }
+              className={({ isActive }) => cx(
+                'flex min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] py-1.5',
+                isActive ? 'text-brand-ink' : 'text-ink-muted hover:text-ink',
+              )}
             >
-              <item.icon size={20} />
-              <span>{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  <item.icon size={21} strokeWidth={isActive ? 2.3 : 1.9} />
+                  <span className={cx('max-w-full truncate px-0.5 text-[11px] leading-none', isActive ? 'font-bold' : 'font-semibold')}>{item.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
-        </nav>
-        
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
-          <button onClick={() => { logout(); navigate('/login'); }} className="w-full py-2 border-2 border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-500 hover:text-white transition-colors">
-            Keluar
-          </button>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full">
-        {children}
-      </main>
-
-      {/* Bottom Nav (Mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-around items-center h-16 z-50 px-2 pb-safe">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === `/${activeRole}`}
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center w-full h-full space-y-1 ${
-                isActive ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
-              }`
-            }
-          >
-            <item.icon size={20} />
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </NavLink>
-        ))}
       </nav>
     </div>
   );

@@ -1,16 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Package, Utensils, Loader2 } from 'lucide-react';
-import { Card, Button, Badge, Modal, StatTile } from '../../components/shared/UIComponents';
-import OnlineToggle from '../../components/shared/OnlineToggle';
-import EarningsCard from '../../components/shared/EarningsCard';
+import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Package, Utensils, Loader2, Wallet, MessageCircle, Check, CheckCircle2, Store } from 'lucide-react';
+import { Button, Badge, Sheet, Money, IconTile, Stat, cx } from '../../components/ui';
 import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { OrderStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
   subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
@@ -33,6 +31,63 @@ function tryParseJson(value) {
 // Tidak memblokir tombol di luar radius - hanya penanda visual, driver tetap
 // bisa konfirmasi manual kapan saja (lihat rasional GPS-assisted-confirm).
 const ARRIVAL_RADIUS_METERS = 150;
+
+// ---- Presentational helpers (Tenun Laut) ----
+
+/** A rupiah figure that can be negative (Tunai orders net the commission out
+ * of the saldo), rounded the same way formatSignedRupiah does. */
+const SignedMoney = ({ value, className = '' }) => {
+  const n = Math.round(Number(value) || 0);
+  return <Money value={n} sign={n < 0 ? 'minus' : undefined} className={className} />;
+};
+
+/** The online/offline switch: a 44px touch target around a 48x28 track. */
+const OnlineSwitch = ({ isOnline, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={isOnline}
+    onClick={() => onChange(!isOnline)}
+    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
+  >
+    <span className="sr-only">Toggle Online Status</span>
+    <span
+      aria-hidden="true"
+      className={cx(
+        'relative inline-flex h-7 w-12 items-center rounded-full border transition-colors duration-150',
+        isOnline ? 'border-success bg-success' : 'border-line-strong bg-sunken',
+      )}
+    >
+      <span
+        className={cx(
+          'inline-block h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.3)] transition-transform duration-150',
+          isOnline ? 'translate-x-[23px]' : 'translate-x-[3px]',
+        )}
+      />
+    </span>
+  </button>
+);
+
+/** Pickup (dot) to destination (square), each name wrapping freely. */
+const RouteStops = ({ from, to }) => (
+  <ol className="flex min-w-0 flex-1 flex-col">
+    <li className="relative flex gap-3 pb-3">
+      <span className="absolute bottom-0 left-[4.5px] top-[19px] w-px bg-line-strong" aria-hidden="true" />
+      <span className="mt-[5px] h-2.5 w-2.5 shrink-0 rounded-full bg-brand ring-[3px] ring-brand-soft" aria-hidden="true" />
+      <p className="min-w-0 break-words text-[14px] font-semibold leading-snug text-ink">
+        <span className="sr-only">Jemputan: </span>{from}
+      </p>
+    </li>
+    <li className="flex gap-3">
+      <span className="mt-[5px] h-2.5 w-2.5 shrink-0 rounded-[3px] bg-danger ring-[3px] ring-danger-soft" aria-hidden="true" />
+      <p className="min-w-0 break-words text-[14px] font-semibold leading-snug text-ink">
+        <span className="sr-only">Tujuan: </span>{to}
+      </p>
+    </li>
+  </ol>
+);
+
+const formatKm = (meters) => `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 
 const DriverHomePage = () => {
   const { user, refreshProfile } = useAuth();
@@ -142,7 +197,7 @@ const DriverHomePage = () => {
         if (latest) {
           setIncomingOrder(prev => {
             if (!prev || prev.id !== latest.id) {
-              toast.success('Ada pesanan menunggu!', { icon: '🔔' });
+              toast.success('Ada pesanan menunggu!');
               return latest;
             }
             return prev;
@@ -167,7 +222,7 @@ const DriverHomePage = () => {
       (order) => {
         if (!activeOrder) {
           setIncomingOrder(order);
-          toast.success('Pesanan Baru Masuk!', { icon: '🔔' });
+          toast.success('Pesanan Baru Masuk!');
         }
       },
       () => driverPosRef.current,
@@ -438,32 +493,46 @@ const DriverHomePage = () => {
   const hasArrived = legDistance != null && legDistance <= ARRIVAL_RADIUS_METERS;
   const currentStep = activeOrder ? STAGE_FLOW[activeOrder.status] : null;
 
+  const StepIcon = currentStep?.icon;
+  // Incoming-order prompt: parsed route + straight-line trip distance
+  // (display only, from the same coordinates the order already carries).
+  const incomingDetails = incomingOrder?.details ? tryParseJson(incomingOrder.details) : null;
+  const incomingTripMeters = incomingDetails?.pickup?.lat != null && incomingDetails?.dropoff?.lat != null
+    ? distanceMeters(incomingDetails.pickup.lat, incomingDetails.pickup.lng, incomingDetails.dropoff.lat, incomingDetails.dropoff.lng)
+    : null;
+
+  const jobTypeOptions = [
+    { id: 'ride', label: 'Ride', icon: Car },
+    { id: 'send', label: isMobilDriver ? 'Kurir (Besar)' : 'Kurir', icon: Package },
+    ...(isMobilDriver ? [] : [{ id: 'food', label: 'Makanan', icon: Utensils }]),
+  ];
+
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
-      
+    <div className="relative -mx-4 -mt-4 h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] overflow-hidden bg-sunken md:mx-0 md:mt-0 md:h-[calc(100vh-4rem)] md:rounded-card md:border md:border-line [&_.leaflet-container]:rounded-none">
+
       {/* MAP AREA - FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         {isOnline || activeOrder ? (
-          <WiraMap 
-            center={mapCenter} 
-            zoom={orderDetails ? 14 : 14} 
+          <WiraMap
+            center={mapCenter}
+            zoom={orderDetails ? 14 : 14}
             markers={mapMarkers}
             route={orderDetails?.route}
           />
         ) : (
-          <div className="h-full w-full bg-slate-200 dark:bg-slate-700 flex flex-col items-center justify-center text-slate-400">
-            <MapPin size={40} className="mb-2" />
-            <p>Peta tidak aktif saat Offline</p>
+          <div className="flex h-full w-full flex-col items-center justify-start gap-3 bg-sunken px-6 pt-36 text-center">
+            <IconTile tone="neutral" size="lg"><MapPin size={24} /></IconTile>
+            <p className="text-sm text-ink-muted">Peta tidak aktif saat Offline</p>
           </div>
         )}
       </div>
 
-      {/* Header Panel */}
-      <div className="absolute top-4 left-4 right-4 z-10 pointer-events-none">
-        <div className="max-w-2xl mx-auto flex justify-between items-center bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 pointer-events-auto">
-          <div>
-            <h1 className="text-xl font-bold">Halo, {user?.name || 'Driver'}!</h1>
-            <p className="text-sm text-slate-500">
+      {/* Header Panel: greeting + the online/offline control */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-10 md:inset-x-4 md:top-4">
+        <div className="pointer-events-auto mx-auto flex max-w-2xl items-center gap-3 rounded-card border border-line bg-card py-2.5 pl-4 pr-2 shadow-pop">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
+            <h1 className="line-clamp-2 break-words text-[17px] font-extrabold leading-tight tracking-tight text-ink">Halo, {user?.name || 'Driver'}!</h1>
+            <p className="text-[13px] leading-snug text-ink-muted">
               {activeOrder
                 ? (activeOrder.status === OrderStatus.ACCEPTED ? 'Menuju lokasi jemputan...'
                   : activeOrder.status === OrderStatus.PICKING_UP ? 'Menjemput penumpang...'
@@ -472,101 +541,134 @@ const DriverHomePage = () => {
             </p>
           </div>
           {!activeOrder && (
-            <div className="flex flex-col items-end">
-              <OnlineToggle isOnline={isOnline} onChange={handleOnlineToggle} />
-              <span className={`text-xs mt-1 font-medium ${isOnline ? 'text-green-500' : 'text-slate-400'}`}>
-                {isOnline ? 'ONLINE' : 'OFFLINE'}
-              </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <Badge tone={isOnline ? 'success' : 'neutral'} dot>{isOnline ? 'Online' : 'Offline'}</Badge>
+              <OnlineSwitch isOnline={isOnline} onChange={handleOnlineToggle} />
             </div>
           )}
         </div>
       </div>
 
-      {/* Bottom Panel */}
-      <div className="absolute bottom-0 w-full z-10 bg-gradient-to-t from-slate-100 via-slate-100/80 to-transparent dark:from-slate-900 p-4 pb-6 pointer-events-none">
-        <div className="max-w-2xl mx-auto pointer-events-auto mt-10">
+      {/* Bottom Panel: a sheet over the map */}
+      <div className="absolute inset-x-0 bottom-0 z-10 mx-auto flex max-h-[calc(100%-6.5rem)] max-w-2xl flex-col rounded-t-sheet bg-ground shadow-sheet md:bottom-4 md:rounded-sheet">
+        <div className="flex shrink-0 justify-center pb-1 pt-2.5" aria-hidden="true">
+          <span className="h-1 w-10 rounded-full bg-line-strong" />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-4 pt-1 md:px-5 md:pb-5">
           {!activeOrder ? (
-            <div className="space-y-4">
+            <>
               {!isOnline && (
-                <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-3.5 shadow-lg">
-                  <p className="text-xs font-semibold text-slate-500 mb-2">Layanan yang Diterima</p>
+                <section className="flex flex-col gap-2" aria-labelledby="driver-job-types">
+                  <p id="driver-job-types" className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Layanan yang Diterima</p>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: 'ride', label: 'Ride', icon: Car, color: 'blue' },
-                      { id: 'send', label: isMobilDriver ? 'Kurir (Besar)' : 'Kurir', icon: Package, color: 'rose' },
-                      ...(isMobilDriver ? [] : [{ id: 'food', label: 'Makanan', icon: Utensils, color: 'amber' }]),
-                    ].map((jt) => {
+                    {jobTypeOptions.map((jt) => {
                       const active = jobTypePrefs.includes(jt.id);
                       const Icon = jt.icon;
                       return (
                         <button
                           key={jt.id}
                           type="button"
+                          aria-pressed={active}
                           disabled={isSavingJobType === jt.id}
                           onClick={() => handleToggleJobType(jt.id)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                          className={cx(
+                            'inline-flex min-h-11 items-center gap-2 rounded-control border px-3.5 text-[13px] font-semibold transition-colors disabled:opacity-60',
                             active
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
-                          }`}
+                              ? 'border-brand bg-brand-soft text-brand-ink'
+                              : 'border-line bg-card text-ink-muted hover:border-line-strong',
+                          )}
                         >
-                          {isSavingJobType === jt.id ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
+                          {isSavingJobType === jt.id ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
                           {jt.label}
+                          {active && <Check size={14} aria-hidden="true" />}
                         </button>
                       );
                     })}
                   </div>
-                </div>
+                </section>
               )}
-              <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-1 shadow-lg">
-                <EarningsCard today={todayEarnings} week={weekEarnings} />
+              <Stat
+                label="Pendapatan Hari Ini"
+                value={<SignedMoney value={todayEarnings} />}
+                icon={<Wallet size={18} />}
+                tone="pay"
+                hint={<>Minggu ini: <SignedMoney value={weekEarnings} className="font-medium text-ink" /></>}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Stat label="Trip Selesai" value={completedTrips} icon={<Target size={18} />} />
+                <Stat label="Tingkat Penerimaan" value={completedTrips > 0 ? '100%' : '0%'} icon={<Activity size={18} />} tone="success" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <StatTile icon={Target} value={completedTrips} label="Trip Selesai" />
-                <StatTile icon={Activity} value={completedTrips > 0 ? '100%' : '0%'} label="Tingkat Penerimaan" iconClassName="text-green-500" />
-              </div>
-            </div>
+            </>
           ) : (
-            <Card className="p-5 border-2 border-primary space-y-4 shadow-xl animate-in slide-in-from-bottom-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md">
-              <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 pb-4">
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary">
-                  <MapPin size={24} />
+            <>
+              <div className="flex items-start gap-3">
+                <IconTile tone="brand"><MapPin size={20} /></IconTile>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <h2 className="text-[16px] font-bold leading-snug tracking-tight text-ink text-balance">Pesanan Sedang Berjalan</h2>
+                  <p className="text-[12px] text-ink-muted">Order ID: <span className="font-mono">{activeOrder.id.slice(0,8)}</span></p>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">Pesanan Sedang Berjalan</h3>
-                  <p className="text-sm text-slate-500">Order ID: {activeOrder.id.slice(0,8)}</p>
-                </div>
+                <Badge tone="brand" dot className="mt-0.5">{getDisplayStatus(activeOrder.status)}</Badge>
               </div>
-              <div className="flex justify-between items-center text-xl font-bold pt-2">
-                <span>Total Tagihan:</span>
-                <span className="text-primary">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
+
+              <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-card px-4 py-3">
+                <span className="text-[13px] font-semibold text-ink-muted">Total Tagihan</span>
+                <Money value={activeOrder.total_price} className="text-[20px] font-medium text-ink" />
               </div>
 
               {legTarget ? (
-                <div className={`text-center text-xs font-semibold py-2 rounded-lg ${hasArrived ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}>
-                  {hasArrived
-                    ? `✅ Anda sudah sampai di ${legTarget.label}`
-                    : legDistance != null
-                      ? `📍 ~${legDistance < 1000 ? Math.round(legDistance) + ' m' : (legDistance / 1000).toFixed(1) + ' km'} menuju ${legTarget.label}`
-                      : 'Mencari sinyal GPS...'}
-                </div>
+                hasArrived ? (
+                  <div className="flex items-center gap-2.5 rounded-control border border-success-line bg-success-soft px-3.5 py-3 text-[13px] font-semibold text-success-ink">
+                    <CheckCircle2 size={17} className="shrink-0" aria-hidden="true" />
+                    <span>Anda sudah sampai di {legTarget.label}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5 rounded-control border border-line bg-sunken px-3.5 py-3 text-[13px] text-ink-muted">
+                    {legDistance != null
+                      ? <Navigation2 size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
+                      : <Loader2 size={17} className="shrink-0 animate-spin" aria-hidden="true" />}
+                    {legDistance != null ? (
+                      <span>
+                        <span className="font-mono font-medium text-ink">~{legDistance < 1000 ? Math.round(legDistance) + ' m' : (legDistance / 1000).toFixed(1) + ' km'}</span>
+                        {' '}menuju {legTarget.label}
+                      </span>
+                    ) : (
+                      <span>Mencari sinyal GPS...</span>
+                    )}
+                  </div>
+                )
               ) : isFoodDelivery ? (
                 // Restoran/merchant tidak punya koordinat sama sekali (lihat
                 // migrations/0028), jadi tidak ada peta/jarak untuk food -
                 // alamat teks apa adanya adalah satu-satunya panduan.
-                <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 rounded-lg p-2.5">
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">
-                    {activeOrder.status === OrderStatus.PICKING_UP ? `Ambil di: ${activeOrder.title || 'Restoran'}` : 'Menuju alamat pelanggan'}
-                  </p>
-                  <p>{activeOrder.details}</p>
+                <div className="flex items-start gap-2.5 rounded-control border border-line bg-sunken px-3.5 py-3 text-[13px]">
+                  <Store size={17} className="mt-0.5 shrink-0 text-brand-ink" aria-hidden="true" />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <p className="font-semibold text-ink">
+                      {activeOrder.status === OrderStatus.PICKING_UP ? `Ambil di: ${activeOrder.title || 'Restoran'}` : 'Menuju alamat pelanggan'}
+                    </p>
+                    <p className="break-words leading-relaxed text-ink-muted">{activeOrder.details}</p>
+                  </div>
                 </div>
               ) : null}
 
-              <div className="flex gap-2">
+              {/* Next step first: the one action the driver takes now */}
+              {currentStep && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  block
+                  leftIcon={StepIcon ? <StepIcon size={19} /> : null}
+                  onClick={handleAdvanceStage}
+                >
+                  {currentStep.label}
+                </Button>
+              )}
+
+              <div className={cx('grid gap-2', legTarget ? 'grid-cols-2' : 'grid-cols-1')}>
                 {legTarget && (
                   <Button
-                    variant="outline"
-                    className="w-full font-bold border-primary text-primary"
+                    variant="secondary"
+                    leftIcon={<Navigation2 size={17} />}
                     onClick={() => {
                       const origin = driverPos ? `${driverPos.lat},${driverPos.lng}` : '';
                       window.open(`https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ''}&destination=${legTarget.lat},${legTarget.lng}`, '_blank');
@@ -575,18 +677,9 @@ const DriverHomePage = () => {
                     Navigasi
                   </Button>
                 )}
-                <Button variant="outline" className="w-full font-bold border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300" onClick={() => navigate('active-order/' + activeOrder.id)}>
+                <Button variant="secondary" leftIcon={<MessageCircle size={17} />} onClick={() => navigate('active-order/' + activeOrder.id)}>
                   Chat
                 </Button>
-                {currentStep && (
-                  <Button
-                    variant="primary"
-                    className={`w-full font-bold ${hasArrived ? 'animate-pulse' : ''}`}
-                    onClick={handleAdvanceStage}
-                  >
-                    {currentStep.label}
-                  </Button>
-                )}
               </div>
 
               {/* Batalkan Pesanan - hanya sebelum trip benar-benar dimulai
@@ -604,57 +697,64 @@ const DriverHomePage = () => {
                   murni soal scope, bukan soal keamanan.) */}
               {activeOrder.status !== OrderStatus.IN_TRIP && !isFoodDelivery && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
+                  block
                   disabled={isCancellingOrder}
-                  className="w-full font-bold text-red-500 border-red-200 hover:bg-red-50 disabled:opacity-60"
+                  className="text-danger-ink hover:bg-danger-soft"
                   onClick={handleCancelOrder}
                 >
                   {isCancellingOrder ? 'Membatalkan...' : 'Batalkan Pesanan'}
                 </Button>
               )}
-            </Card>
+            </>
           )}
         </div>
       </div>
 
-      {/* Incoming Order Popup */}
-      {isOnline && incomingOrder && (
-      <Modal
-        isOpen={true}
+      {/* Incoming Order Prompt */}
+      <Sheet
+        open={isOnline && !!incomingOrder}
         onClose={() => {}}
-        closeOnBackdrop={false}
-        className="max-w-sm p-6 border-2 border-primary relative overflow-hidden pointer-events-auto"
+        dismissible={false}
+        size="sm"
+        icon={<BellRing size={22} />}
+        title="Pesanan Baru Masuk"
+        footer={
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setIncomingOrder(null)}>Tolak</Button>
+            <Button variant="primary" size="lg" onClick={handleAcceptOrder}>Terima</Button>
+          </>
+        }
       >
-            <div className="absolute top-0 left-0 w-full h-1 bg-primary animate-pulse"></div>
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
-                <BellRing size={32} className="animate-bounce" />
-              </div>
-              <Badge variant="primary" className="mb-2 capitalize">
+        {incomingOrder && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-card px-4 py-3.5">
+              <Badge tone="brand" className="capitalize">
                 {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : incomingOrder.service_type}
               </Badge>
-              <h2 className="text-2xl font-bold">Rp {incomingOrder.total_price.toLocaleString('id-ID')}</h2>
-              {incomingOrder.details && (() => {
-                const incomingDetails = tryParseJson(incomingOrder.details);
-                return incomingDetails ? (
-                  <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    <p className="font-semibold text-primary">{incomingDetails.pickup?.name || 'Lokasi Jemput'}</p>
-                    <p className="text-xs">menuju</p>
-                    <p className="font-semibold text-red-500">{incomingDetails.dropoff?.name || 'Tujuan'}</p>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{incomingOrder.details}</p>
-                );
-              })()}
-              <p className="text-slate-500 text-xs mt-3">Ketuk 'Terima' untuk melihat peta lengkap</p>
+              <Money value={incomingOrder.total_price} className="text-[24px] font-medium leading-none tracking-tight text-ink" />
             </div>
-            
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
-              <Button variant="primary" className="flex-1" onClick={handleAcceptOrder}>Terima</Button>
-            </div>
-      </Modal>
-      )}
+
+            {incomingOrder.details && (
+              incomingDetails ? (
+                <div className="flex items-start gap-3">
+                  <RouteStops
+                    from={incomingDetails.pickup?.name || 'Lokasi Jemput'}
+                    to={incomingDetails.dropoff?.name || 'Tujuan'}
+                  />
+                  {incomingTripMeters != null && (
+                    <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-[13px] font-medium text-ink-muted">{formatKm(incomingTripMeters)}</span>
+                  )}
+                </div>
+              ) : (
+                <p className="break-words text-sm leading-relaxed text-ink">{incomingOrder.details}</p>
+              )
+            )}
+
+            <p className="text-xs text-ink-muted">Ketuk 'Terima' untuk melihat peta lengkap</p>
+          </div>
+        )}
+      </Sheet>
 
       {isChatOpen && activeOrder && (
         <ChatModal

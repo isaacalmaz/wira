@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
 import WiraMark from '../components/brand/WiraMark';
+import { Button, Card, Field, Input, Notice } from '../components/ui';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -32,77 +32,64 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center items-center text-primary font-bold text-3xl sm:text-4xl mb-6">
-          <WiraMark size={44} className="mr-3" />
-          Wira Admin
+    <div className="flex min-h-screen flex-col items-center justify-center bg-ground px-4 py-12">
+      <div className="flex w-full max-w-[420px] flex-col gap-6">
+        <div className="flex flex-col items-center gap-5 text-center">
+          <div className="flex items-center gap-3" aria-label="Wira Admin">
+            <WiraMark size={44} className="shrink-0" />
+            <span className="flex items-baseline gap-2 leading-none">
+              <span className="text-[32px] font-extrabold tracking-[-0.035em] text-ink">wira</span>
+              <span className="text-[20px] font-medium tracking-tight text-ink-muted">admin</span>
+            </span>
+          </div>
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance sm:text-2xl">
+            Masuk ke Sistem Keamanan
+          </h1>
         </div>
-        <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-          Masuk ke Sistem Keamanan
-        </h2>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-slate-800 py-8 px-6 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-200 dark:border-slate-700">
-          <form className="space-y-6" onSubmit={handleLogin}>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Email Administrator
-              </label>
-              <div className="mt-1">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field w-full px-4 py-2.5 border rounded-lg"
-                  placeholder="admin@wira.app"
-                  required
-                />
-              </div>
-            </div>
+        <Card padding="none" className="p-6 sm:p-8">
+          <form className="flex flex-col gap-5" onSubmit={handleLogin}>
+            <Field label="Email Administrator" htmlFor="login-email">
+              <Input
+                id="login-email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@wira.app"
+                required
+              />
+            </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Kata Sandi
-              </label>
-              <div className="mt-1">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field w-full px-4 py-2.5 border rounded-lg"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary hover:text-cyan-700 transition-colors">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <label htmlFor="login-password" className="text-[13px] font-semibold text-ink">
+                  Kata Sandi
+                </label>
+                <a href="#" className="text-[13px] font-semibold text-brand-ink hover:underline">
                   Lupa password?
                 </a>
               </div>
+              <Input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
             </div>
 
-            <div>
-              <button 
-                type="submit" 
-                disabled={isLoggingIn}
-                className="w-full btn-primary flex justify-center items-center py-2.5 text-base font-semibold"
-              >
-                {isLoggingIn ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
-                {isLoggingIn ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
-              </button>
-            </div>
-            
-            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
-              <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Informasi Kredensial:</p>
-              Portal ini sekarang terhubung dengan Supabase Authentication. Silakan gunakan Email dan Password yang telah Anda buat di tab <b>Authentication &gt; Users</b> pada dashboard Supabase Anda.
-            </div>
+            <Button type="submit" size="lg" block isLoading={isLoggingIn} className="mt-1">
+              {isLoggingIn ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
+            </Button>
           </form>
-        </div>
+        </Card>
+
+        <Notice tone="info" title="Informasi Kredensial:">
+          Portal ini sekarang terhubung dengan Supabase Authentication. Silakan gunakan Email dan Password yang telah Anda buat di tab <b>Authentication &gt; Users</b> pada dashboard Supabase Anda.
+        </Notice>
       </div>
     </div>
   );

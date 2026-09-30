@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Send, Phone, MessageSquare, Loader, Lock } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, updateDriverLocation } from '../../services/orderService';
-import { Modal } from '../../components/shared/UIComponents';
+import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -25,6 +25,17 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 function deg2rad(deg) {
   return deg * (Math.PI/180)
 }
+
+// ---- display-only helpers ----
+// Badge tone per DESIGN.md: pending = warning, active = brand,
+// completed = success, cancelled = danger.
+const statusTone = (status) => {
+  if (status === 'pending' || status === 'awaiting_payment') return 'warning';
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'danger';
+  return 'brand';
+};
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, villa: Building2 };
 
 export default function ActiveOrderPage() {
   const { id } = useParams();
@@ -289,126 +300,191 @@ export default function ActiveOrderPage() {
   };
 
   if (loading || !order) {
-    return <div className="flex h-screen items-center justify-center"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-ink">
+        <Spinner size={28} label="Memuat" />
+      </div>
+    );
   }
 
   const nextStageInfo = getNextStageInfo();
   const hasAccess = isDriver || order.merchant?.owner_id === user.id;
 
+  // ---- display-only values ----
+  const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
+  const customerInitial = (order.customer?.name || '?').trim().charAt(0).toUpperCase();
+
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 -mx-4 md:-mx-8 -mt-4 md:-mt-8">
-      <div className="bg-primary text-white p-4 flex items-center shadow-md shrink-0">
-        <button onClick={() => navigate(-1)} className="mr-3"><ArrowLeft size={24} /></button>
-        <h1 className="text-lg font-bold flex-1">Order #{order.id.slice(0,6)}</h1>
-        <span className="capitalize font-semibold bg-white/20 px-2 py-1 rounded text-sm">{order.status.replace('_', ' ')}</span>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          aria-label="Kembali"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink transition-colors hover:bg-sunken"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Wira {order.service_type}</span>
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink sm:text-2xl">
+            Order <span className="font-mono font-medium">#{order.id.slice(0,6)}</span>
+          </h1>
+          <Badge tone={statusTone(order.status)} dot><span className="capitalize">{order.status.replace('_', ' ')}</span></Badge>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col p-4 space-y-4">
-        <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl">
-          <h2 className="font-bold text-lg mb-1 capitalize">Wira {order.service_type}</h2>
-          <p className="text-gray-600 text-sm">{order.title}</p>
-          <div className="font-bold text-primary mt-2">Rp {order.total_price?.toLocaleString('id-ID')}</div>
+      {/* Order summary */}
+      <Card className="flex items-start gap-3">
+        <IconTile tone="brand" size="sm"><ServiceIcon size={18} /></IconTile>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="text-[15px] font-bold capitalize tracking-tight text-ink">Wira {order.service_type}</h2>
+          <p className="break-words text-[13px] leading-relaxed text-ink-muted">{order.title}</p>
         </div>
+        <Money value={order.total_price} className="shrink-0 pt-0.5 text-[15px] font-medium text-ink" />
+      </Card>
 
-        {order.merchant?.owner_id === user.id && ['ready', 'picking_up'].includes(order.status) && (
-          <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl mb-2 text-center border-b dark:border-slate-700">
-             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Berikan PIN ini kepada Driver saat penyerahan makanan:</p>
-             {securityPin ? (
-               <div className="text-3xl font-bold tracking-[0.3em] text-primary">{securityPin}</div>
-             ) : (
-               <p className="text-sm text-gray-400">Memuat PIN...</p>
-             )}
-          </div>
-        )}
-
-        {order.customer && (
-
-        <div className="bg-white dark:bg-slate-800 p-4 shadow-sm rounded-xl flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-500">Pelanggan</div>
-              <div className="font-bold">{order.customer.name}</div>
+      {order.merchant?.owner_id === user.id && ['ready', 'picking_up'].includes(order.status) && (
+        <Card className="flex flex-col items-center gap-3 text-center">
+          <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <ShieldCheck size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
+            Berikan PIN ini kepada Driver saat penyerahan makanan:
+          </p>
+          {securityPin ? (
+            <div className="flex justify-center gap-2" aria-label={String(securityPin).split('').join(' ')}>
+              {String(securityPin).split('').map((d, i) => (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  className="inline-flex h-14 w-12 items-center justify-center rounded-control border border-line-strong bg-ground font-mono text-[28px] font-medium text-ink"
+                >
+                  {d}
+                </span>
+              ))}
             </div>
-            <a href={`tel:${order.customer.phone}`} className="p-3 bg-green-100 text-green-600 rounded-full">
-              <Phone size={20} />
-            </a>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-ink-muted"><Spinner size={14} /> Memuat PIN...</p>
+          )}
+        </Card>
+      )}
+
+      {order.customer && (
+        <Card className="flex items-center gap-3">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-brand-line bg-brand-soft text-[17px] font-bold text-brand-ink" aria-hidden="true">
+            {customerInitial}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-xs text-ink-muted">Pelanggan</span>
+            <span className="truncate text-[15px] font-bold text-ink">{order.customer.name}</span>
           </div>
-        )}
+          <a
+            href={`tel:${order.customer.phone}`}
+            aria-label="Telepon pelanggan"
+            title="Telepon pelanggan"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand bg-brand text-white transition-colors hover:bg-brand-hover"
+          >
+            <Phone size={19} />
+          </a>
+        </Card>
+      )}
 
-        {hasAccess && nextStageInfo && (
-          <button className="w-full bg-primary text-white py-3 rounded-2xl font-bold" variant="primary"  onClick={advanceStage}>
-            {nextStageInfo.label}
-          </button>
-        )}
+      {hasAccess && nextStageInfo && (
+        <Button size="lg" block onClick={advanceStage}>
+          {nextStageInfo.label}
+        </Button>
+      )}
 
-        <div className="flex-1 bg-white shadow-sm p-4 rounded-xl flex flex-col min-h-[300px]">
-          <h3 className="font-bold flex items-center gap-2 mb-3"><MessageSquare size={18}/> Live Chat (Customer)</h3>
-          <div className="flex-1 overflow-y-auto mb-3 space-y-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl" ref={chatRef}>
-            {messages.length === 0 && <div className="text-center text-gray-400 text-xs mt-4">Belum ada pesan</div>}
-            {messages.map((m) => (
-              <div key={m.id} className={`flex flex-col ${m.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.sender_id === user?.id ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-bl-none text-gray-800 dark:text-white'}`}>
+      {/* Chat */}
+      <section className="flex flex-col overflow-hidden rounded-card border border-line bg-card">
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <IconTile tone="brand" size="sm"><MessageSquare size={17} /></IconTile>
+          <h3 className="min-w-0 flex-1 text-[15px] font-bold tracking-tight text-ink">Live Chat (Customer)</h3>
+        </div>
+        <div className="flex max-h-80 min-h-[180px] flex-col gap-2.5 overflow-y-auto overscroll-contain bg-ground px-3 py-3" ref={chatRef}>
+          {messages.length === 0 && (
+            <div className="flex flex-1 items-center justify-center px-6 py-6 text-center text-[13px] text-ink-muted">Belum ada pesan</div>
+          )}
+          {messages.map((m) => {
+            const isMe = m.sender_id === user?.id;
+            return (
+              <div key={m.id} className={cx('flex flex-col gap-0.5', isMe ? 'items-end' : 'items-start')}>
+                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card px-3.5 py-2 text-sm leading-relaxed', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
                   {m.text}
                 </div>
-                <span className="text-[9px] text-gray-400 mt-0.5 px-1">
+                <span className="px-1 font-mono text-[10.5px] text-ink-muted">
                   {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
-            ))}
-          </div>
-          <form onSubmit={sendMessage} className="flex gap-2 shrink-0">
-            <input 
-              value={inputText} 
-              onChange={e => setInputText(e.target.value)} 
-              placeholder="Ketik pesan..." 
-              className="flex-1 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner"
-            />
-            <button type="submit" disabled={!inputText.trim()} className="p-2.5 bg-primary text-white rounded-full disabled:opacity-50 hover:bg-primary-dark transition-colors"><Send size={16}/></button>
-          </form>
+            );
+          })}
         </div>
-      </div>
+        <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
+          <input
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            placeholder="Ketik pesan..."
+            aria-label="Ketik pesan..."
+            className="min-h-11 min-w-0 flex-1 rounded-full border border-line-strong bg-ground px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted/80 focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim()}
+            aria-label="Kirim"
+            title="Kirim"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+          >
+            <Send size={17} />
+          </button>
+        </form>
+      </section>
 
-      {showPinModal && (
-        <Modal isOpen={true} onClose={closePinModal} closeOnBackdrop={!isVerifying} className="max-w-sm p-6">
-          <div className="flex flex-col items-center text-center mb-4">
-            <div className="w-14 h-14 bg-primary/20 text-primary rounded-full flex items-center justify-center mb-3">
-              <Lock size={28} />
-            </div>
-            <h2 className="text-lg font-bold">Masukkan PIN Pesanan</h2>
-            <p className="text-sm text-slate-500 mt-1">Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.</p>
-          </div>
-          <form onSubmit={handlePinSubmit} className="space-y-3">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={4}
-              autoFocus
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="----"
-              className="w-full text-center text-3xl tracking-[0.5em] font-bold border-2 border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl py-3 focus:outline-none focus:border-primary"
-            />
-            {pinError && <p className="text-sm text-red-500 text-center">{pinError}</p>}
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={closePinModal}
-                disabled={isVerifying}
-                className="flex-1 py-3 rounded-2xl font-bold border-2 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 disabled:opacity-50"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={isVerifying || pinInput.length !== 4}
-                className="flex-1 bg-primary text-white py-3 rounded-2xl font-bold disabled:opacity-50"
-              >
-                {isVerifying ? 'Memverifikasi...' : 'Konfirmasi'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Sheet
+        open={showPinModal}
+        onClose={closePinModal}
+        dismissible={!isVerifying}
+        size="sm"
+        icon={<Lock size={22} />}
+        title="Masukkan PIN Pesanan"
+        description="Minta 4 digit PIN dari pelanggan untuk memulai perjalanan."
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" onClick={closePinModal} disabled={isVerifying}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="order-pin-form"
+              size="lg"
+              isLoading={isVerifying}
+              disabled={pinInput.length !== 4}
+            >
+              {isVerifying ? 'Memverifikasi...' : 'Konfirmasi'}
+            </Button>
+          </>
+        )}
+      >
+        <form id="order-pin-form" onSubmit={handlePinSubmit} className="flex flex-col gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={4}
+            autoFocus
+            autoComplete="one-time-code"
+            aria-label="PIN Pesanan"
+            aria-invalid={!!pinError}
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="----"
+            className={cx(
+              'block w-full rounded-control border-2 bg-card py-3 pl-[0.5em] text-center font-mono text-[32px] font-medium tracking-[0.5em] text-ink placeholder:text-ink-muted/50 focus:ring-2',
+              pinError ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-line-strong focus:border-brand focus:ring-brand/20',
+            )}
+          />
+          {pinError && <p className="text-center text-sm text-danger-ink">{pinError}</p>}
+        </form>
+      </Sheet>
     </div>
   );
 }

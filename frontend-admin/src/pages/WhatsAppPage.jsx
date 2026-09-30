@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Send, Search, Phone, History, CheckCheck, ExternalLink, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Badge, Button, Card, EmptyState, Field, IconTile, Input, Notice, PageHeader, Table, Textarea, cx } from '../components/ui';
 
 const TEMPLATES = [
   {
@@ -86,157 +87,161 @@ const WhatsAppPage = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Pusat Notifikasi & WhatsApp</h1>
-        <p className="text-sm text-slate-500">Kirim pesan WhatsApp langsung ke calon mitra, driver, atau pelanggan tanpa dummy data</p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Pusat Notifikasi & WhatsApp"
+        subtitle="Kirim pesan WhatsApp langsung ke calon mitra, driver, atau pelanggan tanpa dummy data"
+        className="!mb-0"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Form Sender */}
-        <div className="lg:col-span-2 card">
-          <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white flex items-center gap-2">
-            <MessageSquare className="text-emerald-500" size={20} />
-            Kirim Pesan WhatsApp Langsung
-          </h2>
+        <Card padding="none" className="min-w-0 xl:col-span-2">
+          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+            <IconTile tone="success" size="sm"><MessageSquare size={18} /></IconTile>
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">Kirim Pesan WhatsApp Langsung</h2>
+          </div>
 
-          <form onSubmit={handleSendWA} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Nomor WhatsApp Tujuan
-              </label>
+          <form onSubmit={handleSendWA} className="flex flex-col gap-5 p-5">
+            <Field label="Nomor WhatsApp Tujuan" htmlFor="wa-recipient">
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="text" 
+                <Phone className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={17} />
+                <Input
+                  id="wa-recipient"
+                  type="text"
+                  inputMode="tel"
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="Contoh: 08123456789 atau 628123456789" 
-                  className="input-field pl-10 w-full" 
+                  placeholder="Contoh: 08123456789 atau 628123456789"
+                  className="pl-10 font-mono !text-sm"
                   required
                 />
               </div>
-            </div>
+            </Field>
 
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <label htmlFor="wa-message" className="text-[13px] font-semibold text-ink">
                   Isi Pesan
                 </label>
-                <span className="text-xs text-slate-400">{message.length} karakter</span>
+                <span className="text-xs text-ink-muted"><span className="font-mono">{message.length}</span> karakter</span>
               </div>
-              <textarea 
+              <Textarea
+                id="wa-message"
                 rows={5}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Tuliskan pesan Anda..."
-                className="input-field w-full"
+                className="!text-sm"
                 required
               />
             </div>
 
             {/* Template options */}
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Sparkles size={14} className="text-amber-500" /> Pilih Template Cepat:
+            <div className="flex flex-col gap-2">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                <Sparkles size={13} /> Pilih Template Cepat:
               </p>
               <div className="flex flex-wrap gap-2">
-                {TEMPLATES.map(tpl => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => applyTemplate(tpl)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-slate-700 dark:text-slate-300 transition-colors"
-                  >
-                    {tpl.title}
-                  </button>
-                ))}
+                {TEMPLATES.map(tpl => {
+                  const active = message === tpl.text;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => applyTemplate(tpl)}
+                      aria-pressed={active}
+                      className={cx(
+                        'min-h-9 rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors',
+                        active
+                          ? 'border-brand-line bg-brand-soft text-brand-ink'
+                          : 'border-line bg-card text-ink hover:border-line-strong hover:bg-sunken',
+                      )}
+                    >
+                      {tpl.title}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="pt-2">
-              <button 
-                type="submit" 
-                className="btn-primary flex items-center justify-center gap-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3"
+            <div className="border-t border-line pt-4">
+              <Button
+                type="submit"
+                size="lg"
+                block
+                leftIcon={<Send size={18} />}
+                rightIcon={<ExternalLink size={16} />}
               >
-                <Send size={18} /> Kirim via WhatsApp Web / App <ExternalLink size={16} />
-              </button>
+                Kirim via WhatsApp Web / App
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
 
         {/* Quick Help Card */}
-        <div className="space-y-6">
-          <div className="card bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/20">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-              <CheckCheck className="text-emerald-500" size={20} />
-              Integrasi WhatsApp Riil
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-3">
-              Semua link WhatsApp di admin terhubung langsung ke API resmi `wa.me`. Anda dapat menghubungi calon mitra secara instan dari modal review berkas maupun form di samping.
-            </p>
-            <div className="bg-white/60 dark:bg-slate-800/60 p-3 rounded-lg border border-emerald-500/20 text-xs text-slate-700 dark:text-slate-300">
-              💡 <strong>Tips:</strong> Pada menu "Calon Mitra Baru" di Dashboard atau halaman Driver/Merchant/Teknisi, klik <strong>"Review Berkas"</strong> untuk langsung menyapa calon mitra di nomor mereka.
-            </div>
+        <Card padding="lg" className="flex min-w-0 flex-col gap-3 self-start">
+          <div className="flex items-center gap-3">
+            <IconTile tone="success" size="sm"><CheckCheck size={18} /></IconTile>
+            <h3 className="text-[15px] font-bold tracking-tight text-ink">Integrasi WhatsApp Riil</h3>
           </div>
-        </div>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            Semua link WhatsApp di admin terhubung langsung ke API resmi <code className="font-mono text-ink">wa.me</code>. Anda dapat menghubungi calon mitra secara instan dari modal review berkas maupun form di samping.
+          </p>
+          <Notice tone="info">
+            <strong>Tips:</strong> Pada menu &quot;Calon Mitra Baru&quot; di Dashboard atau halaman Driver/Merchant/Teknisi, klik <strong>&quot;Review Berkas&quot;</strong> untuk langsung menyapa calon mitra di nomor mereka.
+          </Notice>
+        </Card>
       </div>
 
       {/* Real WhatsApp Logs Table */}
-      <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <History size={18} className="text-slate-400" /> Riwayat Kontak WhatsApp
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="flex items-center gap-2 text-[15px] font-bold tracking-tight text-ink">
+            <History size={18} className="text-ink-muted" /> Riwayat Kontak WhatsApp
           </h2>
-          <div className="relative w-full max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Cari riwayat nomor..." 
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={17} />
+            <Input
+              type="text"
+              aria-label="Cari riwayat nomor"
+              placeholder="Cari riwayat nomor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10 py-1.5 w-full text-sm" 
+              className="pl-10 !text-sm"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        {filteredLogs.length === 0 ? (
+          <EmptyState
+            icon={<MessageSquare size={22} />}
+            title="Belum ada riwayat pesan terkirim"
+            description="Pesan yang Anda kirim ke mitra akan dicatat otomatis di sini"
+          />
+        ) : (
+          <Table>
+            <thead>
               <tr>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Nomor Tujuan</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Pratinjau Pesan</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Waktu</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Status</th>
+                <th>Nomor Tujuan</th>
+                <th>Pratinjau Pesan</th>
+                <th>Waktu</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="text-center py-10 text-slate-400">
-                    <MessageSquare size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="font-medium text-slate-600 dark:text-slate-300">Belum ada riwayat pesan terkirim</p>
-                    <p className="text-xs text-slate-400 mt-1">Pesan yang Anda kirim ke mitra akan dicatat otomatis di sini</p>
-                  </td>
+            <tbody>
+              {filteredLogs.map(l => (
+                <tr key={l.id}>
+                  <td className="whitespace-nowrap font-mono text-[12.5px] font-medium">+{l.phone}</td>
+                  <td className="max-w-md truncate text-ink-muted">{l.text}</td>
+                  <td className="whitespace-nowrap font-mono text-[12px] text-ink-muted">{l.timestamp}</td>
+                  <td><Badge tone="success" dot>{l.status}</Badge></td>
                 </tr>
-              ) : (
-                filteredLogs.map(l => (
-                  <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-6 py-4 font-mono font-medium text-slate-900 dark:text-white">+{l.phone}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300 max-w-md truncate">{l.text}</td>
-                    <td className="px-6 py-4 text-slate-500 text-xs">{l.timestamp}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        {l.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </Table>
+        )}
+      </section>
     </div>
   );
 };

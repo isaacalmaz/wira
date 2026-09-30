@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Home, Save } from 'lucide-react';
-import { Card, Button } from '../../components/shared/UIComponents';
+import { Home, Save, MapPin, Image as ImageIcon } from 'lucide-react';
+import { Card, Button, Field, Input, Textarea, Money, PageHeader, EmptyState, Spinner } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -79,92 +79,116 @@ export default function VillaListingPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-slate-500">Memuat data villa...</div>;
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-ink-muted" role="status">
+        <Spinner size={24} className="text-brand-ink" />
+        <p className="text-sm">Memuat data villa...</p>
+      </div>
+    );
   }
 
   if (!merchantId) {
     return (
-      <div className="text-center py-12 text-slate-500 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-        Villa Anda belum terdaftar di database. Hubungi admin.
+      <div className="mx-auto max-w-2xl">
+        <EmptyState icon={<Home size={24} />} title="Villa Anda belum terdaftar di database. Hubungi admin." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <Home size={22} className="text-primary" /> Kelola Listing Villa
-        </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Perbarui informasi villa yang tampil untuk tamu di WiraVilla
-        </p>
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-20">
+      <PageHeader
+        title="Kelola Listing Villa"
+        subtitle="Perbarui informasi villa yang tampil untuk tamu di WiraVilla"
+        className="mb-0"
+      />
 
-      <Card className="p-5">
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Nama Villa</label>
-            <input
+      {/* Property card: how the listing reads with the values in the form below */}
+      <Card padding="none" className="overflow-hidden">
+        {image ? (
+          <img src={image} alt="Pratinjau villa" className="h-44 w-full bg-sunken object-cover sm:h-56" />
+        ) : (
+          <div className="flex h-44 w-full items-center justify-center bg-sunken text-ink-muted sm:h-56">
+            <ImageIcon size={32} aria-hidden="true" />
+          </div>
+        )}
+        <div className="flex flex-col gap-1.5 p-4">
+          <h2 className="break-words text-[16px] font-bold leading-snug text-ink">{name || 'Nama Villa'}</h2>
+          {address && (
+            <p className="flex items-start gap-1.5 text-[13px] text-ink-muted">
+              <MapPin size={14} className="mt-[3px] shrink-0" aria-hidden="true" />
+              <span className="min-w-0 break-words">{address}</span>
+            </p>
+          )}
+          <p className="flex items-baseline gap-1 pt-1 text-[13px] text-ink-muted">
+            {pricePerNight !== '' && pricePerNight !== null ? (
+              <Money value={pricePerNight} className="text-[18px] font-medium text-ink" />
+            ) : (
+              <span className="font-mono text-[18px] font-medium text-ink-muted">Rp –</span>
+            )}
+            <span>/ malam</span>
+          </p>
+        </div>
+      </Card>
+
+      <Card>
+        <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <Field label="Nama Villa" htmlFor="villa-name" required>
+            <Input
+              id="villa-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
               placeholder="Contoh: Villa Senggigi Sunset"
               required
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Alamat</label>
-            <input
+          <Field label="Alamat" htmlFor="villa-address">
+            <Input
+              id="villa-address"
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
               placeholder="Contoh: Jl. Raya Senggigi, Lombok Barat"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Harga per Malam (Rp)</label>
-            <input
+          <Field label="Harga per Malam (Rp)" htmlFor="villa-price">
+            <Input
+              id="villa-price"
               type="number"
+              inputMode="numeric"
               min="0"
               value={pricePerNight}
               onChange={(e) => setPricePerNight(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-sm font-bold dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
+              className="font-mono"
               placeholder="Contoh: 850000"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Deskripsi</label>
-            <textarea
+          <Field label="Deskripsi" htmlFor="villa-description">
+            <Textarea
+              id="villa-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows="4"
-              className="w-full p-2.5 border rounded-xl text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
+              rows={4}
               placeholder="Ceritakan keunggulan villa Anda..."
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">URL Foto Villa</label>
-            <input
+          <Field label="URL Foto Villa" htmlFor="villa-image">
+            <Input
+              id="villa-image"
               type="url"
               value={image}
               onChange={(e) => setImage(e.target.value)}
-              className="w-full p-2.5 border rounded-xl text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:ring-2 focus:ring-primary focus:outline-none"
               placeholder="https://..."
             />
-            {image && (
-              <img src={image} alt="Pratinjau villa" className="mt-2 w-full h-40 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
-            )}
-          </div>
+          </Field>
 
-          <Button type="submit" variant="primary" className="w-full py-2.5 flex items-center justify-center gap-2" disabled={saving}>
-            <Save size={16} /> {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+          <Button type="submit" variant="primary" size="lg" block isLoading={saving} leftIcon={<Save size={18} />}>
+            {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
           </Button>
         </form>
       </Card>

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Sliders, Map as MapIcon, X, Trash2, Edit } from 'lucide-react';
+import { RefreshCw, Sliders, Map as MapIcon, Trash2, Edit, Plus, MapPin, Save } from 'lucide-react';
+import { ConfirmModal } from '../components/common/UIComponents';
+import { Button, Card, EmptyState, Field, Input, PageHeader, SectionHeader, Sheet, Stat } from '../components/ui';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -65,54 +67,44 @@ const MapModal = ({ zone, onClose, onSaveMap }) => {
       }
     }
 
-    // Add Save Button Control
-    const SaveControl = L.Control.extend({
-      options: { position: 'topright' },
-      onAdd: function() {
-        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-        container.style.backgroundColor = 'white';
-        container.style.padding = '5px';
-        container.style.cursor = 'pointer';
-        container.style.fontWeight = 'bold';
-        container.innerHTML = '💾 Simpan Batas Peta';
-        
-        container.onclick = function(e) {
-          L.DomEvent.stopPropagation(e);
-          if (!map.pm) return onSaveMap(null);
-          const pmLayers = map.pm.getGeomanLayers();
-          const features = pmLayers.map(l => l.toGeoJSON());
-          let geojsonToSave = null;
-          if (features.length > 0) {
-            geojsonToSave = features[0].geometry;
-          }
-          onSaveMap(geojsonToSave);
-        };
-        return container;
-      }
-    });
-    map.addControl(new SaveControl());
-
     return () => {
       map.remove();
     };
   }, [zone]);
 
+  // Was a Leaflet control inside the map; same logic, now the Sheet footer.
+  const handleSaveClick = () => {
+    const map = mapInstance.current;
+    if (!map) return;
+    if (!map.pm) return onSaveMap(null);
+    const pmLayers = map.pm.getGeomanLayers();
+    const features = pmLayers.map(l => l.toGeoJSON());
+    let geojsonToSave = null;
+    if (features.length > 0) {
+      geojsonToSave = features[0].geometry;
+    }
+    onSaveMap(geojsonToSave);
+  };
+
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-900/80 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-            📍 Gambar Batas Peta: {zone.name}
-          </h3>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="flex-1 relative">
-          <div ref={mapRef} className="w-full h-full" style={{ minHeight: '400px' }}></div>
-        </div>
+    <Sheet
+      open
+      onClose={onClose}
+      title={`Gambar Batas Peta: ${zone.name}`}
+      icon={<MapPin size={20} />}
+      size="xl"
+      className="md:!max-w-5xl"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button leftIcon={<Save size={17} />} onClick={handleSaveClick}>Simpan Batas Peta</Button>
+        </>
+      )}
+    >
+      <div className="relative overflow-hidden rounded-control border border-line">
+        <div ref={mapRef} className="h-[60vh] w-full" style={{ minHeight: '400px' }}></div>
       </div>
-    </div>
+    </Sheet>
   );
 };
 
@@ -123,6 +115,7 @@ const FeatureFlagsPage = () => {
   const [showAddZone, setShowAddZone] = useState(false);
   const [newZone, setNewZone] = useState({ name: '', status_text: '' });
   const [editingZone, setEditingZone] = useState(null);
+  const [deleteZoneTarget, setDeleteZoneTarget] = useState(null);
   
   // Geofencing state
   const [activeMapZone, setActiveMapZone] = useState(null);
@@ -183,7 +176,7 @@ const FeatureFlagsPage = () => {
   };
 
   const handleDeleteZone = async (zoneId) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus wilayah ini?')) return;
+    // Confirmation now happens in the ConfirmModal (deleteZoneTarget).
     
     try {
       const { error, data } = await supabase.from('operational_zones').delete().eq('id', zoneId).select();
@@ -308,167 +301,202 @@ const FeatureFlagsPage = () => {
     }
   };
 
+  // Stable close handlers: Sheet re-runs its focus effect when onClose
+  // changes, which would pull focus back to the first field on each keystroke.
+  const closeAddZone = useCallback(() => setShowAddZone(false), []);
+  const closeEditZone = useCallback(() => setEditingZone(null), []);
+  const closeMap = useCallback(() => setActiveMapZone(null), []);
+
+  const activeFeatures = features.filter(f => f.status).length;
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {activeMapZone && (
-        <MapModal 
-          zone={activeMapZone} 
-          onClose={() => setActiveMapZone(null)} 
-          onSaveMap={handleSaveMap} 
+        <MapModal
+          zone={activeMapZone}
+          onClose={closeMap}
+          onSaveMap={handleSaveMap}
         />
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Sliders className="text-primary" size={24} /> Manajemen Fitur (Feature Flags)
-          </h1>
-          <p className="text-sm text-slate-500">Aktifkan atau nonaktifkan layanan secara dinamis di Pulau Lombok</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchFeatures}
-            className="p-2 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-            title="Muat Ulang"
-          >
+      <PageHeader
+        className="!mb-0"
+        title="Manajemen Fitur (Feature Flags)"
+        subtitle="Aktifkan atau nonaktifkan layanan secara dinamis di Pulau Lombok"
+        actions={(
+          <Button variant="secondary" onClick={fetchFeatures} aria-label="Muat Ulang" title="Muat Ulang" className="px-3">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      <div className="card overflow-hidden p-0">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Layanan Global</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Layanan & Fitur</th>
-                <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Status Saklar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {features.map((feature) => (
-                <tr key={feature.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-slate-900 dark:text-white">{feature.name}</div>
-                    <div className="text-xs font-mono text-slate-500">Kunci: {feature.id}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button 
-                      onClick={() => toggleFeature(feature.id)}
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer ${
-                        feature.status ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
-                        feature.status ? 'translate-x-6' : 'translate-x-1'
-                      }`} />
-                    </button>
-                    <span className="ml-3 font-semibold text-xs text-slate-700 dark:text-slate-300">
-                      {feature.status ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Manajemen Wilayah Operasional</h2>
-          <button onClick={() => setShowAddZone(true)} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors">
-            + Tambah Wilayah
-          </button>
-        </div>
-        
-        {showAddZone && (
-          <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 border border-emerald-200 dark:border-emerald-800 rounded-lg flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nama Wilayah</label>
-              <input type="text" value={newZone.name} onChange={e => setNewZone({...newZone, name: e.target.value})} placeholder="Contoh: Kuta Mandalika" className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
-            </div>
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Status / Label</label>
-              <input type="text" value={newZone.status_text} onChange={e => setNewZone({...newZone, status_text: e.target.value})} placeholder="Contoh: Zona Wisata" className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
-            </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <button onClick={handleAddZone} className="px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600 whitespace-nowrap">Tambah</button>
-              <button onClick={() => setShowAddZone(false)} className="px-4 py-2 bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 whitespace-nowrap">Batal</button>
-            </div>
-          </div>
+          </Button>
         )}
-        {zones.length === 0 ? (
-          <div className="p-6 text-center text-slate-500 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-            {loading ? 'Memuat data wilayah...' : 'Tidak ada data wilayah operasional.'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {zones.map((zone) => (
-              <div key={zone.id} className="card p-5 bg-white dark:bg-slate-800 shadow rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col">
-                <div className="mb-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-start">
-                  {editingZone?.id === zone.id ? (
-                    <div className="w-full flex flex-col gap-2">
-                      <input type="text" value={editingZone.name} onChange={e => setEditingZone({...editingZone, name: e.target.value})} className="w-full px-2 py-1 text-sm border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
-                      <input type="text" value={editingZone.status_text} onChange={e => setEditingZone({...editingZone, status_text: e.target.value})} className="w-full px-2 py-1 text-sm border rounded bg-white dark:bg-slate-900 dark:border-slate-700" />
-                      <div className="flex gap-2 justify-end mt-1">
-                        <button onClick={handleUpdateZone} className="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600">Simpan</button>
-                        <button onClick={() => setEditingZone(null)} className="px-2 py-1 bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded text-xs hover:bg-slate-300">Batal</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{zone.name}</h3>
-                        <p className="text-sm text-slate-500 mt-1">{zone.status_text}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setEditingZone(zone)} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors" title="Edit Wilayah">
-                          <Edit size={16} />
-                        </button>
-                        <button onClick={() => handleDeleteZone(zone.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors" title="Hapus Wilayah">
-                          <Trash2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => setActiveMapZone(zone)}
-                          className="p-1.5 ml-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1 text-xs font-medium"
-                          title="Gambar Batas Peta"
-                        >
-                          <MapIcon size={16} /> <span className="hidden sm:inline">Peta</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Stat
+          label="Layanan Global Aktif"
+          value={<>{activeFeatures}<span className="text-ink-muted"> / {features.length}</span></>}
+          icon={<Sliders size={18} />}
+        />
+        <Stat label="Wilayah Operasional" value={loading ? '–' : zones.length} icon={<MapPin size={18} />} tone="neutral" />
+      </div>
+
+      <section>
+        <SectionHeader title="Layanan Global" />
+        <Card padding="none">
+          <ul className="divide-y divide-line">
+            {features.map((feature) => (
+              <li key={feature.id} className="flex items-center gap-4 px-4 py-2.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-ink">{feature.name}</span>
+                  <span className="font-mono text-[12px] text-ink-muted">Kunci: {feature.id}</span>
                 </div>
-                <div className="space-y-4 flex-1">
+                <span className={`w-16 text-right text-[12.5px] font-semibold ${feature.status ? 'text-success-ink' : 'text-ink-muted'}`}>
+                  {feature.status ? 'Aktif' : 'Nonaktif'}
+                </span>
+                <Switch
+                  checked={!!feature.status}
+                  onChange={() => toggleFeature(feature.id)}
+                  label={feature.name}
+                />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </section>
+
+      <section>
+        <SectionHeader
+          title="Manajemen Wilayah Operasional"
+          action={(
+            <Button size="sm" variant="secondary" leftIcon={<Plus size={15} />} onClick={() => setShowAddZone(true)}>
+              Tambah Wilayah
+            </Button>
+          )}
+        />
+
+        {zones.length === 0 ? (
+          <EmptyState
+            icon={<MapPin size={24} />}
+            title={loading ? 'Memuat data wilayah...' : 'Tidak ada data wilayah operasional.'}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {zones.map((zone) => (
+              <Card key={zone.id} padding="none" className="flex flex-col">
+                <div className="flex items-start gap-2 border-b border-line px-4 py-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <h3 className="truncate text-[15px] font-bold tracking-tight text-ink">{zone.name}</h3>
+                    <p className="truncate text-[12.5px] text-ink-muted">{zone.status_text}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button size="sm" variant="ghost" className="px-2" onClick={() => setEditingZone(zone)} title="Edit Wilayah" aria-label="Edit Wilayah">
+                      <Edit size={15} />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="px-2 text-danger-ink hover:bg-danger-soft" onClick={() => setDeleteZoneTarget(zone)} title="Hapus Wilayah" aria-label="Hapus Wilayah">
+                      <Trash2 size={15} />
+                    </Button>
+                    <Button size="sm" variant="secondary" leftIcon={<MapIcon size={15} />} onClick={() => setActiveMapZone(zone)} title="Gambar Batas Peta">
+                      Peta
+                    </Button>
+                  </div>
+                </div>
+                <ul className="flex-1 divide-y divide-line">
                   {zone.services && Object.keys(zone.services).map((serviceKey) => (
-                    <div key={serviceKey} className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
+                    <li key={serviceKey} className="flex items-center justify-between gap-3 px-4">
+                      <span className="text-[13.5px] font-medium capitalize text-ink">
                         {serviceKey}
                       </span>
-                      <button 
-                        onClick={() => toggleZoneService(zone.id, serviceKey)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                          zone.services[serviceKey] ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-                        }`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${
-                          zone.services[serviceKey] ? 'translate-x-5' : 'translate-x-1'
-                        }`} />
-                      </button>
-                    </div>
+                      <Switch
+                        checked={!!zone.services[serviceKey]}
+                        onChange={() => toggleZoneService(zone.id, serviceKey)}
+                        label={`${serviceKey} di ${zone.name}`}
+                      />
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+      </section>
+
+      {/* Tambah wilayah */}
+      <Sheet
+        open={showAddZone}
+        onClose={closeAddZone}
+        title="Tambah Wilayah"
+        icon={<MapPin size={20} />}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setShowAddZone(false)}>Batal</Button>
+            <Button onClick={handleAddZone}>Tambah</Button>
+          </>
+        )}
+      >
+        <div className="flex flex-col gap-4">
+          <Field label="Nama Wilayah" htmlFor="zone-new-name">
+            <Input id="zone-new-name" type="text" value={newZone.name} onChange={e => setNewZone({...newZone, name: e.target.value})} placeholder="Contoh: Kuta Mandalika" />
+          </Field>
+          <Field label="Status / Label" htmlFor="zone-new-status">
+            <Input id="zone-new-status" type="text" value={newZone.status_text} onChange={e => setNewZone({...newZone, status_text: e.target.value})} placeholder="Contoh: Zona Wisata" />
+          </Field>
+        </div>
+      </Sheet>
+
+      {/* Edit wilayah */}
+      <Sheet
+        open={!!editingZone}
+        onClose={closeEditZone}
+        title="Edit Wilayah"
+        icon={<Edit size={20} />}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setEditingZone(null)}>Batal</Button>
+            <Button onClick={handleUpdateZone}>Simpan</Button>
+          </>
+        )}
+      >
+        {editingZone && (
+          <div className="flex flex-col gap-4">
+            <Field label="Nama Wilayah" htmlFor="zone-edit-name">
+              <Input id="zone-edit-name" type="text" value={editingZone.name} onChange={e => setEditingZone({...editingZone, name: e.target.value})} />
+            </Field>
+            <Field label="Status / Label" htmlFor="zone-edit-status">
+              <Input id="zone-edit-status" type="text" value={editingZone.status_text} onChange={e => setEditingZone({...editingZone, status_text: e.target.value})} />
+            </Field>
+          </div>
+        )}
+      </Sheet>
+
+      <ConfirmModal
+        isOpen={!!deleteZoneTarget}
+        tone="danger"
+        title="Hapus Wilayah"
+        message="Apakah Anda yakin ingin menghapus wilayah ini?"
+        confirmLabel="Hapus"
+        onConfirm={() => { const id = deleteZoneTarget.id; setDeleteZoneTarget(null); handleDeleteZone(id); }}
+        onCancel={() => setDeleteZoneTarget(null)}
+      />
     </div>
   );
 };
+
+// On/off switch: 44px touch area around a compact track.
+function Switch({ checked, onChange, label, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className="group inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control disabled:cursor-not-allowed disabled:opacity-55"
+    >
+      <span className={`relative inline-flex h-6 w-10 items-center rounded-full border transition-colors ${checked ? 'border-brand bg-brand' : 'border-line-strong bg-sunken'} group-focus-visible:ring-2 group-focus-visible:ring-brand/30`}>
+        <span className={`absolute left-0.5 h-[18px] w-[18px] rounded-full bg-card shadow-[0_1px_2px_rgba(6,47,60,0.25)] transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+      </span>
+    </button>
+  );
+}
 
 export default FeatureFlagsPage;

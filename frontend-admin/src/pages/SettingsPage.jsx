@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Settings, Save, ShieldCheck, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import { Badge, Button, Card, Field, IconTile, Input, Notice, PageHeader, Select, Table } from '../components/ui';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
@@ -97,150 +98,145 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Settings className="text-primary" size={24} /> Pengaturan Sistem
-          </h1>
-          <p className="text-sm text-slate-500">Konfigurasi parameter operasional dan tarif platform Wira</p>
-        </div>
-        <button 
-          onClick={() => saveSettingsToCloud()}
-          disabled={saving}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Save size={18} /> {saving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Pengaturan Sistem"
+        subtitle="Konfigurasi parameter operasional dan tarif platform Wira"
+        className="!mb-0"
+        actions={(
+          <Button
+            onClick={() => saveSettingsToCloud()}
+            disabled={saving}
+            leftIcon={<Save size={17} />}
+          >
+            {saving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
+          </Button>
+        )}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* App Settings */}
-        <div className="card space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
-            Pengaturan Dasar Aplikasi
-          </h2>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Aplikasi</label>
-            <input 
-              type="text" 
-              value={appName} 
-              onChange={(e) => setAppName(e.target.value)} 
-              className="input-field w-full" 
-            />
+        <Card padding="none" className="min-w-0">
+          <div className="border-b border-line px-5 py-4">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">Pengaturan Dasar Aplikasi</h2>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tagline Slogan</label>
-            <input 
-              type="text" 
-              value={tagline} 
-              onChange={(e) => setTagline(e.target.value)} 
-              className="input-field w-full" 
-            />
+          <div className="flex flex-col gap-4 p-5">
+            <Field label="Nama Aplikasi" htmlFor="set-app-name">
+              <Input
+                id="set-app-name"
+                type="text"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                className="!text-sm"
+              />
+            </Field>
+            <Field label="Tagline Slogan" htmlFor="set-tagline">
+              <Input
+                id="set-tagline"
+                type="text"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                className="!text-sm"
+              />
+            </Field>
+            <Field label="Nomor WhatsApp Customer Service (CS)" htmlFor="set-cs-phone">
+              <Input
+                id="set-cs-phone"
+                type="text"
+                value={csPhone}
+                onChange={(e) => setCsPhone(e.target.value)}
+                className="font-mono !text-sm"
+              />
+            </Field>
+            <Field label="Wilayah Operasional Utama" htmlFor="set-region">
+              <Select
+                id="set-region"
+                value={defaultRegion}
+                onChange={(e) => setDefaultRegion(e.target.value)}
+                className="!text-sm"
+              >
+                <option value="Kota Mataram">Kota Mataram</option>
+                <option value="Lombok Barat (Senggigi)">Lombok Barat (Senggigi)</option>
+                <option value="Lombok Tengah (Mandalika/Kuta)">Lombok Tengah (Mandalika/Kuta)</option>
+                <option value="Lombok Timur">Lombok Timur</option>
+                <option value="Lombok Utara (Gili)">Lombok Utara (Gili)</option>
+              </Select>
+            </Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nomor WhatsApp Customer Service (CS)</label>
-            <input 
-              type="text" 
-              value={csPhone} 
-              onChange={(e) => setCsPhone(e.target.value)} 
-              className="input-field w-full" 
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Wilayah Operasional Utama</label>
-            <select 
-              value={defaultRegion} 
-              onChange={(e) => setDefaultRegion(e.target.value)}
-              className="input-field w-full"
-            >
-              <option value="Kota Mataram">Kota Mataram</option>
-              <option value="Lombok Barat (Senggigi)">Lombok Barat (Senggigi)</option>
-              <option value="Lombok Tengah (Mandalika/Kuta)">Lombok Tengah (Mandalika/Kuta)</option>
-              <option value="Lombok Timur">Lombok Timur</option>
-              <option value="Lombok Utara (Gili)">Lombok Utara (Gili)</option>
-            </select>
-          </div>
-        </div>
+        </Card>
       </div>
 
       {/* Admin Management */}
-      <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <ShieldCheck size={20} className="text-primary" /> Pengelola & Hak Akses Admin
-            </h2>
-            <p className="text-xs text-slate-500">Daftar pengguna dengan hak akses dashboard admin</p>
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <IconTile tone="brand" size="sm"><ShieldCheck size={18} /></IconTile>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Pengelola &amp; Hak Akses Admin</h2>
+              <p className="text-xs text-ink-muted">Daftar pengguna dengan hak akses dashboard admin</p>
+            </div>
           </div>
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={notifyAuthNotConnected}
             disabled
             title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
-            className="py-1.5 px-3 text-sm flex items-center gap-1.5 rounded-lg bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400"
+            leftIcon={<Plus size={15} />}
           >
-            <Plus size={16} /> Tambah Admin
-          </button>
+            Tambah Admin
+          </Button>
         </div>
 
-        <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-          <span>
-            Fitur ini belum terhubung ke sistem otentikasi - hubungi developer. Daftar di bawah hanya catatan
-            lokal (bukan akun login Supabase sungguhan): menambah atau menghapus baris di sini <strong>tidak</strong> membuat
-            atau mencabut akses masuk dashboard admin secara nyata.
-          </span>
-        </div>
+        <Notice tone="warning">
+          Fitur ini belum terhubung ke sistem otentikasi - hubungi developer. Daftar di bawah hanya catatan
+          lokal (bukan akun login Supabase sungguhan): menambah atau menghapus baris di sini <strong>tidak</strong> membuat
+          atau mencabut akses masuk dashboard admin secara nyata.
+        </Notice>
 
-        <div className="overflow-x-auto mt-2">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Nama Administrator</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Email</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Peran (Role)</th>
-                <th className="px-6 py-3 font-semibold text-slate-900 dark:text-white">Status</th>
-                <th className="px-6 py-3 text-right">Aksi</th>
+        <Table>
+          <thead>
+            <tr>
+              <th>Nama Administrator</th>
+              <th>Email</th>
+              <th>Peran (Role)</th>
+              <th>Status</th>
+              <th className="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {admins.map(a => (
+              <tr key={a.id}>
+                <td className="whitespace-nowrap font-semibold">{a.name}</td>
+                <td className="font-mono text-[12.5px] text-ink-muted">{a.email}</td>
+                <td><Badge tone="brand">{a.role}</Badge></td>
+                <td>
+                  <Badge tone={String(a.status).toLowerCase() === 'active' ? 'success' : 'neutral'} dot>{a.status}</Badge>
+                </td>
+                <td className="text-right">
+                  {/* Guard fixed to compare against the real 'Superadmin' role
+                      string (no space) used everywhere else in this codebase -
+                      it previously compared against 'Super Admin' (with a
+                      space), which never matched. The action itself stays
+                      disabled either way until real admin management ships. */}
+                  {a.role !== 'Superadmin' && (
+                    <Button
+                      size="sm"
+                      variant="danger-soft"
+                      onClick={notifyAuthNotConnected}
+                      disabled
+                      title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
+                      aria-label="Hapus admin"
+                    >
+                      <Trash2 size={15} />
+                    </Button>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {admins.map(a => (
-                <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-6 py-4 font-semibold text-slate-900 dark:text-white">{a.name}</td>
-                  <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">{a.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-full text-xs font-semibold dark:bg-cyan-900/30 dark:text-cyan-400">
-                      {a.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                      {a.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {/* Guard fixed to compare against the real 'Superadmin' role
-                        string (no space) used everywhere else in this codebase -
-                        it previously compared against 'Super Admin' (with a
-                        space), which never matched. The action itself stays
-                        disabled either way until real admin management ships. */}
-                    {a.role !== 'Superadmin' && (
-                      <button
-                        onClick={notifyAuthNotConnected}
-                        disabled
-                        className="text-slate-400 p-1 rounded cursor-not-allowed"
-                        title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            ))}
+          </tbody>
+        </Table>
+      </section>
     </div>
   );
 };

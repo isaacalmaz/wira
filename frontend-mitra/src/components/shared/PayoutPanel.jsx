@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { Card, Button, Modal } from './UIComponents';
+import { Wallet, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Badge, Button, Card, Field, IconTile, Input, Money, Notice, Select, Sheet } from '../ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { formatSignedRupiah } from '../../utils/formatters';
 
 const STATUS_LABEL = {
-  pending: { text: 'Menunggu diproses admin', icon: Clock, cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' },
-  approved: { text: 'Sudah ditransfer', icon: CheckCircle2, cls: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-  rejected: { text: 'Ditolak', icon: XCircle, cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400' },
-  cancelled: { text: 'Dibatalkan', icon: XCircle, cls: 'text-slate-500 bg-slate-100 dark:bg-slate-800' },
+  pending: { text: 'Menunggu diproses admin', icon: Clock, tone: 'warning' },
+  approved: { text: 'Sudah ditransfer', icon: CheckCircle2, tone: 'success' },
+  rejected: { text: 'Ditolak', icon: XCircle, tone: 'danger' },
+  cancelled: { text: 'Dibatalkan', icon: XCircle, tone: 'neutral' },
 };
 
 /**
@@ -95,105 +94,131 @@ export default function PayoutPanel() {
     }
   };
 
+  const maxAmount = Math.floor(balance);
+
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
-          <Wallet size={16} /> Saldo Bisa Dicairkan
+    <Card padding="none" className="overflow-hidden">
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Saldo Bisa Dicairkan</p>
+            <Money
+              value={maxAmount}
+              sign={balance < 0 ? 'minus' : undefined}
+              className={`text-[26px] font-medium leading-none tracking-tight ${balance < 0 ? 'text-danger' : 'text-ink'}`}
+            />
+          </div>
+          <IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>
         </div>
+
+        {balance < 0 && (
+          <Notice tone="danger">
+            Saldo minus karena komisi tunai (dipotong dari saldo): pada order Tunai uang dari pelanggan sudah Anda terima langsung, jadi komisi Wira ditagih dari saldo ini. Kekurangan ini tertutup otomatis dari pendapatan order non-tunai berikutnya. Tarik saldo belum bisa dilakukan sampai saldo kembali positif.
+          </Notice>
+        )}
+        {balance === 0 && (
+          <p className="text-[13px] text-ink-muted">Belum ada saldo yang bisa dicairkan.</p>
+        )}
+
+        <Button variant="primary" size="lg" block onClick={() => setModalOpen(true)} disabled={balance <= 0}>
+          Tarik Saldo
+        </Button>
       </div>
-      <p className={`text-2xl font-bold mb-3 ${balance < 0 ? 'text-red-600' : ''}`}>{formatSignedRupiah(Math.floor(balance))}</p>
-      {balance < 0 && (
-        <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg p-2 mb-3">
-          Saldo minus karena komisi tunai (dipotong dari saldo): pada order Tunai uang dari pelanggan sudah Anda terima langsung, jadi komisi Wira ditagih dari saldo ini. Kekurangan ini tertutup otomatis dari pendapatan order non-tunai berikutnya. Tarik saldo belum bisa dilakukan sampai saldo kembali positif.
-        </p>
-      )}
-      {balance === 0 && (
-        <p className="text-xs text-slate-500 mb-3">Belum ada saldo yang bisa dicairkan.</p>
-      )}
-      <Button variant="primary" className="w-full py-3" onClick={() => setModalOpen(true)} disabled={balance <= 0}>
-        Tarik Saldo
-      </Button>
 
       {requests.length > 0 && (
-        <div className="mt-4 space-y-2 border-t border-slate-100 dark:border-slate-700 pt-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Riwayat Pencairan</p>
-          {requests.map((r) => {
-            const s = STATUS_LABEL[r.status] || STATUS_LABEL.pending;
-            const Icon = s.icon;
-            return (
-              <div key={r.id} className="flex items-center justify-between text-sm py-1.5">
-                <div>
-                  <p className="font-medium">Rp {Number(r.amount).toLocaleString('id-ID')}</p>
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-0.5 ${s.cls}`}>
-                    <Icon size={12} /> {s.text}
-                  </span>
-                </div>
-                {r.status === 'pending' && (
-                  <button onClick={() => handleCancel(r.id)} className="text-xs text-red-500 hover:underline">Batalkan</button>
-                )}
-              </div>
-            );
-          })}
+        <div className="border-t border-line">
+          <p className="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:px-5">Riwayat Pencairan</p>
+          <ul className="flex flex-col">
+            {requests.map((r) => {
+              const s = STATUS_LABEL[r.status] || STATUS_LABEL.pending;
+              const Icon = s.icon;
+              return (
+                <li key={r.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 sm:px-5">
+                  <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                    <Money value={r.amount} className="text-[14px] font-medium text-ink" />
+                    <Badge tone={s.tone}>
+                      <Icon size={12} aria-hidden="true" /> {s.text}
+                    </Badge>
+                  </div>
+                  {r.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(r.id)}
+                      className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-[13px] font-semibold text-danger-ink transition-colors hover:bg-danger-soft"
+                    >
+                      Batalkan
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} className="max-w-sm p-5 relative">
-            <button onClick={() => setModalOpen(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
-              <X size={20} />
-            </button>
-            <h3 className="font-bold text-lg mb-4">Tarik Saldo</h3>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Nominal (maks. Rp {Math.floor(balance).toLocaleString('id-ID')})</label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900"
-                  placeholder="Contoh: 100000"
-                  min="1"
-                  max={Math.floor(balance)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Metode</label>
-                <select
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900"
-                >
-                  <option value="bank_transfer">Transfer Bank</option>
-                  <option value="ewallet">E-Wallet (DANA/OVO/GoPay)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Nomor Rekening / E-Wallet</label>
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900"
-                  placeholder="Contoh: BCA 1234567890"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Nama Pemilik Rekening</label>
-                <input
-                  type="text"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900"
-                  placeholder="Sesuai buku tabungan/akun"
-                />
-              </div>
-              <Button type="submit" variant="primary" className="w-full py-2.5" disabled={submitting}>
-                {submitting ? 'Mengirim...' : 'Ajukan Pencairan'}
-              </Button>
-            </form>
-      </Modal>
+      <Sheet
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Tarik Saldo"
+        icon={<Wallet size={22} />}
+        tone="pay"
+        size="sm"
+        footer={(
+          <Button type="submit" form="payout-form" variant="primary" size="lg" isLoading={submitting}>
+            {submitting ? 'Mengirim...' : 'Ajukan Pencairan'}
+          </Button>
+        )}
+      >
+        <form id="payout-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field
+            label={<>Nominal (maks. <Money value={maxAmount} className="font-medium" />)</>}
+            htmlFor="payout-amount"
+          >
+            <Input
+              id="payout-amount"
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="font-mono"
+              placeholder="Contoh: 100000"
+              min="1"
+              max={maxAmount}
+              required
+            />
+          </Field>
+          <Field label="Metode" htmlFor="payout-method">
+            <Select
+              id="payout-method"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
+              <option value="bank_transfer">Transfer Bank</option>
+              <option value="ewallet">E-Wallet (DANA/OVO/GoPay)</option>
+            </Select>
+          </Field>
+          <Field label="Nomor Rekening / E-Wallet" htmlFor="payout-destination">
+            <Input
+              id="payout-destination"
+              type="text"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              className="font-mono"
+              placeholder="Contoh: BCA 1234567890"
+              required
+            />
+          </Field>
+          <Field label="Nama Pemilik Rekening" htmlFor="payout-account-name">
+            <Input
+              id="payout-account-name"
+              type="text"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="Sesuai buku tabungan/akun"
+            />
+          </Field>
+        </form>
+      </Sheet>
     </Card>
   );
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Users, Search, Ban, CheckCircle, Car, Store, Wrench, Wallet } from 'lucide-react';
+import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
+import { Badge, Button, Card, Field, Input, Money, PageHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // 'courier' is no longer a separate mitra_access role - Driver now covers
 // Ride/Kurir/Makanan together via self-service preferences (migrations/0033).
@@ -133,149 +134,167 @@ const UsersPage = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="text-primary"/> Manajemen Pengguna</h1>
-          <p className="text-sm text-slate-500">Semua pengguna Wira, termasuk pengelolaan akses mitra (driver/merchant/teknisi)</p>
-        </div>
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Manajemen Pengguna"
+        subtitle="Semua pengguna Wira, termasuk pengelolaan akses mitra (driver/merchant/teknisi)"
+        className="!mb-0"
+      />
+
+      {/* Filter bar */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="relative w-full md:max-w-sm">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+          <Input
             type="text"
+            aria-label="Cari pengguna"
             placeholder="Cari nama/email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm w-56"
+            className="pl-10 !text-sm"
           />
         </div>
-      </div>
-
-      <div className="card p-0 overflow-hidden overflow-x-auto">
-        {loading ? <div className="p-10 text-center">Memuat...</div> : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="px-6 py-4">Nama</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Telepon</th>
-                <th className="px-6 py-4">Saldo</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Akses Mitra</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filtered.map(u => {
-                const access = Array.isArray(u.mitra_access) ? u.mitra_access : [];
-                return (
-                <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold">{u.name}</td>
-                  <td className="px-6 py-4 text-slate-500">{u.email}</td>
-                  <td className="px-6 py-4">{u.phone}</td>
-                  <td className="px-6 py-4 font-bold text-slate-700">Rp {(u.wallet_balance || 0).toLocaleString('id-ID')}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${u.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {u.status || 'Aktif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-1.5">
-                      {MITRA_ROLES.map(({ key, label, icon: Icon }) => {
-                        const active = access.includes(key);
-                        return (
-                          <button
-                            key={key}
-                            onClick={() => toggleMitraAccess(u, key)}
-                            title={active ? `Cabut akses ${label}` : `Berikan akses ${label}`}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
-                              active
-                                ? 'bg-primary/10 border-primary text-primary'
-                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
-                            }`}
-                          >
-                            <Icon size={12} /> {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                    <button 
-                      onClick={() => setCorrectionModal(u)}
-                      className="text-slate-400 hover:text-green-600 transition"
-                      title="Koreksi Saldo"
-                    >
-                      <Wallet size={18} />
-                    </button>
-                    <button onClick={() => toggleStatus(u.id, u.status || 'Aktif')} className="text-slate-400 hover:text-red-500 transition">
-                      {u.status === 'Aktif' ? <Ban size={18} /> : <CheckCircle size={18} />}
-                    </button>
-                  </td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {!loading && (
+          <p className="text-[13px] text-ink-muted md:ml-auto">
+            <span className="font-mono font-medium text-ink">{filtered.length.toLocaleString('id-ID')}</span> pengguna
+          </p>
         )}
       </div>
 
-      {/* Modal Koreksi Saldo */}
-      {correctionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b bg-slate-50">
-              <h3 className="font-bold text-slate-800">Koreksi Saldo Manual</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Atas nama: <span className="font-bold text-slate-700">{correctionModal.name}</span>
-              </p>
-            </div>
-            
-            <form onSubmit={handleBalanceCorrection} className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Nominal Koreksi (Rp)</label>
-                <input 
-                  type="number"
-                  placeholder="Misal: 10584 (tambah) atau -10584 (kurangi)"
-                  className="w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none"
-                  value={correctionAmount}
-                  onChange={e => setCorrectionAmount(e.target.value)}
-                  required
-                />
-                <p className="text-[11px] text-slate-400 mt-1">Gunakan tanda minus (-) untuk menarik saldo.</p>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Catatan / Alasan</label>
-                <input 
-                  type="text"
-                  placeholder="Misal: Salah transfer QRIS, Refund manual"
-                  className="w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-primary outline-none"
-                  value={correctionDesc}
-                  onChange={e => setCorrectionDesc(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCorrectionModal(null)}
-                  className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Memproses...' : 'Lanjutkan'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {loading ? (
+        <Card className="flex items-center justify-center gap-3 py-16 text-[13.5px] text-ink-muted">
+          <Spinner size={18} className="text-brand" /> Memuat...
+        </Card>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Email</th>
+              <th>Telepon</th>
+              <th className="text-right">Saldo</th>
+              <th>Status</th>
+              <th>Akses Mitra</th>
+              <th className="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(u => {
+              const access = Array.isArray(u.mitra_access) ? u.mitra_access : [];
+              const isActive = (u.status || 'Aktif') === 'Aktif';
+              return (
+              <tr key={u.id}>
+                <td className="whitespace-nowrap font-semibold">{u.name}</td>
+                <td className="text-ink-muted">{u.email}</td>
+                <td className="whitespace-nowrap font-mono text-[12.5px]">{u.phone}</td>
+                <td className="text-right"><Money value={u.wallet_balance || 0} /></td>
+                <td>
+                  <Badge tone={isActive ? 'success' : 'danger'} dot>{u.status || 'Aktif'}</Badge>
+                </td>
+                <td>
+                  <div className="flex gap-1.5">
+                    {MITRA_ROLES.map(({ key, label, icon: Icon }) => {
+                      const active = access.includes(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => toggleMitraAccess(u, key)}
+                          title={active ? `Cabut akses ${label}` : `Berikan akses ${label}`}
+                          aria-pressed={active}
+                          className={cx(
+                            'inline-flex min-h-8 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors',
+                            active
+                              ? 'border-brand-line bg-brand-soft text-brand-ink'
+                              : 'border-line bg-card text-ink-muted hover:border-line-strong hover:text-ink',
+                          )}
+                        >
+                          <Icon size={13} /> {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setCorrectionModal(u)}
+                      title="Koreksi Saldo"
+                      leftIcon={<Wallet size={15} />}
+                      className="whitespace-nowrap"
+                    >
+                      Koreksi Saldo
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isActive ? 'danger-soft' : 'secondary'}
+                      onClick={() => toggleStatus(u.id, u.status || 'Aktif')}
+                      title={isActive ? 'Blokir' : 'Aktifkan'}
+                      leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
+                      className="whitespace-nowrap"
+                    >
+                      {isActive ? 'Blokir' : 'Aktifkan'}
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </Table>
       )}
+
+      {/* Modal Koreksi Saldo - hidden (not closed) while the confirmation
+          step below is showing, so only one sheet is ever on screen. */}
+      <Sheet
+        open={!!correctionModal && !isCorrectionConfirmOpen}
+        onClose={() => setCorrectionModal(null)}
+        title="Koreksi Saldo Manual"
+        icon={<Wallet size={20} />}
+        tone="pay"
+        description={correctionModal ? (
+          <>
+            Atas nama: <span className="font-semibold text-ink">{correctionModal.name}</span>
+            {' · '}Saldo saat ini <Money value={correctionModal.wallet_balance || 0} className="text-ink" />
+          </>
+        ) : null}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setCorrectionModal(null)}>
+              Batal
+            </Button>
+            <Button type="submit" form="balance-correction-form" disabled={isSubmitting}>
+              {isSubmitting ? 'Memproses...' : 'Lanjutkan'}
+            </Button>
+          </>
+        )}
+      >
+        <form id="balance-correction-form" onSubmit={handleBalanceCorrection} className="flex flex-col gap-4">
+          <Field label="Nominal Koreksi (Rp)" htmlFor="correction-amount" hint="Gunakan tanda minus (-) untuk menarik saldo.">
+            <Input
+              id="correction-amount"
+              type="number"
+              placeholder="Misal: 10584 (tambah) atau -10584 (kurangi)"
+              className="font-mono"
+              value={correctionAmount}
+              onChange={e => setCorrectionAmount(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Catatan / Alasan" htmlFor="correction-desc">
+            <Input
+              id="correction-desc"
+              type="text"
+              placeholder="Misal: Salah transfer QRIS, Refund manual"
+              value={correctionDesc}
+              onChange={e => setCorrectionDesc(e.target.value)}
+              required
+            />
+          </Field>
+        </form>
+      </Sheet>
 
       {/* Konfirmasi Koreksi Saldo - ringkasan saldo lama -> baru sebelum RPC
           benar-benar dijalankan, agar salah ketik nominal tidak langsung

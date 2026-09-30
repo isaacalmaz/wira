@@ -1,19 +1,53 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Card, Badge, Button } from '../../components/shared/UIComponents';
-import OnlineToggle from '../../components/shared/OnlineToggle';
-import EarningsCard from '../../components/shared/EarningsCard';
-import { Calendar, Wrench, Waves, BellRing, MapPin } from 'lucide-react';
+import { Card, Badge, Button, Money, IconTile, Stat, SectionHeader, EmptyState, cx } from '../../components/ui';
+import { Calendar, Wrench, Waves, BellRing, MapPin, Wallet, ChevronRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { OrderStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { acceptOrder, subscribeToTechnicianOrders, technicianEarnedAmount } from '../../services/orderService';
 
 // See TechOrdersPage.jsx's identical helper/comment - visibility-only
 // distinction between pool and general service jobs, not a hard filter.
 const isPoolOrder = (order) => order?.service_type === 'pool' || order?.service_type === 'WiraPool';
+
+// ---- Presentational helpers (Tenun Laut) ----
+
+/** Rupiah that can be negative (Tunai orders net the commission out of the
+ * saldo), rounded the same way formatSignedRupiah does. */
+const SignedMoney = ({ value, className = '' }) => {
+  const n = Math.round(Number(value) || 0);
+  return <Money value={n} sign={n < 0 ? 'minus' : undefined} className={className} />;
+};
+
+/** The online/offline switch: a 44px touch target around a 48x28 track. */
+const OnlineSwitch = ({ isOnline, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={isOnline}
+    onClick={() => onChange(!isOnline)}
+    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
+  >
+    <span className="sr-only">Toggle Online Status</span>
+    <span
+      aria-hidden="true"
+      className={cx(
+        'relative inline-flex h-7 w-12 items-center rounded-full border transition-colors duration-150',
+        isOnline ? 'border-success bg-success' : 'border-line-strong bg-sunken',
+      )}
+    >
+      <span
+        className={cx(
+          'inline-block h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.3)] transition-transform duration-150',
+          isOnline ? 'translate-x-[23px]' : 'translate-x-[3px]',
+        )}
+      />
+    </span>
+  </button>
+);
 
 const TechHomePage = () => {
   const { user } = useAuth();
@@ -80,7 +114,7 @@ const TechHomePage = () => {
 
     const unsubscribe = subscribeToTechnicianOrders(supabase, (order) => {
       setIncomingOrder(order);
-      toast.success('Panggilan Jasa Baru Masuk!', { icon: '🔧' });
+      toast.success('Panggilan Jasa Baru Masuk!');
     });
 
     return unsubscribe;
@@ -99,73 +133,87 @@ const TechHomePage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Halo, {user?.name || 'Mitra Teknisi'}!</h1>
-          <p className="text-slate-500">Mitra Jasa Servis Wira</p>
-        </div>
-        <div className="flex flex-col items-end">
-          <OnlineToggle isOnline={isOnline} onChange={setIsOnline} />
-          <span className="text-xs mt-1 font-medium text-slate-500">TERIMA PANGGILAN</span>
-        </div>
+    <div className="flex flex-col gap-6 pb-20">
+      <div className="flex flex-col gap-1">
+        <h1 className="break-words text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance sm:text-2xl">Halo, {user?.name || 'Mitra Teknisi'}!</h1>
+        <p className="text-sm text-ink-muted">Mitra Jasa Servis Wira</p>
       </div>
 
-      <EarningsCard today={todayEarnings} week={weekEarnings} />
+      {/* Online/offline: the most important state on this screen */}
+      <Card padding="none" className="flex items-center gap-3 py-2 pl-4 pr-2">
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1 py-1">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Terima Panggilan</span>
+          <Badge tone={isOnline ? 'success' : 'neutral'} dot>{isOnline ? 'Online' : 'Offline'}</Badge>
+        </div>
+        <OnlineSwitch isOnline={isOnline} onChange={setIsOnline} />
+      </Card>
+
+      <Stat
+        label="Pendapatan Hari Ini"
+        value={<SignedMoney value={todayEarnings} />}
+        icon={<Wallet size={18} />}
+        tone="pay"
+        hint={<>Minggu ini: <SignedMoney value={weekEarnings} className="font-medium text-ink" /></>}
+      />
 
       {isOnline && incomingOrder && (
-        <div>
-          <h2 className="text-xl font-bold mb-3 flex items-center gap-2 text-primary">
-            <BellRing size={20} className="animate-bounce" /> Panggilan Baru
-          </h2>
-          <Card className="p-4 border-l-4 border-l-primary shadow-lg animate-in fade-in">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                {isPoolOrder(incomingOrder) ? <Waves size={16} className="text-primary" /> : <Wrench size={16} className="text-slate-400" />}
-                <Badge variant="warning">{incomingOrder.title || (isPoolOrder(incomingOrder) ? 'Servis Kolam Renang' : 'Servis Panggilan')}</Badge>
+        <section>
+          <SectionHeader title={<span className="inline-flex items-center gap-2"><BellRing size={18} className="text-brand-ink" aria-hidden="true" /> Panggilan Baru</span>} />
+          <Card padding="none" className="border-2 border-brand">
+            <div className="flex flex-col gap-4 p-4">
+              <div className="flex items-start gap-3">
+                <IconTile tone="brand" size="sm">
+                  {isPoolOrder(incomingOrder) ? <Waves size={18} /> : <Wrench size={18} />}
+                </IconTile>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="text-[12px] font-semibold text-ink-muted">{incomingOrder.title || (isPoolOrder(incomingOrder) ? 'Servis Kolam Renang' : 'Servis Panggilan')}</span>
+                  <h3 className="break-words text-[15px] font-bold leading-snug text-ink">{parseOrderDetails(incomingOrder.details) || 'Permintaan perbaikan'}</h3>
+                </div>
+                <Money value={incomingOrder.total_price || 0} className="shrink-0 text-[18px] font-medium text-ink" />
               </div>
-              <span className="font-bold text-primary">Rp {(incomingOrder.total_price || 0).toLocaleString('id-ID')}</span>
-            </div>
-            <h3 className="font-bold mt-2">{parseOrderDetails(incomingOrder.details) || 'Permintaan perbaikan'}</h3>
-            <p className="text-sm text-slate-500 my-1 flex items-center gap-1"><MapPin size={14}/> Mataram dan sekitarnya</p>
-            <div className="flex gap-2 mt-3">
-              <Button variant="outline" className="flex-1" onClick={() => setIncomingOrder(null)}>Tolak</Button>
-              <Button variant="primary" className="flex-1" onClick={handleAcceptJob}>Terima Panggilan</Button>
+              <p className="flex items-center gap-1.5 text-[13px] text-ink-muted"><MapPin size={15} className="shrink-0" aria-hidden="true" /> Mataram dan sekitarnya</p>
+              <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                <Button variant="secondary" size="lg" className="sm:min-w-32" onClick={() => setIncomingOrder(null)}>Tolak</Button>
+                <Button variant="primary" size="lg" className="sm:min-w-44" onClick={handleAcceptJob}>Terima Panggilan</Button>
+              </div>
             </div>
           </Card>
-        </div>
+        </section>
       )}
 
-      <div>
-        <h2 className="text-xl font-bold mb-3 flex items-center gap-2"><Calendar size={20}/> Jadwal Pekerjaan</h2>
-        <div className="space-y-3">
-          {todayOrders.length > 0 ? (
-            todayOrders.map(s => (
-              <div
-                key={s.id}
-                onClick={() => navigate('active-order/' + s.id)}
-                className="flex gap-4 items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 cursor-pointer hover:border-primary transition-colors"
-              >
-                <div className="text-center min-w-[50px]">
-                  <p className="font-bold text-sm text-primary">{new Date(s.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-                <div className="flex-1 border-l-2 border-slate-100 pl-3">
-                  <p className="font-semibold flex items-center gap-1.5">
-                    {isPoolOrder(s) ? <Waves size={14} className="text-primary shrink-0" /> : <Wrench size={14} className="text-slate-400 shrink-0" />}
-                    {s.title || (isPoolOrder(s) ? 'Servis Kolam Renang' : 'Servis')}
-                  </p>
-                  <p className="text-sm text-slate-500">{parseOrderDetails(s.details) || '-'}</p>
-                </div>
-                <Badge variant={s.status === 'working' ? 'primary' : 'warning'}>{s.status}</Badge>
-              </div>
-            ))
-          ) : (
-            <div className="p-6 text-center text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl border border-slate-100">
-              Belum ada jadwal pekerjaan aktif saat ini.
-            </div>
-          )}
-        </div>
-      </div>
+      <section>
+        <SectionHeader title={<span className="inline-flex items-center gap-2"><Calendar size={18} className="text-ink-muted" aria-hidden="true" /> Jadwal Pekerjaan</span>} />
+        {todayOrders.length > 0 ? (
+          <Card padding="none">
+            <ul className="divide-y divide-line">
+              {todayOrders.map(s => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate('active-order/' + s.id)}
+                    className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-sunken/60"
+                  >
+                    <span className="w-12 shrink-0 pt-0.5 font-mono text-[13px] font-medium text-brand-ink">
+                      {new Date(s.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <span className="flex items-start gap-1.5 text-[14px] font-semibold leading-snug text-ink">
+                        {isPoolOrder(s) ? <Waves size={14} className="mt-[3px] shrink-0 text-brand-ink" /> : <Wrench size={14} className="mt-[3px] shrink-0 text-ink-muted" />}
+                        <span className="min-w-0 break-words">{s.title || (isPoolOrder(s) ? 'Servis Kolam Renang' : 'Servis')}</span>
+                      </span>
+                      <span className="line-clamp-2 break-words text-[12.5px] leading-snug text-ink-muted">{parseOrderDetails(s.details) || '-'}</span>
+                      <Badge tone={s.status === 'working' ? 'brand' : 'warning'} dot className="mt-1">{getDisplayStatus(s.status)}</Badge>
+                    </span>
+                    <ChevronRight size={18} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : (
+          <EmptyState icon={<Calendar size={24} />} title="Belum ada jadwal pekerjaan aktif saat ini." />
+        )}
+      </section>
     </div>
   );
 };

@@ -1,11 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
-import AdminSidebar from './AdminSidebar';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import AdminSidebar, { MENU_ITEMS } from './AdminSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Menu, Bell, Sun, Moon, LogOut, Check, ExternalLink, Clock } from 'lucide-react';
+import {
+  Bell, Sun, Moon, LogOut, Check, ExternalLink, Clock, ChevronRight,
+  PanelLeftClose, PanelLeftOpen, Car, Package, Store, Home, Wrench,
+} from 'lucide-react';
+import { Badge, IconTile, cx } from '../ui';
 import { supabase } from '../../config/supabase';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
+
+// One brand tile per notification; the icon (not a colour) tells the role apart.
+const NOTIF_ICONS = { driver: Car, courier: Package, merchant: Store, villa: Home, technician: Wrench };
 
 const AdminLayout = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -14,6 +21,7 @@ const AdminLayout = () => {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Hanya Notifikasi Asli dari Supabase
   const [notifications, setNotifications] = useState([]);
@@ -94,120 +102,137 @@ const AdminLayout = () => {
     return subscribeToApplications('realtime-admin-notifs', fetchInitialNotifs);
   }, []);
 
+  const pageLabel = useMemo(() => {
+    const path = location.pathname.replace(/^\/admin/, '');
+    const match = MENU_ITEMS.find((item) => path.startsWith(item.path));
+    return match?.name || 'Dashboard';
+  }, [location.pathname]);
+
+  const userName = user?.name || 'Administrator';
+  const initials = userName.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'A';
+
+  const iconBtn = 'relative inline-flex h-10 w-10 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-sunken hover:text-ink';
+
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'dark bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className="min-h-screen bg-ground text-ink transition-colors duration-200">
       {/* Sidebar */}
       <AdminSidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       {/* Main Content Area */}
-      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
-        
+      <div className={`min-w-0 transition-[padding] duration-300 ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
+
         {/* Top Header */}
-        <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-line bg-ground/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
             <button
+              type="button"
               onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={`${iconBtn} -ml-2`}
+              aria-label={isSidebarCollapsed ? 'Buka sidebar' : 'Ciutkan sidebar'}
+              title={isSidebarCollapsed ? 'Buka sidebar' : 'Ciutkan sidebar'}
             >
-              <Menu size={24} />
+              {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
             </button>
-            <h1 className="text-xl font-bold hidden sm:block bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Wira Admin Portal
-            </h1>
+            <div className="hidden min-w-0 items-center gap-2 text-[13.5px] sm:flex">
+              <span className="font-medium text-ink-muted">Wira Admin Portal</span>
+              <ChevronRight size={14} className="shrink-0 text-ink-muted/70" aria-hidden="true" />
+              <span className="truncate font-bold text-ink">{pageLabel}</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            
-            <a 
-              href="https://wira-pied.vercel.app/" 
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+
+            <a
+              href="https://wira-pied.vercel.app/"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-primary transition-colors"
+              className="mr-1 hidden min-h-10 items-center gap-1.5 rounded-control px-3 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink sm:inline-flex"
             >
-              <ExternalLink size={16} /> Buka App User
+              <ExternalLink size={15} /> Buka App User
             </a>
 
             {/* Dark Mode Toggle */}
             <button
+              type="button"
               onClick={toggleTheme}
-              className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              className={iconBtn}
               title="Toggle Dark Mode"
+              aria-label="Toggle Dark Mode"
             >
-              {isDarkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
+              {isDarkMode ? <Sun size={19} /> : <Moon size={19} />}
             </button>
 
             {/* Notifications Dropdown */}
             <div className="relative" ref={notifRef}>
               <button
+                type="button"
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                className={cx(iconBtn, showNotifications && 'bg-sunken text-ink')}
+                aria-label="Notifikasi"
+                aria-expanded={showNotifications}
               >
-                <Bell size={20} />
+                <Bell size={19} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                  </span>
+                  <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-ground bg-danger" aria-hidden="true" />
                 )}
               </button>
 
               {/* Dropdown Panel */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden transform opacity-100 scale-100 transition-all origin-top-right">
-                  <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                    <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                      Notifikasi <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">{unreadCount} Baru</span>
+                <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-card border border-line bg-card shadow-pop sm:w-96">
+                  <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+                    <h3 className="flex items-center gap-2 text-[14px] font-bold text-ink">
+                      Notifikasi <Badge tone={unreadCount > 0 ? 'brand' : 'neutral'}><span className="font-mono">{unreadCount}</span> Baru</Badge>
                     </h3>
-                    <button 
+                    <button
+                      type="button"
                       onClick={markAllRead}
-                      className="text-xs text-primary hover:text-primary/80 font-medium"
+                      className="text-[12.5px] font-semibold text-brand-ink hover:underline"
                     >
                       Tandai sudah dibaca
                     </button>
                   </div>
-                  
+
                   <div className="max-h-[400px] overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-                        <Bell className="mx-auto mb-2 opacity-20" size={32} />
-                        <p className="text-sm">Tidak ada notifikasi riil baru</p>
+                      <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                        <IconTile tone="neutral" size="md"><Bell size={19} /></IconTile>
+                        <p className="text-[13px] text-ink-muted">Tidak ada notifikasi riil baru</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                        {notifications.map((notif) => (
-                          <div 
-                            key={notif.id} 
-                            className={`p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${notif.unread ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
-                            onClick={() => markAsRead(notif.id)}
-                          >
-                            <Link to={notif.link} onClick={() => setShowNotifications(false)} className="flex gap-4">
-                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                notif.type === 'driver' ? 'bg-amber-100 text-amber-600' :
-                                notif.type === 'courier' ? 'bg-rose-100 text-rose-600' :
-                                notif.type === 'merchant' ? 'bg-emerald-100 text-emerald-600' :
-                                notif.type === 'villa' ? 'bg-violet-100 text-violet-600' :
-                                notif.type === 'technician' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {notif.type === 'system' ? <Check size={16} /> : <Bell size={16} />}
-                              </div>
-                              <div className="flex-1">
-                                <h4 className={`text-sm font-semibold ${notif.unread ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
-                                  {notif.title}
-                                </h4>
-                                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notif.desc}</p>
-                                <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                                  <Clock size={10} /> {notif.time}
-                                </p>
-                              </div>
-                            </Link>
-                          </div>
-                        ))}
+                      <div className="divide-y divide-line">
+                        {notifications.map((notif) => {
+                          const TypeIcon = NOTIF_ICONS[notif.type] || Bell;
+                          return (
+                            <div
+                              key={notif.id}
+                              className={cx('relative transition-colors hover:bg-sunken/60', notif.unread && 'bg-brand-soft/50')}
+                              onClick={() => markAsRead(notif.id)}
+                            >
+                              <Link to={notif.link} onClick={() => setShowNotifications(false)} className="flex gap-3 px-4 py-3">
+                                <IconTile tone={notif.unread ? 'brand' : 'neutral'} size="sm" className="mt-0.5">
+                                  {notif.type === 'system' ? <Check size={16} /> : <TypeIcon size={16} />}
+                                </IconTile>
+                                <div className="min-w-0 flex-1">
+                                  <h4 className={cx('text-[13.5px] leading-snug', notif.unread ? 'font-bold text-ink' : 'font-semibold text-ink-muted')}>
+                                    {notif.title}
+                                  </h4>
+                                  <p className="mt-0.5 line-clamp-2 text-xs text-ink-muted">{notif.desc}</p>
+                                  <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-ink-muted">
+                                    <Clock size={11} /> {notif.time}
+                                  </p>
+                                </div>
+                                {notif.unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" aria-hidden="true" />}
+                              </Link>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                  
-                  <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-center">
-                    <button className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">
+
+                  <div className="border-t border-line bg-sunken/50 px-4 py-2.5 text-center">
+                    <button type="button" className="text-[12.5px] font-semibold text-ink-muted hover:text-ink">
                       Lihat Semua Riwayat Notifikasi
                     </button>
                   </div>
@@ -216,34 +241,39 @@ const AdminLayout = () => {
             </div>
 
             {/* User Profile */}
-            <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-slate-200 dark:border-slate-800">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white leading-none mb-1">{user?.name || 'Administrator'}</p>
-                <p className="text-xs text-slate-500 leading-none">{user?.role || 'Super Admin'}</p>
+            <div className="ml-1 flex items-center gap-3 border-l border-line pl-3 sm:ml-2 sm:pl-4">
+              <div className="hidden text-right md:block">
+                <p className="text-[13px] font-bold leading-tight text-ink">{userName}</p>
+                <p className="text-[11.5px] leading-tight text-ink-muted">{user?.role || 'Super Admin'}</p>
               </div>
-              <div className="relative group">
-                <img 
-                  src={`https://ui-avatars.com/api/?name=${user?.name || 'Admin'}&background=0891B2&color=fff&bold=true`} 
-                  alt="Admin" 
-                  className="w-9 h-9 rounded-full border-2 border-slate-200 dark:border-slate-700 cursor-pointer"
-                />
-                
+              <div className="group relative">
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-line bg-brand-soft text-[12px] font-bold text-brand-ink"
+                  aria-label="Profil"
+                >
+                  {initials}
+                </button>
+
                 {/* Profile Dropdown */}
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                  <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name || 'Administrator'}</p>
-                    <p className="text-xs text-slate-500 truncate">{user?.email || 'admin@wira.app'}</p>
-                  </div>
-                  <div className="p-1">
-                    <button 
-                      onClick={() => {
-                        logout();
-                        navigate('/login');
-                      }} 
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <LogOut size={16} /> Keluar Sistem
-                    </button>
+                <div className="invisible absolute right-0 top-full w-56 pt-2 opacity-0 transition-all group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                  <div className="overflow-hidden rounded-card border border-line bg-card shadow-pop">
+                    <div className="border-b border-line px-4 py-3">
+                      <p className="text-[13.5px] font-bold text-ink">{userName}</p>
+                      <p className="truncate text-xs text-ink-muted">{user?.email || 'admin@wira.app'}</p>
+                    </div>
+                    <div className="p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          navigate('/login');
+                        }}
+                        className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-[13.5px] font-semibold text-danger-ink transition-colors hover:bg-danger-soft"
+                      >
+                        <LogOut size={16} /> Keluar Sistem
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -253,7 +283,7 @@ const AdminLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in pb-24">
+        <main className="mx-auto w-full min-w-0 max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>
