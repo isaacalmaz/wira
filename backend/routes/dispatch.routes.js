@@ -38,11 +38,17 @@ async function dispatchOrder(orderId) {
     } else if (target?.fcm_token) {
       // A failed push is logged but not retried for this driver - the next
       // tick moves on to the next candidate, same as the old client loop.
+      // Technician visits are matched by skill, not distance (0089).
+      const isVisit = ['service', 'pool'].includes(result.service_type);
       await sendPushNotification(
         target.fcm_token,
-        `Pesanan Baru: Wira ${String(result.service_type).toUpperCase()}`,
-        'Ada pesanan menunggu di dekat Anda. Ketuk untuk melihat!',
-        { orderId: String(orderId), type: 'new_order' }
+        isVisit
+          ? `Pekerjaan Baru: ${result.service_type === 'pool' ? 'WiraPool' : 'WiraService'}`
+          : `Pesanan Baru: Wira ${String(result.service_type).toUpperCase()}`,
+        isVisit
+          ? 'Ada pekerjaan baru sesuai keahlian Anda. Ketuk untuk melihat dan ambil.'
+          : 'Ada pesanan menunggu di dekat Anda. Ketuk untuk melihat!',
+        { orderId: String(orderId), type: 'new_order', url: isVisit ? '/technician/orders' : '/' }
       );
     }
   }

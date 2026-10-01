@@ -4,6 +4,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar, CalendarX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { formatVisitTime, visitInfo } from '../../services/technicianService';
 
 // Order status -> Badge tone (DESIGN.md: pending = warning, active = brand,
 // done = success, cancelled = danger).
@@ -24,25 +25,15 @@ const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 // Local calendar day key, e.g. "2026-10-01".
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-/**
- * When the customer booked the visit for, read from the order text the
- * customer app writes (frontend-user ServicePage / PoolPage):
- *   service: "Teknisi: … • Jadwal: 2026-10-03 pukul 09:00 • Lokasi: …"
- *   pool:    "Ukuran: … • Lokasi: … • Kunjungan: 2026-10-03"
- * Falls back to the time the order was placed.
- */
+// When the visit is (orders.scheduled_at, or the details text on older
+// orders - see technicianService.visitInfo), as a Lombok calendar day.
 const scheduleOf = (order) => {
-  const details = order.details || '';
-  const service = details.match(/Jadwal: (\d{4}-\d{2}-\d{2}) pukul (\d{1,2}[:.]\d{2})/);
-  const pool = details.match(/Kunjungan: (\d{4}-\d{2}-\d{2})/);
-  const location = details.match(/Lokasi: (.+?)(?: • (?:Kunjungan|Keluhan):|$)/s);
-  if (service) return { date: service[1], time: service[2].replace('.', ':'), location: location?.[1] };
-  if (pool) return { date: pool[1], time: null, location: location?.[1] };
-  const created = new Date(order.created_at);
+  const { when, location } = visitInfo(order);
+  const at = when || new Date(order.created_at);
   return {
-    date: dayKey(created),
-    time: created.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-    location: location?.[1] || null,
+    date: at.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }),
+    time: when ? formatVisitTime(when, false) : null,
+    location,
   };
 };
 
@@ -58,7 +49,7 @@ const TechSchedulePage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('id, title, details, status, created_at')
+        .select('id, title, details, status, created_at, scheduled_at')
         .eq('driver_id', user.id)
         .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .order('created_at', { ascending: false });

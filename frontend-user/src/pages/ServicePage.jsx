@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, ShieldCheck, Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles } from 'lucide-react';
 import {
   Button,
   Card,
@@ -26,6 +26,7 @@ import AddressMapPicker from '../components/common/AddressMapPicker';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
+import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -138,52 +139,38 @@ export default function ServicePage() {
   const { addOrder } = useOrders();
 
   const [technicians, setTechnicians] = useState([]);
+  const [techLoaded, setTechLoaded] = useState(false);
+  const [prices, setPrices] = useState({});
   const [selectedService, setSelectedService] = useState(null);
-  const [selectedTech, setSelectedTech] = useState(null);
+  // '' = let Wira pick (every technician with the skill is offered the job)
+  const [selectedTechId, setSelectedTechId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchTechnicians = async () => {
-      const { data: users } = await supabase.rpc('list_technicians');
-      // Specialization/experience from the technician's application
-      // (migrations/0084); missing before that migration -> defaults.
-      const { data: profiles } = await supabase.rpc('get_technician_profiles');
-
-      const regs = Array.isArray(profiles) ? profiles : [];
-      if (users) {
-        const activeTechs = users
-          .map(u => {
-            const reg = regs.find(r => r.id === u.id);
-            return {
-              id: u.id,
-              name: u.name,
-              category: reg?.specialization || t('service.general_category'),
-              specialty: reg?.specialization
-                ? t('service.specialist_in', { field: reg.specialization })
-                : t('service.default_specialty'),
-              experience: reg?.experience
-                ? t('service.experience_years', { count: reg.experience })
-                : t('service.experience_min'),
-              avatar: u.avatar_url || null,
-              phone: u.phone,
-              available: true,
-            };
-          });
-        setTechnicians(activeTechs);
-      }
-    };
-    fetchTechnicians();
+    let cancelled = false;
+    // Active technicians with at least one skill (migrations/0089); no
+    // contact details are exposed.
+    supabase.rpc('list_service_technicians').then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) console.error('list_service_technicians failed:', error);
+      setTechnicians(Array.isArray(data) ? data : []);
+      setTechLoaded(true);
+    });
+    // The prices admins set under Manajemen Harga; the server charges these.
+    supabase.from('pricing_rules').select('code, base_price').eq('service_type', 'service').eq('is_active', true)
+      .then(({ data }) => {
+        if (!cancelled && data) setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+      });
+    return () => { cancelled = true; };
   }, []);
 
   // Form State
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState(null);
   const [addressNote, setAddressNote] = useState('');
-  const [serviceDate, setServiceDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
-  const [serviceTime, setServiceTime] = useState('10:00');
+  const [serviceDate, setServiceDate] = useState(() => firstBookableDate());
+  const [serviceTime, setServiceTime] = useState(() => openSlots(firstBookableDate())[0] || VISIT_SLOTS[0]);
+  const timeSlots = openSlots(serviceDate);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
@@ -194,23 +181,36 @@ export default function ServicePage() {
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
 
-  // `id` matches pricing_rules.code; `name` stays Indonesian because it is
-  // stored as the order title that the technician reads in the partner app.
-  // What the customer sees comes from `service.categories.*` instead.
+  // `id` matches pricing_rules.code and the technician skill code; `name`
+  // stays Indonesian because it is stored as the order title that the
+  // technician reads in the partner app. What the customer sees comes from
+  // `service.categories.*` instead. `price` is only the fallback until
+  // pricing_rules loads.
   const categories = [
     { id: 'AC', icon: Snowflake, name: 'Service AC & Cuci', price: 75000 },
     { id: 'Listrik', icon: Zap, name: 'Instalasi Listrik', price: 50000 },
     { id: 'Plumbing', icon: Droplets, name: 'Pipa & Pompa Air', price: 60000 },
     { id: 'Tukang', icon: Hammer, name: 'Tukang Bangunan', price: 100000 },
-  ];
+  ].map((c) => ({ ...c, price: prices[c.id] ?? c.price }));
+  const techsFor = (skill) => technicians.filter((tech) => (tech.skills || []).includes(skill));
+  const selectedTech = technicians.find((tech) => tech.id === selectedTechId) || null;
 
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
-    setSelectedTech(tech || technicians.find((tech2) => tech2.category.includes(cat.id)) || technicians[0] || { name: t('service.default_partner') });
+    setSelectedTechId(tech?.id || '');
+    const date = firstBookableDate();
+    setServiceDate(date);
+    setServiceTime(openSlots(date)[0] || VISIT_SLOTS[0]);
     setActivePromo(null);
     setPromoCode('');
     setPromoError('');
     setIsModalOpen(true);
+  };
+
+  const handleDateChange = (date) => {
+    setServiceDate(date);
+    const slots = openSlots(date);
+    if (!slots.includes(serviceTime)) setServiceTime(slots[0] || '');
   };
 
   const handleCheckPromo = async () => {
@@ -262,6 +262,10 @@ export default function ServicePage() {
       toast.error(t('common.address_required'));
       return;
     }
+    if (!serviceTime || !openSlots(serviceDate).includes(serviceTime)) {
+      toast.error(t('service.slot_passed'));
+      return;
+    }
 
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
@@ -287,8 +291,16 @@ export default function ServicePage() {
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
-        details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
+        details: (selectedTech ? `Teknisi: ${selectedTech.name} • ` : '')
+          + `Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
           + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : ''),
+        // migrations/0089: the visit time and the chosen technician, who gets
+        // the job to themselves for 10 minutes before it opens to everyone
+        // with the same skill.
+        metadata: {
+          scheduled_at: witaInstant(serviceDate, serviceTime),
+          ...(selectedTech ? { preferred_partner_id: selectedTech.id } : {}),
+        },
         price: finalPrice,
         paymentMethod: paymentMethod,
         // selectedService.id matches pricing_rules.code for
@@ -302,21 +314,7 @@ export default function ServicePage() {
       navigate(`/active-order/${order.id}`);
       setIsModalOpen(false);
 
-      // Relevant to nearby ONLINE technicians, not drivers - but there is no
-      // online/offline concept for technicians anywhere in this schema (no
-      // equivalent of drivers.is_online), and no get_nearest_technicians RPC
-      // (only list_technicians(), a flat SECURITY DEFINER directory - see
-      // migrations/0025/0026). Rather than invent a new online-status column
-      // for tonight, every registered technician in `technicians` is
-      // notified - the same call already made for Pool jobs by
-      // frontend-mitra/src/pages/technician/TechOrdersPage.jsx (see its
-      // isPoolOrder comment: a hard specialization filter risks stranding a
-      // job with zero eligible technicians in a small market like Lombok,
-      // so filtering stays visibility-only there too). Best-effort/
-      // fire-and-forget, never blocks or surfaces an error to the customer.
-
       handleRemovePromo(); // don't let a used promo silently discount the next order
-      toast.success(t('service.success'));
     } catch (err) {
       toast.error(t('service.failed', { message: err.message }));
     } finally {
@@ -341,15 +339,18 @@ export default function ServicePage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {categories.map((c) => {
           const Icon = c.icon;
+          const count = techsFor(c.id).length;
+          const unavailable = techLoaded && count === 0;
           return (
             <Card
               key={c.id}
               as="button"
               type="button"
-              onClick={() => handleOpenBooking(c)}
-              className="flex flex-col items-start gap-3"
+              onClick={() => (unavailable ? toast(t('service.unavailable_toast')) : handleOpenBooking(c))}
+              aria-disabled={unavailable || undefined}
+              className={cx('flex flex-col items-start gap-3', unavailable && 'opacity-60')}
             >
-              <IconTile tone="brand"><Icon size={20} /></IconTile>
+              <IconTile tone={unavailable ? 'neutral' : 'brand'}><Icon size={20} /></IconTile>
               <span className="flex flex-col gap-0.5">
                 <span className="text-[14px] font-semibold leading-snug text-ink">
                   {t(`service.categories.${c.id}`)}
@@ -357,57 +358,69 @@ export default function ServicePage() {
                 <span className="text-[12px] text-ink-muted">
                   {withMoney(t('service.starting_from', { price: SLOT }), c.price, { className: 'text-ink' })}
                 </span>
+                {techLoaded && (
+                  <span className={cx('text-[12px] font-medium', unavailable ? 'text-ink-muted' : 'text-success-ink')}>
+                    {unavailable ? t('service.unavailable') : t('service.tech_count', { count })}
+                  </span>
+                )}
               </span>
             </Card>
           );
         })}
       </div>
 
-      {/* Daftar Teknisi Rekomendasi */}
+      {/* Teknisi aktif */}
       {technicians.length > 0 && (
-      <section>
-        <SectionHeader title={t('service.recommended')} />
-        {technicians.length === 0 ? (
-          null
-        ) : (
+        <section>
+          <SectionHeader title={t('service.recommended')} />
           <Card padding="none" className="divide-y divide-line overflow-hidden">
             {technicians.map((tech) => {
-              const matchedCategory =
-                categories.find((c) => tech.category.includes(c.id)) || categories[0];
+              const firstCategory = categories.find((c) => (tech.skills || []).includes(c.id));
+              const skillNames = categories.filter((c) => (tech.skills || []).includes(c.id))
+                .map((c) => t(`service.categories.${c.id}`));
               return (
                 <div key={tech.id} className="flex items-center gap-3 p-3.5">
                   <span
                     aria-hidden="true"
                     className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink"
                   >
-                    {tech.avatar
-                      ? <img src={tech.avatar} alt="" className="h-full w-full rounded-full object-cover" />
+                    {tech.avatar_url
+                      ? <img src={tech.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
                       : (tech.name || '?').trim().charAt(0).toUpperCase()}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <h4 className="truncate text-[14px] font-semibold text-ink">{tech.name}</h4>
                     <p className="text-[12px] text-ink-muted">
-                      {t('service.experience_line', { category: tech.category, years: tech.experience })}
+                      {skillNames.join(', ') || t('service.general_category')}
+                      {tech.experience_years ? ` • ${t('service.experience_years', { count: tech.experience_years })}` : ''}
                     </p>
-                    <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-ink">
-                      <ShieldCheck size={13} aria-hidden="true" />
-                      {t('service.verified_partner')}
-                    </p>
+                    {tech.jobs_completed > 0 ? (
+                      <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-ink">
+                        <BadgeCheck size={13} aria-hidden="true" />
+                        {t('service.jobs_done', { count: tech.jobs_completed })}
+                      </p>
+                    ) : (
+                      <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand-ink">
+                        <Sparkles size={13} aria-hidden="true" />
+                        {t('service.new_partner')}
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    variant="secondary"
-                    className="shrink-0"
-                    rightIcon={<ChevronRight size={16} />}
-                    onClick={() => handleOpenBooking(matchedCategory, tech)}
-                  >
-                    {t('service.choose')}
-                  </Button>
+                  {firstCategory && (
+                    <Button
+                      variant="secondary"
+                      className="shrink-0"
+                      rightIcon={<ChevronRight size={16} />}
+                      onClick={() => handleOpenBooking(firstCategory, tech)}
+                    >
+                      {t('service.choose')}
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </Card>
-        )}
-      </section>
+        </section>
       )}
 
       {/* SHEET BOOKING TEKNISI */}
@@ -416,26 +429,39 @@ export default function ServicePage() {
         onClose={() => setIsModalOpen(false)}
         closeLabel={t('common.close')}
         title={t('service.booking_title', { service: t(`service.categories.${selectedService?.id}`) })}
-        description={t('service.technician_line', { name: selectedTech?.name })}
+        description={selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line')}
         footer={
           <>
             <Button variant="secondary" size="lg" onClick={() => setIsModalOpen(false)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" form="service-booking-form" size="lg" disabled={loading} isLoading={loading}>
+            <Button type="submit" form="service-booking-form" size="lg" disabled={loading || !serviceTime} isLoading={loading}>
               {loading ? t('common.processing') : t('service.submit')}
             </Button>
           </>
         }
       >
         <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
+          {selectedService && techsFor(selectedService.id).length > 0 && (
+            <Field label={t('service.tech_label')} htmlFor="service-tech" hint={selectedTech ? t('service.tech_hint_chosen') : t('service.tech_hint_auto')}>
+              <Select id="service-tech" value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}>
+                <option value="">{t('service.auto_assign')}</option>
+                {techsFor(selectedService.id).map((tech) => (
+                  <option key={tech.id} value={tech.id}>{tech.name}</option>
+                ))}
+              </Select>
+            </Field>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('service.date_label')} htmlFor="service-date" required>
               <Input
                 id="service-date"
                 type="date"
                 value={serviceDate}
-                onChange={(e) => setServiceDate(e.target.value)}
+                min={witaToday()}
+                max={witaDatePlus(60)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="font-mono"
                 required
               />
@@ -445,8 +471,10 @@ export default function ServicePage() {
                 id="service-time"
                 value={serviceTime}
                 onChange={(e) => setServiceTime(e.target.value)}
+                disabled={timeSlots.length === 0}
               >
-                {['08:00', '10:00', '13:00', '15:00', '16:30'].map((time) => (
+                {timeSlots.length === 0 && <option value="">{t('service.no_slots')}</option>}
+                {timeSlots.map((time) => (
                   <option key={time} value={time}>
                     {t('service.time_option', { time })}
                   </option>

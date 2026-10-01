@@ -501,7 +501,7 @@ function isWithinNearbyRadius(order, getDriverPos) {
  * `is.null` + `in.()` combination below possible at all; confirmed live
  * against this project's own Supabase Cloud instance, not just docs), so
  * this can't also narrow to "OR this row is already assigned to me" in the
- * same clause - every event subscribeToDriverOrders/subscribeToTechnicianOrders
+ * same clause - every event subscribeToDriverOrders
  * actually react to below only ever fires for driver_id IS NULL rows anyway
  * (new pending orders, a food order going READY, a requeued ride/send), so
  * that's not a gap in practice for this function. If `serviceTypes` is
@@ -588,34 +588,6 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
           isOrderEligibleForDriver(order, driver) &&
           isWithinNearbyRadius(order, getDriverPos)
         ) {
-          onOrder(order);
-        }
-      }
-    )
-    .subscribe();
-
-  return () => channel.unsubscribe();
-}
-
-/**
- * Subscribe to realtime pending technician jobs. Narrowed with the same
- * driver_id-IS-NULL + service_type-IN Realtime filter as
- * subscribeToDriverOrders (see buildUnassignedServiceTypeFilter) - a
- * technician's eligible set is the static TECHNICIAN_SERVICE_TYPES list
- * (service/pool jobs are unfiltered by specialization on purpose, see
- * TechOrdersPage.jsx's isPoolOrder comment), so there's no per-technician
- * eligibility to compute here, just this fixed list.
- */
-export function subscribeToTechnicianOrders(supabaseClient, onOrder) {
-  const filter = buildUnassignedServiceTypeFilter(TECHNICIAN_SERVICE_TYPES);
-  const channel = supabaseClient
-    .channel('technician-orders-stream')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'orders', filter },
-      (payload) => {
-        const order = payload.new;
-        if (order && order.status === OrderStatus.PENDING && !order.driver_id && TECHNICIAN_SERVICE_TYPES.includes(order.service_type)) {
           onOrder(order);
         }
       }

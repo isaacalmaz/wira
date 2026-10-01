@@ -255,25 +255,40 @@ export default function ActiveOrderPage() {
     }
   };
 
-  // Mirrors wallet_refund_matched_ride (migrations/0088): free while pending,
-  // in the first 3 minutes after a partner accepts, and again once 20 minutes
-  // pass without the pickup.
+  // Mirrors wallet_refund_matched_ride (migrations/0088, visits 0089).
+  // Rides/deliveries: free while pending, in the first 3 minutes after a
+  // partner accepts, and again once 20 minutes pass without the pickup.
+  // Technician visits: free while pending, in the first 3 minutes, until 2
+  // hours before the visit, or once the technician is an hour late.
   const FREE_WINDOW_MS = 3 * 60 * 1000;
   const NO_SHOW_MS = 20 * 60 * 1000;
+  const VISIT_LOCK_MS = 2 * 60 * 60 * 1000;
+  const VISIT_LATE_MS = 60 * 60 * 1000;
+  const isVisit = ['service', 'pool'].includes(order?.service_type);
+  const scheduledMs = order?.scheduled_at ? new Date(order.scheduled_at).getTime() : null;
   const sinceAccept = order?.accepted_at ? nowTick - new Date(order.accepted_at).getTime() : null;
+  const visitLate = scheduledMs != null && nowTick > scheduledMs + VISIT_LATE_MS;
   const isCancelable = () => {
     if (!order) return false;
     if (order.status === 'pending') return true;
-    if (['accepted', 'picking_up'].includes(order.status)) {
+    if (isVisit && ['accepted', 'on_the_way'].includes(order.status)) {
+      if (sinceAccept != null && sinceAccept <= FREE_WINDOW_MS) return true;
+      return scheduledMs == null || nowTick < scheduledMs - VISIT_LOCK_MS || visitLate;
+    }
+    if (!isVisit && ['accepted', 'picking_up'].includes(order.status)) {
       if (sinceAccept == null) return true; // fallback
       return sinceAccept <= FREE_WINDOW_MS || sinceAccept >= NO_SHOW_MS;
     }
     return false;
   };
-  const cancelReopensAt = order && ['accepted', 'picking_up'].includes(order.status) && sinceAccept != null
-    && sinceAccept > FREE_WINDOW_MS && sinceAccept < NO_SHOW_MS
-    ? new Date(new Date(order.accepted_at).getTime() + NO_SHOW_MS)
-    : null;
+  let cancelReopensAt = null;
+  if (order && !isCancelable()) {
+    if (isVisit && ['accepted', 'on_the_way'].includes(order.status) && scheduledMs != null) {
+      cancelReopensAt = new Date(scheduledMs + VISIT_LATE_MS);
+    } else if (!isVisit && ['accepted', 'picking_up'].includes(order.status) && sinceAccept != null) {
+      cancelReopensAt = new Date(new Date(order.accepted_at).getTime() + NO_SHOW_MS);
+    }
+  }
 
   if (loading || !order) {
     return (
@@ -294,9 +309,15 @@ export default function ActiveOrderPage() {
   const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
   const cancelDescription = order.status === 'pending'
     ? t('order.cancel_desc_pending')
-    : sinceAccept != null && sinceAccept >= NO_SHOW_MS
-      ? t('order.cancel_desc_late')
-      : t('order.cancel_desc_accepted');
+    : isVisit
+      ? (visitLate ? t('order.cancel_desc_visit_late') : t('order.cancel_desc_visit'))
+      : sinceAccept != null && sinceAccept >= NO_SHOW_MS
+        ? t('order.cancel_desc_late')
+        : t('order.cancel_desc_accepted');
+  const pinStatuses = isVisit ? ['accepted', 'on_the_way'] : ['accepted', 'picking_up'];
+  const scheduledLabel = scheduledMs != null
+    ? new Date(scheduledMs).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+    : null;
   const openChat = () => chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const roundBtn = 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors';
 
@@ -349,24 +370,30 @@ export default function ActiveOrderPage() {
             <Spinner size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-[14px] font-semibold text-ink">{t('order.searching_driver')}</p>
+            <p className="text-[14px] font-semibold text-ink">{isVisit ? t('order.searching_technician') : t('order.searching_driver')}</p>
             <p className="text-[13px] leading-relaxed text-ink-muted">
-              {totalCandidates > 0
-                ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
-                : t('order.dispatch_connecting')}
+              {isVisit
+                ? t('order.visit_waiting')
+                : totalCandidates > 0
+                  ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
+                  : t('order.dispatch_connecting')}
             </p>
           </div>
         </Card>
       )}
 
-      {['accepted', 'picking_up'].includes(order.status) && (
+      {isVisit && scheduledLabel && !['completed', 'cancelled'].includes(order.status) && (
+        <Notice tone="info">{t('order.visit_scheduled', { time: scheduledLabel })}</Notice>
+      )}
+
+      {pinStatuses.includes(order.status) && (
         order.service_type === 'food' ? (
           <Notice tone="info">{t('order.food_pin_note')}</Notice>
         ) : (
           <Card className="flex flex-col items-center gap-3 text-center">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
               <ShieldCheck size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
-              {t('order.pin_label')}
+              {isVisit ? t('order.pin_label_visit') : t('order.pin_label')}
             </p>
             {securityPin ? (
               <div className="flex justify-center gap-2" aria-label={String(securityPin).split('').join(' ')}>
@@ -469,7 +496,11 @@ export default function ActiveOrderPage() {
 
       {cancelReopensAt && (
         <p className="text-center text-[12.5px] leading-relaxed text-ink-muted">
-          {t('order.cancel_available_at', { time: cancelReopensAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) })}
+          {t('order.cancel_available_at', {
+            time: cancelReopensAt.toDateString() === new Date(nowTick).toDateString()
+              ? cancelReopensAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+              : cancelReopensAt.toLocaleString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+          })}
         </p>
       )}
       {isCancelable() && (

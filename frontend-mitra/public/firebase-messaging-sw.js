@@ -20,8 +20,28 @@ messaging.onBackgroundMessage((payload) => {
   const notificationOptions = {
     body: payload.notification.body,
     icon: '/icons/icon-192.png',
-    badge: '/icons/badge-96.png'
+    badge: '/icons/badge-96.png',
+    data: payload.data || {}
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Tapping a notification opens the page it is about (data.url, e.g. the
+// technician job board), reusing an open Wira Mitra tab when there is one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const url = (data.FCM_MSG && data.FCM_MSG.data && data.FCM_MSG.data.url) || data.url || '/';
+  event.waitUntil((async () => {
+    const tabs = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const tab of tabs) {
+      if (new URL(tab.url).origin === self.location.origin) {
+        await tab.focus();
+        if ('navigate' in tab) await tab.navigate(url);
+        return;
+      }
+    }
+    await clients.openWindow(url);
+  })());
 });

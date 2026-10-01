@@ -279,7 +279,19 @@
     "insufficient_balance": "Your WiraPay balance is short for this booking. Pay cash instead, or top up first.",
     "success": "Request sent. Waiting for a technician to accept your job.",
     "failed": "We couldn't book that technician: {{message}}",
-    "verified_partner": "Verified partner"
+    "verified_partner": "Verified partner",
+    "slot_passed": "That time has passed or is too soon. Pick another time.",
+    "unavailable_toast": "No technician offers this service yet. Please try again later.",
+    "unavailable": "Not available yet",
+    "tech_count": "{{count}} active technicians",
+    "jobs_done": "{{count}} jobs completed",
+    "new_partner": "New on Wira",
+    "auto_assign_line": "Wira picks the technician",
+    "tech_label": "Technician",
+    "auto_assign": "Pick for me (fastest)",
+    "tech_hint_auto": "Every technician with this skill can take your booking.",
+    "tech_hint_chosen": "This technician gets the first chance for 10 minutes, then the booking opens to others.",
+    "no_slots": "No times left"
   },
   "pool": {
     "title": "WiraPool — Swimming Pool Care",
@@ -313,7 +325,8 @@
     "submit": "Confirm Booking",
     "insufficient_balance": "Your WiraPay balance is short. Choose QRIS to pay directly instead.",
     "success": "Request sent. Waiting for a technician to accept your booking.",
-    "failed": "We couldn't send that booking: {{message}}"
+    "failed": "We couldn't send that booking: {{message}}",
+    "unavailable": "No pool technician is active yet. Booking reopens as soon as one is."
   },
   "pulsa": {
     "title": "Mobile Credit & Bills",
@@ -521,7 +534,13 @@
     "call_driver": "Call partner",
     "qris_cancel_desc": "This order has not been paid yet. Cancelling makes its QRIS code invalid, so do not transfer after cancelling.",
     "cancel_desc_late": "Your partner has not picked you up within 20 minutes of accepting, so cancelling is free.",
-    "cancel_available_at": "Your partner is on the way. If you have not been picked up, you can cancel for free from {{time}}."
+    "cancel_available_at": "Your partner is on the way. If you have not been picked up, you can cancel for free from {{time}}.",
+    "searching_technician": "Waiting for a technician",
+    "visit_waiting": "Technicians with the right skill can see your booking. We will let you know as soon as one takes it.",
+    "visit_scheduled": "Visit: {{time}} WITA",
+    "pin_label_visit": "Give this PIN to the technician when they arrive, so they can start:",
+    "cancel_desc_visit": "Cancelling is free, and a WiraPay payment goes back to your balance.",
+    "cancel_desc_visit_late": "The technician is more than an hour late, so cancelling is free."
   },
   "review": {
     "title": "Leave a Review",
@@ -709,7 +728,8 @@
     "food_detail": "{{items}} — Deliver to {{address}}",
     "method_wallet": "WiraPay",
     "method_transfer": "Bank transfer",
-    "service_complaint": "Issue: {{text}}"
+    "service_complaint": "Issue: {{text}}",
+    "service_detail_auto": "{{date}} at {{time}} • {{address}}"
   },
   "address_note": {
     "label": "Address details / landmark",

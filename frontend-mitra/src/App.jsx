@@ -46,6 +46,8 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
   
   if (!user) return <Navigate to="/login" replace />;
+  // Blocked by an admin: the database already refuses new jobs (0089).
+  if (user.status === 'Diblokir') return <Navigate to="/unauthorized" replace />;
   if (!mitraAccess || mitraAccess.length === 0) {
     if (user.status === 'Pending') return <Navigate to="/pending-verification" replace />;
     return <Navigate to="/unauthorized" replace />;

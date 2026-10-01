@@ -8,6 +8,7 @@ import {
   Field,
   Input,
   Textarea,
+  Select,
   Badge,
   Money,
   IconTile,
@@ -25,6 +26,7 @@ import AddressMapPicker from '../components/common/AddressMapPicker';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
+import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -139,18 +141,24 @@ export default function PoolPage() {
   const [selectedService, setSelectedService] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Same technician directory RPC ServicePage.jsx uses (SECURITY DEFINER
-  // list_technicians() - migrations/0025/0026) - needed here purely to have
-  // a notification target list on booking, PoolPage previously never
-  // fetched technicians at all.
-  const [, setTechnicians] = useState([]);
+  // How many active pool technicians there are (migrations/0089), and the
+  // prices admins set under Manajemen Harga (the server charges these).
+  const [poolTechCount, setPoolTechCount] = useState(null);
+  const [prices, setPrices] = useState({});
   useEffect(() => {
-    const fetchTechnicians = async () => {
-      const { data } = await supabase.rpc('list_technicians');
-      if (data) setTechnicians(data);
-    };
-    fetchTechnicians();
+    let cancelled = false;
+    supabase.rpc('list_service_technicians', { p_skill: 'Pool' }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) console.error('list_service_technicians failed:', error);
+      setPoolTechCount(Array.isArray(data) ? data.length : 0);
+    });
+    supabase.from('pricing_rules').select('code, base_price').eq('service_type', 'pool').eq('is_active', true)
+      .then(({ data }) => {
+        if (!cancelled && data) setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+      });
+    return () => { cancelled = true; };
   }, []);
+  const noPoolTechs = poolTechCount === 0;
 
   // Form State
   const [address, setAddress] = useState('');
@@ -159,11 +167,14 @@ export default function PoolPage() {
   // Stored on the order for the technician, so the value stays Indonesian;
   // the options below show a translated label.
   const [poolSize, setPoolSize] = useState('Sedang (20-50 m²)');
-  const [visitDate, setVisitDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
+  const [visitDate, setVisitDate] = useState(() => firstBookableDate());
+  const [visitTime, setVisitTime] = useState(() => openSlots(firstBookableDate())[0] || VISIT_SLOTS[0]);
+  const timeSlots = openSlots(visitDate);
+  const handleDateChange = (date) => {
+    setVisitDate(date);
+    const slots = openSlots(date);
+    if (!slots.includes(visitTime)) setVisitTime(slots[0] || '');
+  };
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
 
@@ -176,16 +187,17 @@ export default function PoolPage() {
   // `id` matches pricing_rules.code; `name` stays Indonesian because it is
   // saved as the order title the pool technician reads in the partner app.
   // Customer-facing wording lives in `pool.services.*` / `pool.monthly_*`.
+  // `price` is only the fallback until pricing_rules loads.
   const services = [
     { id: 'S1', name: 'Pembersihan Rutin', price: 200000 },
     { id: 'S2', name: 'Treatment Air & Klorinasi', price: 150000 },
     { id: 'S3', name: 'Servis Pompa & Filter Kolam', price: 300000 },
-  ];
+  ].map((srv) => ({ ...srv, price: prices[srv.id] ?? srv.price }));
 
   const monthlyPackage = {
     id: 'MONTHLY',
     name: 'Paket Langganan Kolam Bulanan',
-    price: 500000,
+    price: prices.MONTHLY ?? 500000,
   };
 
   // Label shown on screen for whichever service is being booked.
@@ -193,7 +205,14 @@ export default function PoolPage() {
     srv?.id === 'MONTHLY' ? t('pool.monthly_name') : t(`pool.services.${srv?.id}`);
 
   const handleOpenBooking = (srv) => {
+    if (noPoolTechs) {
+      toast(t('pool.unavailable'));
+      return;
+    }
     setSelectedService(srv);
+    const date = firstBookableDate();
+    setVisitDate(date);
+    setVisitTime(openSlots(date)[0] || VISIT_SLOTS[0]);
     setActivePromo(null);
     setPromoCode('');
     setPromoError('');
@@ -249,6 +268,10 @@ export default function PoolPage() {
       toast.error(t('common.address_required'));
       return;
     }
+    if (!visitTime || !openSlots(visitDate).includes(visitTime)) {
+      toast.error(t('service.slot_passed'));
+      return;
+    }
 
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
@@ -274,7 +297,9 @@ export default function PoolPage() {
         service: 'WiraPool',
         serviceType: 'pool',
         title: selectedService.name,
-        details: `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate}`,
+        details: `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate} pukul ${visitTime}`,
+        // migrations/0089: the visit time technicians and dispatch go by.
+        metadata: { scheduled_at: witaInstant(visitDate, visitTime) },
         price: finalPrice,
         paymentMethod: paymentMethod,
         // selectedService.id matches pricing_rules.code for
@@ -288,18 +313,8 @@ export default function PoolPage() {
       navigate(`/active-order/${order.id}`);
       setIsModalOpen(false);
 
-      // Same reasoning as ServicePage.jsx: relevant to nearby ONLINE
-      // technicians, but there's no online-status concept for technicians
-      // and no get_nearest_technicians RPC in this schema - so every
-      // registered technician is notified, matching
-      // TechOrdersPage.jsx's own documented decision to keep pool-job
-      // specialization visibility-only rather than a hard filter (avoids
-      // stranding a pool job with zero eligible technicians in a small
-      // market). Best-effort/fire-and-forget, never blocks the customer.
-
+      // OrderContext.addOrder already confirms the order (QRIS: shows the QR).
       handleRemovePromo(); // don't let a used promo silently discount the next order
-      // QRIS: the order page shows the QR; technicians see it once it's paid.
-      if (paymentMethod !== 'QRIS') toast.success(t('pool.success'));
     } catch (err) {
       toast.error(t('pool.failed', { message: err.message }));
     } finally {
@@ -327,6 +342,8 @@ export default function PoolPage() {
         subtitle={t('pool.subtitle')}
         className="mb-0"
       />
+
+      {noPoolTechs && <Notice tone="warning">{t('pool.unavailable')}</Notice>}
 
       {/* Paket Langganan Bulanan */}
       <Card padding="none" className="overflow-hidden">
@@ -386,23 +403,40 @@ export default function PoolPage() {
             <Button variant="secondary" size="lg" onClick={() => setIsModalOpen(false)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" form="pool-booking-form" size="lg" disabled={loading} isLoading={loading}>
+            <Button type="submit" form="pool-booking-form" size="lg" disabled={loading || !visitTime} isLoading={loading}>
               {loading ? t('common.processing') : t('pool.submit')}
             </Button>
           </>
         }
       >
         <form id="pool-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
-          <Field label={t('pool.visit_date')} htmlFor="pool-date" required>
-            <Input
-              id="pool-date"
-              type="date"
-              value={visitDate}
-              onChange={(e) => setVisitDate(e.target.value)}
-              className="font-mono"
-              required
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('pool.visit_date')} htmlFor="pool-date" required>
+              <Input
+                id="pool-date"
+                type="date"
+                value={visitDate}
+                min={witaToday()}
+                max={witaDatePlus(60)}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="font-mono"
+                required
+              />
+            </Field>
+            <Field label={t('service.time_label')} htmlFor="pool-time">
+              <Select
+                id="pool-time"
+                value={visitTime}
+                onChange={(e) => setVisitTime(e.target.value)}
+                disabled={timeSlots.length === 0}
+              >
+                {timeSlots.length === 0 && <option value="">{t('service.no_slots')}</option>}
+                {timeSlots.map((time) => (
+                  <option key={time} value={time}>{t('service.time_option', { time })}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
 
           <div className="flex flex-col gap-2">
             <GroupLabel>{t('pool.pool_size')}</GroupLabel>

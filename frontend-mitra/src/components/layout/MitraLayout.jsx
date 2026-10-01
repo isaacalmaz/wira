@@ -27,7 +27,7 @@ const MitraLayout = ({ children }) => {
   const getNavItems = () => {
     const base = [
       { to: `/${activeRole}`, icon: Home, label: 'Beranda' },
-      { to: `/${activeRole}/orders`, icon: ListOrdered, label: 'Pesanan' },
+      { to: `/${activeRole}/orders`, icon: ListOrdered, label: activeRole === 'technician' ? 'Pekerjaan' : 'Pesanan' },
     ];
 
     if (activeRole === 'merchant') {

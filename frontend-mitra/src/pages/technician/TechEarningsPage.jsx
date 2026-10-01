@@ -47,7 +47,7 @@ const TechEarningsPage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('total_price, payment_method, created_at')
+        .select('total_price, payment_method, created_at, status_changed_at')
         .eq('driver_id', user.id)
         .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .eq('status', 'completed');
@@ -72,18 +72,21 @@ const TechEarningsPage = () => {
         }
 
         data.forEach(o => {
-          const oDate = new Date(o.created_at);
+          // Counted on the day the job was finished (status_changed_at of a
+          // completed order, migrations/0088), not the day it was booked.
+          const oDate = new Date(o.status_changed_at || o.created_at);
           const oDateStr = oDate.toLocaleDateString('id-ID');
           // Real technician share (80%, matching driver/merchant), not raw
           // total_price - see technicianEarnedAmount's doc comment.
           const price = technicianEarnedAmount(o);
 
           if (oDateStr === todayStr) tSum += price;
-          wSum += price;
-          cashSum += cashCommissionDeduction(o, 'driver');
-
           const dayEntry = weekDays.find(w => w.dateStr === oDateStr);
-          if (dayEntry) dayEntry.amount += price;
+          if (dayEntry) {
+            dayEntry.amount += price;
+            wSum += price;
+            cashSum += cashCommissionDeduction(o, 'driver');
+          }
         });
 
         setTodayTotal(tSum);
@@ -104,7 +107,7 @@ const TechEarningsPage = () => {
       <section className="flex flex-col gap-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Stat label="Pendapatan Hari Ini" value={<SignedMoney value={todayTotal} />} icon={<Wallet size={18} />} tone="pay" />
-          <Stat label="Minggu ini" value={<SignedMoney value={weekTotal} />} icon={<TrendingUp size={18} />} tone="pay" />
+          <Stat label="7 Hari Terakhir" value={<SignedMoney value={weekTotal} />} icon={<TrendingUp size={18} />} tone="pay" />
         </div>
         {cashDeduction > 0 && (
           <Card padding="md" className="flex flex-col gap-2">

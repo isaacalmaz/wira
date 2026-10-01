@@ -6,23 +6,31 @@ import { User, Wrench, Image as ImageIcon, Settings, LogOut } from 'lucide-react
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { fetchMyApplication } from '../../services/mitraApplicationService';
+import { fetchMyTechnicianProfile } from '../../services/technicianService';
+import useSkills from '../../hooks/useSkills';
 
 const TechProfilePage = () => {
   const { user, logout } = useAuth();
-  const [specialization, setSpecialization] = useState('Memuat...');
+  const { nameOf } = useSkills();
+  const [skills, setSkills] = useState(null);
   const [experience, setExperience] = useState('');
+  const [rating, setRating] = useState({ avg: null, count: 0 });
 
   useEffect(() => {
-    const fetchRegData = async () => {
-      const myReg = await fetchMyApplication(supabase, user.id, ['technician']);
-      if (myReg) {
-        setSpecialization(myReg.specialization || 'Jasa Servis Umum');
-        setExperience(myReg.experience ? `${myReg.experience} Tahun` : '');
-      } else {
-        setSpecialization('Jasa Servis Umum');
-      }
-    };
-    if (user) fetchRegData();
+    if (!user) return;
+    fetchMyTechnicianProfile(supabase, user.id)
+      .then((p) => setSkills(p?.skills || []))
+      .catch(() => setSkills([]));
+    fetchMyApplication(supabase, user.id, ['technician'])
+      .then((app) => setExperience(app?.experience ? `${app.experience} Tahun` : ''))
+      .catch(() => {});
+    // Real reviews from customers (public.reviews, driver_id = technician).
+    supabase.from('reviews').select('rating').eq('driver_id', user.id)
+      .then(({ data }) => {
+        const rows = data || [];
+        const avg = rows.length ? rows.reduce((sum, r) => sum + Number(r.rating || 0), 0) / rows.length : null;
+        setRating({ avg, count: rows.length });
+      });
   }, [user]);
 
   return (
@@ -38,20 +46,35 @@ const TechProfilePage = () => {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h1 className="break-words text-[22px] font-extrabold capitalize leading-tight tracking-tight text-ink text-balance">{user?.name || 'Teknisi Wira'}</h1>
           <p className={`text-sm text-ink-muted ${user?.phone ? 'font-mono' : ''}`}>{user?.phone || 'Belum mengatur nomor HP'}</p>
-          <div className="flex items-center gap-2">
-            <StarRating rating={5.0} /> <span className="font-mono text-[13px] font-medium text-ink">5.0</span>
-          </div>
+          {rating.count >= 3 ? (
+            <div className="flex items-center gap-2">
+              <StarRating rating={Math.round(rating.avg)} />
+              <span className="font-mono text-[13px] font-medium text-ink">{rating.avg.toFixed(1)}</span>
+              <span className="text-[12.5px] text-ink-muted">({rating.count} ulasan)</span>
+            </div>
+          ) : (
+            <Badge tone="brand" className="self-start">
+              {rating.count === 0 ? 'Belum ada ulasan' : `Baru di Wira · ${rating.count} ulasan`}
+            </Badge>
+          )}
         </div>
       </div>
 
       <Card padding="md" className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-[15px] font-bold tracking-tight text-ink">
-          <Wrench size={17} className="text-ink-muted" aria-hidden="true" /> Spesialisasi
+          <Wrench size={17} className="text-ink-muted" aria-hidden="true" /> Keahlian
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="brand">{specialization}</Badge>
-          {experience && <span className="text-[13px] font-semibold text-ink-muted">Pengalaman: <span className="font-mono">{experience}</span></span>}
+          {skills === null ? (
+            <span className="text-[13px] text-ink-muted">Memuat...</span>
+          ) : skills.length > 0 ? (
+            skills.map((code) => <Badge key={code} tone="brand">{nameOf(code)}</Badge>)
+          ) : (
+            <span className="text-[13px] text-ink-muted">Belum diatur admin</span>
+          )}
         </div>
+        {experience && <p className="text-[13px] font-semibold text-ink-muted">Pengalaman: <span className="font-mono">{experience}</span></p>}
+        <p className="text-[12.5px] leading-relaxed text-ink-muted">Ingin menambah keahlian? Hubungi admin Wira lewat menu Bantuan.</p>
       </Card>
 
       <Card padding="none">

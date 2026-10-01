@@ -157,18 +157,23 @@ export function localizeOrderDetails(order, t) {
     return t('order_text.villa_detail', { code: m[1], nights: m[2], date: m[3], guests: m[4] });
   }
 
-  // ServicePage: `Teknisi: ${name} • Jadwal: ${date} pukul ${time} • Lokasi: ${address}`
-  // optionally followed by ` • Keluhan: ${notes}`
-  m = raw.match(/^Teknisi: (.+?) • Jadwal: (\S+) pukul (\S+) • Lokasi: (.+?)(?: • Keluhan: (.+))?$/s);
+  // ServicePage: `[Teknisi: ${name} • ]Jadwal: ${date} pukul ${time} • Lokasi: ${address}`
+  // optionally followed by ` • Keluhan: ${notes}` (no technician part when
+  // the customer let Wira pick one)
+  m = raw.match(/^(?:Teknisi: (.+?) • )?Jadwal: (\S+) pukul (\S+) • Lokasi: (.+?)(?: • Keluhan: (.+))?$/s);
   if (m) {
-    const base = t('order_text.service_detail', { tech: m[1], date: m[2], time: m[3], address: m[4] });
+    const base = m[1]
+      ? t('order_text.service_detail', { tech: m[1], date: m[2], time: m[3], address: m[4] })
+      : t('order_text.service_detail_auto', { date: m[2], time: m[3], address: m[4] });
     return m[5] ? `${base} • ${t('order_text.service_complaint', { text: m[5] })}` : base;
   }
 
-  // PoolPage: `Ukuran: ${size} • Lokasi: ${address} • Kunjungan: ${date}`
-  m = raw.match(/^Ukuran: (.+?) • Lokasi: (.+) • Kunjungan: (\S+)$/s);
+  // PoolPage: `Ukuran: ${size} • Lokasi: ${address} • Kunjungan: ${date}[ pukul ${time}]`
+  m = raw.match(/^Ukuran: (.+?) • Lokasi: (.+) • Kunjungan: (\S+)(?: pukul (\S+))?$/s);
   if (m) {
-    return t('order_text.pool_detail', { size: lookup(POOL_SIZE_KEYS, m[1], t), address: m[2], date: m[3] });
+    return t('order_text.pool_detail', {
+      size: lookup(POOL_SIZE_KEYS, m[1], t), address: m[2], date: m[4] ? `${m[3]} ${m[4]}` : m[3],
+    });
   }
 
   // RestaurantPage: `${itemsSummary} — Antar ke: ${address}`

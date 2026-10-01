@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, updateDriverLocation } from '../../services/orderService';
 import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
+import { getDisplayStatus } from '../../constants/orderStatus';
+import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -35,7 +37,8 @@ const statusTone = (status) => {
   if (status === 'cancelled') return 'danger';
   return 'brand';
 };
-const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, villa: Building2 };
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, villa: Building2 };
+const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', service: 'WiraService', pool: 'WiraPool', villa: 'WiraVilla' };
 
 export default function ActiveOrderPage() {
   const { id } = useParams();
@@ -60,6 +63,11 @@ export default function ActiveOrderPage() {
   const chatRef = useRef(null);
 
   const isDriver = order?.driver_id === user?.id;
+  // Technician visits (service/pool): accepted -> on_the_way -> working
+  // (customer PIN, migrations/0089) -> completed. No GPS tracking.
+  const isVisit = ['service', 'pool'].includes(order?.service_type);
+  const [releaseOpen, setReleaseOpen] = useState(false);
+  const [releasing, setReleasing] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -149,7 +157,7 @@ export default function ActiveOrderPage() {
   // Send Driver GPS every 5s
   useEffect(() => {
     let interval;
-    if (order && isDriver && ['ride', 'send', 'food', 'service'].includes(order.service_type) && !['completed', 'cancelled'].includes(order.status)) {
+    if (order && isDriver && ['ride', 'send', 'food'].includes(order.service_type) && !['completed', 'cancelled'].includes(order.status)) {
       interval = setInterval(async () => {
         try {
           const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
@@ -183,7 +191,12 @@ export default function ActiveOrderPage() {
     const s = order.status;
     const type = order.service_type;
 
-    if (type === 'ride' || type === 'send' || type === 'service') {
+    if (type === 'service' || type === 'pool') {
+      if (!isDriver) return null;
+      if (s === 'accepted') return { label: 'Berangkat ke Lokasi', next: 'on_the_way' };
+      if (s === 'on_the_way') return { label: 'Mulai Bekerja (PIN Pelanggan)', next: 'working' };
+      if (s === 'working') return { label: 'Pekerjaan Selesai', next: 'completed' };
+    } else if (type === 'ride' || type === 'send') {
       if (s === 'accepted') return { label: 'Menuju Lokasi', next: 'picking_up' };
       if (s === 'picking_up') return { label: 'Mulai Perjalanan', next: 'in_trip' };
       if (s === 'in_trip') return { label: 'Selesaikan Pesanan', next: 'completed' };
@@ -210,7 +223,7 @@ export default function ActiveOrderPage() {
     if (!info) return;
 
     // PIN Verification to start trip
-    if (info.next === 'in_trip' && ['ride', 'send', 'food', 'service'].includes(order.service_type)) {
+    if ((info.next === 'in_trip' && ['ride', 'send', 'food'].includes(order.service_type)) || info.next === 'working') {
        setShowPinModal(true);
        return;
     }
@@ -255,7 +268,7 @@ export default function ActiveOrderPage() {
       const partnerId = isMerchantAdvancing ? order.merchant_id : user.id;
       const updated = await updateOrderStatus(supabase, order.id, info.next, partnerId, mode);
       if (updated) setOrder(updated);
-      toast.success(`Status diubah ke ${info.next}`);
+      toast.success(`Status: ${getDisplayStatus(info.next)}`);
     } catch (e) {
       console.error(e);
       toast.error('Gagal update status');
@@ -279,8 +292,8 @@ export default function ActiveOrderPage() {
           setPinError(data.error || 'PIN Salah!');
           toast.error(data.error || 'PIN Salah!');
        } else {
-          toast.success('PIN Benar! Pekerjaan dimulai.');
-          setOrder(prev => ({...prev, status: 'in_trip'}));
+          toast.success(isVisit ? 'PIN benar. Selamat bekerja!' : 'PIN benar. Perjalanan dimulai.');
+          setOrder(prev => ({...prev, status: data.status || 'in_trip'}));
           setShowPinModal(false);
           setPinInput('');
           setPinError('');
@@ -327,11 +340,11 @@ export default function ActiveOrderPage() {
           <ChevronLeft size={20} />
         </button>
         <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Wira {order.service_type}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{SERVICE_LABEL[order.service_type] || order.service_type}</span>
           <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink sm:text-2xl">
             Order <span className="font-mono font-medium">#{order.id.slice(0,6)}</span>
           </h1>
-          <Badge tone={statusTone(order.status)} dot><span className="capitalize">{order.status.replace('_', ' ')}</span></Badge>
+          <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>
         </div>
       </div>
 
@@ -339,11 +352,45 @@ export default function ActiveOrderPage() {
       <Card className="flex items-start gap-3">
         <IconTile tone="brand" size="sm"><ServiceIcon size={18} /></IconTile>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h2 className="text-[15px] font-bold capitalize tracking-tight text-ink">Wira {order.service_type}</h2>
+          <h2 className="text-[15px] font-bold tracking-tight text-ink">{SERVICE_LABEL[order.service_type] || order.service_type}</h2>
           <p className="break-words text-[13px] leading-relaxed text-ink-muted">{order.title}</p>
         </div>
         <Money value={order.total_price} className="shrink-0 pt-0.5 text-[15px] font-medium text-ink" />
       </Card>
+
+      {isVisit && (() => {
+        const v = visitInfo(order);
+        return (
+          <Card className="flex flex-col gap-2.5 text-[13.5px] text-ink">
+            <p className="flex items-start gap-2.5">
+              <CalendarClock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+              <span className="font-semibold">{v.when ? formatVisitTime(v.when) : 'Jadwal belum ditentukan'}</span>
+            </p>
+            {v.location && (
+              <p className="flex items-start gap-2.5">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                <span className="min-w-0 break-words">{v.location}</span>
+              </p>
+            )}
+            {(v.complaint || v.size) && (
+              <p className="flex items-start gap-2.5">
+                <MessageSquareText size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                <span className="min-w-0 break-words">{v.complaint || `Ukuran kolam: ${v.size}`}</span>
+              </p>
+            )}
+            {order.pickup_lat && order.pickup_lng && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${order.pickup_lat},${order.pickup_lng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-line-strong px-4 text-[13.5px] font-semibold text-ink transition-colors hover:bg-sunken"
+              >
+                <Route size={16} aria-hidden="true" /> Buka Rute di Google Maps
+              </a>
+            )}
+          </Card>
+        );
+      })()}
 
       {order.merchant?.owner_id === user.id && ['ready', 'picking_up'].includes(order.status) && (
         <Card className="flex flex-col items-center gap-3 text-center">
@@ -395,6 +442,12 @@ export default function ActiveOrderPage() {
         </Button>
       )}
 
+      {isVisit && isDriver && ['accepted', 'on_the_way'].includes(order.status) && (
+        <Button variant="secondary" block leftIcon={<Undo2 size={17} />} onClick={() => setReleaseOpen(true)}>
+          Lepaskan Pekerjaan
+        </Button>
+      )}
+
       {/* Chat */}
       <section className="flex flex-col overflow-hidden rounded-card border border-line bg-card">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
@@ -440,13 +493,48 @@ export default function ActiveOrderPage() {
       </section>
 
       <Sheet
+        open={releaseOpen}
+        onClose={() => { if (!releasing) setReleaseOpen(false); }}
+        dismissible={!releasing}
+        size="sm"
+        tone="danger"
+        icon={<Undo2 size={22} />}
+        title="Lepaskan pekerjaan ini?"
+        description="Pekerjaan kembali ke daftar Tersedia untuk teknisi lain. Kabari pelanggan lewat chat bila Anda sudah sempat menghubungi mereka."
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setReleaseOpen(false)} disabled={releasing}>Kembali</Button>
+            <Button
+              variant="danger"
+              size="lg"
+              isLoading={releasing}
+              onClick={async () => {
+                setReleasing(true);
+                try {
+                  await releaseJob(supabase, order.id);
+                  toast.success('Pekerjaan dilepaskan');
+                  navigate('/technician/orders', { replace: true });
+                } catch (err) {
+                  toast.error(err.message || 'Gagal melepaskan pekerjaan');
+                } finally {
+                  setReleasing(false);
+                }
+              }}
+            >
+              Lepaskan
+            </Button>
+          </>
+        )}
+      />
+
+      <Sheet
         open={showPinModal}
         onClose={closePinModal}
         dismissible={!isVerifying}
         size="sm"
         icon={<Lock size={22} />}
         title="Masukkan PIN Pesanan"
-        description="Minta 4 digit PIN dari pelanggan untuk memulai perjalanan."
+        description={isVisit ? 'Minta 4 digit PIN dari pelanggan saat Anda tiba, untuk mulai bekerja.' : 'Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.'}
         footer={(
           <>
             <Button variant="secondary" size="lg" onClick={closePinModal} disabled={isVerifying}>

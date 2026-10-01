@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
-import { Wrench, Ban, CheckCircle, Eye, Clock } from 'lucide-react';
+import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Badge, Button, Card, IconTile, ListRow, PageHeader, Spinner, Stat, Table } from '../components/ui';
+import { Badge, Button, Card, IconTile, ListRow, PageHeader, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
+
+const SKILL_GROUPS = [
+  { group: 'servis', title: 'Servis harian', hint: 'harga tetap, dipesan langsung' },
+  { group: 'proyek', title: 'Proyek & renovasi', hint: 'lewat penawaran harga' },
+];
 
 const TechniciansPage = () => {
   const [techs, setTechs] = useState([]);
@@ -14,6 +19,12 @@ const TechniciansPage = () => {
   const [selectedTech, setSelectedTech] = useState(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState(null);
+  // Skills (migrations/0089): what each technician is offered.
+  const [skillList, setSkillList] = useState([]);
+  const [profiles, setProfiles] = useState({});
+  const [skillTarget, setSkillTarget] = useState(null); // { id, name, skills }
+  const [savingSkills, setSavingSkills] = useState(false);
+  const skillName = (code) => skillList.find((sk) => sk.code === code)?.name || code;
 
   const fetchData = async () => {
     setLoading(true);
@@ -31,6 +42,14 @@ const TechniciansPage = () => {
       }
 
       setPendingTechs(await fetchPendingApplications(['technician']));
+
+      // Before 0089 these tables don't exist yet; the page still works.
+      const [{ data: skillRows }, { data: profileRows }] = await Promise.all([
+        supabase.from('service_skills').select('code, name, skill_group, sort_order, is_active').order('sort_order'),
+        supabase.from('technician_profiles').select('user_id, skills, is_accepting'),
+      ]);
+      setSkillList((skillRows || []).filter((sk) => sk.is_active));
+      setProfiles(Object.fromEntries((profileRows || []).map((p) => [p.user_id, p])));
     } catch (err) {
       console.error(err);
       toast.error('Gagal memuat data');
@@ -120,6 +139,34 @@ const TechniciansPage = () => {
     }
   };
 
+  const saveSkills = async () => {
+    if (!skillTarget) return;
+    setSavingSkills(true);
+    try {
+      // Update when the profile exists (technicians only get column-level
+      // UPDATE on skills/is_accepting, so no upsert), insert otherwise.
+      const query = profiles[skillTarget.id]
+        ? supabase.from('technician_profiles').update({ skills: skillTarget.skills }).eq('user_id', skillTarget.id)
+        : supabase.from('technician_profiles').insert({ user_id: skillTarget.id, skills: skillTarget.skills });
+      const { data, error } = await query.select('user_id');
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak saat menyimpan keahlian.');
+      toast.success(`Keahlian ${skillTarget.name} disimpan`);
+      setSkillTarget(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Gagal menyimpan keahlian');
+    } finally {
+      setSavingSkills(false);
+    }
+  };
+
+  const toggleTargetSkill = (code) => setSkillTarget((t) => ({
+    ...t,
+    skills: t.skills.includes(code) ? t.skills.filter((c) => c !== code) : [...t.skills, code],
+  }));
+
   const blockedCount = techs.filter(t => (t.status || 'Aktif') !== 'Aktif').length;
 
   return (
@@ -175,6 +222,7 @@ const TechniciansPage = () => {
               <th>Nama Teknisi</th>
               <th>Email</th>
               <th>Telepon</th>
+              <th>Keahlian</th>
               <th>Status</th>
               <th className="text-right">Aksi</th>
             </tr>
@@ -187,6 +235,23 @@ const TechniciansPage = () => {
                   <td className="font-semibold">{t.name}</td>
                   <td className="text-ink-muted">{t.email}</td>
                   <td className="whitespace-nowrap font-mono text-[13px]">{t.phone}</td>
+                  <td>
+                    <div className="flex max-w-xs flex-wrap items-center gap-1">
+                      {(profiles[t.id]?.skills || []).length > 0
+                        ? profiles[t.id].skills.map((code) => <Badge key={code} tone="brand">{skillName(code)}</Badge>)
+                        : <Badge tone="warning">Belum diatur</Badge>}
+                      {skillList.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Ubah keahlian ${t.name}`}
+                          onClick={() => setSkillTarget({ id: t.id, name: t.name, skills: profiles[t.id]?.skills || [] })}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <Badge tone={isActive ? 'success' : 'danger'} dot>{t.status || 'Aktif'}</Badge>
                   </td>
@@ -205,7 +270,7 @@ const TechniciansPage = () => {
             })}
             {techs.length === 0 && (
               <tr>
-                <td colSpan="5" className="py-10 text-center text-ink-muted">Tidak ada teknisi aktif</td>
+                <td colSpan="6" className="py-10 text-center text-ink-muted">Tidak ada teknisi aktif</td>
               </tr>
             )}
           </tbody>
@@ -220,6 +285,51 @@ const TechniciansPage = () => {
           onVerify={handleVerify}
         />
       )}
+
+      <Sheet
+        open={!!skillTarget}
+        onClose={() => { if (!savingSkills) setSkillTarget(null); }}
+        dismissible={!savingSkills}
+        title={`Keahlian ${skillTarget?.name || ''}`}
+        description="Teknisi hanya ditawari pekerjaan sesuai keahlian yang dicentang. Tanpa keahlian, teknisi tidak menerima pekerjaan."
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setSkillTarget(null)} disabled={savingSkills}>Batal</Button>
+            <Button onClick={saveSkills} isLoading={savingSkills}>Simpan</Button>
+          </>
+        )}
+      >
+        {skillTarget && (
+          <div className="flex flex-col gap-4">
+            {SKILL_GROUPS.map(({ group, title, hint }) => (
+              <fieldset key={group} className="flex flex-col gap-2">
+                <legend className="text-[13px] font-semibold text-ink">{title} <span className="font-normal text-ink-muted">· {hint}</span></legend>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {skillList.filter((sk) => sk.skill_group === group).map((sk) => {
+                    const on = skillTarget.skills.includes(sk.code);
+                    return (
+                      <button
+                        key={sk.code}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        onClick={() => toggleTargetSkill(sk.code)}
+                        className={cx(
+                          'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
+                          on ? 'border-brand bg-brand text-white' : 'border-line bg-card text-ink hover:border-line-strong',
+                        )}
+                      >
+                        {on && <CheckCircle2 size={15} aria-hidden="true" />}
+                        {sk.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        )}
+      </Sheet>
 
       <ConfirmModal
         isOpen={!!blockTarget}

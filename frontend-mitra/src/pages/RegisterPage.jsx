@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike } from 'lucide-react';
-import { Button, Card, Field, Input, Select, Textarea, IconTile, cx } from '../components/ui';
+import { Button, Card, Field, Input, Textarea, IconTile, cx } from '../components/ui';
 import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { submitMitraApplication } from '../services/mitraApplicationService';
+import useSkills from '../hooks/useSkills';
 
 // Kompres gambar otomatis agar ringan di cloud Supabase
 const compressImage = (file) => {
@@ -100,6 +101,7 @@ const RegisterPage = () => {
   const [role, setRole] = useState('driver');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { skills: skillOptions, nameOf } = useSkills();
 
   // Form State
   const [formData, setFormData] = useState({
@@ -113,7 +115,7 @@ const RegisterPage = () => {
     jobTypePreferences: DEFAULT_JOB_PREFS_BY_VEHICLE.motor,
     restaurantName: '',
     address: '',
-    specialization: 'AC & Pendingin', // must match an <option> value below (ServicePage matches on it)
+    skills: [], // service_skills codes (migrations/0089)
     experience: '1',
     simPhoto: null,
   });
@@ -143,6 +145,13 @@ const RegisterPage = () => {
     });
   };
 
+  const toggleSkill = (code) => {
+    setFormData((prev) => ({
+      ...prev,
+      skills: prev.skills.includes(code) ? prev.skills.filter((c) => c !== code) : [...prev.skills, code],
+    }));
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -166,6 +175,10 @@ const RegisterPage = () => {
     // submit handler that advances past step 3, not just via HTML.
     if (step === 3 && role === 'driver' && !formData.simPhoto) {
       toast.error('Unggah foto SIM & STNK terlebih dahulu untuk melanjutkan.');
+      return;
+    }
+    if (step === 3 && role === 'technician' && formData.skills.length === 0) {
+      toast.error('Pilih minimal satu keahlian.');
       return;
     }
     if (step < 4) {
@@ -212,7 +225,9 @@ const RegisterPage = () => {
         restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
         address: (role === 'merchant' || role === 'villa') ? formData.address : null,
         service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : null,
-        specialization: role === 'technician' ? formData.specialization : null,
+        // Readable list for admins; the codes go in `skills`.
+        specialization: role === 'technician' ? formData.skills.map(nameOf).join(', ') : null,
+        skills: role === 'technician' ? formData.skills : null,
         experience: role === 'technician' ? formData.experience : null,
       };
 
@@ -505,27 +520,50 @@ const RegisterPage = () => {
                 )}
                 {role === 'technician' && (
                   <>
-                    <Field label="Spesialisasi" htmlFor="reg-specialization" required>
-                      <Select
-                        id="reg-specialization"
-                        name="specialization"
-                        value={formData.specialization}
-                        onChange={handleChange}
-                        required
-                      >
-                        <option value="AC & Pendingin">AC & Pendingin</option>
-                        <option value="Instalasi Listrik">Instalasi Listrik</option>
-                        <option value="Pipa & Pompa Air">Pipa & Pompa Air</option>
-                        <option value="Tukang Bangunan">Tukang Bangunan</option>
-                        <option value="Maintenance Kolam Renang">Maintenance Kolam Renang</option>
-                      </Select>
-                    </Field>
+                    {[
+                      { group: 'servis', title: 'Servis harian', hint: 'Harga tetap, pelanggan langsung memesan.' },
+                      { group: 'proyek', title: 'Proyek & renovasi', hint: 'Pekerjaan besar, nanti lewat penawaran harga.' },
+                    ].map(({ group, title, hint }) => {
+                      const options = skillOptions.filter((sk) => sk.skill_group === group);
+                      if (options.length === 0) return null;
+                      return (
+                        <fieldset key={group} className="flex flex-col gap-2">
+                          <legend className="text-[13px] font-semibold text-ink">
+                            {title} <span className="font-normal text-ink-muted">· {hint}</span>
+                          </legend>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {options.map((sk) => {
+                              const on = formData.skills.includes(sk.code);
+                              return (
+                                <button
+                                  key={sk.code}
+                                  type="button"
+                                  role="checkbox"
+                                  aria-checked={on}
+                                  onClick={() => toggleSkill(sk.code)}
+                                  className={cx(
+                                    'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
+                                    on ? 'border-brand bg-brand text-white' : 'border-line bg-card text-ink hover:border-line-strong',
+                                  )}
+                                >
+                                  {on && <CheckCircle2 size={15} aria-hidden="true" />}
+                                  {sk.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      );
+                    })}
+                    <p className="text-xs text-ink-muted">Pilih semua yang benar-benar Anda kuasai. Admin akan memeriksanya saat verifikasi.</p>
                     <Field label="Pengalaman Kerja (Tahun)" htmlFor="reg-experience" required>
                       <Input
                         id="reg-experience"
                         type="number"
                         name="experience"
                         inputMode="numeric"
+                        min={0}
+                        max={60}
                         value={formData.experience}
                         onChange={handleChange}
                         className="font-mono"
@@ -565,7 +603,7 @@ const RegisterPage = () => {
                     <SummaryRow label="Nama">{formData.restaurantName}</SummaryRow>
                   )}
                   {role === 'technician' && (
-                    <SummaryRow label="Keahlian">{formData.specialization} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>
+                    <SummaryRow label="Keahlian">{formData.skills.map(nameOf).join(', ')} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>
                   )}
                 </div>
                 <p className="text-center text-xs leading-relaxed text-ink-muted">

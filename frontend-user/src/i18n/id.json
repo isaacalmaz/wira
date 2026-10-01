@@ -279,7 +279,19 @@
     "insufficient_balance": "Saldo WiraPay belum cukup untuk pesanan ini. Pilih tunai atau isi saldo dulu.",
     "success": "Permintaan terkirim. Menunggu teknisi menerima panggilan Anda.",
     "failed": "Teknisi belum bisa dipesan: {{message}}",
-    "verified_partner": "Mitra terverifikasi"
+    "verified_partner": "Mitra terverifikasi",
+    "slot_passed": "Jam itu sudah lewat atau terlalu dekat. Pilih jam lain.",
+    "unavailable_toast": "Belum ada teknisi untuk layanan ini. Coba lagi nanti.",
+    "unavailable": "Belum tersedia",
+    "tech_count": "{{count}} teknisi aktif",
+    "jobs_done": "{{count}} pekerjaan selesai",
+    "new_partner": "Baru di Wira",
+    "auto_assign_line": "Teknisi dipilihkan Wira",
+    "tech_label": "Teknisi",
+    "auto_assign": "Pilihkan untuk saya (paling cepat)",
+    "tech_hint_auto": "Semua teknisi dengan keahlian ini bisa mengambil pesanan Anda.",
+    "tech_hint_chosen": "Teknisi ini mendapat kesempatan pertama selama 10 menit, lalu pesanan terbuka untuk teknisi lain.",
+    "no_slots": "Tidak ada jam tersisa"
   },
   "pool": {
     "title": "WiraPool — Perawatan Kolam Renang",
@@ -313,7 +325,8 @@
     "submit": "Konfirmasi Pemesanan",
     "insufficient_balance": "Saldo WiraPay belum cukup. Pilih QRIS untuk bayar langsung.",
     "success": "Permintaan terkirim. Menunggu teknisi menerima pesanan Anda.",
-    "failed": "Pesanan belum bisa dibuat: {{message}}"
+    "failed": "Pesanan belum bisa dibuat: {{message}}",
+    "unavailable": "Belum ada teknisi kolam renang yang aktif. Pemesanan dibuka kembali begitu ada."
   },
   "pulsa": {
     "title": "Pulsa & Tagihan",
@@ -521,7 +534,13 @@
     "call_driver": "Telepon mitra",
     "qris_cancel_desc": "Pesanan ini belum dibayar. Kalau dibatalkan, kode QRIS-nya tidak berlaku lagi. Jangan transfer setelah membatalkan.",
     "cancel_desc_late": "Mitra belum menjemput Anda lebih dari 20 menit sejak pesanan diterima, jadi pembatalan gratis.",
-    "cancel_available_at": "Mitra sedang menuju lokasi Anda. Jika belum dijemput, Anda bisa membatalkan gratis mulai pukul {{time}}."
+    "cancel_available_at": "Mitra sedang menuju lokasi Anda. Jika belum dijemput, Anda bisa membatalkan gratis mulai pukul {{time}}.",
+    "searching_technician": "Menunggu teknisi",
+    "visit_waiting": "Pesanan Anda sudah terlihat oleh teknisi dengan keahlian yang sesuai. Kami kabari begitu ada yang mengambil.",
+    "visit_scheduled": "Jadwal kunjungan: {{time}} WITA",
+    "pin_label_visit": "Berikan PIN ini kepada teknisi saat tiba, untuk mulai bekerja:",
+    "cancel_desc_visit": "Pembatalan gratis, dan pembayaran WiraPay dikembalikan ke saldo Anda.",
+    "cancel_desc_visit_late": "Teknisi terlambat lebih dari 1 jam, jadi pembatalan gratis."
   },
   "review": {
     "title": "Beri Ulasan",
@@ -709,7 +728,8 @@
     "food_detail": "{{items}} — Antar ke {{address}}",
     "method_wallet": "WiraPay",
     "method_transfer": "Transfer bank",
-    "service_complaint": "Keluhan: {{text}}"
+    "service_complaint": "Keluhan: {{text}}",
+    "service_detail_auto": "{{date}} pukul {{time}} • {{address}}"
   },
   "address_note": {
     "label": "Detail alamat / patokan",
