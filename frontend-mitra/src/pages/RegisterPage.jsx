@@ -118,6 +118,8 @@ const RegisterPage = () => {
     skills: [], // service_skills codes (migrations/0089)
     experience: '1',
     simPhoto: null,
+    ktpPhoto: null, // technicians: identity check (migrations/0092)
+    selfiePhoto: null,
   });
 
   const handleChange = (e) => {
@@ -152,6 +154,19 @@ const RegisterPage = () => {
     }));
   };
 
+  // KTP / selfie for technicians; compressed like the SIM photo.
+  const pickKycPhoto = (field) => async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setFormData((prev) => ({ ...prev, [field]: compressed }));
+    } catch {
+      toast.error('Gagal memproses foto');
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -179,6 +194,10 @@ const RegisterPage = () => {
     }
     if (step === 3 && role === 'technician' && formData.skills.length === 0) {
       toast.error('Pilih minimal satu keahlian.');
+      return;
+    }
+    if (step === 3 && role === 'technician' && (!formData.ktpPhoto || !formData.selfiePhoto)) {
+      toast.error('Lampirkan foto KTP dan foto selfie Anda.');
       return;
     }
     if (step < 4) {
@@ -228,6 +247,8 @@ const RegisterPage = () => {
         // Readable list for admins; the codes go in `skills`.
         specialization: role === 'technician' ? formData.skills.map(nameOf).join(', ') : null,
         skills: role === 'technician' ? formData.skills : null,
+        ktp_photo: role === 'technician' ? formData.ktpPhoto : null,
+        selfie_photo: role === 'technician' ? formData.selfiePhoto : null,
         experience: role === 'technician' ? formData.experience : null,
       };
 
@@ -570,6 +591,46 @@ const RegisterPage = () => {
                         required
                       />
                     </Field>
+
+                    {/* Identity check: KTP + selfie, seen only by Wira admins */}
+                    <fieldset className="flex flex-col gap-2">
+                      <legend className="text-[13px] font-semibold text-ink">
+                        Verifikasi identitas <span className="text-danger">*</span>
+                      </legend>
+                      <p className="text-xs leading-relaxed text-ink-muted">
+                        Hanya dilihat admin Wira untuk memastikan pelanggan aman. Setelah diperiksa, profil Anda mendapat badge Terverifikasi.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { field: 'ktpPhoto', id: 'reg-ktp', label: 'Foto KTP', hint: 'Seluruh kartu terlihat jelas', capture: 'environment' },
+                          { field: 'selfiePhoto', id: 'reg-selfie', label: 'Foto selfie', hint: 'Wajah jelas, sambil pegang KTP', capture: 'user' },
+                        ].map(({ field, id, label, hint, capture }) => (
+                          <div key={field} className="flex flex-col gap-1.5">
+                            <input type="file" id={id} accept="image/*" capture={capture} className="peer sr-only" onChange={pickKycPhoto(field)} />
+                            <label
+                              htmlFor={id}
+                              className={cx(
+                                'relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-card border-2 border-dashed px-2 text-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand/30',
+                                formData[field] ? 'border-success-line' : 'border-line-strong bg-card hover:border-brand hover:bg-brand-soft',
+                              )}
+                            >
+                              {formData[field] ? (
+                                <>
+                                  <img src={formData[field]} alt={label} className="absolute inset-0 h-full w-full object-cover" />
+                                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-ink/70 px-2.5 py-1 text-[11px] font-semibold text-white">Ganti</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Camera size={20} className="text-brand-ink" aria-hidden="true" />
+                                  <span className="text-[13px] font-semibold text-ink">{label}</span>
+                                  <span className="text-[11px] leading-snug text-ink-muted">{hint}</span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </fieldset>
                   </>
                 )}
               </div>
@@ -601,6 +662,9 @@ const RegisterPage = () => {
                   )}
                   {(role === 'merchant' || role === 'villa') && (
                     <SummaryRow label="Nama">{formData.restaurantName}</SummaryRow>
+                  )}
+                  {role === 'technician' && (
+                    <SummaryRow label="Identitas">KTP & selfie terlampir</SummaryRow>
                   )}
                   {role === 'technician' && (
                     <SummaryRow label="Keahlian">{formData.skills.map(nameOf).join(', ')} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>

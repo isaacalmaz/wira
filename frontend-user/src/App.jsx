@@ -29,6 +29,8 @@ const PulsaPage = lazy(() => import('./pages/PulsaPage'));
 const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
+const TechnicianDirectoryPage = lazy(() => import('./pages/technicians/TechnicianDirectoryPage'));
+const TechnicianProfilePage = lazy(() => import('./pages/technicians/TechnicianProfilePage'));
 const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
@@ -71,6 +73,8 @@ export default function Root() {
                             <Route path="/villa" element={<VillaPage />} />
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />
+                            <Route path="/technicians" element={<TechnicianDirectoryPage />} />
+                            <Route path="/technicians/:id" element={<TechnicianProfilePage />} />
                             
                             {/* Legal & Bantuan */}
                             <Route path="/support" element={<SupportPage />} />

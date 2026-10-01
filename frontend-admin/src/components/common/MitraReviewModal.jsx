@@ -168,8 +168,36 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
           )}
         </section>
 
+        {/* Technicians: identity check (KTP + selfie, migrations/0092) */}
+        {role === 'technician' && (
+          <section className="flex flex-col gap-2.5">
+            <h4 className={eyebrow}>3. Verifikasi Identitas (KTP & Selfie)</h4>
+            {mitra.ktp_photo || mitra.selfie_photo ? (
+              <div className={`${panel} grid grid-cols-1 gap-3 sm:grid-cols-2`}>
+                {[['KTP', mitra.ktp_photo], ['Selfie', mitra.selfie_photo]].map(([label, src]) => (
+                  <figure key={label} className="flex flex-col gap-1.5">
+                    {src ? (
+                      <a href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-control border border-line bg-sunken">
+                        <img src={src} alt={`Foto ${label}`} className="max-h-60 w-full object-contain" />
+                      </a>
+                    ) : (
+                      <div className="flex h-32 items-center justify-center rounded-control border border-dashed border-line-strong text-[12.5px] text-ink-muted">Tidak dilampirkan</div>
+                    )}
+                    <figcaption className="text-[12px] font-semibold text-ink-muted">{label}</figcaption>
+                  </figure>
+                ))}
+                <p className="text-[12.5px] leading-relaxed text-ink-muted sm:col-span-2">
+                  Pastikan wajah di selfie sama dengan foto KTP dan nama KTP sama dengan nama pendaftar. Menyetujui pendaftaran ini sekaligus memberi badge Terverifikasi.
+                </p>
+              </div>
+            ) : (
+              <EmptyState icon={<FileText size={22} />} title="Pendaftar ini belum melampirkan KTP dan selfie." description="Minta lewat WhatsApp, atau setujui tanpa badge Terverifikasi." className="py-7" />
+            )}
+          </section>
+        )}
+
         {/* Dokumen Lampiran (SIM / STNK / Foto Tempat) */}
-        <section className="flex flex-col gap-2.5">
+        {role !== 'technician' && <section className="flex flex-col gap-2.5">
           <h4 className={eyebrow}>3. Berkas Dokumen (Foto SIM / STNK / Legalitas)</h4>
           {mitra.sim_photo ? (
             <div className={`${panel} flex flex-col items-center gap-3`}>
@@ -199,7 +227,7 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
               className="py-7"
             />
           )}
-        </section>
+        </section>}
 
         {/* Catatan Verifikator */}
         <section className="flex flex-col gap-2.5">

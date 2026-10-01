@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { StarRating } from '../../components/shared/UIComponents';
-import { Card, Badge, Button, EmptyState, IconTile, ListRow } from '../../components/ui';
-import { User, Wrench, Image as ImageIcon, Settings, LogOut } from 'lucide-react';
+import { Card, Badge, Button, IconTile, ListRow } from '../../components/ui';
+import { User, Wrench, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { fetchMyApplication } from '../../services/mitraApplicationService';
 import { fetchMyTechnicianProfile } from '../../services/technicianService';
 import useSkills from '../../hooks/useSkills';
 import ReviewsSection from '../../components/shared/ReviewsSection';
+import TechPublicProfile from '../../components/shared/TechPublicProfile';
 
 const TechProfilePage = () => {
   const { user, logout } = useAuth();
@@ -79,17 +80,9 @@ const TechProfilePage = () => {
 
       {user && <ReviewsSection userId={user.id} />}
 
+      {user && <TechPublicProfile userId={user.id} />}
+
       <Card padding="none">
-        <div className="flex flex-col gap-3 border-b border-line p-4">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold tracking-tight text-ink">
-            <ImageIcon size={17} className="text-ink-muted" aria-hidden="true" /> Portfolio Hasil Kerja
-          </h2>
-          <EmptyState
-            icon={<ImageIcon size={24} />}
-            title="Belum ada foto portofolio"
-            description="Fitur unggah foto hasil kerja akan segera hadir."
-          />
-        </div>
         <ListRow
           as={Link}
           to="/technician/settings"

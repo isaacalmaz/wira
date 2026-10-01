@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star } from 'lucide-react';
 import {
   Badge,
@@ -27,6 +27,7 @@ import AddressMapPicker from '../components/common/AddressMapPicker';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
+import { avatarSrc } from '../utils/avatar';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
@@ -227,6 +228,18 @@ export default function ServicePage() {
     setIsModalOpen(true);
   };
 
+  // Arriving from a technician's profile (/service?tech=…&cat=…): open the
+  // booking for that category with that technician chosen, once loaded.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const techId = searchParams.get('tech');
+    const cat = categories.find((c) => c.id === searchParams.get('cat'));
+    if (!techId || !cat || !techLoaded || menu.length === 0) return;
+    handleOpenBooking(cat, technicians.find((x) => x.id === techId) || null);
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, techLoaded, menu.length]);
+
   const handleDateChange = (date) => {
     setServiceDate(date);
     const slots = openSlots(date);
@@ -398,7 +411,10 @@ export default function ServicePage() {
       {/* Teknisi aktif */}
       {technicians.length > 0 && (
         <section>
-          <SectionHeader title={t('service.recommended')} />
+          <SectionHeader
+            title={t('service.recommended')}
+            action={<Link to="/technicians" className="inline-flex min-h-11 items-center">{t('partners.see_all')}</Link>}
+          />
           <Card padding="none" className="divide-y divide-line overflow-hidden">
             {technicians.map((tech) => {
               const firstCategory = categories.find((c) => (tech.skills || []).includes(c.id));
@@ -411,11 +427,11 @@ export default function ServicePage() {
                     className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink"
                   >
                     {tech.avatar_url
-                      ? <img src={tech.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
+                      ? <img src={avatarSrc(tech.avatar_url)} alt="" className="h-full w-full rounded-full object-cover" />
                       : (tech.name || '?').trim().charAt(0).toUpperCase()}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <h4 className="truncate text-[14px] font-semibold text-ink">{tech.name}</h4>
+                    <Link to={`/technicians/${tech.id}`} className="truncate text-[14px] font-semibold text-ink hover:underline">{tech.name}</Link>
                     <p className="text-[12px] text-ink-muted">
                       {skillNames.join(', ') || t('service.general_category')}
                       {tech.experience_years ? ` • ${t('service.experience_years', { count: tech.experience_years })}` : ''}

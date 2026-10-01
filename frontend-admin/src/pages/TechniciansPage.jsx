@@ -47,7 +47,7 @@ const TechniciansPage = () => {
       // Before 0089 these tables don't exist yet; the page still works.
       const [{ data: skillRows }, { data: profileRows }] = await Promise.all([
         supabase.from('service_skills').select('code, name, skill_group, sort_order, is_active').order('sort_order'),
-        supabase.from('technician_profiles').select('user_id, skills, is_accepting'),
+        supabase.from('technician_profiles').select('user_id, skills, is_accepting, verified_at'),
       ]);
       setSkillList((skillRows || []).filter((sk) => sk.is_active));
       setProfiles(Object.fromEntries((profileRows || []).map((p) => [p.user_id, p])));
@@ -95,6 +95,12 @@ const TechniciansPage = () => {
             }]);
             if (insertErr) throw insertErr;
           }
+        }
+        // KTP and selfie were reviewed in the modal: approving verifies them
+        // (migrations/0092). The profile exists once access is granted.
+        if (pending?.ktp_photo && pending?.selfie_photo) {
+          const { error: verErr } = await supabase.rpc('admin_set_technician_verified', { p_user_id: pending.auth_id, p_verified: true });
+          if (verErr) console.error('verify failed', verErr);
         }
         toast.success('Teknisi berhasil disetujui!');
       } else {
@@ -163,6 +169,14 @@ const TechniciansPage = () => {
     } finally {
       setSavingSkills(false);
     }
+  };
+
+  const toggleVerified = async (t) => {
+    const next = !profiles[t.id]?.verified_at;
+    const { error } = await supabase.rpc('admin_set_technician_verified', { p_user_id: t.id, p_verified: next });
+    if (error) { toast.error(error.message || 'Gagal mengubah verifikasi'); return; }
+    toast.success(next ? `${t.name} ditandai terverifikasi` : `Verifikasi ${t.name} dicabut`);
+    fetchData();
   };
 
   const toggleTargetSkill = (code) => setSkillTarget((t) => ({
@@ -236,7 +250,23 @@ const TechniciansPage = () => {
               const isActive = (t.status || 'Aktif') === 'Aktif';
               return (
                 <tr key={t.id}>
-                  <td className="font-semibold">{t.name}</td>
+                  <td className="font-semibold">
+                    <div className="flex flex-col items-start gap-1">
+                      {t.name}
+                      {profiles[t.id] && (
+                        <button
+                          type="button"
+                          onClick={() => toggleVerified(t)}
+                          title={profiles[t.id].verified_at ? 'Cabut verifikasi' : 'Tandai terverifikasi (KTP & selfie sudah dicek)'}
+                          className="min-h-8"
+                        >
+                          <Badge tone={profiles[t.id].verified_at ? 'success' : 'neutral'}>
+                            {profiles[t.id].verified_at ? 'Terverifikasi' : 'Belum verifikasi'}
+                          </Badge>
+                        </button>
+                      )}
+                    </div>
+                  </td>
                   <td className="text-ink-muted">{t.email}</td>
                   <td className="whitespace-nowrap font-mono text-[13px]">{t.phone}</td>
                   <td>
