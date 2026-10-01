@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { technicianEarnedAmount } from '../../services/orderService';
 import {
   ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchMyTechnicianProfile, fetchOpenJobs, setAccepting,
-  subscribeToVisitChanges, takeJob, visitInfo,
+  subscribeToVisitChanges, takeJob, visitInfo, takePackage, groupOpenJobs,
 } from '../../services/technicianService';
 import VisitJobCard from '../../components/shared/VisitJobCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
@@ -102,6 +102,20 @@ const TechHomePage = () => {
     }
   };
 
+  const handleTakePackage = async (job) => {
+    setTakingId(job.id);
+    try {
+      const n = await takePackage(supabase, job.package_id);
+      toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
+      navigate(`/technician/active-order/${job.id}`);
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengambil paket');
+      load();
+    } finally {
+      setTakingId(null);
+    }
+  };
+
   const handleTake = async (job) => {
     if (!user) return;
     setTakingId(job.id);
@@ -183,14 +197,16 @@ const TechHomePage = () => {
         />
         {openJobs.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {openJobs.slice(0, 3).map((job) => (
+            {groupOpenJobs(openJobs).slice(0, 3).map(({ job, packageCount }) => (
               <VisitJobCard
                 key={job.id}
                 order={job}
                 mode="open"
                 skillName={nameOf(orderSkill(job))}
                 taking={takingId === job.id}
+                packageCount={packageCount}
                 onTake={handleTake}
+                onTakePackage={handleTakePackage}
               />
             ))}
           </div>

@@ -6,7 +6,7 @@ import { EmptyState, PageHeader, Segmented, Spinner } from '../../components/ui'
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import {
-  ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchOpenJobs, subscribeToVisitChanges, takeJob, visitInfo,
+  ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchOpenJobs, subscribeToVisitChanges, takeJob, visitInfo, takePackage, groupOpenJobs,
 } from '../../services/technicianService';
 import VisitJobCard from '../../components/shared/VisitJobCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
@@ -47,6 +47,20 @@ const TechOrdersPage = () => {
     load();
     return subscribeToVisitChanges(supabase, user.id, load);
   }, [user, load]);
+
+  const handleTakePackage = async (job) => {
+    setTakingId(job.id);
+    try {
+      const n = await takePackage(supabase, job.package_id);
+      toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
+      navigate(`/technician/active-order/${job.id}`);
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengambil paket');
+      load();
+    } finally {
+      setTakingId(null);
+    }
+  };
 
   const handleTake = async (job) => {
     setTakingId(job.id);
@@ -93,14 +107,16 @@ const TechOrdersPage = () => {
         <div className="flex justify-center py-12 text-brand-ink"><Spinner size={24} label="Memuat pekerjaan" /></div>
       ) : list.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {list.map((job) => (
+          {(tab === 'open' ? groupOpenJobs(list) : list.map((job) => ({ job, packageCount: 0 }))).map(({ job, packageCount }) => (
             <VisitJobCard
               key={job.id}
               order={job}
               mode={tab === 'open' ? 'open' : 'own'}
               skillName={nameOf(orderSkill(job))}
               taking={takingId === job.id}
+              packageCount={packageCount}
               onTake={handleTake}
+              onTakePackage={handleTakePackage}
               onOpen={openPage}
             />
           ))}

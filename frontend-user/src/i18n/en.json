@@ -291,7 +291,12 @@
     "auto_assign": "Pick for me (fastest)",
     "tech_hint_auto": "Every technician with this skill can take your booking.",
     "tech_hint_chosen": "This technician gets the first chance for 10 minutes, then the booking opens to others.",
-    "no_slots": "No times left"
+    "no_slots": "No times left",
+    "items_label": "Choose the work",
+    "qty_less": "Fewer {{name}}",
+    "qty_more": "More {{name}}",
+    "pick_item": "Choose at least one job.",
+    "extra_note": "Materials and parts (refrigerant, pipes, cables) are paid separately, only after you approve them in the app. If you cancel after the technician has come and checked, a check fee of {{fee}} applies."
   },
   "pool": {
     "title": "WiraPool — Swimming Pool Care",
@@ -326,7 +331,12 @@
     "insufficient_balance": "Your WiraPay balance is short. Choose QRIS to pay directly instead.",
     "success": "Request sent. Waiting for a technician to accept your booking.",
     "failed": "We couldn't send that booking: {{message}}",
-    "unavailable": "No pool technician is active yet. Booking reopens as soon as one is."
+    "unavailable": "No pool technician is active yet. Booking reopens as soon as one is.",
+    "package_success": "Monthly package booked: 4 visits, once a week.",
+    "package_subtitle": "4 visits, once a week, starting on the date you choose. The Wira pool technician brings equipment and chemicals.",
+    "first_visit": "First Visit",
+    "package_wirapay_only": "The package is paid at once with WiraPay. Any visit that is not served goes back to your balance.",
+    "package_insufficient": "Your WiraPay balance is not enough for this package. Top up first in Wallet."
   },
   "pulsa": {
     "title": "Mobile Credit & Bills",
@@ -745,5 +755,20 @@
     "preset_office": "Office",
     "preset_kos": "Boarding house",
     "need_address": "Enter the address first, then save it."
+  },
+  "visit": {
+    "adjust_title": "The technician requests an extra charge",
+    "kind_material": "Materials / parts",
+    "kind_work": "Extra work",
+    "adjust_pay_wallet": "If you approve, it is paid from your WiraPay balance.",
+    "adjust_pay_cash": "If you approve, pay the technician in cash.",
+    "approve": "Approve",
+    "reject": "Decline",
+    "adjust_approved": "Extra charge approved",
+    "adjust_rejected": "Extra charge declined",
+    "adjust_failed": "Could not process this",
+    "package_visit": "Monthly package: visit {{n}} of {{total}}",
+    "booked_work": "Booked work",
+    "extra": "Extra"
   }
 }

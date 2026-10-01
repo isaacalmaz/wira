@@ -76,7 +76,16 @@ const VehiclesPricingPage = () => {
         .order('service_type', { ascending: true })
         .order('code', { ascending: true });
       if (error) throw error;
-      setPricingRules(data || []);
+      // WiraService menu items (migrations/0090, item_of = category code)
+      // sit right under their category row, in menu order.
+      const groupKey = (r) => r.item_of || r.code;
+      const sorted = (data || []).slice().sort((a, b) =>
+        a.service_type.localeCompare(b.service_type)
+        || groupKey(a).localeCompare(groupKey(b))
+        || (a.item_of ? 1 : 0) - (b.item_of ? 1 : 0)
+        || (a.sort_order ?? 100) - (b.sort_order ?? 100)
+        || a.code.localeCompare(b.code));
+      setPricingRules(sorted);
       setRulesEdits({});
     } catch (err) {
       // Table not yet migrated (0057) or another fetch failure - degrade

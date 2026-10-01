@@ -291,7 +291,12 @@
     "auto_assign": "Pilihkan untuk saya (paling cepat)",
     "tech_hint_auto": "Semua teknisi dengan keahlian ini bisa mengambil pesanan Anda.",
     "tech_hint_chosen": "Teknisi ini mendapat kesempatan pertama selama 10 menit, lalu pesanan terbuka untuk teknisi lain.",
-    "no_slots": "Tidak ada jam tersisa"
+    "no_slots": "Tidak ada jam tersisa",
+    "items_label": "Pilih pekerjaan",
+    "qty_less": "Kurangi {{name}}",
+    "qty_more": "Tambah {{name}}",
+    "pick_item": "Pilih minimal satu pekerjaan.",
+    "extra_note": "Bahan dan suku cadang (freon, pipa, kabel) dibayar terpisah, hanya setelah Anda setujui di aplikasi. Bila pekerjaan batal setelah teknisi datang dan mengecek, dikenakan biaya cek {{fee}}."
   },
   "pool": {
     "title": "WiraPool — Perawatan Kolam Renang",
@@ -326,7 +331,12 @@
     "insufficient_balance": "Saldo WiraPay belum cukup. Pilih QRIS untuk bayar langsung.",
     "success": "Permintaan terkirim. Menunggu teknisi menerima pesanan Anda.",
     "failed": "Pesanan belum bisa dibuat: {{message}}",
-    "unavailable": "Belum ada teknisi kolam renang yang aktif. Pemesanan dibuka kembali begitu ada."
+    "unavailable": "Belum ada teknisi kolam renang yang aktif. Pemesanan dibuka kembali begitu ada.",
+    "package_success": "Paket bulanan dipesan: 4 kunjungan, seminggu sekali.",
+    "package_subtitle": "4 kunjungan, seminggu sekali, mulai tanggal yang Anda pilih. Teknisi kolam Wira datang dengan perlengkapan dan bahan kimia.",
+    "first_visit": "Kunjungan Pertama",
+    "package_wirapay_only": "Paket dibayar sekaligus dengan WiraPay. Kunjungan yang tidak terlayani dikembalikan ke saldo Anda.",
+    "package_insufficient": "Saldo WiraPay belum cukup untuk paket ini. Isi saldo dulu di menu Dompet."
   },
   "pulsa": {
     "title": "Pulsa & Tagihan",
@@ -745,5 +755,20 @@
     "preset_office": "Kantor",
     "preset_kos": "Kos",
     "need_address": "Isi alamatnya dulu sebelum menyimpan."
+  },
+  "visit": {
+    "adjust_title": "Teknisi mengajukan biaya tambahan",
+    "kind_material": "Bahan / suku cadang",
+    "kind_work": "Jasa tambahan",
+    "adjust_pay_wallet": "Bila disetujui, dibayar dari saldo WiraPay Anda.",
+    "adjust_pay_cash": "Bila disetujui, bayar tunai ke teknisi.",
+    "approve": "Setujui",
+    "reject": "Tolak",
+    "adjust_approved": "Biaya tambahan disetujui",
+    "adjust_rejected": "Biaya tambahan ditolak",
+    "adjust_failed": "Belum bisa diproses",
+    "package_visit": "Paket bulanan: kunjungan {{n}} dari {{total}}",
+    "booked_work": "Pekerjaan yang dipesan",
+    "extra": "Tambahan"
   }
 }

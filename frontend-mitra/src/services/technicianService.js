@@ -104,6 +104,50 @@ export async function takeJob(supabase, orderId, userId) {
   return data[0];
 }
 
+/** Take every open visit of a monthly pool package (migrations/0090). */
+export async function takePackage(supabase, packageId) {
+  const { data, error } = await supabase.rpc('take_package_visits', { p_package_id: packageId });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Open jobs for display: one card per monthly package (its earliest visit,
+ * with the number of open visits), other jobs as they are.
+ */
+export function groupOpenJobs(jobs) {
+  const seen = new Map();
+  const out = [];
+  for (const job of jobs) {
+    if (!job.package_id) { out.push({ job, packageCount: 0 }); continue; }
+    if (seen.has(job.package_id)) { seen.get(job.package_id).packageCount += 1; continue; }
+    const entry = { job, packageCount: 1 };
+    seen.set(job.package_id, entry);
+    out.push(entry);
+  }
+  return out;
+}
+
+/** Ask the customer for an extra charge on site (migrations/0090). */
+export async function requestAdjustment(supabase, orderId, kind, amount, description) {
+  const { error } = await supabase.rpc('request_order_adjustment', {
+    p_order_id: orderId, p_kind: kind, p_amount: amount, p_description: description,
+  });
+  if (error) throw error;
+}
+
+export async function cancelAdjustment(supabase, adjustmentId) {
+  const { error } = await supabase.rpc('cancel_order_adjustment', { p_adjustment_id: adjustmentId });
+  if (error) throw error;
+}
+
+/** Customer declined after the check: finish at the check fee (needs their PIN). */
+export async function finishAsCheck(supabase, orderId, pin) {
+  const { data, error } = await supabase.rpc('finish_visit_as_check', { p_order_id: orderId, p_pin_input: pin });
+  if (error) throw error;
+  return data;
+}
+
 /** Give an accepted / en-route visit back to the queue. */
 export async function releaseJob(supabase, orderId) {
   const { error } = await supabase.rpc('wallet_refund_matched_ride', {

@@ -53,6 +53,11 @@ export const OrderProvider = ({ children }) => {
   };
 
 
+  // Bumped to re-read the order list (e.g. after the monthly pool package
+  // creates several orders at once through an RPC).
+  const [reloadKey, setReloadKey] = useState(0);
+  const refreshOrders = () => setReloadKey((k) => k + 1);
+
   useEffect(() => {
     const abortController = new AbortController();
 
@@ -109,7 +114,7 @@ export const OrderProvider = ({ children }) => {
       abortController.abort();
       unsubscribe();
     };
-  }, [user]);
+  }, [user, reloadKey]);
 
   const addOrder = async (orderData) => {
     try {
@@ -231,7 +236,7 @@ export const OrderProvider = ({ children }) => {
   };
 
   return (
-    <OrderContext.Provider value={{ orders, addOrder, updateOrderStatus }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateOrderStatus, refreshOrders }}>
       {children}
     </OrderContext.Provider>
   );

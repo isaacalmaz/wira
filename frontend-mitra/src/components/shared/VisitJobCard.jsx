@@ -1,4 +1,4 @@
-import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronRight } from 'lucide-react';
+import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronRight, ClipboardList, Repeat } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, cx } from '../ui';
 import { getDisplayStatus } from '../../constants/orderStatus';
 import { formatVisitTime, visitInfo } from '../../services/technicianService';
@@ -17,10 +17,14 @@ const statusTone = (status) => {
  * technician's own jobs (opens the job page). Shows when, where, what and
  * how much, which is everything needed to decide.
  */
-export default function VisitJobCard({ order, skillName, mode = 'own', onTake, taking = false, onOpen }) {
+export default function VisitJobCard({ order, skillName, mode = 'own', onTake, onTakePackage, taking = false, packageCount = 0, onOpen }) {
   const { when, location, complaint, size } = visitInfo(order);
   const isPool = order.service_type === 'pool';
   const open = mode === 'open';
+  // Open jobs carry `items` from get_open_technician_jobs; own orders keep
+  // them in metadata (migrations/0090).
+  const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.metadata?.items) ? order.metadata.items : []);
+  const packageVisit = order.metadata?.package_visit;
 
   const body = (
     <div className="flex flex-col gap-3 p-4">
@@ -33,6 +37,9 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, t
               <Badge tone="pay"><Star size={11} aria-hidden="true" /> Dipilih pelanggan</Badge>
             )}
             {!open && <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>}
+            {order.package_id && (
+              <Badge tone="brand"><Repeat size={11} aria-hidden="true" /> {packageVisit ? `Paket ${packageVisit}/4` : 'Paket bulanan'}</Badge>
+            )}
           </div>
           <h3 className="break-words text-[15px] font-bold leading-snug text-ink">{order.title || (isPool ? 'Perawatan Kolam' : 'Servis')}</h3>
         </div>
@@ -55,6 +62,13 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, t
             <dd className="line-clamp-2 break-words text-ink-muted">{location}</dd>
           </div>
         )}
+        {items.length > 0 && (
+          <div className="flex items-start gap-2">
+            <dt className="sr-only">Pekerjaan</dt>
+            <ClipboardList size={15} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+            <dd className="break-words text-ink">{items.map((it) => `${it.qty}× ${it.name}`).join(', ')}</dd>
+          </div>
+        )}
         {(complaint || size) && (
           <div className="flex items-start gap-2">
             <dt className="sr-only">Catatan</dt>
@@ -64,11 +78,18 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, t
         )}
       </dl>
 
-      {open && (
+      {open && (order.package_id && packageCount > 1 ? (
+        <div className="flex flex-col gap-2">
+          <Button variant="primary" block isLoading={taking} onClick={() => onTakePackage?.(order)}>
+            Ambil Semua ({packageCount} kunjungan)
+          </Button>
+          <p className="text-center text-[12px] text-ink-muted">Paket bulanan: kunjungan seminggu sekali untuk pelanggan yang sama.</p>
+        </div>
+      ) : (
         <Button variant="primary" block isLoading={taking} onClick={() => onTake?.(order)}>
           Ambil Pekerjaan
         </Button>
-      )}
+      ))}
     </div>
   );
 

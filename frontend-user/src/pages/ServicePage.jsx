@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus } from 'lucide-react';
 import {
   Button,
   Card,
@@ -141,6 +141,10 @@ export default function ServicePage() {
   const [technicians, setTechnicians] = useState([]);
   const [techLoaded, setTechLoaded] = useState(false);
   const [prices, setPrices] = useState({});
+  // Price menu (migrations/0090): items per category, priced per unit.
+  const [menu, setMenu] = useState([]);
+  const [qty, setQty] = useState({}); // item code -> quantity in the open booking
+  const [checkFee, setCheckFee] = useState(50000);
   const [selectedService, setSelectedService] = useState(null);
   // '' = let Wira pick (every technician with the skill is offered the job)
   const [selectedTechId, setSelectedTechId] = useState('');
@@ -157,9 +161,13 @@ export default function ServicePage() {
       setTechLoaded(true);
     });
     // The prices admins set under Manajemen Harga; the server charges these.
-    supabase.from('pricing_rules').select('code, base_price').eq('service_type', 'service').eq('is_active', true)
+    supabase.from('pricing_rules').select('*').eq('service_type', 'service').eq('is_active', true)
       .then(({ data }) => {
-        if (!cancelled && data) setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+        if (cancelled || !data) return;
+        setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+        setMenu(data.filter((r) => r.item_of).sort((a, b) => (a.sort_order ?? 100) - (b.sort_order ?? 100)));
+        const fee = data.find((r) => r.code === 'CHECK_FEE');
+        if (fee) setCheckFee(Number(fee.base_price));
       });
     return () => { cancelled = true; };
   }, []);
@@ -192,12 +200,23 @@ export default function ServicePage() {
     { id: 'Plumbing', icon: Droplets, name: 'Pipa & Pompa Air', price: 60000 },
     { id: 'Tukang', icon: Hammer, name: 'Tukang Bangunan', price: 100000 },
   ].map((c) => ({ ...c, price: prices[c.id] ?? c.price }));
+  const itemsFor = (cat) => menu.filter((m) => m.item_of === cat);
+  const bookingItems = selectedService ? itemsFor(selectedService.id) : [];
+  const chosenItems = bookingItems.filter((m) => (qty[m.code] || 0) > 0);
+  const itemsTotal = chosenItems.reduce((sum, m) => sum + Number(m.base_price) * qty[m.code], 0);
+  const changeQty = (item, delta) => setQty((q) => ({
+    ...q,
+    [item.code]: Math.max(0, Math.min(item.max_qty || 10, (q[item.code] || 0) + delta)),
+  }));
   const techsFor = (skill) => technicians.filter((tech) => (tech.skills || []).includes(skill));
   const selectedTech = technicians.find((tech) => tech.id === selectedTechId) || null;
 
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
     setSelectedTechId(tech?.id || '');
+    // Start with the first item of the category picked once.
+    const first = itemsFor(cat.id)[0];
+    setQty(first ? { [first.code]: 1 } : {});
     const date = firstBookableDate();
     setServiceDate(date);
     setServiceTime(openSlots(date)[0] || VISIT_SLOTS[0]);
@@ -246,7 +265,8 @@ export default function ServicePage() {
   };
 
   const calculateFinalPrice = () => {
-    const basePrice = selectedService?.price || 0;
+    // Itemised once the menu has loaded (0090); category price before that.
+    const basePrice = bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0);
     if (!activePromo) return basePrice;
     if (activePromo.type === 'Percentage') {
       const discount = (basePrice * activePromo.discount) / 100;
@@ -260,6 +280,10 @@ export default function ServicePage() {
     if (!selectedService) return;
     if (!address.trim()) {
       toast.error(t('common.address_required'));
+      return;
+    }
+    if (bookingItems.length > 0 && chosenItems.length === 0) {
+      toast.error(t('service.pick_item'));
       return;
     }
     if (!serviceTime || !openSlots(serviceDate).includes(serviceTime)) {
@@ -299,6 +323,7 @@ export default function ServicePage() {
         // with the same skill.
         metadata: {
           scheduled_at: witaInstant(serviceDate, serviceTime),
+          ...(chosenItems.length > 0 ? { items: chosenItems.map((m) => ({ code: m.code, qty: qty[m.code] })) } : {}),
           ...(selectedTech ? { preferred_partner_id: selectedTech.id } : {}),
         },
         price: finalPrice,
@@ -453,6 +478,53 @@ export default function ServicePage() {
             </Field>
           )}
 
+          {bookingItems.length > 0 && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[13px] font-semibold text-ink">{t('service.items_label')}</legend>
+              <ul className="flex flex-col divide-y divide-line rounded-card border border-line bg-card">
+                {bookingItems.map((item) => {
+                  const n = qty[item.code] || 0;
+                  return (
+                    <li key={item.code} className="flex items-center gap-3 px-3.5 py-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[14px] font-semibold leading-snug text-ink">{item.name}</span>
+                        {item.description && <span className="text-[12px] leading-snug text-ink-muted">{item.description}</span>}
+                        <span className="text-[12.5px] text-ink">
+                          <Money value={Number(item.base_price)} />
+                          {item.unit_label && <span className="text-ink-muted"> / {item.unit_label}</span>}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label={item.name}>
+                        <button
+                          type="button"
+                          onClick={() => changeQty(item, -1)}
+                          disabled={n === 0}
+                          aria-label={t('service.qty_less', { name: item.name })}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong text-ink transition-colors hover:bg-sunken disabled:opacity-40"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="w-6 text-center font-mono text-[15px] font-medium text-ink" aria-live="polite">{n}</span>
+                        <button
+                          type="button"
+                          onClick={() => changeQty(item, 1)}
+                          disabled={n >= (item.max_qty || 10)}
+                          aria-label={t('service.qty_more', { name: item.name })}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-40"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="text-[12px] leading-relaxed text-ink-muted">
+                {withMoney(t('service.extra_note', { fee: SLOT }), checkFee, { className: 'text-ink' })}
+              </p>
+            </fieldset>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('service.date_label')} htmlFor="service-date" required>
               <Input
@@ -555,7 +627,7 @@ export default function ServicePage() {
             <SummaryRow label={t('service.estimate_label')} strong className="text-[14px]">
               <span className="flex flex-col items-end">
                 {activePromo && (
-                  <Money value={selectedService?.price || 0} tone="muted" className="text-[12px] line-through" />
+                  <Money value={bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0)} tone="muted" className="text-[12px] line-through" />
                 )}
                 <Money value={calculateFinalPrice()} className="text-[17px] font-medium" />
               </span>

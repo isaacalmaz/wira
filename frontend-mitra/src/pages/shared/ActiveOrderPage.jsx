@@ -10,6 +10,7 @@ import { updateOrderStatus, updateDriverLocation } from '../../services/orderSer
 import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
 import { getDisplayStatus } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
+import VisitTools from '../../components/shared/VisitTools';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -441,6 +442,8 @@ export default function ActiveOrderPage() {
           {nextStageInfo.label}
         </Button>
       )}
+
+      {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} />}
 
       {isVisit && isDriver && ['accepted', 'on_the_way'].includes(order.status) && (
         <Button variant="secondary" block leftIcon={<Undo2 size={17} />} onClick={() => setReleaseOpen(true)}>

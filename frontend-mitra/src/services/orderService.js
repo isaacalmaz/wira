@@ -434,7 +434,9 @@ const isCashOrder = (order) => order.payment_method === 'cash';
 
 function driverShare(order) {
   if (order.merchant_id) return (order.delivery_fee || 0) * MITRA_SHARE; // food: driver earns the delivery fee only
-  return (order.total_price || 0) * MITRA_SHARE; // ride/send/service/pool: driver earns the whole thing
+  // ride/send/service/pool: 80% of the work, all of the materials (0090)
+  const material = Math.min(Math.max(Number(order.material_amount) || 0, 0), order.total_price || 0);
+  return ((order.total_price || 0) - material) * MITRA_SHARE + material;
 }
 
 function merchantShare(order) {

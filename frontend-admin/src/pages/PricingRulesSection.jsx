@@ -102,7 +102,11 @@ const PricingRulesSection = ({
               const dirty = isDirty(r.id);
               return (
                 <tr key={r.id} className={dirty ? '[&>td]:bg-warning-soft/60' : ''}>
-                  <td className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{r.code}</td>
+                  <td className={cx('whitespace-nowrap font-mono text-[12.5px] text-ink-muted', r.item_of && 'pl-8')}>
+                    {r.item_of && <span className="mr-1.5 text-line-strong" aria-hidden="true">└</span>}
+                    {r.code}
+                    {r.unit_label && <span className="ml-1.5 font-sans text-[11.5px]">/ {r.unit_label}</span>}
+                  </td>
                   <td>
                     <input
                       aria-label={`Nama ${r.code}`}

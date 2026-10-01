@@ -5,11 +5,12 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
+import VisitExtras from '../components/common/VisitExtras';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
 import { useTranslation } from '../i18n';
@@ -25,7 +26,7 @@ const statusTone = (status) => {
   return 'brand';
 };
 
-const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench };
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves };
 
 // Pickup/destination names for the route summary, read from the order's
 // details text (ride = JSON, send = the SendPage template). Returns null
@@ -452,6 +453,8 @@ export default function ActiveOrderPage() {
           </a>
         </Card>
       )}
+
+      {isVisit && <VisitExtras order={order} />}
 
       {/* Order + route summary */}
       <Card className="flex flex-col gap-4">

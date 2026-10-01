@@ -47,7 +47,7 @@ const TechEarningsPage = () => {
       if (!user) return;
       const { data } = await supabase
         .from('orders')
-        .select('total_price, payment_method, created_at, status_changed_at')
+        .select('total_price, material_amount, payment_method, created_at, status_changed_at')
         .eq('driver_id', user.id)
         .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .eq('status', 'completed');

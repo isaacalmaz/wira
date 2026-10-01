@@ -136,9 +136,10 @@ export default function PoolPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
-  const { addOrder } = useOrders();
+  const { addOrder, refreshOrders } = useOrders();
 
   const [selectedService, setSelectedService] = useState(null);
+  const isPackage = selectedService?.id === 'MONTHLY';
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // How many active pool technicians there are (migrations/0089), and the
@@ -274,8 +275,8 @@ export default function PoolPage() {
     }
 
     const finalPrice = calculateFinalPrice();
-    if (paymentMethod === 'WiraPay' && balance < finalPrice) {
-      toast.error(t('pool.insufficient_balance'));
+    if ((isPackage || paymentMethod === 'WiraPay') && balance < finalPrice) {
+      toast.error(isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance'));
       return;
     }
 
@@ -288,6 +289,27 @@ export default function PoolPage() {
         try { point = await fetchCoordinates(address); } catch (geoErr) { console.error('Geocode failed:', geoErr); }
       }
 
+      const details = `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate} pukul ${visitTime}`;
+
+      // Monthly package (migrations/0090): four weekly visits created and
+      // paid with WiraPay in one transaction; each visit is its own order.
+      if (isPackage) {
+        const { error } = await supabase.rpc('create_pool_package', {
+          p_first_visit: witaInstant(visitDate, visitTime),
+          p_title: selectedService.name,
+          p_details: details,
+          p_pickup_lat: point?.lat ?? null,
+          p_pickup_lng: point?.lng ?? null,
+        });
+        if (error) throw error;
+        refreshWallet();
+        refreshOrders();
+        toast.success(t('pool.package_success'));
+        setIsModalOpen(false);
+        navigate('/activity');
+        return;
+      }
+
       const order = await addOrder({
         pickupLat: point?.lat ?? null,
         pickupLng: point?.lng ?? null,
@@ -297,7 +319,7 @@ export default function PoolPage() {
         service: 'WiraPool',
         serviceType: 'pool',
         title: selectedService.name,
-        details: `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate} pukul ${visitTime}`,
+        details,
         // migrations/0089: the visit time technicians and dispatch go by.
         metadata: { scheduled_at: witaInstant(visitDate, visitTime) },
         price: finalPrice,
@@ -397,7 +419,7 @@ export default function PoolPage() {
         onClose={() => setIsModalOpen(false)}
         closeLabel={t('common.close')}
         title={t('pool.booking_title', { service: serviceLabel(selectedService) })}
-        description={t('pool.booking_subtitle')}
+        description={isPackage ? t('pool.package_subtitle') : t('pool.booking_subtitle')}
         footer={
           <>
             <Button variant="secondary" size="lg" onClick={() => setIsModalOpen(false)}>
@@ -411,7 +433,7 @@ export default function PoolPage() {
       >
         <form id="pool-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t('pool.visit_date')} htmlFor="pool-date" required>
+            <Field label={isPackage ? t('pool.first_visit') : t('pool.visit_date')} htmlFor="pool-date" required>
               <Input
                 id="pool-date"
                 type="date"
@@ -484,21 +506,22 @@ export default function PoolPage() {
                 title="WiraPay"
                 subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
               />
-              <ChoiceCard
+              {!isPackage && <ChoiceCard
                 selected={paymentMethod === 'QRIS'}
                 onClick={() => setPaymentMethod('QRIS')}
                 leading={<IconTile tone="neutral" size="sm"><QrCode size={18} /></IconTile>}
                 title={t('common.pay_qris')}
                 subtitle={t('common.pay_qris_desc')}
-              />
+              />}
             </div>
-            {paymentMethod === 'WiraPay' && balance < calculateFinalPrice() && (
-              <Notice tone="danger">{t('pool.insufficient_balance')}</Notice>
+            {(isPackage || paymentMethod === 'WiraPay') && balance < calculateFinalPrice() && (
+              <Notice tone="danger">{isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance')}</Notice>
             )}
+            {isPackage && <p className="text-[12px] leading-relaxed text-ink-muted">{t('pool.package_wirapay_only')}</p>}
           </div>
 
-          {/* Kode Promo */}
-          <PromoField
+          {/* Kode Promo (not for the package: four orders, one price) */}
+          {!isPackage && <PromoField
             t={t}
             id="pool-promo"
             activePromo={activePromo}
@@ -508,7 +531,7 @@ export default function PoolPage() {
             onRemove={handleRemovePromo}
             checking={checkingPromo}
             error={promoError}
-          />
+          />}
 
           <dl className="flex flex-col rounded-card border border-line bg-card p-4 text-[13px]">
             <SummaryRow label={t('pool.total_label')} strong className="text-[14px]">
