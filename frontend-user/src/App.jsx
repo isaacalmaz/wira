@@ -31,6 +31,9 @@ const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
 const TechnicianDirectoryPage = lazy(() => import('./pages/technicians/TechnicianDirectoryPage'));
 const TechnicianProfilePage = lazy(() => import('./pages/technicians/TechnicianProfilePage'));
+const MyProjectsPage = lazy(() => import('./pages/projects/MyProjectsPage'));
+const NewProjectPage = lazy(() => import('./pages/projects/NewProjectPage'));
+const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
 const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
@@ -75,6 +78,9 @@ export default function Root() {
                             <Route path="/pool" element={<PoolPage />} />
                             <Route path="/technicians" element={<TechnicianDirectoryPage />} />
                             <Route path="/technicians/:id" element={<TechnicianProfilePage />} />
+                            <Route path="/projects" element={<MyProjectsPage />} />
+                            <Route path="/projects/new" element={<NewProjectPage />} />
+                            <Route path="/projects/:id" element={<ProjectDetailPage />} />
                             
                             {/* Legal & Bantuan */}
                             <Route path="/support" element={<SupportPage />} />

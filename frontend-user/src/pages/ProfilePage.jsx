@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "react-hot-toast";
-import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil } from 'lucide-react';
+import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 
@@ -95,6 +95,13 @@ export default function ProfilePage() {
             title={t('profile.saved_addresses')}
             chevron
             onClick={() => navigate('/profile/addresses')}
+          />
+          <ListRow
+            className={rowCls}
+            leading={lead(ClipboardList)}
+            title={t('profile.my_projects')}
+            chevron
+            onClick={() => navigate('/projects')}
           />
         </Card>
 

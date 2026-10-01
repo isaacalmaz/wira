@@ -41,6 +41,7 @@ const TechEarningsPage = () => {
   const [weekTotal, setWeekTotal] = useState(0);
   const [cashDeduction, setCashDeduction] = useState(0);
   const [chartData, setChartData] = useState([]);
+  const [projectIncome, setProjectIncome] = useState({ week: 0, total: 0 }); // migrations/0093
 
   useEffect(() => {
     const fetchEarnings = async () => {
@@ -96,6 +97,19 @@ const TechEarningsPage = () => {
       }
     };
     fetchEarnings();
+    // Released project stages (90% after Wira's 10% project commission).
+    supabase.from('project_milestones').select('amount, released_at, projects!inner(awarded_to)')
+      .eq('status', 'released').eq('projects.awarded_to', user?.id)
+      .then(({ data }) => {
+        const weekAgo = Date.now() - 7 * 86400000;
+        let week = 0; let total = 0;
+        (data || []).forEach((m) => {
+          const net = Number(m.amount) * 0.9;
+          total += net;
+          if (new Date(m.released_at).getTime() >= weekAgo) week += net;
+        });
+        setProjectIncome({ week, total });
+      });
   }, [user]);
 
   const activeDays = chartData.filter((d) => d.amount !== 0).slice().reverse();
@@ -109,6 +123,15 @@ const TechEarningsPage = () => {
           <Stat label="Pendapatan Hari Ini" value={<SignedMoney value={todayTotal} />} icon={<Wallet size={18} />} tone="pay" />
           <Stat label="7 Hari Terakhir" value={<SignedMoney value={weekTotal} />} icon={<TrendingUp size={18} />} tone="pay" />
         </div>
+        {projectIncome.total > 0 && (
+          <Stat
+            label="Pendapatan Proyek (7 hari)"
+            value={<SignedMoney value={projectIncome.week} />}
+            icon={<TrendingUp size={18} />}
+            tone="pay"
+            hint={<>Total dari proyek: <SignedMoney value={projectIncome.total} className="font-medium text-ink" /></>}
+          />
+        )}
         {cashDeduction > 0 && (
           <Card padding="md" className="flex flex-col gap-2">
             <div className="flex items-start justify-between gap-3">

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Inbox, Wrench, History } from 'lucide-react';
+import { Inbox, Wrench, History, ClipboardList } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { EmptyState, PageHeader, Segmented, Spinner } from '../../components/ui';
+import { Badge, Card, EmptyState, Money, PageHeader, Segmented, Spinner } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -27,13 +27,17 @@ const TechOrdersPage = () => {
   const [myJobs, setMyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [takingId, setTakingId] = useState(null);
+  const [projects, setProjects] = useState([]); // migrations/0093
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [open, mine] = await Promise.all([fetchOpenJobs(supabase), fetchMyJobs(supabase, user.id)]);
+      const [open, mine, proj] = await Promise.all([
+        fetchOpenJobs(supabase), fetchMyJobs(supabase, user.id), supabase.rpc('get_technician_projects'),
+      ]);
       setOpenJobs(open);
       setMyJobs(mine);
+      setProjects(proj.data || []);
     } catch (err) {
       console.error('Technician jobs load failed:', err);
       toast.error('Daftar pekerjaan belum bisa dimuat. Periksa koneksi Anda.');
@@ -95,15 +99,45 @@ const TechOrdersPage = () => {
         ariaLabel="Jenis pekerjaan"
         value={tab}
         onChange={setTab}
+        scroll
         className="w-full"
         options={[
           { value: 'open', label: `Tersedia${openJobs.length ? ` (${openJobs.length})` : ''}` },
           { value: 'active', label: `Aktif${active.length ? ` (${active.length})` : ''}` },
+          { value: 'projects', label: `Proyek${projects.filter((p) => p.status === 'open' && !p.my_quote_id).length ? ` (${projects.filter((p) => p.status === 'open' && !p.my_quote_id).length})` : ''}` },
           { value: 'history', label: 'Riwayat' },
         ]}
       />
 
-      {loading ? (
+      {tab === 'projects' ? (
+        loading ? (
+          <div className="flex justify-center py-12 text-brand-ink"><Spinner size={24} label="Memuat proyek" /></div>
+        ) : projects.length === 0 ? (
+          <EmptyState
+            icon={<ClipboardList size={24} />}
+            title="Belum ada proyek"
+            description="Proyek besar sesuai keahlian Anda muncul di sini. Hanya teknisi terverifikasi yang bisa mengajukan penawaran."
+          />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {projects.map((p) => (
+              <Card key={p.id} as="button" type="button" onClick={() => navigate(`/technician/projects/${p.id}`)} className="flex w-full flex-col items-start gap-1.5 text-left transition-colors hover:bg-sunken/40">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {p.awarded_to_me ? <Badge tone="success" dot>Proyek Anda</Badge>
+                    : p.my_quote_id ? <Badge tone="warning" dot>Penawaran {p.my_quote_status === 'submitted' ? 'terkirim' : p.my_quote_status}</Badge>
+                    : <Badge tone="brand" dot>Terbuka</Badge>}
+                  <span className="text-[12px] text-ink-muted">{p.area} · {p.quote_count} penawaran</span>
+                </span>
+                <span className="text-[15px] font-bold text-ink">{p.title}</span>
+                <span className="line-clamp-2 text-[12.5px] leading-snug text-ink-muted">{p.description}</span>
+                {(p.budget_min || p.budget_max) && (
+                  <span className="text-[12.5px] text-ink">Anggaran <Money value={Number(p.budget_min || 0)} /> – <Money value={Number(p.budget_max || p.budget_min)} /></span>
+                )}
+              </Card>
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <div className="flex justify-center py-12 text-brand-ink"><Spinner size={24} label="Memuat pekerjaan" /></div>
       ) : list.length > 0 ? (
         <div className="flex flex-col gap-3">

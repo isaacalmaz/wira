@@ -17,6 +17,7 @@ import {
   Tag,
   LogOut,
   Star,
+  ClipboardList,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import WiraMark from '../brand/WiraMark';
@@ -31,6 +32,7 @@ export const MENU_ITEMS = [
   { name: 'Feature Flags', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
   { name: 'Users', icon: Users, path: '/users', roles: CS_ADMIN_ROLES, group: 'operasional' },
   { name: 'Orders', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
+  { name: 'Proyek', icon: ClipboardList, path: '/projects', roles: CORE_ADMIN_ROLES, group: 'operasional' },
   { name: 'Drivers', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
   { name: 'Merchants', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
   { name: 'Technicians', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },

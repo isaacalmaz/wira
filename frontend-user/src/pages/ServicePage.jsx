@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star, ClipboardList } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -407,6 +407,19 @@ export default function ServicePage() {
           );
         })}
       </div>
+
+      {/* Big jobs: quotes instead of a fixed price (migrations/0093) */}
+      <Card className="flex flex-col gap-3 border-brand-line bg-brand-soft/40 sm:flex-row sm:items-center">
+        <IconTile tone="brand"><ClipboardList size={20} /></IconTile>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="text-[14px] font-bold text-ink">{t('service.project_title')}</p>
+          <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('service.project_desc')}</p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="secondary" onClick={() => navigate('/projects')}>{t('service.project_mine')}</Button>
+          <Button onClick={() => navigate('/projects/new')}>{t('service.project_cta')}</Button>
+        </div>
+      </Card>
 
       {/* Teknisi aktif */}
       {technicians.length > 0 && (

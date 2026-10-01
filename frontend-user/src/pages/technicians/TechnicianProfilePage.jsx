@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { CalendarCheck, ChevronLeft, Languages, MapPin, Star, Wrench } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from '../../i18n';
-import { Badge, Button, Card, EmptyState, Notice, Sheet, Spinner } from '../../components/ui';
+import { Badge, Button, Card, EmptyState, Sheet, Spinner } from '../../components/ui';
 import { NEGATIVE_TAGS } from '../../utils/review';
 import { Avatar, BOOKABLE, RatingLine, TrustBadges } from './shared';
 
@@ -192,8 +192,11 @@ export default function TechnicianProfilePage() {
             <Button size="lg" block leftIcon={<CalendarCheck size={18} />} onClick={onBook}>
               {t('partners.book', { name: tech.name.split(' ')[0] })}
             </Button>
-          ) : (
-            <Notice tone="info">{t('partners.project_soon')}</Notice>
+          ) : null}
+          {projectSkills.length > 0 && (
+            <Button size="lg" block variant={bookable.length > 0 ? 'secondary' : 'primary'} onClick={() => navigate(`/projects/new?skill=${projectSkills[0]}`)}>
+              {t('partners.project_cta')}
+            </Button>
           )}
         </div>
       </div>

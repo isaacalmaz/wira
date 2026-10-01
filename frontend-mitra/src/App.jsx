@@ -31,6 +31,7 @@ const TechOrdersPage = lazy(() => import('./pages/technician/TechOrdersPage'));
 const TechSchedulePage = lazy(() => import('./pages/technician/TechSchedulePage'));
 const TechEarningsPage = lazy(() => import('./pages/technician/TechEarningsPage'));
 const TechProfilePage = lazy(() => import('./pages/technician/TechProfilePage'));
+const TechProjectPage = lazy(() => import('./pages/technician/TechProjectPage'));
 
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const ActiveOrderPage = lazy(() => import('./pages/shared/ActiveOrderPage'));
@@ -148,6 +149,7 @@ function App() {
                 <Route path="orders" element={<TechOrdersPage />} />
                 <Route path="schedule" element={<TechSchedulePage />} />
                 <Route path="earnings" element={<TechEarningsPage />} />
+                <Route path="projects/:id" element={<TechProjectPage />} />
                 <Route path="profile" element={<TechProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
