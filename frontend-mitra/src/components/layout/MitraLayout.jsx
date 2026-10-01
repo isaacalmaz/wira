@@ -1,3 +1,4 @@
+import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut } from 'lucide-react';
@@ -17,6 +18,7 @@ const MitraLayout = ({ children }) => {
   const { logout, mitraAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const online = useOnlineStatus();
 
   // Ekstrak role aktif saat ini dari URL (contoh: /driver/orders -> driver).
   // Semua route di App.jsx berakar langsung di /driver, /merchant, /technician
@@ -84,6 +86,11 @@ const MitraLayout = ({ children }) => {
 
   return (
     <div className="flex min-h-[100dvh] bg-ground">
+      {!online && (
+        <div role="status" className="fixed inset-x-0 top-0 z-[60] bg-warning px-4 py-2 text-center text-[13px] font-semibold text-white">
+          Anda sedang offline. Lokasi dan status pesanan dikirim lagi begitu sinyal kembali.
+        </div>
+      )}
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col h-screen sticky top-0 bg-card border-r border-line">
         <div className="px-5 pt-6 pb-4 flex flex-col gap-6 min-h-0 flex-1">

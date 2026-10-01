@@ -41,7 +41,8 @@
     "saved_addresses": "Alamat Tersimpan",
     "saved_address_no_coords": "Alamat ini belum punya titik peta tersimpan",
     "map_pin_hint": "Geser pin di peta untuk menandai titik yang tepat.",
-    "address_required": "Isi alamat lokasi pekerjaan dulu."
+    "address_required": "Isi alamat lokasi pekerjaan dulu.",
+    "offline_banner": "Anda sedang offline. Periksa koneksi internet Anda."
   },
   "status": {
     "awaiting_payment": "Menunggu Pembayaran",

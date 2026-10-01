@@ -23,12 +23,25 @@ const UsersPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCorrectionConfirmOpen, setIsCorrectionConfirmOpen] = useState(false);
 
+  const [customerRatings, setCustomerRatings] = useState({});
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       if (data) setUsers(data);
+      // Partners' private ratings of customers (migrations/0091), core
+      // admins only; empty for other roles.
+      const { data: cr } = await supabase.from('customer_ratings').select('customer_id, rating, note, created_at').order('created_at', { ascending: false });
+      const byCustomer = {};
+      (cr || []).forEach((r) => {
+        const e = byCustomer[r.customer_id] || (byCustomer[r.customer_id] = { sum: 0, count: 0, notes: [] });
+        e.sum += r.rating;
+        e.count += 1;
+        if (r.note && e.notes.length < 3) e.notes.push(r.note);
+      });
+      setCustomerRatings(byCustomer);
     } catch (err) {
       console.error(err);
       toast.error('Gagal mengambil data pengguna');
@@ -187,7 +200,22 @@ const UsersPage = () => {
               const isActive = (u.status || 'Aktif') === 'Aktif';
               return (
               <tr key={u.id}>
-                <td className="whitespace-nowrap font-semibold">{u.name}</td>
+                <td className="whitespace-nowrap font-semibold">
+                  <div className="flex flex-col items-start gap-1">
+                    {u.name}
+                    {customerRatings[u.id] && (() => {
+                      const r = customerRatings[u.id];
+                      const avg = r.sum / r.count;
+                      return (
+                        <span title={r.notes.length ? `Catatan mitra: ${r.notes.join(' · ')}` : 'Penilaian dari mitra (tidak dilihat pelanggan)'}>
+                          <Badge tone={avg < 3 ? 'danger' : avg < 4 ? 'warning' : 'neutral'}>
+                            Dinilai mitra {avg.toFixed(1)} ({r.count})
+                          </Badge>
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </td>
                 <td className="text-ink-muted">{u.email}</td>
                 <td className="whitespace-nowrap font-mono text-[12.5px]">{u.phone}</td>
                 <td className="text-right"><Money value={u.wallet_balance || 0} /></td>

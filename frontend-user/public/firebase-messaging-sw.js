@@ -14,14 +14,36 @@ firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
+// Messages with a `notification` part (everything the Wira backend sends)
+// are shown by the Firebase SDK itself; showing them here too made every
+// push appear twice. Only data-only messages are drawn by hand.
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
+  if (payload.notification) return;
+  const data = payload.data || {};
+  self.registration.showNotification(data.title || 'Wira', {
+    body: data.body || '',
     icon: '/icons/icon-192.png',
-    badge: '/icons/badge-96.png'
-  };
+    badge: '/icons/badge-96.png',
+    data
+  });
+});
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+
+// Tapping a notification opens the page it is about (data.url), reusing an
+// open Wira tab when there is one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const url = (data.FCM_MSG && data.FCM_MSG.data && data.FCM_MSG.data.url) || data.url || '/';
+  event.waitUntil((async () => {
+    const tabs = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const tab of tabs) {
+      if (new URL(tab.url).origin === self.location.origin) {
+        await tab.focus();
+        if ('navigate' in tab) await tab.navigate(url);
+        return;
+      }
+    }
+    await clients.openWindow(url);
+  })());
 });

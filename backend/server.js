@@ -71,6 +71,7 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/midtrans', require('./routes/midtrans'));
 app.use('/api/mutasiku', require('./routes/mutasiku'));
 app.use('/api/dispatch', require('./routes/dispatch.routes'));
+app.use('/api/push', require('./routes/push.routes'));
 
 // Handler untuk rute yang tidak ditemukan
 app.use((req, res) => {

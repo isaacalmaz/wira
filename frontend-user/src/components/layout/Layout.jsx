@@ -1,5 +1,7 @@
+import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n';
 import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
@@ -9,6 +11,8 @@ export default function Layout() {
   const location = useLocation();
   const isFullScreenPage = ['/ride'].includes(location.pathname);
   const { isAuthenticated, loading } = useAuth();
+  const online = useOnlineStatus();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
@@ -24,6 +28,11 @@ export default function Layout() {
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-ground">
+      {!online && (
+        <div role="status" className="fixed inset-x-0 top-0 z-[60] bg-warning px-4 py-2 text-center text-[13px] font-semibold text-white">
+          {t('common.offline_banner')}
+        </div>
+      )}
       {/* Desktop sidebar */}
       <div className="hidden md:block w-64 flex-shrink-0">
         <Sidebar />
