@@ -40,7 +40,8 @@
     "use_current_location": "Use My Location",
     "saved_addresses": "Saved Addresses",
     "saved_address_no_coords": "This address has no map point saved yet",
-    "map_pin_hint": "Drag the pin on the map to mark the exact spot."
+    "map_pin_hint": "Drag the pin on the map to mark the exact spot.",
+    "address_required": "Enter the address where the work is needed."
   },
   "status": {
     "awaiting_payment": "Awaiting Payment",

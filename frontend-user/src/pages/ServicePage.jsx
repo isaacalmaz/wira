@@ -22,6 +22,10 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
+import AddressMapPicker from '../components/common/AddressMapPicker';
+import AddressNoteField from '../components/common/AddressNoteField';
+import { withAddressNote } from '../utils/addressNote';
+import { fetchCoordinates } from '../utils/osmHelpers';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -173,6 +177,8 @@ export default function ServicePage() {
 
   // Form State
   const [address, setAddress] = useState('');
+  const [addressCoords, setAddressCoords] = useState(null);
+  const [addressNote, setAddressNote] = useState('');
   const [serviceDate, setServiceDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -252,6 +258,10 @@ export default function ServicePage() {
   const handleConfirmOrder = async (e) => {
     e.preventDefault();
     if (!selectedService) return;
+    if (!address.trim()) {
+      toast.error(t('common.address_required'));
+      return;
+    }
 
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
@@ -261,14 +271,23 @@ export default function ServicePage() {
 
     setLoading(true);
     try {
+      // The pinned point (search, GPS or dragged pin) locates the job for
+      // dispatch; a typed address without a pin is geocoded best-effort.
+      let point = addressCoords;
+      if (!point) {
+        try { point = await fetchCoordinates(address); } catch (geoErr) { console.error('Geocode failed:', geoErr); }
+      }
+
       const order = await addOrder({
+        pickupLat: point?.lat ?? null,
+        pickupLng: point?.lng ?? null,
         // WiraPay is charged by create_order_and_pay in the same DB transaction
         // as the order insert, for the server-computed price (migrations/0070).
         paymentDescription: `WiraService - ${selectedService.name}`,
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
-        details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${address}`
+        details: `Teknisi: ${selectedTech?.name || 'Mitra Wira'} • Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
           + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : ''),
         price: finalPrice,
         paymentMethod: paymentMethod,
@@ -436,16 +455,26 @@ export default function ServicePage() {
             </Field>
           </div>
 
-          <Field label={t('service.address_label')} htmlFor="service-address" required>
-            <Textarea
-              id="service-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder={t('service.address_placeholder')}
-              rows={2}
-              required
-            />
-          </Field>
+          <AddressMapPicker
+            id="service-address"
+            label={t('service.address_label')}
+            placeholder={t('service.address_placeholder')}
+            address={address}
+            onAddressChange={setAddress}
+            coords={addressCoords}
+            onCoordsChange={setAddressCoords}
+            onNoteChange={setAddressNote}
+            markerType="dropoff"
+            pinLabel={t('service.address_label')}
+          />
+          <AddressNoteField
+            id="service-address-note"
+            address={address}
+            lat={addressCoords?.lat}
+            lng={addressCoords?.lng}
+            note={addressNote}
+            onNoteChange={setAddressNote}
+          />
 
           <Field label={t('service.complaint_label')} htmlFor="service-notes">
             <Input

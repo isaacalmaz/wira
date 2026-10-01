@@ -21,6 +21,10 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
+import AddressMapPicker from '../components/common/AddressMapPicker';
+import AddressNoteField from '../components/common/AddressNoteField';
+import { withAddressNote } from '../utils/addressNote';
+import { fetchCoordinates } from '../utils/osmHelpers';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -150,6 +154,8 @@ export default function PoolPage() {
 
   // Form State
   const [address, setAddress] = useState('');
+  const [addressCoords, setAddressCoords] = useState(null);
+  const [addressNote, setAddressNote] = useState('');
   // Stored on the order for the technician, so the value stays Indonesian;
   // the options below show a translated label.
   const [poolSize, setPoolSize] = useState('Sedang (20-50 m²)');
@@ -239,6 +245,10 @@ export default function PoolPage() {
   const handleConfirmOrder = async (e) => {
     e.preventDefault();
     if (!selectedService) return;
+    if (!address.trim()) {
+      toast.error(t('common.address_required'));
+      return;
+    }
 
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
@@ -248,14 +258,23 @@ export default function PoolPage() {
 
     setLoading(true);
     try {
+      // The pinned point (search, GPS or dragged pin) locates the job for
+      // dispatch; a typed address without a pin is geocoded best-effort.
+      let point = addressCoords;
+      if (!point) {
+        try { point = await fetchCoordinates(address); } catch (geoErr) { console.error('Geocode failed:', geoErr); }
+      }
+
       const order = await addOrder({
+        pickupLat: point?.lat ?? null,
+        pickupLng: point?.lng ?? null,
         // WiraPay is charged by create_order_and_pay in the same DB transaction
         // as the order insert, for the server-computed price (migrations/0070).
         paymentDescription: `WiraPool - ${selectedService.name}`,
         service: 'WiraPool',
         serviceType: 'pool',
         title: selectedService.name,
-        details: `Ukuran: ${poolSize} • Lokasi: ${address} • Kunjungan: ${visitDate}`,
+        details: `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate}`,
         price: finalPrice,
         paymentMethod: paymentMethod,
         // selectedService.id matches pricing_rules.code for
@@ -399,16 +418,26 @@ export default function PoolPage() {
             </div>
           </div>
 
-          <Field label={t('pool.address_label')} htmlFor="pool-address" required>
-            <Textarea
-              id="pool-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder={t('pool.address_placeholder')}
-              rows={2}
-              required
-            />
-          </Field>
+          <AddressMapPicker
+            id="pool-address"
+            label={t('pool.address_label')}
+            placeholder={t('pool.address_placeholder')}
+            address={address}
+            onAddressChange={setAddress}
+            coords={addressCoords}
+            onCoordsChange={setAddressCoords}
+            onNoteChange={setAddressNote}
+            markerType="dropoff"
+            pinLabel={t('pool.address_label')}
+          />
+          <AddressNoteField
+            id="pool-address-note"
+            address={address}
+            lat={addressCoords?.lat}
+            lng={addressCoords?.lng}
+            note={addressNote}
+            onNoteChange={setAddressNote}
+          />
 
           {/* Metode Pembayaran */}
           <div className="flex flex-col gap-2">
