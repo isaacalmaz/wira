@@ -5,12 +5,14 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
 import VisitExtras from '../components/common/VisitExtras';
+import ReviewModal from '../components/common/ReviewModal';
+import { canReview } from '../utils/review';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
 import { useTranslation } from '../i18n';
@@ -85,6 +87,7 @@ export default function ActiveOrderPage() {
   const chatRef = useRef(null);
   // UI only: the cancel confirmation sheet and the chat section anchor.
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   // Re-evaluates the cancellation window (3 min / 20 min after acceptance)
   // while a partner is on the way.
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -147,8 +150,11 @@ export default function ActiveOrderPage() {
     const channel = supabase.channel(`order_${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, (payload) => {
         setOrder(prev => ({ ...prev, ...payload.new }));
-        if (['cancelled', 'completed'].includes(payload.new.status)) {
-          toast(payload.new.status === 'completed' ? t('order.completed_toast') : t('order.cancelled_toast'));
+        if (payload.new.status === 'completed') {
+          // Stay on the page: it now asks for a review (0091).
+          toast(t('order.completed_toast'));
+        } else if (payload.new.status === 'cancelled') {
+          toast(t('order.cancelled_toast'));
           setTimeout(() => navigate('/'), 2000);
         }
       })
@@ -452,6 +458,26 @@ export default function ActiveOrderPage() {
             <Phone size={19} />
           </a>
         </Card>
+      )}
+
+      {canReview(order) && (
+        <Card className="flex flex-col items-center gap-3 border-2 border-pay-line text-center">
+          <div className="flex gap-0.5 text-pay" aria-hidden="true">
+            {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={22} className="fill-pay" />)}
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-[15px] font-bold text-ink">{t('order.review_prompt_title')}</p>
+            <p className="text-[13px] leading-relaxed text-ink-muted">{t('order.review_prompt_desc')}</p>
+          </div>
+          <Button block onClick={() => setReviewOpen(true)}>{t('activity.review_cta')}</Button>
+        </Card>
+      )}
+      {reviewOpen && (
+        <ReviewModal
+          order={order}
+          onClose={() => setReviewOpen(false)}
+          onSuccess={() => setOrder((prev) => ({ ...prev, is_reviewed: true }))}
+        />
       )}
 
       {isVisit && <VisitExtras order={order} />}

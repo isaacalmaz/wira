@@ -1,4 +1,5 @@
 import ReviewModal from "../components/common/ReviewModal";
+import { canReview } from "../utils/review";
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Card, EmptyState, IconTile, Money, PageHeader, Segmented, Sheet } from '../components/ui';
@@ -64,7 +65,7 @@ function ReceiptRow({ label, children, strong = false }) {
 export default function ActivityPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { orders } = useOrders();
+  const { orders, refreshOrders } = useOrders();
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [reviewingOrder, setReviewingOrder] = useState(null);
@@ -181,13 +182,13 @@ export default function ActivityPage() {
           selectedOrder && (
             <>
               <Button
-                variant={selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name ? 'secondary' : 'primary'}
+                variant={canReview(selectedOrder) ? 'secondary' : 'primary'}
                 size="lg"
                 onClick={() => setSelectedOrder(null)}
               >
                 {t('activity.close_receipt')}
               </Button>
-              {selectedOrder.rawStatus === 'completed' && !selectedOrder.is_reviewed && selectedOrder.driver_name && (
+              {canReview(selectedOrder) && (
                 <Button
                   size="lg"
                   leftIcon={<Star size={18} />}
@@ -237,10 +238,8 @@ export default function ActivityPage() {
           order={reviewingOrder} 
           onClose={() => setReviewingOrder(null)}
           onSuccess={() => {
-            // Optimistically update order context is ideal, 
-            // but for now it'll fetch again on next mount/socket
             setReviewingOrder(null);
-            window.location.reload();
+            refreshOrders();
           }}
         />
       )}

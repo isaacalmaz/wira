@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star } from 'lucide-react';
 import {
+  Badge,
   Button,
   Card,
   Sheet,
@@ -419,6 +420,13 @@ export default function ServicePage() {
                       {skillNames.join(', ') || t('service.general_category')}
                       {tech.experience_years ? ` • ${t('service.experience_years', { count: tech.experience_years })}` : ''}
                     </p>
+                    {tech.rating_count >= 3 && (
+                      <p className="inline-flex flex-wrap items-center gap-1.5 text-[12px] font-semibold text-ink">
+                        <Star size={13} className="fill-pay text-pay" aria-hidden="true" />
+                        {t('service.rating_line', { avg: Number(tech.rating_avg).toFixed(1), count: tech.rating_count })}
+                        {tech.top_rated && <Badge tone="pay">{t('service.top_rated')}</Badge>}
+                      </p>
+                    )}
                     {tech.jobs_completed > 0 ? (
                       <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-ink">
                         <BadgeCheck size={13} aria-hidden="true" />

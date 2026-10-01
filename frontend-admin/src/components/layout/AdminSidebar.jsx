@@ -16,6 +16,7 @@ import {
   Settings,
   Tag,
   LogOut,
+  Star,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import WiraMark from '../brand/WiraMark';
@@ -34,6 +35,7 @@ export const MENU_ITEMS = [
   { name: 'Merchants', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
   { name: 'Technicians', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
   { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },

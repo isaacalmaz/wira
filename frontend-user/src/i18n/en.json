@@ -296,7 +296,9 @@
     "qty_less": "Fewer {{name}}",
     "qty_more": "More {{name}}",
     "pick_item": "Choose at least one job.",
-    "extra_note": "Materials and parts (refrigerant, pipes, cables) are paid separately, only after you approve them in the app. If you cancel after the technician has come and checked, a check fee of {{fee}} applies."
+    "extra_note": "Materials and parts (refrigerant, pipes, cables) are paid separately, only after you approve them in the app. If you cancel after the technician has come and checked, a check fee of {{fee}} applies.",
+    "rating_line": "{{avg}} · {{count}} reviews",
+    "top_rated": "Top Rated"
   },
   "pool": {
     "title": "WiraPool — Swimming Pool Care",
@@ -490,7 +492,7 @@
     "payment_label": "Paid with",
     "status_label": "Status",
     "total_label": "Total",
-    "review_cta": "Leave a Review & Tip",
+    "review_cta": "Leave a Review",
     "close_receipt": "Close",
     "route_pickup": "Pickup",
     "route_dropoff": "Destination"
@@ -550,7 +552,9 @@
     "visit_scheduled": "Visit: {{time}} WITA",
     "pin_label_visit": "Give this PIN to the technician when they arrive, so they can start:",
     "cancel_desc_visit": "Cancelling is free, and a WiraPay payment goes back to your balance.",
-    "cancel_desc_visit_late": "The technician is more than an hour late, so cancelling is free."
+    "cancel_desc_visit_late": "The technician is more than an hour late, so cancelling is free.",
+    "review_prompt_title": "Order finished. How did it go?",
+    "review_prompt_desc": "Your review helps other customers choose a partner and helps Wira keep quality high."
   },
   "review": {
     "title": "Leave a Review",
@@ -558,12 +562,40 @@
     "star_label": "Give {{count}} stars",
     "comment_label": "Comment (optional)",
     "comment_placeholder": "Tell us how it went...",
-    "tip_label": "Tip your driver (from your WiraPay balance)",
+    "tip_label": "Tip your partner (from WiraPay balance)",
     "tip_none": "No tip",
     "no_rating": "Pick a star rating for this order first.",
     "submit": "Send Review",
     "success": "Thank you for your review!",
-    "failed": "Your review didn't send: {{message}}"
+    "failed": "Your review didn't send: {{message}}",
+    "rating_word": {
+      "1": "Very poor",
+      "2": "Poor",
+      "3": "Okay",
+      "4": "Good",
+      "5": "Excellent"
+    },
+    "tags_good": "What was best?",
+    "tags_bad": "What went wrong?",
+    "tag": {
+      "tepat_waktu": "On time",
+      "rapi": "Neat & clean",
+      "ramah": "Friendly",
+      "harga_sesuai": "Fair price",
+      "ahli": "Skilled",
+      "komunikatif": "Communicative",
+      "terlambat": "Late",
+      "kurang_rapi": "Untidy",
+      "minta_biaya_tambahan": "Asked for extra money",
+      "tidak_tuntas": "Job not finished",
+      "kurang_sopan": "Impolite"
+    },
+    "photos_label": "Photos (optional, up to 3)",
+    "photo_add": "Add",
+    "photo_alt": "Review photo {{n}}",
+    "photo_remove": "Remove photo {{n}}",
+    "photo_too_big": "Photos can be up to 10 MB.",
+    "session_expired": "Your session ended. Sign in again to send the review."
   },
   "chat": {
     "title_with_name": "Chat with {{name}}",

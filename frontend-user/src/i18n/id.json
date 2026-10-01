@@ -296,7 +296,9 @@
     "qty_less": "Kurangi {{name}}",
     "qty_more": "Tambah {{name}}",
     "pick_item": "Pilih minimal satu pekerjaan.",
-    "extra_note": "Bahan dan suku cadang (freon, pipa, kabel) dibayar terpisah, hanya setelah Anda setujui di aplikasi. Bila pekerjaan batal setelah teknisi datang dan mengecek, dikenakan biaya cek {{fee}}."
+    "extra_note": "Bahan dan suku cadang (freon, pipa, kabel) dibayar terpisah, hanya setelah Anda setujui di aplikasi. Bila pekerjaan batal setelah teknisi datang dan mengecek, dikenakan biaya cek {{fee}}.",
+    "rating_line": "{{avg}} · {{count}} ulasan",
+    "top_rated": "Top Rated"
   },
   "pool": {
     "title": "WiraPool — Perawatan Kolam Renang",
@@ -490,7 +492,7 @@
     "payment_label": "Metode bayar",
     "status_label": "Status",
     "total_label": "Total biaya",
-    "review_cta": "Beri Ulasan & Tip",
+    "review_cta": "Beri Ulasan",
     "close_receipt": "Tutup Rincian",
     "route_pickup": "Titik jemput",
     "route_dropoff": "Tujuan"
@@ -550,7 +552,9 @@
     "visit_scheduled": "Jadwal kunjungan: {{time}} WITA",
     "pin_label_visit": "Berikan PIN ini kepada teknisi saat tiba, untuk mulai bekerja:",
     "cancel_desc_visit": "Pembatalan gratis, dan pembayaran WiraPay dikembalikan ke saldo Anda.",
-    "cancel_desc_visit_late": "Teknisi terlambat lebih dari 1 jam, jadi pembatalan gratis."
+    "cancel_desc_visit_late": "Teknisi terlambat lebih dari 1 jam, jadi pembatalan gratis.",
+    "review_prompt_title": "Pesanan selesai. Bagaimana hasilnya?",
+    "review_prompt_desc": "Ulasan Anda membantu pelanggan lain memilih mitra dan membantu Wira menjaga kualitas."
   },
   "review": {
     "title": "Beri Ulasan",
@@ -558,12 +562,40 @@
     "star_label": "Beri {{count}} bintang",
     "comment_label": "Komentar (opsional)",
     "comment_placeholder": "Ceritakan pengalaman Anda...",
-    "tip_label": "Beri tip untuk driver (dari saldo WiraPay)",
+    "tip_label": "Beri tip untuk mitra (dari saldo WiraPay)",
     "tip_none": "Tanpa Tip",
     "no_rating": "Pilih dulu berapa bintang untuk pesanan ini.",
     "submit": "Kirim Ulasan",
     "success": "Terima kasih atas ulasan Anda!",
-    "failed": "Ulasan belum terkirim: {{message}}"
+    "failed": "Ulasan belum terkirim: {{message}}",
+    "rating_word": {
+      "1": "Sangat buruk",
+      "2": "Kurang",
+      "3": "Cukup",
+      "4": "Bagus",
+      "5": "Luar biasa"
+    },
+    "tags_good": "Apa yang paling bagus?",
+    "tags_bad": "Apa yang kurang?",
+    "tag": {
+      "tepat_waktu": "Tepat waktu",
+      "rapi": "Rapi & bersih",
+      "ramah": "Ramah",
+      "harga_sesuai": "Harga sesuai",
+      "ahli": "Ahli di bidangnya",
+      "komunikatif": "Komunikatif",
+      "terlambat": "Terlambat",
+      "kurang_rapi": "Kurang rapi",
+      "minta_biaya_tambahan": "Minta biaya tambahan",
+      "tidak_tuntas": "Pekerjaan tidak tuntas",
+      "kurang_sopan": "Kurang sopan"
+    },
+    "photos_label": "Foto (opsional, maks. 3)",
+    "photo_add": "Tambah",
+    "photo_alt": "Foto ulasan {{n}}",
+    "photo_remove": "Hapus foto {{n}}",
+    "photo_too_big": "Ukuran foto maksimal 10 MB.",
+    "session_expired": "Sesi Anda berakhir. Masuk lagi untuk mengirim ulasan."
   },
   "chat": {
     "title_with_name": "Obrolan dengan {{name}}",

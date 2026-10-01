@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
-import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil } from 'lucide-react';
+import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import { ConfirmModal } from '../components/common/UIComponents';
@@ -22,6 +22,7 @@ const TechniciansPage = () => {
   // Skills (migrations/0089): what each technician is offered.
   const [skillList, setSkillList] = useState([]);
   const [profiles, setProfiles] = useState({});
+  const [ratings, setRatings] = useState({}); // migrations/0091
   const [skillTarget, setSkillTarget] = useState(null); // { id, name, skills }
   const [savingSkills, setSavingSkills] = useState(false);
   const skillName = (code) => skillList.find((sk) => sk.code === code)?.name || code;
@@ -50,6 +51,8 @@ const TechniciansPage = () => {
       ]);
       setSkillList((skillRows || []).filter((sk) => sk.is_active));
       setProfiles(Object.fromEntries((profileRows || []).map((p) => [p.user_id, p])));
+      const { data: ratingRows } = await supabase.rpc('admin_technician_ratings');
+      setRatings(Object.fromEntries((ratingRows || []).map((r) => [r.user_id, r])));
     } catch (err) {
       console.error(err);
       toast.error('Gagal memuat data');
@@ -223,6 +226,7 @@ const TechniciansPage = () => {
               <th>Email</th>
               <th>Telepon</th>
               <th>Keahlian</th>
+              <th>Rating</th>
               <th>Status</th>
               <th className="text-right">Aksi</th>
             </tr>
@@ -252,6 +256,24 @@ const TechniciansPage = () => {
                       )}
                     </div>
                   </td>
+                  <td className="whitespace-nowrap">
+                    {ratings[t.id]?.rating_count > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center gap-1 font-mono text-[13px] font-medium text-ink">
+                          <Star size={13} className="fill-pay text-pay" aria-hidden="true" />
+                          {Number(ratings[t.id].rating_avg).toFixed(1)}
+                          <span className="font-sans text-[12px] text-ink-muted">({ratings[t.id].rating_count})</span>
+                        </span>
+                        {(ratings[t.id].low_ratings_30d > 0 || (ratings[t.id].rating_count >= 5 && Number(ratings[t.id].recent_avg) < 4.5)) && (
+                          <Badge tone="danger">
+                            {ratings[t.id].low_ratings_30d > 0 ? `${ratings[t.id].low_ratings_30d} ulasan buruk (30 hari)` : 'Rating turun'}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[12.5px] text-ink-muted">Belum ada</span>
+                    )}
+                  </td>
                   <td>
                     <Badge tone={isActive ? 'success' : 'danger'} dot>{t.status || 'Aktif'}</Badge>
                   </td>
@@ -270,7 +292,7 @@ const TechniciansPage = () => {
             })}
             {techs.length === 0 && (
               <tr>
-                <td colSpan="6" className="py-10 text-center text-ink-muted">Tidak ada teknisi aktif</td>
+                <td colSpan="7" className="py-10 text-center text-ink-muted">Tidak ada teknisi aktif</td>
               </tr>
             )}
           </tbody>

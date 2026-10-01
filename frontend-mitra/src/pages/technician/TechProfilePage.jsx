@@ -8,6 +8,7 @@ import { supabase } from '../../config/supabase';
 import { fetchMyApplication } from '../../services/mitraApplicationService';
 import { fetchMyTechnicianProfile } from '../../services/technicianService';
 import useSkills from '../../hooks/useSkills';
+import ReviewsSection from '../../components/shared/ReviewsSection';
 
 const TechProfilePage = () => {
   const { user, logout } = useAuth();
@@ -24,12 +25,11 @@ const TechProfilePage = () => {
     fetchMyApplication(supabase, user.id, ['technician'])
       .then((app) => setExperience(app?.experience ? `${app.experience} Tahun` : ''))
       .catch(() => {});
-    // Real reviews from customers (public.reviews, driver_id = technician).
-    supabase.from('reviews').select('rating').eq('driver_id', user.id)
+    // Visible reviews only (hidden ones no longer count, migrations/0091).
+    supabase.rpc('partner_rating', { p_user_id: user.id })
       .then(({ data }) => {
-        const rows = data || [];
-        const avg = rows.length ? rows.reduce((sum, r) => sum + Number(r.rating || 0), 0) / rows.length : null;
-        setRating({ avg, count: rows.length });
+        const row = data?.[0];
+        setRating({ avg: row?.rating_avg != null ? Number(row.rating_avg) : null, count: row?.rating_count || 0 });
       });
   }, [user]);
 
@@ -76,6 +76,8 @@ const TechProfilePage = () => {
         {experience && <p className="text-[13px] font-semibold text-ink-muted">Pengalaman: <span className="font-mono">{experience}</span></p>}
         <p className="text-[12.5px] leading-relaxed text-ink-muted">Ingin menambah keahlian? Hubungi admin Wira lewat menu Bantuan.</p>
       </Card>
+
+      {user && <ReviewsSection userId={user.id} />}
 
       <Card padding="none">
         <div className="flex flex-col gap-3 border-b border-line p-4">

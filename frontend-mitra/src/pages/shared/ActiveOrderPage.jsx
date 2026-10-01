@@ -11,6 +11,7 @@ import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../
 import { getDisplayStatus } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
+import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -114,7 +115,10 @@ export default function ActiveOrderPage() {
         setOrder(prev => ({ ...prev, ...payload.new }));
         if (['cancelled', 'completed'].includes(payload.new.status)) {
           toast(payload.new.status === 'completed' ? 'Pesanan Selesai!' : 'Pesanan Dibatalkan');
-          setTimeout(() => navigate(-1), 2000);
+          // A finished visit stays open so the technician can rate the
+          // customer (migrations/0091); everything else goes back.
+          const visitDone = payload.new.status === 'completed' && ['service', 'pool'].includes(payload.new.service_type);
+          if (!visitDone) setTimeout(() => navigate(-1), 2000);
         }
       })
       .subscribe();
@@ -444,6 +448,8 @@ export default function ActiveOrderPage() {
       )}
 
       {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} />}
+
+      {isVisit && isDriver && order.status === 'completed' && <CustomerRatingCard order={order} />}
 
       {isVisit && isDriver && ['accepted', 'on_the_way'].includes(order.status) && (
         <Button variant="secondary" block leftIcon={<Undo2 size={17} />} onClick={() => setReleaseOpen(true)}>
