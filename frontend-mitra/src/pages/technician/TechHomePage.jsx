@@ -5,7 +5,7 @@ import { Calendar, BellRing, Wallet, Inbox, ChevronRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { technicianEarnedAmount } from '../../services/orderService';
+import { technicianEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import {
   ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchMyTechnicianProfile, fetchOpenJobs, setAccepting,
   subscribeToVisitChanges, takeJob, visitInfo, takePackage, groupOpenJobs,
@@ -65,6 +65,7 @@ const TechHomePage = () => {
   const load = useCallback(async () => {
     if (!user) return;
     try {
+      await loadCommissionRates(supabase);
       const [open, mine] = await Promise.all([fetchOpenJobs(supabase), fetchMyJobs(supabase, user.id)]);
       // A new job appeared since the last refresh: say so.
       if (knownOpen.current && open.some((j) => !knownOpen.current.has(j.id))) {

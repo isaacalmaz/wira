@@ -6,7 +6,7 @@ import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
-import { updateOrderStatus, driverEarnedAmount } from '../../services/orderService';
+import { updateOrderStatus, driverEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 
 // ---- Presentational helpers (Tenun Laut) ----
@@ -43,6 +43,7 @@ const DriverOrdersPage = () => {
   const fetchOrders = async () => {
     if (!user) return;
     setLoading(true);
+    await loadCommissionRates(supabase);
     const { data } = await supabase
       .from('orders')
       .select('*')

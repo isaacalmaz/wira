@@ -412,12 +412,50 @@ export async function completeOrder(supabaseClient, orderId, partnerId, mode = '
 }
 
 /**
+ * Commission rates are set by admins per service (commission_rates,
+ * migrations/0099). A completed order carries the rate it was charged
+ * (orders.commission_rate); orders completed before 0099 have none and
+ * were charged villa 5% / everything else 20%; an order still in progress
+ * is shown at today's rate. Call loadCommissionRates() before computing
+ * shares (it fetches once and caches).
+ */
+const isVillaOrder = (order) => order.service_type === 'villa' || order.service_type === 'WiraVilla';
+const DEFAULT_RATES = { ride: 0.2, send: 0.2, food: 0.2, villa: 0.05, service: 0.2, pool: 0.2, project: 0.1 };
+const RATE_ALIASES = { WiraRide: 'ride', WiraSend: 'send', WiraFood: 'food', WiraVilla: 'villa', WiraService: 'service', WiraPool: 'pool' };
+const rates = { ...DEFAULT_RATES };
+let ratesPromise = null;
+
+export function loadCommissionRates(supabaseClient) {
+  if (!ratesPromise) {
+    ratesPromise = supabaseClient
+      .from('commission_rates')
+      .select('service_type, rate')
+      .then(({ data, error }) => {
+        if (error) { ratesPromise = null; return rates; }
+        (data || []).forEach((r) => { rates[r.service_type] = Number(r.rate); });
+        return rates;
+      }, () => { ratesPromise = null; return rates; });
+  }
+  return ratesPromise;
+}
+
+/** Today's rate for a service (0.2 = Wira keeps 20%). */
+export function commissionRate(serviceType) {
+  const key = RATE_ALIASES[serviceType] || serviceType;
+  return rates[key] ?? 0.2;
+}
+
+function orderRate(order) {
+  if (order.commission_rate !== null && order.commission_rate !== undefined) return Number(order.commission_rate);
+  if (order.status === 'completed') return isVillaOrder(order) ? 0.05 : 0.2;
+  return commissionRate(order.service_type);
+}
+
+/**
  * These mirror migrations/0028_mitra_payout_system.sql's
  * credit_payout_on_order_completed trigger, as amended by
- * migrations/0075_cash_orders_commission_debt.sql, EXACTLY (20% platform
- * commission, i.e. mitra keep 80%; villas 5% since migrations/0098, see
- * platform_commission_rate) - keep them in sync if that trigger's math ever
- * changes. Earnings screens across the mitra app must show what
+ * migrations/0075_cash_orders_commission_debt.sql and 0099 (per-order rate
+ * above) - keep them in sync if that trigger's math ever changes. Earnings screens across the mitra app must show what
  * the trigger actually credited, not raw order.total_price (which
  * double-counts: for a food order, total_price is the whole meal+delivery
  * bill, but the merchant only ever earns the food portion and the driver
@@ -432,22 +470,20 @@ export async function completeOrder(supabaseClient, orderId, partnerId, mode = '
  * payable_balance change; cashCommissionDeduction is the owed part alone.
  * Orders must be selected with payment_method (and driver_id for merchants).
  */
-const MITRA_SHARE = 0.8;
-// Villa hosts keep 95% (migrations/0098). Orders must carry service_type.
-const VILLA_SHARE = 0.95;
-const isVillaOrder = (order) => order.service_type === 'villa' || order.service_type === 'WiraVilla';
+// Orders must be selected with service_type, status and commission_rate.
 
 const isCashOrder = (order) => order.payment_method === 'cash';
 
 function driverShare(order) {
-  if (order.merchant_id) return (order.delivery_fee || 0) * MITRA_SHARE; // food: driver earns the delivery fee only
-  // ride/send/service/pool: 80% of the work, all of the materials (0090)
+  const share = 1 - orderRate(order);
+  if (order.merchant_id) return (order.delivery_fee || 0) * share; // food: driver earns the delivery fee only
+  // ride/send/service/pool: the work minus commission, all of the materials (0090)
   const material = Math.min(Math.max(Number(order.material_amount) || 0, 0), order.total_price || 0);
-  return ((order.total_price || 0) - material) * MITRA_SHARE + material;
+  return ((order.total_price || 0) - material) * share + material;
 }
 
 function merchantShare(order) {
-  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * (isVillaOrder(order) ? VILLA_SHARE : MITRA_SHARE);
+  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * (1 - orderRate(order));
 }
 
 // The assigned driver collects the cash; only with no driver does the merchant.

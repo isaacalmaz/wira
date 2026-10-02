@@ -221,7 +221,7 @@ const FinancePage = () => {
           hint="Seluruh pesanan selesai"
         />
         <Stat
-          label="Estimasi Komisi Aplikasi (20%, villa 5%)"
+          label="Komisi Aplikasi"
           value={<Money value={commission ?? revenue * PLATFORM_COMMISSION_RATE} />}
           icon={<Percent size={18} />}
           tone="pay"

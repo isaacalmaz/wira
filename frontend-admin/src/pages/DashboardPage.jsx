@@ -269,7 +269,7 @@ const DashboardPage = () => {
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Pesanan Hari Ini" value={stats.ordersToday.toLocaleString('id-ID')} icon={<ShoppingBag size={18} />} hint="Semua status layanan" />
         <Stat label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
-        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi: 20%, villa 5%" />
+        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi per layanan (menu Komisi)" />
         <Stat label="Menunggu Verifikasi" value={pendingApps.length.toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={pendingApps.length > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
         <Stat label="Total Pengguna" value={stats.users.toLocaleString('id-ID')} icon={<Users size={18} />} tone="neutral" hint="Aktif" />
         <Stat label="Total Driver" value={stats.drivers.toLocaleString('id-ID')} icon={<Car size={18} />} tone="neutral" hint="Aktif" />

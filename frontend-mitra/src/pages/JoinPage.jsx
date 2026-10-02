@@ -7,19 +7,18 @@ import {
 import { Card, IconTile, cx } from '../components/ui';
 import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
+import { loadCommissionRates, commissionRate } from '../services/orderService';
 
-// Wira's cut (credit_payout_on_order_completed, migrations/0075/0090/0098):
-// 20% of rides, deliveries, food (excl. delivery fee) and service work;
-// 5% of villa rent; materials pass through untouched. Projects: 10% (0093).
-const SHARE = 0.8;
-const VILLA_SHARE = 0.95;
+// Wira's cut per service is set by admins (commission_rates, migrations/
+// 0099); texts below carry {cut:service} / {keep:service} placeholders that
+// are filled with the live percentages. Materials are never cut.
 const rupiah = (n) => `Rp ${Math.round(Number(n) || 0).toLocaleString('id-ID')}`;
 
 const ROLES = {
   driver: {
     key: 'driver', register: 'driver', icon: Bike, label: 'Driver', sub: 'Ojek, kurir & antar makanan',
     headline: 'Antar penumpang, paket dan makanan di sekitar Anda.',
-    intro: 'Pakai motor atau mobil sendiri. Pesanan ditawarkan ke driver terdekat, tarif dihitung otomatis, dan Anda menerima 80% dari tarif.',
+    intro: 'Pakai motor atau mobil sendiri. Pesanan ditawarkan ke driver terdekat, tarif dihitung otomatis, dan Anda menerima {keep:ride} dari tarif.',
     benefits: [
       { icon: Navigation, title: 'Pesanan terdekat dulu', text: 'Sistem menawarkan pesanan ke driver yang paling dekat dengan titik jemput, satu per satu.' },
       { icon: Bike, title: 'Pilih layanan sendiri', text: 'WiraRide (penumpang), WiraSend (paket) dan antar WiraFood. Mobil untuk WiraRide.' },
@@ -50,7 +49,7 @@ const ROLES = {
       { icon: Bike, title: 'Tidak perlu kurir sendiri', text: 'Begitu pesanan siap, driver Wira terdekat datang mengambil dan mengantar.' },
       { icon: Wallet, title: 'Pembayaran aman', text: 'Pelanggan membayar lewat WiraPay atau QRIS sebelum Anda memasak.' },
       { icon: Star, title: 'Ulasan membangun nama', text: 'Rating dan ulasan pelanggan membantu warung Anda dipilih lebih sering.' },
-      { icon: Banknote, title: 'Potongan jelas', text: '20% dari harga makanan. Ongkos kirim untuk driver, tidak dipotong dari bagian Anda.' },
+      { icon: Banknote, title: 'Potongan jelas', text: '{cut:food} dari harga makanan. Ongkos kirim untuk driver, tidak dipotong dari bagian Anda.' },
     ],
     needs: [
       { icon: Store, text: 'Nama usaha dan alamat dapur/warung' },
@@ -74,7 +73,7 @@ const ROLES = {
       { icon: Wallet, title: 'Dibayar di muka', text: 'Tamu membayar lewat WiraPay atau QRIS saat memesan; Anda tinggal menyiapkan kamar.' },
       { icon: CalendarCheck, title: 'Terima atau tolak pesanan', text: 'Setiap pesanan masuk ke aplikasi untuk Anda konfirmasi.' },
       { icon: Star, title: 'Ulasan tamu', text: 'Ulasan yang baik membuat penginapan Anda lebih dipercaya.' },
-      { icon: Banknote, title: 'Potongan jelas', text: 'Hanya 5% dari nilai sewa. Tidak ada biaya pendaftaran atau biaya bulanan.' },
+      { icon: Banknote, title: 'Potongan jelas', text: '{cut:villa} dari nilai sewa. Tidak ada biaya pendaftaran atau biaya bulanan.' },
     ],
     needs: [
       { icon: Building2, text: 'Nama penginapan dan alamat lengkap' },
@@ -96,7 +95,7 @@ const ROLES = {
       { icon: CalendarCheck, title: 'Pekerjaan sesuai keahlian', text: 'Pesanan sesuai keahlian dan wilayah Anda muncul di aplikasi, lengkap dengan jadwal dan rincian.' },
       { icon: Banknote, title: 'Harga jelas', text: 'Daftar harga per pekerjaan sudah tetap. Bahan diajukan terpisah dan disetujui pelanggan di aplikasi.' },
       { icon: Wallet, title: 'Uang bahan 100% untuk Anda', text: 'Pelanggan membayar lewat WiraPay; bahan dan suku cadang tidak dipotong sama sekali.' },
-      { icon: ClipboardList, title: 'Proyek lewat penawaran', text: 'Renovasi, terazzo, cat villa: kirim penawaran sendiri, dibayar bertahap (DP + termin) dengan potongan 10%.' },
+      { icon: ClipboardList, title: 'Proyek lewat penawaran', text: 'Renovasi, terazzo, cat villa: kirim penawaran sendiri, dibayar bertahap (DP + termin) dengan potongan {cut:project}.' },
       { icon: Star, title: 'Reputasi yang terlihat', text: 'Ulasan, portofolio foto dan badge Terverifikasi membuat Anda dipilih lebih dulu.' },
       { icon: ShieldCheck, title: 'Tetap dibayar bila batal di lokasi', text: 'Pelanggan batal setelah Anda datang dan mengecek? Anda tetap mendapat biaya cek.' },
     ],
@@ -114,6 +113,8 @@ const ROLES = {
   },
 };
 const ORDER = ['driver', 'merchant', 'villa', 'technician'];
+// Service whose commission applies to a role's example earnings.
+const ROLE_SERVICE = { driver: 'ride', merchant: 'food', villa: 'villa', technician: 'service' };
 // Short words for shareable links: /gabung?jenis=teknisi
 const ALIAS = { driver: 'driver', restoran: 'merchant', merchant: 'merchant', villa: 'villa', teknisi: 'technician', technician: 'technician' };
 const SLUG = { driver: 'driver', merchant: 'restoran', villa: 'villa', technician: 'teknisi' };
@@ -140,6 +141,12 @@ export default function JoinPage() {
   const role = ROLES[active];
   const [tariffs, setTariffs] = useState({ vehicles: [], send: [], food: null, service: [] });
   const [skills, setSkills] = useState([]);
+  const [, setRatesLoaded] = useState(false);
+  useEffect(() => { loadCommissionRates(supabase).then(() => setRatesLoaded(true)); }, []);
+  const pct = (rate) => `${(Math.round(rate * 10000) / 100).toLocaleString('id-ID')}%`;
+  const fill = (text) => text
+    .replace(/\{cut:(\w+)\}/g, (_, k) => pct(commissionRate(k)))
+    .replace(/\{keep:(\w+)\}/g, (_, k) => pct(1 - commissionRate(k)));
 
   useEffect(() => {
     Promise.all([
@@ -168,11 +175,11 @@ export default function JoinPage() {
       const rows = [];
       const motor = ride('motor', 5);
       const mobil = ride('mobil', 5);
-      if (motor) rows.push({ label: 'WiraRide motor, 5 km', price: motor });
-      if (mobil) rows.push({ label: 'WiraRide mobil, 5 km', price: mobil });
+      if (motor) rows.push({ label: 'WiraRide motor, 5 km', price: motor, svc: 'ride' });
+      if (mobil) rows.push({ label: 'WiraRide mobil, 5 km', price: mobil, svc: 'ride' });
       const parcel = tariffs.send.find((r) => r.code === 'kecil') || tariffs.send[0];
-      if (parcel) rows.push({ label: `WiraSend ${parcel.name.toLowerCase()}`, price: parcel.base_price });
-      if (tariffs.food) rows.push({ label: 'Antar WiraFood, 3 km', price: Number(tariffs.food.base_price) + 3 * Number(tariffs.food.per_km_rate) });
+      if (parcel) rows.push({ label: `WiraSend ${parcel.name.toLowerCase()}`, price: parcel.base_price, svc: 'send' });
+      if (tariffs.food) rows.push({ label: 'Antar WiraFood, 3 km', price: Number(tariffs.food.base_price) + 3 * Number(tariffs.food.per_km_rate), svc: 'food' });
       return rows;
     }
     if (active === 'merchant') {
@@ -247,7 +254,7 @@ export default function JoinPage() {
           <div className="flex flex-1 flex-col items-start gap-4">
             <IconTile tone="brand"><RoleIcon size={20} /></IconTile>
             <h2 className="text-balance text-[26px] font-extrabold leading-tight tracking-tight text-ink">{role.headline}</h2>
-            <p className="max-w-xl text-[15px] leading-relaxed text-ink-muted">{role.intro}</p>
+            <p className="max-w-xl text-[15px] leading-relaxed text-ink-muted">{fill(role.intro)}</p>
             <Link to={`/register?role=${role.register}`} className={cta}>Daftar sebagai {role.label}</Link>
           </div>
           {examples.length > 0 && (
@@ -258,17 +265,17 @@ export default function JoinPage() {
                   <li key={e.label} className="flex items-baseline justify-between gap-3 py-2.5 text-[14px]">
                     <span className="min-w-0 text-ink">{e.label}</span>
                     <span className="shrink-0 text-right">
-                      <span className="block font-mono font-medium text-ink">{rupiah(Number(e.price) * (active === 'villa' ? VILLA_SHARE : SHARE))}</span>
+                      <span className="block font-mono font-medium text-ink">{rupiah(Number(e.price) * (1 - commissionRate(e.svc || ROLE_SERVICE[active])))}</span>
                       <span className="block text-[11.5px] text-ink-muted">dari {rupiah(e.price)}</span>
                     </span>
                   </li>
                 ))}
               </ul>
               <p className="mt-2 text-[12px] leading-relaxed text-ink-muted">
-                {active === 'driver' && 'Yang Anda terima setelah potongan 20%. Tarif mengikuti jarak dan bisa berubah.'}
-                {active === 'merchant' && 'Bagian Anda dari harga makanan setelah potongan 20%. Ongkos kirim untuk driver.'}
-                {active === 'villa' && 'Bagian Anda dari nilai sewa setelah potongan 5%.'}
-                {active === 'technician' && 'Yang Anda terima per pekerjaan setelah potongan 20%. Bahan dibayar terpisah, tanpa potongan; proyek dipotong 10%.'}
+                {active === 'driver' && fill('Yang Anda terima setelah potongan Wira. Tarif mengikuti jarak dan bisa berubah.')}
+                {active === 'merchant' && fill('Bagian Anda dari harga makanan setelah potongan {cut:food}. Ongkos kirim untuk driver.')}
+                {active === 'villa' && fill('Bagian Anda dari nilai sewa setelah potongan {cut:villa}.')}
+                {active === 'technician' && fill('Yang Anda terima per pekerjaan setelah potongan {cut:service}. Bahan dibayar terpisah, tanpa potongan; proyek dipotong {cut:project}.')}
               </p>
             </Card>
           )}
@@ -281,7 +288,7 @@ export default function JoinPage() {
               <Card key={title} className="flex flex-col gap-2.5">
                 <IconTile tone="brand" size="sm"><Icon size={18} /></IconTile>
                 <h3 className="text-[15px] font-bold text-ink">{title}</h3>
-                <p className="text-[13.5px] leading-relaxed text-ink-muted">{text}</p>
+                <p className="text-[13.5px] leading-relaxed text-ink-muted">{fill(text)}</p>
               </Card>
             ))}
           </div>

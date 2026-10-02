@@ -5,7 +5,7 @@ import EarningsCard from '../../components/shared/EarningsCard';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { merchantEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { merchantEarnedAmount, cashCommissionDeduction, loadCommissionRates } from '../../services/orderService';
 import useMyMerchants from '../../hooks/useMyMerchants';
 
 const MerchantEarningsPage = () => {
@@ -21,10 +21,11 @@ const MerchantEarningsPage = () => {
   useEffect(() => {
     const fetchEarnings = async () => {
       if (!user || !idsKey) return;
+      await loadCommissionRates(supabase);
 
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, payment_method, driver_id, created_at, title, merchant_id, service_type')
+        .select('total_price, delivery_fee, payment_method, driver_id, created_at, title, merchant_id, service_type, status, commission_rate')
         .in('merchant_id', idsKey.split(','))
         .eq('status', 'completed');
 

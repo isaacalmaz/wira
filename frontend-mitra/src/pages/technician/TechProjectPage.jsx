@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../../components/ui';
 import useSkills from '../../hooks/useSkills';
+import { loadCommissionRates, commissionRate } from '../../services/orderService';
 
-const COMMISSION = 0.1; // migrations/0093 project_commission_rate
 const PLANS = {
   '30-40-30': [{ label: 'DP', percent: 30 }, { label: 'Pengerjaan', percent: 40 }, { label: 'Pelunasan', percent: 30 }],
   '50-50': [{ label: 'DP', percent: 50 }, { label: 'Pelunasan', percent: 50 }],
@@ -90,6 +90,9 @@ export default function TechProjectPage() {
   const [project, setProject] = useState(null);
   const [quote, setQuote] = useState(null);
   const [stages, setStages] = useState([]);
+  // Wira's cut: fixed on the project once awarded (migrations/0099),
+  // otherwise today's project rate set by admins.
+  const [awardedRate, setAwardedRate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -100,6 +103,7 @@ export default function TechProjectPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
+    await loadCommissionRates(supabase);
     const { data: list } = await supabase.rpc('get_technician_projects');
     const p = (list || []).find((x) => x.id === id) || null;
     setProject(p);
@@ -108,6 +112,8 @@ export default function TechProjectPage() {
     if (p?.awarded_to_me) {
       const { data: m } = await supabase.from('project_milestones').select('*').eq('project_id', id).order('seq');
       setStages(m || []);
+      const { data: pr } = await supabase.from('projects').select('commission_rate').eq('id', id).maybeSingle();
+      setAwardedRate(pr?.commission_rate != null ? Number(pr.commission_rate) : null);
     }
     setLoading(false);
   }, [id, user]);
@@ -121,6 +127,9 @@ export default function TechProjectPage() {
       items: (quote.line_items || []).map((li) => ({ label: li.label, amount: String(li.amount) })),
     } : { total: '', timeline: '', start: '', warranty: '30', materials: true, message: '', plan: PLANS['30-40-30'], items: [] });
   };
+
+  const cut = awardedRate ?? commissionRate('project');
+  const cutLabel = `${(Math.round(cut * 10000) / 100).toLocaleString('id-ID')}%`;
 
   const itemsSum = (form?.items || []).reduce((s, li) => s + (Number(li.amount) || 0), 0);
 
@@ -261,7 +270,7 @@ export default function TechProjectPage() {
                     </span>
                     <span className="flex shrink-0 flex-col items-end">
                       <Money value={Number(s.amount)} className="text-[15px] font-medium text-ink" />
-                      <span className="text-[11.5px] text-ink-muted">Anda terima <Money value={Math.round(Number(s.amount) * (1 - COMMISSION))} /></span>
+                      <span className="text-[11.5px] text-ink-muted">Anda terima <Money value={Math.round(Number(s.amount) * (1 - cut))} /></span>
                     </span>
                   </div>
                   {s.status === 'funded' && <Button onClick={() => { setReport(s); setNote(''); setPhotos([]); }} leftIcon={<Upload size={16} />}>Laporkan Tahap Selesai</Button>}
@@ -289,7 +298,7 @@ export default function TechProjectPage() {
         dismissible={!saving}
         size="lg"
         title="Penawaran harga"
-        description="Pelanggan membandingkan sampai 5 penawaran. Harga sudah termasuk komisi Wira 10%."
+        description={`Pelanggan membandingkan sampai 5 penawaran. Harga sudah termasuk komisi Wira ${cutLabel}.`}
         footer={form && (
           <>
             <Button variant="secondary" onClick={() => setForm(null)} disabled={saving}>Batal</Button>
@@ -357,7 +366,7 @@ export default function TechProjectPage() {
               <Textarea id="q-msg" rows={3} maxLength={1000} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
             </Field>
             {formTotal > 0 && (
-              <p className="text-[12.5px] text-ink-muted">Bila dipilih, Anda menerima <Money value={Math.round(formTotal * (1 - COMMISSION))} className="text-ink" /> setelah komisi 10%.</p>
+              <p className="text-[12.5px] text-ink-muted">Bila dipilih, Anda menerima <Money value={Math.round(formTotal * (1 - cut))} className="text-ink" /> setelah komisi {cutLabel}.</p>
             )}
           </form>
         )}

@@ -5,7 +5,7 @@ import { Card, PageHeader, SectionHeader, Segmented, Stat, Money, IconTile, List
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { driverEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { driverEarnedAmount, cashCommissionDeduction, loadCommissionRates } from '../../services/orderService';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
@@ -69,9 +69,10 @@ const DriverEarningsPage = () => {
   useEffect(() => {
     const fetchEarnings = async () => {
       if (!user) return;
+      await loadCommissionRates(supabase);
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, merchant_id, payment_method, created_at')
+        .select('total_price, delivery_fee, merchant_id, payment_method, created_at, service_type, status, commission_rate')
         .eq('driver_id', user.id)
         .eq('status', 'completed');
         

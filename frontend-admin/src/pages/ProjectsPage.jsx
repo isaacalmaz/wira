@@ -133,7 +133,7 @@ export default function ProjectsPage() {
         size="sm"
         tone={decide?.action === 'refund' ? 'danger' : 'default'}
         title={decide?.action === 'release' ? 'Cairkan ke teknisi?' : 'Kembalikan ke pelanggan?'}
-        description={decide ? `${decide.stage.label}: ${decide.action === 'release' ? 'teknisi menerima 90% (komisi Wira 10%).' : 'seluruh nominal kembali ke saldo WiraPay pelanggan.'} Keputusan dicatat dan dikirim ke kedua pihak.` : ''}
+        description={decide ? `${decide.stage.label}: ${decide.action === 'release' ? 'dana cair ke teknisi setelah dipotong komisi proyek yang berlaku saat proyek diterima.' : 'seluruh nominal kembali ke saldo WiraPay pelanggan.'} Keputusan dicatat dan dikirim ke kedua pihak.` : ''}
         footer={(
           <>
             <Button variant="secondary" onClick={() => setDecide(null)} disabled={busy}>Batal</Button>

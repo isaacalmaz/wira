@@ -18,6 +18,7 @@ import {
   LogOut,
   Star,
   ClipboardList,
+  Percent,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import WiraMark from '../brand/WiraMark';
@@ -39,6 +40,7 @@ export const MENU_ITEMS = [
   { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'Komisi', icon: Percent, path: '/commission', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: CS_ADMIN_ROLES, group: 'layanan' },

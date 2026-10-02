@@ -13,6 +13,7 @@ import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
   subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
   driverEarnedAmount,
+  loadCommissionRates,
 } from '../../services/orderService';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
@@ -133,6 +134,7 @@ const DriverHomePage = () => {
   useEffect(() => {
     const fetchDriverStats = async () => {
       if (!user) return;
+      await loadCommissionRates(supabase);
       const { data } = await supabase
         .from('orders')
         .select('*')

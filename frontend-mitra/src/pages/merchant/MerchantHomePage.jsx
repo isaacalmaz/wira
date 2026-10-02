@@ -7,7 +7,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
 import useMyMerchants from '../../hooks/useMyMerchants';
 
@@ -82,9 +82,10 @@ const MerchantHomePage = () => {
   useEffect(() => {
     const fetchStats = async () => {
       if (!idsKey) return;
+      await loadCommissionRates(supabase);
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, payment_method, driver_id, status, service_type')
+        .select('total_price, delivery_fee, payment_method, driver_id, status, service_type, commission_rate')
         .in('merchant_id', idsKey.split(','))
         .gte('created_at', new Date().toISOString().split('T')[0]);
 
@@ -173,9 +174,9 @@ const MerchantHomePage = () => {
         toast.success('Reservasi Selesai!');
         setTodayOrders(prev => prev + 1);
         // Villa's delivery_fee is always 0, so merchantEarnedAmount here is
-        // total_price * 0.95 (5% commission since migrations/0098), or -5% of
-        // total_price for a Tunai booking the merchant collected in cash
-        // (migrations/0075) - not the raw total_price this used to add.
+        // total_price minus the villa commission (admin-set, migrations/0099),
+        // or minus the whole price plus that share for a Tunai booking the
+        // merchant collected in cash (migrations/0075).
         setTodayEarnings(prev => prev + merchantEarnedAmount(activeOrder));
       } else {
         // Food: this button means "I've finished preparing it," NOT "hand

@@ -5,7 +5,7 @@ import { Card, PageHeader, Stat, Money, ListRow } from '../../components/ui';
 import PayoutPanel from '../../components/shared/PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { technicianEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { technicianEarnedAmount, cashCommissionDeduction, loadCommissionRates } from '../../services/orderService';
 
 // Matches TechOrdersPage.jsx/TechHomePage.jsx's real filter list - previously
 // this page only queried service_type 'service', silently excluding 'pool'
@@ -46,9 +46,10 @@ const TechEarningsPage = () => {
   useEffect(() => {
     const fetchEarnings = async () => {
       if (!user) return;
+      await loadCommissionRates(supabase);
       const { data } = await supabase
         .from('orders')
-        .select('total_price, material_amount, payment_method, created_at, status_changed_at')
+        .select('total_price, material_amount, payment_method, created_at, status_changed_at, service_type, status, commission_rate')
         .eq('driver_id', user.id)
         .in('service_type', TECHNICIAN_SERVICE_TYPES)
         .eq('status', 'completed');
@@ -97,14 +98,15 @@ const TechEarningsPage = () => {
       }
     };
     fetchEarnings();
-    // Released project stages (90% after Wira's 10% project commission).
-    supabase.from('project_milestones').select('amount, released_at, projects!inner(awarded_to)')
+    // Released project stages, minus the commission fixed when the project
+    // was awarded (projects.commission_rate, migrations/0099; 10% before).
+    supabase.from('project_milestones').select('amount, released_at, projects!inner(awarded_to, commission_rate)')
       .eq('status', 'released').eq('projects.awarded_to', user?.id)
       .then(({ data }) => {
         const weekAgo = Date.now() - 7 * 86400000;
         let week = 0; let total = 0;
         (data || []).forEach((m) => {
-          const net = Number(m.amount) * 0.9;
+          const net = Number(m.amount) * (1 - Number(m.projects?.commission_rate ?? 0.1));
           total += net;
           if (new Date(m.released_at).getTime() >= weekAgo) week += net;
         });
