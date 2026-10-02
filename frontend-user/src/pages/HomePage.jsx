@@ -221,7 +221,7 @@ export default function HomePage() {
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
       {/* Banner Download */}
-      <section className="mb-4">
+      <section className="mb-4 md:hidden">
         <Link to="/install" className="flex w-full items-center justify-between rounded-xl bg-brand-soft px-4 py-3 text-brand-ink transition-colors hover:bg-brand-soft/80 border border-brand-line">
           <div className="flex flex-col">
             <span className="text-[13.5px] font-bold">Aplikasi Wira Tersedia!</span>

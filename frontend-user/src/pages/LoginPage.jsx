@@ -85,7 +85,7 @@ export default function LoginPage() {
         <Link to="/register" className="inline-flex min-h-11 items-center font-semibold text-brand-ink hover:underline">{t('auth.register_link')}</Link>
       </p>
 
-      <div className="mt-4 text-center text-[13px] text-ink-muted">
+      <div className="mt-4 text-center text-[13px] text-ink-muted md:hidden">
         <p>Aplikasi untuk Pelanggan & Mitra juga tersedia</p>
         <Link to="/install" className="inline-flex min-h-[32px] items-center font-bold text-brand-ink hover:underline">Unduh Aplikasinya</Link>
       </div>
