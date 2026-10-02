@@ -1,22 +1,33 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { ShoppingBag, Search } from 'lucide-react';
 import { Badge, Card, EmptyState, Input, Money, PageHeader, Select, Spinner, Table } from '../components/ui';
 import { orderStatusLabel } from '../config/orderStatus';
 import StaleOrdersPanel from '../components/common/StaleOrdersPanel';
+import OrderDetailSheet from '../components/common/OrderDetailSheet';
+
+const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa' };
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [serviceFilter, setServiceFilter] = useState('all');
+  // ?id=<order> opens that order (links from the dashboard and alerts).
+  const [params, setParams] = useSearchParams();
+  const openId = params.get('id');
+  const openOrder = (id) => setParams(id ? { id } : {}, { replace: !id });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchOrders = async () => {
     setLoading(true);
     // Kita ambil juga data user dan driver agar tau nama pelakunya
     const { data } = await supabase.from('orders')
       .select('*, user:users!user_id(name), driver:users!driver_id(name)')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     if (data) setOrders(data);
     setLoading(false);
@@ -41,6 +52,7 @@ const OrdersPage = () => {
     const term = search.trim().toLowerCase();
     return orders.filter(o => {
       if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (serviceFilter !== 'all' && o.service_type !== serviceFilter) return false;
       if (!term) return true;
       return (
         o.id?.toLowerCase().includes(term) ||
@@ -48,7 +60,12 @@ const OrdersPage = () => {
         o.driver?.name?.toLowerCase().includes(term)
       );
     });
-  }, [orders, search, statusFilter]);
+  }, [orders, search, statusFilter, serviceFilter]);
+
+  const serviceOptions = useMemo(
+    () => Array.from(new Set(orders.map(o => o.service_type).filter(Boolean))).sort(),
+    [orders]
+  );
 
   const statusTone = (status) => {
     const st = String(status || '').toLowerCase();
@@ -62,11 +79,11 @@ const OrdersPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pantauan Transaksi"
-        subtitle="Seluruh pesanan yang masuk ke ekosistem Wira"
+        subtitle="Seluruh pesanan Wira. Klik pesanan untuk melihat detail, riwayat, chat dan tindakan."
         className="!mb-0"
       />
 
-      <StaleOrdersPanel onResolved={fetchOrders} />
+      <StaleOrdersPanel onOpen={openOrder} refreshKey={refreshKey} />
 
       {/* Filter bar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -90,6 +107,17 @@ const OrdersPage = () => {
           <option value="all">Semua Status</option>
           {statusOptions.map(s => (
             <option key={s} value={s}>{orderStatusLabel(s)}</option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Filter layanan"
+          value={serviceFilter}
+          onChange={(e) => setServiceFilter(e.target.value)}
+          className="!text-sm md:w-44"
+        >
+          <option value="all">Semua Layanan</option>
+          {serviceOptions.map(s => (
+            <option key={s} value={s}>{SERVICE_LABEL[s] || s}</option>
           ))}
         </Select>
         {!loading && (
@@ -122,9 +150,18 @@ const OrdersPage = () => {
           </thead>
           <tbody>
             {filteredOrders.map(o => (
-              <tr key={o.id}>
-                <td className="whitespace-nowrap font-mono text-[12.5px]">{o.id.slice(0,8)}</td>
-                <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
+              <tr
+                key={o.id}
+                onClick={() => openOrder(o.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter') openOrder(o.id); }}
+                tabIndex={0}
+                className="cursor-pointer hover:bg-sunken/60 focus-visible:bg-sunken/60 focus-visible:outline-none"
+              >
+                <td className="whitespace-nowrap font-mono text-[12.5px]">
+                  {o.id.slice(0,8)}
+                  <span className="block text-[11.5px] text-ink-muted">{new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </td>
+                <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{SERVICE_LABEL[o.service_type] || o.service_type}</td>
                 <td className="font-semibold">{o.user?.name || 'Anonim'}</td>
                 <td className={o.driver?.name ? '' : 'text-ink-muted'}>{o.driver?.name || '-'}</td>
                 <td className="text-right"><Money value={o.total_price || 0} /></td>
@@ -134,6 +171,12 @@ const OrdersPage = () => {
           </tbody>
         </Table>
       )}
+
+      <OrderDetailSheet
+        orderId={openId}
+        onClose={() => openOrder(null)}
+        onChanged={() => { fetchOrders(); setRefreshKey((k) => k + 1); }}
+      />
     </div>
   );
 };

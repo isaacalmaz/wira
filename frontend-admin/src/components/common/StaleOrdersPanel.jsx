@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { orderStatusLabel } from '../../config/orderStatus';
-import { Badge, Button, Card, Field, Money, Sheet, Table, Textarea } from '../ui';
+import { Badge, Button, Card, Money, Table } from '../ui';
 
 const SERVICE_LABEL = { ride: 'Ride', send: 'Send', food: 'Food', service: 'Service', pool: 'Pool', villa: 'Villa' };
 
@@ -18,15 +17,12 @@ const sinceLabel = (ts) => {
 
 /**
  * Active orders whose status has not moved for a while (admin_stale_orders,
- * migrations/0088), with the two ways out: finish it (partner gets paid) or
- * cancel it (customer refunded when they paid through Wira). Renders nothing
- * when there is nothing stuck or before 0088 is applied.
+ * migrations/0088/0089). Each row opens the order (OrderDetailSheet), where
+ * the admin reads the history and chat before finishing, cancelling or
+ * reassigning it. Renders nothing when nothing is stuck.
  */
-export default function StaleOrdersPanel({ onResolved }) {
+export default function StaleOrdersPanel({ onOpen, refreshKey }) {
   const [rows, setRows] = useState([]);
-  const [target, setTarget] = useState(null); // { row, action: 'complete' | 'cancel' }
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc('admin_stale_orders', { p_minutes: 60 });
@@ -38,40 +34,9 @@ export default function StaleOrdersPanel({ onResolved }) {
     setRows(data || []);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-
-  const resolve = async () => {
-    if (!target) return;
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.rpc('admin_resolve_order', {
-        p_order_id: target.row.order_id,
-        p_action: target.action,
-        p_note: note.trim() || null,
-      });
-      if (error) throw error;
-      const refunded = Number(data?.refunded) || 0;
-      toast.success(target.action === 'complete'
-        ? 'Pesanan ditandai selesai.'
-        : refunded > 0
-          ? `Pesanan dibatalkan, Rp ${refunded.toLocaleString('id-ID')} dikembalikan ke pelanggan.`
-          : 'Pesanan dibatalkan.');
-      setTarget(null);
-      setNote('');
-      await load();
-      onResolved?.();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Gagal menyelesaikan pesanan.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   if (rows.length === 0) return null;
-
-  const isCancel = target?.action === 'cancel';
-  const paidThroughWira = target && ['wallet', 'qris'].includes(target.row.payment_method) && target.row.payment_status === 'paid';
 
   return (
     <Card padding="none" className="overflow-hidden border-warning-line">
@@ -80,7 +45,7 @@ export default function StaleOrdersPanel({ onResolved }) {
         <div className="min-w-0 flex-1">
           <p className="text-[14px] font-bold text-warning-ink">Pesanan macet</p>
           <p className="text-xs text-warning-ink/90">
-            Status tidak berubah lebih dari 60 menit (Service dan Pool: 48 jam). Selesaikan atau batalkan agar pelanggan dan mitra tidak menunggu.
+            Status tidak berubah lebih dari 60 menit (kunjungan teknisi: 12 jam lewat jadwal). Buka untuk menyelesaikan, membatalkan atau mengganti mitra.
           </p>
         </div>
         <Badge tone="warning">{rows.length}</Badge>
@@ -109,56 +74,14 @@ export default function StaleOrdersPanel({ onResolved }) {
               <td className="text-right font-mono">{sinceLabel(r.last_change)}</td>
               <td className="text-right"><Money value={r.total_price || 0} /></td>
               <td className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="secondary" leftIcon={<CheckCircle2 size={15} />} onClick={() => setTarget({ row: r, action: 'complete' })}>
-                    Selesaikan
-                  </Button>
-                  <Button size="sm" variant="danger-soft" leftIcon={<XCircle size={15} />} onClick={() => setTarget({ row: r, action: 'cancel' })}>
-                    Batalkan
-                  </Button>
-                </div>
+                <Button size="sm" variant="secondary" leftIcon={<ArrowRight size={15} />} onClick={() => onOpen?.(r.order_id)}>
+                  Tangani
+                </Button>
               </td>
             </tr>
           ))}
         </tbody>
       </Table>
-
-      <Sheet
-        open={!!target}
-        onClose={() => { if (!busy) { setTarget(null); setNote(''); } }}
-        dismissible={!busy}
-        tone={isCancel ? 'danger' : 'default'}
-        icon={isCancel ? <XCircle size={22} /> : <CheckCircle2 size={22} />}
-        title={isCancel ? 'Batalkan pesanan ini?' : 'Tandai pesanan selesai?'}
-        description={!target ? '' : isCancel
-          ? (paidThroughWira
-            ? 'Pesanan dibatalkan dan pembayarannya dikembalikan ke saldo WiraPay pelanggan. Pelanggan menerima notifikasi.'
-            : 'Pesanan dibatalkan. Pembayaran tunai tidak lewat Wira, jadi tidak ada yang dikembalikan. Pelanggan menerima notifikasi.')
-          : 'Pesanan dianggap selesai dan pendapatan mitra dicatat seperti pesanan selesai biasa. Gunakan hanya jika layanan memang sudah terjadi.'}
-        size="sm"
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => { setTarget(null); setNote(''); }} disabled={busy}>Kembali</Button>
-            <Button variant={isCancel ? 'danger' : 'primary'} onClick={resolve} isLoading={busy}>
-              {isCancel ? 'Batalkan pesanan' : 'Tandai selesai'}
-            </Button>
-          </>
-        )}
-      >
-        {target && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-card px-3.5 py-3 text-[13px]">
-              <span className="min-w-0 truncate text-ink">{target.row.title || SERVICE_LABEL[target.row.service_type]}</span>
-              <Money value={target.row.total_price || 0} className="font-medium text-ink" />
-            </div>
-            {isCancel && (
-              <Field label="Catatan untuk pelanggan (opsional)" htmlFor="stale-note">
-                <Textarea id="stale-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={200} />
-              </Field>
-            )}
-          </div>
-        )}
-      </Sheet>
     </Card>
   );
 }

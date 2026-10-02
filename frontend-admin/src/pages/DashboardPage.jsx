@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import {
-  Users, Car, Store, TrendingUp, Activity, ShoppingBag, UserPlus, Wallet, Package, Home, Wrench, Inbox, ChevronRight,
+  Users, Car, Store, TrendingUp, Activity, ShoppingBag, UserPlus, Wallet, ChevronRight,
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import {
-  Badge, Button, Card, EmptyState, IconTile, ListRow, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table,
+  Badge, Card, EmptyState, Money, PageHeader, SectionHeader, Spinner, Stat, Table,
 } from '../components/ui';
 import { useTheme } from '../context/ThemeContext';
-import { fetchPendingApplications } from '../services/mitraApplicationService';
+import AttentionBoard from '../components/common/AttentionBoard';
 import { orderStatusLabel } from '../config/orderStatus';
 
 // Calendar day in the browser's timezone (WITA for the Lombok team), not UTC:
@@ -26,16 +26,6 @@ const localDayKey = (value) => {
 // tokens (index.css) for each theme: line = hairline, muted = axis text.
 const CHART_LIGHT = { grid: '#E4E1DA', axis: '#6B6862', money: '#A8791F', bars: ['#0B4F5E', '#3FA3B5'], card: '#FFFFFF', ink: '#21201D' };
 const CHART_NIGHT = { grid: '#22363C', axis: '#9AA7AA', money: '#D9A845', bars: ['#16788C', '#3FA3B5'], card: '#142328', ink: '#ECEAE5' };
-
-// Where each pending application is reviewed (same mapping as the header
-// notifications in AdminLayout).
-const ROLE_META = {
-  driver: { title: 'Driver', link: '/drivers', icon: Car },
-  courier: { title: 'Kurir', link: '/drivers', icon: Package },
-  merchant: { title: 'Restoran', link: '/merchants', icon: Store },
-  villa: { title: 'Villa', link: '/villas', icon: Home },
-  technician: { title: 'Teknisi', link: '/technicians', icon: Wrench },
-};
 
 const ORDER_STATUS_TONE = (status) => {
   const s = String(status || '').toLowerCase();
@@ -81,26 +71,17 @@ const DashboardPage = () => {
   // list). Kept apart from fetchDashboard so a failure here never blanks
   // the key figures above.
   const [recentOrders, setRecentOrders] = useState([]);
-  const [pendingApps, setPendingApps] = useState([]);
-  const [staleCount, setStaleCount] = useState(0);
+  const [attention, setAttention] = useState(null);
 
   useEffect(() => {
     const fetchExtras = async () => {
       try {
-        const [recentRes, pendings] = await Promise.all([
-          supabase.from('orders')
-            .select('id, service_type, total_price, status, created_at, user:users!user_id(name), driver:users!driver_id(name)')
-            .order('created_at', { ascending: false })
-            .limit(8),
-          fetchPendingApplications(null, 'id, role, name, phone, created_at'),
-        ]);
+        const recentRes = await supabase.from('orders')
+          .select('id, service_type, total_price, status, created_at, user:users!user_id(name), driver:users!driver_id(name)')
+          .order('created_at', { ascending: false })
+          .limit(8);
         if (recentRes.error) throw recentRes.error;
         setRecentOrders(recentRes.data || []);
-        setPendingApps(pendings || []);
-
-        // Stuck active orders (migrations/0088); silently absent before it.
-        const { data: stale } = await supabase.rpc('admin_stale_orders', { p_minutes: 60 });
-        setStaleCount(Array.isArray(stale) ? stale.length : 0);
       } catch (err) {
         console.error('Dashboard extras error:', err);
       }
@@ -265,12 +246,14 @@ const DashboardPage = () => {
     <div className="flex flex-col gap-6">
       {header}
 
+      <AttentionBoard onLoaded={setAttention} />
+
       {/* Key figures */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Pesanan Hari Ini" value={stats.ordersToday.toLocaleString('id-ID')} icon={<ShoppingBag size={18} />} hint="Semua status layanan" />
         <Stat label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
         <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi per layanan (menu Komisi)" />
-        <Stat label="Menunggu Verifikasi" value={pendingApps.length.toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={pendingApps.length > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
+        <Stat label="Menunggu Verifikasi" value={Number(attention?.applications?.count || 0).toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={attention?.applications?.count > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
         <Stat label="Total Pengguna" value={stats.users.toLocaleString('id-ID')} icon={<Users size={18} />} tone="neutral" hint="Aktif" />
         <Stat label="Total Driver" value={stats.drivers.toLocaleString('id-ID')} icon={<Car size={18} />} tone="neutral" hint="Aktif" />
         <Stat label="Total Merchant" value={stats.merchants.toLocaleString('id-ID')} icon={<Store size={18} />} tone="neutral" hint="Aktif" />
@@ -283,7 +266,7 @@ const DashboardPage = () => {
         <Card padding="lg" className="min-w-0 xl:col-span-2">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1">
-              <h2 className="text-[15px] font-bold tracking-tight text-ink">Pendapatan Platform (Komisi 20%)</h2>
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Pendapatan Platform (komisi)</h2>
               <Money value={stats.revenue} tone="pay" className="text-[26px] font-medium leading-tight tracking-tight" />
               <p className="text-xs text-ink-muted">
                 dari <Money value={stats.gmv} className="text-ink" /> volume transaksi (GMV)
@@ -347,107 +330,51 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* Recent orders + attention */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <section className="flex min-w-0 flex-col xl:col-span-2">
-          <SectionHeader
-            title="Pesanan Terbaru"
-            action={(
-              <button type="button" onClick={() => navigate('/orders')} className="inline-flex items-center gap-0.5 hover:underline">
-                Lihat semua <ChevronRight size={15} />
-              </button>
-            )}
-          />
-          {recentOrders.length === 0 ? (
-            <EmptyState icon={<ShoppingBag size={22} />} title="Belum ada pesanan." />
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <th>ID Pesanan</th>
-                  <th>Layanan</th>
-                  <th>Pelanggan</th>
-                  <th className="text-right">Total</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((o) => (
-                  <tr key={o.id}>
-                    <td className="whitespace-nowrap">
-                      <span className="font-mono text-[12.5px] text-ink">{o.id.slice(0, 8)}</span>
-                      <span className="block font-mono text-[11.5px] text-ink-muted">
-                        {o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
-                    <td className="max-w-[220px]">
-                      <span className="block truncate font-semibold">{o.user?.name || 'Anonim'}</span>
-                      <span className="block truncate text-xs text-ink-muted">{o.driver?.name || '-'}</span>
-                    </td>
-                    <td className="text-right"><Money value={o.total_price || 0} /></td>
-                    <td><Badge tone={ORDER_STATUS_TONE(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </section>
-
+      {/* Recent orders (click opens the order) */}
         <section className="flex min-w-0 flex-col">
-          <SectionHeader
-            title="Perlu Tindakan"
-            action={pendingApps.length + staleCount > 0 ? <Badge tone="warning" className="font-mono">{pendingApps.length + staleCount}</Badge> : null}
-          />
-          {staleCount > 0 && (
-            <Notice
-              tone="warning"
-              title={`${staleCount} pesanan macet`}
-              className="mb-3"
-              action={<Button size="sm" variant="secondary" onClick={() => navigate('/orders')}>Tinjau</Button>}
-            >
-              Statusnya tidak bergerak lebih dari 60 menit.
-            </Notice>
+        <SectionHeader
+          title="Pesanan Terbaru"
+          action={(
+            <button type="button" onClick={() => navigate('/orders')} className="inline-flex items-center gap-0.5 hover:underline">
+              Lihat semua <ChevronRight size={15} />
+            </button>
           )}
-          {pendingApps.length === 0 && staleCount > 0 ? null : pendingApps.length === 0 ? (
-            <EmptyState icon={<Inbox size={22} />} title="Tidak ada notifikasi riil baru" description="Pendaftaran mitra yang menunggu verifikasi akan muncul di sini." />
-          ) : (
-            <Card padding="none" className="overflow-hidden">
-              <ul className="divide-y divide-line">
-                {pendingApps.slice(0, 6).map((m) => {
-                  const meta = ROLE_META[m.role] || { title: m.role || 'Mitra', link: '/users', icon: UserPlus };
-                  const RoleIcon = meta.icon;
-                  return (
-                    <li key={m.id}>
-                      <ListRow
-                        className="px-4 py-3"
-                        leading={<IconTile tone="brand" size="sm"><RoleIcon size={17} /></IconTile>}
-                        title={m.name}
-                        subtitle={(
-                          <>
-                            {`Pendaftaran ${meta.title} Baru`}
-                            {m.phone && <> · <span className="font-mono">{m.phone}</span></>}
-                          </>
-                        )}
-                        trailing={(
-                          <Button size="sm" variant="secondary" onClick={() => navigate(meta.link)}>
-                            Tinjau
-                          </Button>
-                        )}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-              {pendingApps.length > 6 && (
-                <p className="border-t border-line bg-sunken/50 px-4 py-2.5 text-center text-xs text-ink-muted">
-                  +<span className="font-mono">{pendingApps.length - 6}</span> pendaftaran lainnya menunggu verifikasi
-                </p>
-              )}
-            </Card>
-          )}
-        </section>
-      </div>
+        />
+        {recentOrders.length === 0 ? (
+          <EmptyState icon={<ShoppingBag size={22} />} title="Belum ada pesanan." />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <th>ID Pesanan</th>
+                <th>Layanan</th>
+                <th>Pelanggan</th>
+                <th className="text-right">Total</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.map((o) => (
+                <tr key={o.id} onClick={() => navigate(`/orders?id=${o.id}`)} className="cursor-pointer hover:bg-sunken/60">
+                  <td className="whitespace-nowrap">
+                    <span className="font-mono text-[12.5px] text-ink">{o.id.slice(0, 8)}</span>
+                    <span className="block font-mono text-[11.5px] text-ink-muted">
+                      {o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
+                  <td className="max-w-[220px]">
+                    <span className="block truncate font-semibold">{o.user?.name || 'Anonim'}</span>
+                    <span className="block truncate text-xs text-ink-muted">{o.driver?.name || '-'}</span>
+                  </td>
+                  <td className="text-right"><Money value={o.total_price || 0} /></td>
+                  <td><Badge tone={ORDER_STATUS_TONE(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </section>
     </div>
   );
 };
