@@ -66,7 +66,7 @@ const AdminLayout = () => {
             driver: { title: 'Driver', link: '/drivers' },
             courier: { title: 'Kurir', link: '/drivers' },
             merchant: { title: 'Restoran', link: '/merchants' },
-            villa: { title: 'Villa', link: '/merchants' },
+            villa: { title: 'Villa', link: '/villas' },
             technician: { title: 'Teknisi', link: '/technicians' },
           };
           const dynamicNotifs = pendings.map((m) => {

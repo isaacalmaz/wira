@@ -33,7 +33,7 @@ const ROLE_META = {
   driver: { title: 'Driver', link: '/drivers', icon: Car },
   courier: { title: 'Kurir', link: '/drivers', icon: Package },
   merchant: { title: 'Restoran', link: '/merchants', icon: Store },
-  villa: { title: 'Villa', link: '/merchants', icon: Home },
+  villa: { title: 'Villa', link: '/villas', icon: Home },
   technician: { title: 'Teknisi', link: '/technicians', icon: Wrench },
 };
 

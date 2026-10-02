@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, FileSearch, Trash2, Plus, Store, Home, Utensils, Star, Clock } from 'lucide-react';
+import { Search, RefreshCw, FileSearch, Trash2, Plus, Store, Star, Clock, DoorOpen } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -7,8 +7,7 @@ import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
-
-const isVillaType = m => m.service_type === 'villa' || m.service_type === 'WiraVilla';
+import { approveMerchantApplication, toMerchantApplication } from '../services/merchantApprovalService';
 
 const MerchantsPage = () => {
   const [liveMerchants, setLiveMerchants] = useState([]);
@@ -28,37 +27,17 @@ const MerchantsPage = () => {
       const { data: merchantsData, error: merchantsErr } = await supabase
         .from('merchants')
         .select('*')
-        .in('service_type', ['food', 'villa', 'WiraFood', 'WiraVilla'])
+        // Restaurants only; villas have their own page (VillasPage).
+        .in('service_type', ['food', 'WiraFood'])
         .order('created_at', { ascending: false });
       
       if (merchantsErr) throw merchantsErr;
       setLiveMerchants(merchantsData || []);
 
-      const pendingApplications = await fetchPendingApplications(['merchant', 'villa']);
-      // RegisterPage.jsx's step-1 Villa radio writes the pending
-      // registration's role as the literal 'villa' (not 'merchant') now
-      // that Villa is its own top-level choice - without matching both
-      // values here, a brand-new Villa registration never appears in any
-      // admin queue at all and can never be approved.
-      const p = pendingApplications
-        .map(m => ({
-          id: m.id,
-          auth_id: m.auth_id,
-          role: 'merchant',
-          name: m.restaurant_name || m.name,
-          owner: m.name,
-          phone: m.phone,
-          email: m.email,
-          address: m.address || 'Mataram, Lombok',
-          service_type: m.service_type || 'food',
-          sim_photo: m.sim_photo,
-          ktp_photo: m.ktp_photo,
-          selfie_photo: m.selfie_photo,
-          vehicle_plate: m.vehicle_plate,
-          vehicle_type: m.vehicle_type,
-          status: m.status,
-          date: m.created_at
-        }));
+      // Restaurant registrations only; villa registrations (role 'villa')
+      // are reviewed on VillasPage.
+      const pendingApplications = await fetchPendingApplications(['merchant']);
+      const p = pendingApplications.map(toMerchantApplication);
       setPendingMerchants(p);
     } catch (err) {
       console.error(err);
@@ -77,58 +56,7 @@ const MerchantsPage = () => {
       if (accept) {
         const pending = pendingMerchants.find(m => m.id === id);
         if (pending) {
-          // public.users must exist BEFORE merchants (merchants.owner_id has
-          // a foreign key to users.id) - this used to insert merchants first,
-          // which threw a foreign-key violation for every brand-new
-          // registrant (no existing users row yet, the normal case for a
-          // first-time mitra signup). Because feature_flags status was
-          // updated to 'Active' separately with no rollback on failure, the
-          // registration looked "approved" in the queue while no merchants
-          // row and no mitra_access grant ever actually happened.
-          if (pending.auth_id) {
-            const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
-            if (profileErr) throw profileErr;
-
-            // Villa is now its own login portal, separate from merchant
-            // (Restoran) - grant the matching mitra_access value so the
-            // account actually lands in the right portal.
-            const isVilla = pending.service_type === 'villa' || pending.service_type === 'WiraVilla';
-            const grantRole = isVilla ? 'villa' : 'merchant';
-            let currentAccess = userProfile?.mitra_access || [];
-            if (!currentAccess.includes(grantRole)) currentAccess.push(grantRole);
-
-            if (userProfile) {
-              const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
-                mitra_access: currentAccess,
-                status: 'Aktif'
-              }).eq('id', pending.auth_id).select();
-              if (updateErr) throw updateErr;
-              if (!updatedUser || updatedUser.length === 0) {
-                throw new Error("Gagal! Akses ditolak oleh sistem keamanan RLS Supabase.");
-              }
-            } else {
-              const { error: insertErr } = await supabase.from('users').insert([{
-                id: pending.auth_id,
-                name: pending.name,
-                email: pending.email,
-                phone: pending.phone,
-                role: 'mitra',
-                status: 'Aktif',
-                mitra_access: currentAccess
-              }]);
-              if (insertErr) throw insertErr;
-            }
-          }
-
-          const { error: insertMerchantErr } = await supabase.from('merchants').insert([{
-            owner_id: pending.auth_id || null,
-            name: pending.name,
-            service_type: pending.service_type || 'food',
-            address: pending.address,
-            image: 'https://via.placeholder.com/150',
-          }]);
-          if (insertMerchantErr) throw insertMerchantErr;
-
+          await approveMerchantApplication(pending);
           toast.success(`${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
         }
       } else {
@@ -170,7 +98,7 @@ const MerchantsPage = () => {
       <PageHeader
         className="!mb-0"
         title="Manajemen Merchant"
-        subtitle="Kelola WiraFood & WiraVilla dan persetujuan pendaftaran merchant baru."
+        subtitle="Kelola restoran WiraFood dan persetujuan pendaftaran restoran baru. Villa ada di menu Villas."
         actions={(
           <Button variant="secondary" onClick={fetchData} aria-label="Muat ulang" className="px-3">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -179,8 +107,8 @@ const MerchantsPage = () => {
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Stat label="Merchant Aktif" value={liveMerchants.length} icon={<Store size={18} />} />
-        <Stat label="WiraVilla" value={liveMerchants.filter(isVillaType).length} icon={<Home size={18} />} tone="neutral" />
+        <Stat label="Restoran" value={liveMerchants.length} icon={<Store size={18} />} />
+        <Stat label="Sedang Buka" value={liveMerchants.filter((m) => m.is_open !== false).length} icon={<DoorOpen size={18} />} tone="neutral" />
         <Stat label="Menunggu Verifikasi" value={pendingMerchants.length} icon={<Clock size={18} />} tone="neutral" />
       </div>
 
@@ -191,7 +119,7 @@ const MerchantsPage = () => {
         value={activeTab}
         onChange={setActiveTab}
         options={[
-          { value: 'live', label: <>Merchant Aktif <span className="font-mono">({liveMerchants.length})</span></> },
+          { value: 'live', label: <>Restoran <span className="font-mono">({liveMerchants.length})</span></> },
           {
             value: 'pending',
             label: (
@@ -219,7 +147,7 @@ const MerchantsPage = () => {
             <thead>
               <tr>
                 <th>Nama</th>
-                <th>Jenis</th>
+                <th>Kategori</th>
                 <th>Alamat</th>
                 <th className="text-right">Rating</th>
                 <th className="text-right">Aksi</th>
@@ -227,16 +155,10 @@ const MerchantsPage = () => {
             </thead>
             <tbody>
               {filteredLive.map(m => {
-                const isVilla = m.service_type === 'villa' || m.service_type === 'WiraVilla';
                 return (
                 <tr key={m.id}>
                   <td className="whitespace-nowrap font-semibold">{m.name}</td>
-                  <td>
-                    <Badge tone="neutral">
-                      {isVilla ? <Home size={12} aria-hidden="true" /> : <Utensils size={12} aria-hidden="true" />}
-                      {isVilla ? 'WiraVilla' : 'WiraFood'}
-                    </Badge>
-                  </td>
+                  <td className="text-ink-muted">{m.category || '—'}</td>
                   <td className="max-w-[260px] truncate text-ink-muted" title={m.address}>{m.address}</td>
                   <td className="text-right">
                     <span className="inline-flex items-center gap-1 font-mono">
@@ -265,15 +187,14 @@ const MerchantsPage = () => {
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {pendingMerchants.map(merchant => {
-            const isVilla = merchant.service_type === 'villa' || merchant.service_type === 'WiraVilla';
             return (
             <Card key={merchant.id} className="flex flex-col gap-4">
               <div className="flex items-start gap-3">
-                <IconTile tone="neutral" size="sm">{isVilla ? <Home size={17} /> : <Store size={17} />}</IconTile>
+                <IconTile tone="neutral" size="sm"><Store size={17} /></IconTile>
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <h3 className="truncate text-[14px] font-semibold text-ink">{merchant.name}</h3>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge tone="neutral">{isVilla ? 'WiraVilla' : 'WiraFood'}</Badge>
+                    <Badge tone="neutral">WiraFood</Badge>
                     <Badge tone="warning" dot>Menunggu Verifikasi</Badge>
                   </div>
                 </div>

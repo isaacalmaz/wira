@@ -21,6 +21,7 @@ import {
   Percent,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
+import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
 import { Badge, cx } from '../ui';
 import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEATURE_FLAG_ROLES } from '../../config/roles';
@@ -37,7 +38,7 @@ export const MENU_ITEMS = [
   { name: 'Drivers', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
   { name: 'Merchants', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
   { name: 'Technicians', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
-  { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, countKey: 'villa', group: 'mitra' },
   { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Komisi', icon: Percent, path: '/commission', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
@@ -64,7 +65,7 @@ const AdminSidebar = ({ isCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [pendingCounts, setPendingCounts] = useState({ driver: 0, merchant: 0, technician: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ driver: 0, merchant: 0, villa: 0, technician: 0 });
 
   const fetchPendingCounts = async () => {
     try {
@@ -78,10 +79,17 @@ const AdminSidebar = ({ isCollapsed }) => {
       // be counted, so the sidebar badge could sit at 0 while a real
       // registration silently waited.
       const driverCount = list.filter((m) => m.role === 'driver' || m.role === 'courier').length;
-      const merchantCount = list.filter((m) => m.role === 'merchant' || m.role === 'villa').length;
+      const merchantCount = list.filter((m) => m.role === 'merchant').length;
       const techCount = list.filter((m) => m.role === 'technician').length;
+      // Villas: new host registrations plus properties hosts added that
+      // wait for review (migration 0097).
+      const { count: listings } = await supabase
+        .from('merchants')
+        .select('id', { count: 'exact', head: true })
+        .eq('listing_status', 'pending');
+      const villaCount = list.filter((m) => m.role === 'villa').length + (listings || 0);
 
-      setPendingCounts({ driver: driverCount, merchant: merchantCount, technician: techCount });
+      setPendingCounts({ driver: driverCount, merchant: merchantCount, villa: villaCount, technician: techCount });
     } catch { /* best-effort; ignore */ }
   };
 
