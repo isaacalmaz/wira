@@ -26,7 +26,7 @@ const TEMPLATES = [
   }
 ];
 
-const WhatsAppPage = () => {
+const WhatsAppPage = ({ embedded = false }) => {
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState(TEMPLATES[0].text);
   const [logs, setLogs] = useState([]);
@@ -88,11 +88,13 @@ const WhatsAppPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Pusat Notifikasi & WhatsApp"
-        subtitle="Kirim pesan WhatsApp langsung ke calon mitra, driver, atau pelanggan tanpa dummy data"
-        className="!mb-0"
-      />
+      {!embedded && (
+        <PageHeader
+          title="Pusat Notifikasi & WhatsApp"
+          subtitle="Kirim pesan WhatsApp langsung ke calon mitra, driver, atau pelanggan tanpa dummy data"
+          className="!mb-0"
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Form Sender */}

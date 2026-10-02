@@ -288,7 +288,7 @@ const VehiclesPricingPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         className="!mb-0"
-        title="Manajemen Harga"
+        title="Harga"
         subtitle="Kelola tarif WiraRide, WiraSend, WiraService, WiraPool, dan ongkos kirim WiraFood. Perubahan berlaku langsung ke aplikasi pelanggan."
         actions={(
           <Button

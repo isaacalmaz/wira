@@ -119,7 +119,7 @@ const VillasPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         className="!mb-0"
-        title="Manajemen Vila"
+        title="Villa"
         subtitle="Tinjau properti baru dari mitra dan kelola semua vila WiraVilla."
         actions={(
           <>

@@ -99,7 +99,7 @@ const DriversPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         className="!mb-0"
-        title="Manajemen Driver & Kurir"
+        title="Driver"
         subtitle="Daftar Mitra Pengemudi (Ride) & Kurir (Send) Wira"
       />
 

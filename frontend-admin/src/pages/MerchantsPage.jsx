@@ -85,7 +85,7 @@ const MerchantsPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         className="!mb-0"
-        title="Manajemen Merchant"
+        title="Restoran"
         subtitle="Kelola restoran WiraFood dan persetujuan pendaftaran restoran baru. Villa ada di menu Villas."
         actions={(
           <Button variant="secondary" onClick={fetchData} aria-label="Muat ulang" className="px-3">
@@ -216,7 +216,7 @@ const MerchantsPage = () => {
             <EmptyState
               className="col-span-full"
               icon={<FileSearch size={24} />}
-              title="Tidak ada pendaftaran merchant baru saat ini."
+              title="Tidak ada pendaftar restoran baru saat ini."
             />
           )}
         </div>

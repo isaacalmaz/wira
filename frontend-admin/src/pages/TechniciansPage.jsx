@@ -145,7 +145,7 @@ const TechniciansPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader className="!mb-0" title="Manajemen Teknisi" subtitle="Daftar Mitra Jasa Servis" />
+      <PageHeader className="!mb-0" title="Teknisi" subtitle="Daftar Mitra Jasa Servis" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Teknisi terdaftar" value={loading ? '–' : techs.length} icon={<Wrench size={18} />} />

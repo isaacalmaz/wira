@@ -173,7 +173,7 @@ const PromosPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         className="!mb-0"
-        title="Manajemen Promo & Kupon"
+        title="Promo & kupon"
         subtitle="Kelola voucher diskon dan penawaran khusus pengguna"
         actions={(
           <>

@@ -104,8 +104,9 @@ const AdminLayout = () => {
 
   const pageLabel = useMemo(() => {
     const path = location.pathname.replace(/^\/admin/, '');
+    if (path.startsWith('/partners')) return 'Profil mitra';
     const match = MENU_ITEMS.find((item) => path.startsWith(item.path));
-    return match?.name || 'Dashboard';
+    return match?.name || 'Dasbor';
   }, [location.pathname]);
 
   const userName = user?.name || 'Administrator';

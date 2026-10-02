@@ -29,7 +29,7 @@ const CommissionPage = lazy(() => import('./pages/CommissionPage'));
 const PartnerProfilePage = lazy(() => import('./pages/PartnerProfilePage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const PromosPage = lazy(() => import('./pages/PromosPage'));
-const WhatsAppPage = lazy(() => import('./pages/WhatsAppPage'));
+const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const SupportTicketsPage = lazy(() => import('./pages/SupportTicketsPage'));
 
@@ -109,7 +109,12 @@ function App() {
             {/* Fitur yang bisa diakses Superadmin & Admin Ops */}
             <Route path="features" element={
               <ProtectedRoute allowedRoles={FEATURE_FLAG_ROLES}>
-                <FeatureFlagsPage />
+                <FeatureFlagsPage mode="features" />
+              </ProtectedRoute>
+            } />
+            <Route path="zones" element={
+              <ProtectedRoute allowedRoles={FEATURE_FLAG_ROLES}>
+                <FeatureFlagsPage mode="zones" />
               </ProtectedRoute>
             } />
 
@@ -183,11 +188,13 @@ function App() {
                 <PromosPage />
               </ProtectedRoute>
             } />
-            <Route path="whatsapp" element={
+            <Route path="announcements" element={
               <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
-                <WhatsAppPage />
+                <AnnouncementsPage />
               </ProtectedRoute>
             } />
+            {/* Old link: WhatsApp now lives as a tab of Pengumuman. */}
+            <Route path="whatsapp" element={<Navigate to="/announcements?tab=wa" replace />} />
             <Route path="support" element={
               <ProtectedRoute allowedRoles={CS_ADMIN_ROLES}>
                 <SupportTicketsPage />

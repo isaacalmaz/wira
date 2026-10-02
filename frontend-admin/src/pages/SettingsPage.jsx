@@ -76,7 +76,7 @@ const SettingsPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Pengaturan Sistem"
+        title="Pengaturan"
         subtitle="Konfigurasi parameter operasional dan tarif platform Wira"
         className="!mb-0"
         actions={(

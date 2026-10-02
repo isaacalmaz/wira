@@ -12,7 +12,7 @@ import {
   Home,
   Wallet,
   Ticket,
-  MessageCircle, MessageSquare,
+  MessageSquare,
   Settings,
   Tag,
   LogOut,
@@ -20,6 +20,8 @@ import {
   ClipboardList,
   Percent,
   History,
+  Megaphone,
+  MapPinned,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import { supabase } from '../../config/supabase';
@@ -31,24 +33,25 @@ import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEA
 // source of truth for navigation; `group` only decides the visual section.
 // Each item's roles are the same set its route in App.jsx allows.
 export const MENU_ITEMS = [
-  { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ADMIN_ROLES, group: 'ringkasan' },
-  { name: 'Feature Flags', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
-  { name: 'Users', icon: Users, path: '/users', roles: ADMIN_ROLES, group: 'operasional' },
-  { name: 'Orders', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
+  { name: 'Dasbor', icon: LayoutDashboard, path: '/dashboard', roles: ADMIN_ROLES, group: 'ringkasan' },
+  { name: 'Pesanan', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
   { name: 'Proyek', icon: ClipboardList, path: '/projects', roles: CORE_ADMIN_ROLES, group: 'operasional' },
-  { name: 'Drivers', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
-  { name: 'Merchants', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
-  { name: 'Technicians', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
-  { name: 'Villas', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, countKey: 'villa', group: 'mitra' },
+  { name: 'Pengguna', icon: Users, path: '/users', roles: ADMIN_ROLES, group: 'operasional' },
+  { name: 'Driver', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
+  { name: 'Restoran', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
+  { name: 'Villa', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, countKey: 'villa', group: 'mitra' },
+  { name: 'Teknisi', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
   { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
-  { name: 'Manajemen Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
-  { name: 'Komisi', icon: Percent, path: '/commission', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
+  { name: 'Komisi', icon: Percent, path: '/commission', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
-  { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: CS_ADMIN_ROLES, group: 'layanan' },
   { name: 'Pusat Bantuan', icon: MessageSquare, path: '/support', roles: CS_ADMIN_ROLES, group: 'layanan' },
+  { name: 'Pengumuman', icon: Megaphone, path: '/announcements', roles: CS_ADMIN_ROLES, group: 'layanan' },
+  { name: 'Fitur Layanan', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
+  { name: 'Wilayah Operasi', icon: MapPinned, path: '/zones', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
   { name: 'Log Aktivitas', icon: History, path: '/audit', roles: CORE_ADMIN_ROLES, group: 'sistem' },
-  { name: 'Settings', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
+  { name: 'Pengaturan', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
 ];
 
 const GROUPS = [
@@ -56,7 +59,7 @@ const GROUPS = [
   { key: 'operasional', label: 'Operasional' },
   { key: 'mitra', label: 'Mitra' },
   { key: 'bisnis', label: 'Bisnis & Keuangan' },
-  { key: 'layanan', label: 'Layanan Pelanggan' },
+  { key: 'layanan', label: 'Layanan & Komunikasi' },
   { key: 'sistem', label: 'Sistem' },
 ];
 

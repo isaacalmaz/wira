@@ -143,7 +143,7 @@ const UsersPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Manajemen Pengguna"
+        title="Pengguna"
         subtitle="Semua pengguna Wira, termasuk pengelolaan akses mitra (driver/merchant/teknisi)"
         className="!mb-0"
       />

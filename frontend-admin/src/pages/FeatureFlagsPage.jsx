@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { RefreshCw, Sliders, Map as MapIcon, Trash2, Edit, Plus, MapPin, Save } from 'lucide-react';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Button, Card, EmptyState, Field, Input, PageHeader, SectionHeader, Sheet, Stat } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Sheet, Stat } from '../components/ui';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -27,7 +27,7 @@ const INITIAL_FEATURES = [
   { id: 'wira_pulsa', name: 'WiraPulsa (Pulsa & Token Listrik)', status: true, regions: ['Semua Wilayah'] },
   { id: 'wira_villa', name: 'WiraVilla (Sewa Villa & Penginapan)', status: true, regions: ['Senggigi', 'Lombok Tengah'] },
   { id: 'wira_service', name: 'WiraService (Jasa Servis & Tukang)', status: true, regions: ['Kota Mataram'] },
-  { id: 'wira_pool', name: 'WiraPool (Tebengan Bersama)', status: false, regions: [] },
+  { id: 'wira_pool', name: 'WiraPool (Perawatan Kolam Renang)', status: false, regions: [] },
 ];
 
 const MapModal = ({ zone, onClose, onSaveMap }) => {
@@ -108,7 +108,11 @@ const MapModal = ({ zone, onClose, onSaveMap }) => {
   );
 };
 
-const FeatureFlagsPage = () => {
+// One component, two pages: mode 'features' (service on/off switches the
+// customer app reads, HomePage.jsx) and mode 'zones' (operating areas and
+// their map boundaries).
+const FeatureFlagsPage = ({ mode = 'features' }) => {
+  const isZones = mode === 'zones';
   const [features, setFeatures] = useState(INITIAL_FEATURES);
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +136,10 @@ const FeatureFlagsPage = () => {
       if (zonesRes.error) throw zonesRes.error;
 
       if (configRes.data && Array.isArray(configRes.data.features) && configRes.data.features.length > 0) {
-        setFeatures(configRes.data.features);
+        // Names come from INITIAL_FEATURES for known keys (the stored copy
+        // once called WiraPool a ride-sharing service); saved back on the
+        // next toggle.
+        setFeatures(configRes.data.features.map((f) => ({ ...f, name: INITIAL_FEATURES.find((x) => x.id === f.id)?.name || f.name })));
       }
       
       if (zonesRes.data) {
@@ -321,8 +328,8 @@ const FeatureFlagsPage = () => {
 
       <PageHeader
         className="!mb-0"
-        title="Manajemen Fitur (Feature Flags)"
-        subtitle="Aktifkan atau nonaktifkan layanan secara dinamis di Pulau Lombok"
+        title={isZones ? 'Wilayah operasi' : 'Fitur layanan'}
+        subtitle={isZones ? 'Daftar wilayah dan batas petanya' : 'Nyalakan atau matikan layanan di aplikasi pelanggan, langsung tanpa rilis baru'}
         actions={(
           <Button variant="secondary" onClick={fetchFeatures} aria-label="Muat Ulang" title="Muat Ulang" className="px-3">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -331,15 +338,22 @@ const FeatureFlagsPage = () => {
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Stat
+        {!isZones && <Stat
           label="Layanan Global Aktif"
           value={<>{activeFeatures}<span className="text-ink-muted"> / {features.length}</span></>}
           icon={<Sliders size={18} />}
-        />
-        <Stat label="Wilayah Operasional" value={loading ? '–' : zones.length} icon={<MapPin size={18} />} tone="neutral" />
+        />}
+        {isZones && <Stat label="Wilayah Operasional" value={loading ? '–' : zones.length} icon={<MapPin size={18} />} tone="neutral" />}
       </div>
 
-      <section>
+      {isZones && (
+        <Notice tone="info">
+          Batas wilayah di sini belum dipakai untuk membatasi pesanan atau pencarian mitra; aplikasi masih melayani seluruh Lombok.
+          Gunakan sebagai catatan area operasi sampai fitur pembatasan wilayah dibuat.
+        </Notice>
+      )}
+
+      {!isZones && <section>
         <SectionHeader title="Layanan Global" />
         <Card padding="none">
           <ul className="divide-y divide-line">
@@ -361,9 +375,9 @@ const FeatureFlagsPage = () => {
             ))}
           </ul>
         </Card>
-      </section>
+      </section>}
 
-      <section>
+      {isZones && <section>
         <SectionHeader
           title="Manajemen Wilayah Operasional"
           action={(
@@ -417,7 +431,7 @@ const FeatureFlagsPage = () => {
             ))}
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Tambah wilayah */}
       <Sheet

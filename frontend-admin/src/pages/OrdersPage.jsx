@@ -78,7 +78,7 @@ const OrdersPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Pantauan Transaksi"
+        title="Pesanan"
         subtitle="Seluruh pesanan Wira. Klik pesanan untuk melihat detail, riwayat, chat dan tindakan."
         className="!mb-0"
       />
