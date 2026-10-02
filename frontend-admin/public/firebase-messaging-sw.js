@@ -1,0 +1,48 @@
+importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAgX_LaIszGizE10NPivNZOyxU5Lb01VJU",
+  authDomain: "wira-455d1.firebaseapp.com",
+  projectId: "wira-455d1",
+  storageBucket: "wira-455d1.firebasestorage.app",
+  messagingSenderId: "975569594019",
+  appId: "1:975569594019:web:3c789ddb3d0fd43adb4116"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const messaging = firebase.messaging();
+
+// Messages with a `notification` part (everything the Wira backend sends)
+// are shown by the Firebase SDK itself; showing them here too made every
+// push appear twice. Only data-only messages are drawn by hand.
+messaging.onBackgroundMessage((payload) => {
+  if (payload.notification) return;
+  const data = payload.data || {};
+  self.registration.showNotification(data.title || 'Wira', {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-96.png',
+    data
+  });
+});
+
+// Tapping a notification opens the page it is about (data.url, e.g. the
+// technician job board), reusing an open Wira Mitra tab when there is one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const url = (data.FCM_MSG && data.FCM_MSG.data && data.FCM_MSG.data.url) || data.url || '/';
+  event.waitUntil((async () => {
+    const tabs = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const tab of tabs) {
+      if (new URL(tab.url).origin === self.location.origin) {
+        await tab.focus();
+        if ('navigate' in tab) await tab.navigate(url);
+        return;
+      }
+    }
+    await clients.openWindow(url);
+  })());
+});

@@ -36,8 +36,10 @@ router.post('/tick', webhookLimiter, async (req, res) => {
         const ok = await sendPushNotification(n.fcm_token, n.title, n.description || '', {
           type: 'notification',
           notificationId: String(n.id),
-          // Customers have a notifications page; partners open their home.
-          url: n.is_partner ? '/' : '/notifications',
+          // The row's own link when it has one (admin alerts, 0096);
+          // otherwise customers open their notifications page, partners
+          // their home.
+          url: n.link || (n.is_partner ? '/' : '/notifications'),
         });
         if (ok) sent += 1;
       } catch (err) {

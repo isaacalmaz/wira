@@ -91,6 +91,28 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Phone/browser push for admin alerts (migrations/0096): store this
+  // device's FCM token once an admin is signed in.
+  useEffect(() => {
+    if (!user?.id) return;
+    const register = async () => {
+      try {
+        const save = (token) => supabase.from('users').update({ fcm_token: token }).eq('id', user.id);
+        const { isNative, registerNativePush } = await import('../native/nativeShell');
+        if (isNative()) {
+          await registerNativePush(save);
+          return;
+        }
+        const { requestForToken } = await import('../config/firebase');
+        const token = await requestForToken();
+        if (token) await save(token);
+      } catch (err) {
+        console.error('FCM update error:', err);
+      }
+    };
+    register();
+  }, [user?.id]);
+
   const login = async (email, password) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
