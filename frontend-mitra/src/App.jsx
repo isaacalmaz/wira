@@ -32,7 +32,7 @@ const TechSchedulePage = lazy(() => import('./pages/technician/TechSchedulePage'
 const TechEarningsPage = lazy(() => import('./pages/technician/TechEarningsPage'));
 const TechProfilePage = lazy(() => import('./pages/technician/TechProfilePage'));
 const TechProjectPage = lazy(() => import('./pages/technician/TechProjectPage'));
-const JoinTechnicianPage = lazy(() => import('./pages/JoinTechnicianPage'));
+const JoinPage = lazy(() => import('./pages/JoinPage'));
 
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const ActiveOrderPage = lazy(() => import('./pages/shared/ActiveOrderPage'));
@@ -89,7 +89,7 @@ function App() {
         
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/gabung" element={<Suspense fallback={<PageFallback />}><JoinTechnicianPage /></Suspense>} />
+          <Route path="/gabung" element={<Suspense fallback={<PageFallback />}><JoinPage /></Suspense>} />
           <Route path="/pending-verification" element={<PendingVerificationPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
