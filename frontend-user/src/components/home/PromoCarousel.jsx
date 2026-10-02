@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from '../../i18n';
 import { ChevronRight, Ticket, Bike, UtensilsCrossed, House, Package, Wrench, Bus } from 'lucide-react';
-import cx from '../ui/cx';
-import { formatCurrency } from '../../utils/formatters';
+import { cx } from '../ui/cx';
 
 const SERVICE_ICONS = {
   ride: Bike,
