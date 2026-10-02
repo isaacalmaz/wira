@@ -215,6 +215,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PromoCarousel />
+
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
       {/* Banner Download */}
