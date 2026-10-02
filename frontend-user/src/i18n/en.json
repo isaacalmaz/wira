@@ -82,7 +82,7 @@
   },
   "auth": {
     "login_title": "Sign in to Wira",
-    "login_subtitle": "Lombok's everyday super app",
+    "login_subtitle": "Please log in to your account",
     "register_title": "Create your Wira account",
     "email": "Email",
     "email_placeholder": "you@email.com",
