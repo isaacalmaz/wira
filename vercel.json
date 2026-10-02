@@ -1,8 +1,8 @@
 {
   "version": 2,
   "installCommand": "rm -rf node_modules && npm install --legacy-peer-deps --no-audit --no-fund",
-  "buildCommand": "cd frontend-user && npx vite build",
-  "outputDirectory": "dist",
+  "buildCommand": "cd frontend-user && npm run build",
+  "outputDirectory": "frontend-user/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
