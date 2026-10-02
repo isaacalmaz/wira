@@ -60,7 +60,7 @@ export default function Root() {
                           {/* Pelanggan (User) Authentication */}
                           <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/unduh" element={<DownloadPage />} />
+        <Route path="/install" element={<DownloadPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />
 

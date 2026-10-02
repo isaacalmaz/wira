@@ -81,16 +81,7 @@ export default function DownloadPage() {
           })}
         </div>
 
-        <Card className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold text-ink"><ShieldCheck size={18} /> {t('download.how_title')}</h2>
-          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-[14px] leading-relaxed text-ink">
-            <li>{t('download.step1')}</li>
-            <li>{t('download.step2')}</li>
-            <li>{t('download.step3')}</li>
-            <li>{t('download.step4')}</li>
-          </ol>
-          <Notice tone="info">{t('download.note')}</Notice>
-        </Card>
+        
       </div>
     </div>
   );
