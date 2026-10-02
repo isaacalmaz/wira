@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, FileSearch, Trash2, Plus, Store, Star, Clock, DoorOpen } from 'lucide-react';
+import { Search, RefreshCw, FileSearch, Power, Plus, Store, Star, Clock, DoorOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import ReasonSheet from '../components/common/ReasonSheet';
+import { setMerchantActive } from '../services/partnerAdminService';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
-import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
 import { toMerchantApplication } from '../services/merchantApprovalService';
@@ -26,7 +28,7 @@ const MerchantsPage = () => {
     try {
       const { data: merchantsData, error: merchantsErr } = await supabase
         .from('merchants')
-        .select('*')
+        .select('*, owner:owner_id(name)')
         // Restaurants only; villas have their own page (VillasPage).
         .in('service_type', ['food', 'WiraFood'])
         .order('created_at', { ascending: false });
@@ -63,17 +65,17 @@ const MerchantsPage = () => {
     }
   };
 
-  const handleDeleteLive = async (id) => {
-    // Confirmation now happens in the ConfirmModal below (deleteTarget).
+  // Restaurants are deactivated, never deleted (admin_set_merchant_active,
+  // migrations/0101): hidden from customers, history kept, reversible.
+  const confirmActive = async (reason) => {
+    const m = deleteTarget;
     try {
-      const { error, data } = await supabase.from('merchants').delete().eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
-      toast.success('Merchant dihapus dari Live Database');
+      await setMerchantActive(m.id, m.listing_status === 'suspended', reason);
+      toast.success(m.listing_status === 'suspended' ? `${m.name} aktif kembali` : `${m.name} dinonaktifkan`);
+      setDeleteTarget(null);
       fetchData();
     } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Gagal menghapus merchant');
+      toast.error(err.message || 'Gagal mengubah status');
     }
   };
 
@@ -94,7 +96,7 @@ const MerchantsPage = () => {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Restoran" value={liveMerchants.length} icon={<Store size={18} />} />
-        <Stat label="Sedang Buka" value={liveMerchants.filter((m) => m.is_open !== false).length} icon={<DoorOpen size={18} />} tone="neutral" />
+        <Stat label="Aktif" value={liveMerchants.filter((m) => m.listing_status !== 'suspended').length} icon={<DoorOpen size={18} />} tone="neutral" />
         <Stat label="Menunggu Verifikasi" value={pendingMerchants.length} icon={<Clock size={18} />} tone="neutral" />
       </div>
 
@@ -133,7 +135,7 @@ const MerchantsPage = () => {
             <thead>
               <tr>
                 <th>Nama</th>
-                <th>Kategori</th>
+                <th>Pemilik</th>
                 <th>Alamat</th>
                 <th className="text-right">Rating</th>
                 <th className="text-right">Aksi</th>
@@ -143,8 +145,12 @@ const MerchantsPage = () => {
               {filteredLive.map(m => {
                 return (
                 <tr key={m.id}>
-                  <td className="whitespace-nowrap font-semibold">{m.name}</td>
-                  <td className="text-ink-muted">{m.category || '—'}</td>
+                  <td className="whitespace-nowrap font-semibold">
+                    {m.name}
+                    {m.listing_status === 'suspended' && <Badge tone="danger" dot className="ml-2">Dinonaktifkan</Badge>}
+                    {m.category && <span className="block text-[12px] font-normal text-ink-muted">{m.category}</span>}
+                  </td>
+                  <td className="whitespace-nowrap">{m.owner_id ? <Link to={`/partners/${m.owner_id}`} className="hover:underline">{m.owner?.name || 'Pemilik'}</Link> : <span className="text-ink-muted">—</span>}</td>
                   <td className="max-w-[260px] truncate text-ink-muted" title={m.address}>{m.address}</td>
                   <td className="text-right">
                     <span className="inline-flex items-center gap-1 font-mono">
@@ -153,8 +159,8 @@ const MerchantsPage = () => {
                     </span>
                   </td>
                   <td className="text-right">
-                    <Button size="sm" variant="danger-soft" leftIcon={<Trash2 size={15} />} onClick={() => setDeleteTarget(m)}>
-                      Hapus
+                    <Button size="sm" variant={m.listing_status === 'suspended' ? 'secondary' : 'danger-soft'} leftIcon={<Power size={15} />} onClick={() => setDeleteTarget(m)}>
+                      {m.listing_status === 'suspended' ? 'Aktifkan' : 'Nonaktifkan'}
                     </Button>
                   </td>
                 </tr>
@@ -225,14 +231,16 @@ const MerchantsPage = () => {
         />
       )}
 
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        tone="danger"
-        title="Hapus Merchant"
-        message={deleteTarget ? `Hapus merchant "${deleteTarget.name}" dari aplikasi?` : ''}
-        confirmLabel="Hapus"
-        onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); handleDeleteLive(id); }}
-        onCancel={() => setDeleteTarget(null)}
+      <ReasonSheet
+        open={!!deleteTarget}
+        tone={deleteTarget?.listing_status === 'suspended' ? 'default' : 'danger'}
+        title={deleteTarget ? (deleteTarget.listing_status === 'suspended' ? `Aktifkan lagi ${deleteTarget.name}?` : `Nonaktifkan ${deleteTarget.name}?`) : ''}
+        description={deleteTarget?.listing_status === 'suspended'
+          ? 'Tampil lagi untuk pelanggan dan bisa menerima pesanan.'
+          : 'Tidak tampil untuk pelanggan dan tidak bisa dipesan. Menu dan riwayat pesanan tetap tersimpan; bisa diaktifkan lagi kapan saja.'}
+        confirmLabel={deleteTarget?.listing_status === 'suspended' ? 'Aktifkan' : 'Nonaktifkan'}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmActive}
       />
       <MerchantFormSheet open={isAddOpen} kind="food" onClose={() => setIsAddOpen(false)} onSaved={fetchData} />
     </div>

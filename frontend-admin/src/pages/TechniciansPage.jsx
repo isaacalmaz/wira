@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
+import { setUserBlocked } from '../services/partnerAdminService';
+import ReasonSheet from '../components/common/ReasonSheet';
+import { Link } from 'react-router-dom';
 import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -86,21 +89,19 @@ const TechniciansPage = () => {
   };
 
   // Step 2: only reached after the operator confirms in the ConfirmModal.
-  const confirmToggleStatus = async () => {
+  const confirmToggleStatus = async (reason) => {
     if (!blockTarget) return;
     const { id, currentStatus } = blockTarget;
-    const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
-      const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
-      toast.success(`Status diubah menjadi ${newStatus}`);
+      // admin_set_user_status (migrations/0101): reason sent to the partner
+      // and kept in the audit log.
+      const next = await setUserBlocked(id, currentStatus === 'Aktif', reason);
+      toast.success(next === 'Diblokir' ? 'Akun ditangguhkan' : 'Akun aktif kembali');
+      setBlockTarget(null);
       fetchData();
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Gagal mengubah status');
-    } finally {
-      setBlockTarget(null);
     }
   };
 
@@ -208,7 +209,7 @@ const TechniciansPage = () => {
                 <tr key={t.id}>
                   <td className="font-semibold">
                     <div className="flex flex-col items-start gap-1">
-                      {t.name}
+                      <Link to={`/partners/${t.id}`} className="hover:underline">{t.name}</Link>
                       {profiles[t.id] && (
                         <button
                           type="button"
@@ -270,7 +271,7 @@ const TechniciansPage = () => {
                       leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
                       onClick={() => toggleStatus(t.id, t.status || 'Aktif')}
                     >
-                      {isActive ? 'Blokir' : 'Aktifkan'}
+                      {isActive ? 'Tangguhkan' : 'Aktifkan'}
                     </Button>
                   </td>
                 </tr>
@@ -339,18 +340,16 @@ const TechniciansPage = () => {
         )}
       </Sheet>
 
-      <ConfirmModal
-        isOpen={!!blockTarget}
+      <ReasonSheet
+        open={!!blockTarget}
         tone={blockTarget?.currentStatus === 'Aktif' ? 'danger' : 'default'}
-        confirmLabel={blockTarget?.currentStatus === 'Aktif' ? 'Blokir' : 'Aktifkan'}
-        title={blockTarget?.currentStatus === 'Aktif' ? 'Blokir Teknisi' : 'Aktifkan Kembali Teknisi'}
-        message={blockTarget ? (
-          blockTarget.currentStatus === 'Aktif'
-            ? `Anda akan memblokir "${blockTarget.name}". Teknisi ini tidak akan bisa menerima order jasa servis baru sampai diaktifkan kembali.`
-            : `Anda akan mengaktifkan kembali "${blockTarget.name}". Teknisi ini akan bisa menerima order lagi.`
-        ) : ''}
+        confirmLabel={blockTarget?.currentStatus === 'Aktif' ? 'Tangguhkan' : 'Aktifkan'}
+        title={blockTarget ? (blockTarget.currentStatus === 'Aktif' ? `Tangguhkan ${blockTarget.name}?` : `Aktifkan lagi ${blockTarget.name}?`) : ''}
+        description={blockTarget?.currentStatus === 'Aktif'
+          ? 'Akun tidak bisa masuk ke Wira Mitra dan tidak ditawari pesanan baru. Pesanan yang sedang berjalan tidak otomatis dibatalkan; tangani dari halaman Orders.'
+          : 'Akun bisa masuk dan menerima pesanan lagi.'}
+        onClose={() => setBlockTarget(null)}
         onConfirm={confirmToggleStatus}
-        onCancel={() => setBlockTarget(null)}
       />
     </div>
   );

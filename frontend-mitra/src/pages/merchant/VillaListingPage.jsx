@@ -113,6 +113,11 @@ export default function VillaListingPage() {
                   {m.listing_status === 'rejected' && m.review_note && (
                     <Notice tone="danger" title="Catatan admin">{m.review_note}</Notice>
                   )}
+                  {m.listing_status === 'suspended' && (
+                    <Notice tone="danger" title="Dinonaktifkan oleh admin">
+                      Tidak tampil untuk tamu. {m.review_note ? `Alasan: ${m.review_note}. ` : ''}Hubungi tim Wira lewat Pusat Bantuan.
+                    </Notice>
+                  )}
                   {m.listing_status === 'pending' && (
                     <p className="text-[12px] text-ink-muted">Admin biasanya meninjau dalam 1x24 jam. Anda akan mendapat notifikasi.</p>
                   )}

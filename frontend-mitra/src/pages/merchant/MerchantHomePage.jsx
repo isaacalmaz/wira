@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { StatTile } from '../../components/shared/UIComponents';
-import { Card, Badge, Button, Sheet, Money, IconTile, cx } from '../../components/ui';
+import { Card, Badge, Button, Sheet, Money, IconTile, Notice, cx } from '../../components/ui';
 import { Store, TrendingUp, ShoppingBag, BellRing, MessageCircle, Home, UtensilsCrossed, Building2, ChevronRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -77,7 +77,9 @@ const MerchantHomePage = () => {
   const idsKey = merchantIds.join(',');
   const merchantId = merchantIds.length ? merchantIds : null;
   const propertyName = (order) => merchants.find((m) => m.id === order?.merchant_id)?.name;
-  const liveCount = merchants.filter((m) => m.listing_status !== 'pending' && m.listing_status !== 'rejected').length;
+  const liveCount = merchants.filter((m) => !m.listing_status || m.listing_status === 'approved').length;
+  // Deactivated by an admin (migrations/0101): hidden from customers.
+  const suspended = merchants.filter((m) => m.listing_status === 'suspended');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -223,6 +225,13 @@ const MerchantHomePage = () => {
           </div>
         )}
       </Card>
+
+      {suspended.length > 0 && (
+        <Notice tone="danger" title={`${suspended.map((m) => m.name).join(', ')} dinonaktifkan oleh admin`}>
+          Tidak tampil untuk pelanggan dan tidak bisa dipesan.
+          {suspended[0].review_note ? ` Alasan: ${suspended[0].review_note}.` : ''} Hubungi tim Wira lewat Pusat Bantuan.
+        </Notice>
+      )}
 
       {kind === 'villa' && (
         <button

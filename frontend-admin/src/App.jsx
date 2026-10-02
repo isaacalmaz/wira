@@ -26,6 +26,7 @@ const VillasPage = lazy(() => import('./pages/VillasPage'));
 const VehiclesPricingPage = lazy(() => import('./pages/VehiclesPricingPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
 const CommissionPage = lazy(() => import('./pages/CommissionPage'));
+const PartnerProfilePage = lazy(() => import('./pages/PartnerProfilePage'));
 const PromosPage = lazy(() => import('./pages/PromosPage'));
 const WhatsAppPage = lazy(() => import('./pages/WhatsAppPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -154,6 +155,11 @@ function App() {
             <Route path="pricing" element={
               <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <VehiclesPricingPage />
+              </ProtectedRoute>
+            } />
+            <Route path="partners/:id" element={
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
+                <PartnerProfilePage />
               </ProtectedRoute>
             } />
             <Route path="commission" element={

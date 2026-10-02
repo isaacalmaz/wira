@@ -3,6 +3,9 @@ import { supabase } from '../config/supabase';
 import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
+import ReasonSheet from '../components/common/ReasonSheet';
+import { setUserBlocked, setPartnerAccess } from '../services/partnerAdminService';
+import { Link } from 'react-router-dom';
 import { Badge, Button, Card, Field, Input, Money, PageHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // 'courier' is no longer a separate mitra_access role - Driver now covers
@@ -108,39 +111,20 @@ const UsersPage = () => {
   // { kind: 'status', user, isActive } | { kind: 'access', user, roleKey, label, active }
   const [pendingAction, setPendingAction] = useState(null);
 
-  const toggleStatus = async (id, currentStatus) => {
-    const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
-    try {
-      const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
-      toast.success(`Status diubah menjadi ${newStatus}`);
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Gagal mengubah status');
-    }
+  // Both go through 0101's RPCs: reason required, the user is notified and
+  // the decision lands in the audit log (shown on the partner profile).
+  const toggleStatus = async (id, currentStatus, reason) => {
+    const next = await setUserBlocked(id, currentStatus === 'Aktif', reason);
+    toast.success(next === 'Diblokir' ? 'Akun ditangguhkan' : 'Akun aktif kembali');
+    fetchUsers();
   };
 
-  const toggleMitraAccess = async (user, roleKey) => {
+  const toggleMitraAccess = async (user, roleKey, reason) => {
     const current = Array.isArray(user.mitra_access) ? user.mitra_access : [];
     const hasRole = current.includes(roleKey);
-    const nextAccess = hasRole ? current.filter(r => r !== roleKey) : [...current, roleKey];
-
-    try {
-      const { error, data } = await supabase
-        .from('users')
-        .update({ mitra_access: nextAccess })
-        .eq('id', user.id)
-        .select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Akses ditolak oleh RLS atau pengguna tidak ditemukan.");
-      toast.success(hasRole ? `Akses ${roleKey} dicabut dari ${user.name}` : `Akses ${roleKey} diberikan ke ${user.name}`);
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, mitra_access: nextAccess } : u));
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Gagal mengubah akses mitra');
-    }
+    const nextAccess = await setPartnerAccess(user.id, roleKey, !hasRole, reason);
+    toast.success(hasRole ? `Akses ${roleKey} dicabut dari ${user.name}` : `Akses ${roleKey} diberikan ke ${user.name}`);
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, mitra_access: nextAccess } : u));
   };
 
   const filtered = users.filter(u =>
@@ -202,7 +186,9 @@ const UsersPage = () => {
               <tr key={u.id}>
                 <td className="whitespace-nowrap font-semibold">
                   <div className="flex flex-col items-start gap-1">
-                    {u.name}
+                    {Array.isArray(u.mitra_access) && u.mitra_access.length > 0
+                      ? <Link to={`/partners/${u.id}`} className="hover:underline">{u.name}</Link>
+                      : u.name}
                     {customerRatings[u.id] && (() => {
                       const r = customerRatings[u.id];
                       const avg = r.sum / r.count;
@@ -262,11 +248,11 @@ const UsersPage = () => {
                       size="sm"
                       variant={isActive ? 'danger-soft' : 'secondary'}
                       onClick={() => setPendingAction({ kind: 'status', user: u, isActive })}
-                      title={isActive ? 'Blokir' : 'Aktifkan'}
+                      title={isActive ? 'Tangguhkan' : 'Aktifkan'}
                       leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
                       className="whitespace-nowrap"
                     >
-                      {isActive ? 'Blokir' : 'Aktifkan'}
+                      {isActive ? 'Tangguhkan' : 'Aktifkan'}
                     </Button>
                   </div>
                 </td>
@@ -328,29 +314,33 @@ const UsersPage = () => {
       </Sheet>
 
       {/* Blokir / aktifkan akun dan ubah akses mitra: selalu lewat konfirmasi */}
-      <ConfirmModal
-        isOpen={!!pendingAction}
+      <ReasonSheet
+        open={!!pendingAction}
         tone={pendingAction && ((pendingAction.kind === 'status' && pendingAction.isActive) || (pendingAction.kind === 'access' && pendingAction.active)) ? 'danger' : 'default'}
         title={!pendingAction ? '' : pendingAction.kind === 'status'
-          ? (pendingAction.isActive ? `Blokir ${pendingAction.user.name}?` : `Aktifkan ${pendingAction.user.name}?`)
+          ? (pendingAction.isActive ? `Tangguhkan ${pendingAction.user.name}?` : `Aktifkan ${pendingAction.user.name}?`)
           : (pendingAction.active ? `Cabut akses ${pendingAction.label}?` : `Berikan akses ${pendingAction.label}?`)}
-        message={!pendingAction ? '' : pendingAction.kind === 'status'
+        description={!pendingAction ? '' : pendingAction.kind === 'status'
           ? (pendingAction.isActive
-            ? 'Akun ini tidak akan bisa memakai Wira sampai diaktifkan lagi.'
-            : 'Akun ini akan bisa memakai Wira lagi.')
+            ? 'Akun ini tidak bisa memakai Wira sampai diaktifkan lagi.'
+            : 'Akun ini bisa memakai Wira lagi.')
           : (pendingAction.active
-            ? `${pendingAction.user.name} tidak akan bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`
-            : `${pendingAction.user.name} akan bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`)}
+            ? `${pendingAction.user.name} tidak bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`
+            : `${pendingAction.user.name} bisa masuk ke portal ${pendingAction.label} di Wira Mitra.`)}
         confirmLabel={!pendingAction ? 'Konfirmasi' : pendingAction.kind === 'status'
-          ? (pendingAction.isActive ? 'Blokir' : 'Aktifkan')
+          ? (pendingAction.isActive ? 'Tangguhkan' : 'Aktifkan')
           : (pendingAction.active ? 'Cabut akses' : 'Berikan akses')}
-        onConfirm={async () => {
+        onConfirm={async (reason) => {
           const a = pendingAction;
-          setPendingAction(null);
-          if (a.kind === 'status') await toggleStatus(a.user.id, a.user.status || 'Aktif');
-          else await toggleMitraAccess(a.user, a.roleKey);
+          try {
+            if (a.kind === 'status') await toggleStatus(a.user.id, a.user.status || 'Aktif', reason);
+            else await toggleMitraAccess(a.user, a.roleKey, reason);
+            setPendingAction(null);
+          } catch (err) {
+            toast.error(err.message || 'Gagal menyimpan');
+          }
         }}
-        onCancel={() => setPendingAction(null)}
+        onClose={() => setPendingAction(null)}
       />
 
       {/* Konfirmasi Koreksi Saldo - ringkasan saldo lama -> baru sebelum RPC

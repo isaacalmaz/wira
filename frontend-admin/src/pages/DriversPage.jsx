@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
+import { setUserBlocked } from '../services/partnerAdminService';
+import ReasonSheet from '../components/common/ReasonSheet';
+import { Link } from 'react-router-dom';
 import { Car, Package, Utensils, Ban, CheckCircle, Eye, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -74,21 +77,19 @@ const DriversPage = () => {
   };
 
   // Step 2: only reached after the operator confirms in the ConfirmModal.
-  const confirmToggleStatus = async () => {
+  const confirmToggleStatus = async (reason) => {
     if (!blockTarget) return;
     const { id, currentStatus } = blockTarget;
-    const newStatus = currentStatus === 'Aktif' ? 'Diblokir' : 'Aktif';
     try {
-      const { error, data } = await supabase.from('users').update({ status: newStatus }).eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Akses ditolak atau data tidak ditemukan.");
-      toast.success(`Status diubah menjadi ${newStatus}`);
+      // admin_set_user_status (migrations/0101): reason sent to the partner
+      // and kept in the audit log.
+      const next = await setUserBlocked(id, currentStatus === 'Aktif', reason);
+      toast.success(next === 'Diblokir' ? 'Akun ditangguhkan' : 'Akun aktif kembali');
+      setBlockTarget(null);
       fetchData();
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Gagal mengubah status');
-    } finally {
-      setBlockTarget(null);
     }
   };
 
@@ -166,7 +167,7 @@ const DriversPage = () => {
               const isActive = (d.status || 'Aktif') === 'Aktif';
               return (
                 <tr key={d.id}>
-                  <td className="font-semibold">{d.name}</td>
+                  <td className="font-semibold"><Link to={`/partners/${d.id}`} className="hover:underline">{d.name}</Link></td>
                   <td>
                     <div className="flex flex-wrap gap-1.5">
                       {hasJobType(d.job_type_preferences, 'ride') && (
@@ -193,7 +194,7 @@ const DriversPage = () => {
                       leftIcon={isActive ? <Ban size={15} /> : <CheckCircle size={15} />}
                       onClick={() => toggleStatus(d.id, d.status || 'Aktif')}
                     >
-                      {isActive ? 'Blokir' : 'Aktifkan'}
+                      {isActive ? 'Tangguhkan' : 'Aktifkan'}
                     </Button>
                   </td>
                 </tr>
@@ -217,18 +218,16 @@ const DriversPage = () => {
         />
       )}
 
-      <ConfirmModal
-        isOpen={!!blockTarget}
+      <ReasonSheet
+        open={!!blockTarget}
         tone={blockTarget?.currentStatus === 'Aktif' ? 'danger' : 'default'}
-        confirmLabel={blockTarget?.currentStatus === 'Aktif' ? 'Blokir' : 'Aktifkan'}
-        title={blockTarget?.currentStatus === 'Aktif' ? 'Blokir Driver' : 'Aktifkan Kembali Driver'}
-        message={blockTarget ? (
-          blockTarget.currentStatus === 'Aktif'
-            ? `Anda akan memblokir "${blockTarget.name}". Driver ini tidak akan bisa menerima order baru sampai diaktifkan kembali - jika sedang dalam perjalanan/order aktif, order itu tidak otomatis dibatalkan.`
-            : `Anda akan mengaktifkan kembali "${blockTarget.name}". Driver ini akan bisa menerima order lagi.`
-        ) : ''}
+        confirmLabel={blockTarget?.currentStatus === 'Aktif' ? 'Tangguhkan' : 'Aktifkan'}
+        title={blockTarget ? (blockTarget.currentStatus === 'Aktif' ? `Tangguhkan ${blockTarget.name}?` : `Aktifkan lagi ${blockTarget.name}?`) : ''}
+        description={blockTarget?.currentStatus === 'Aktif'
+          ? 'Akun tidak bisa masuk ke Wira Mitra dan tidak ditawari pesanan baru. Pesanan yang sedang berjalan tidak otomatis dibatalkan; tangani dari halaman Orders.'
+          : 'Akun bisa masuk dan menerima pesanan lagi.'}
+        onClose={() => setBlockTarget(null)}
         onConfirm={confirmToggleStatus}
-        onCancel={() => setBlockTarget(null)}
       />
     </div>
   );

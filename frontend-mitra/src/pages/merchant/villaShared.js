@@ -11,6 +11,7 @@ export const MAX_PHOTOS = 12;
 export function listingState(m) {
   if (m.listing_status === 'pending') return { tone: 'warning', label: 'Menunggu peninjauan' };
   if (m.listing_status === 'rejected') return { tone: 'danger', label: 'Perlu diperbaiki' };
+  if (m.listing_status === 'suspended') return { tone: 'danger', label: 'Dinonaktifkan admin' };
   if (m.is_open === false) return { tone: 'neutral', label: 'Dijeda' };
   return { tone: 'success', label: 'Tayang' };
 }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, RefreshCw, Check, X, MapPin, BedDouble, Users, Building2, FileSearch, UserPlus } from 'lucide-react';
+import { Search, Plus, Power, RefreshCw, Check, X, MapPin, BedDouble, Users, Building2, FileSearch, UserPlus } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
-import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, PageHeader, Segmented, Sheet, Table, Textarea } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
 import MitraReviewModal from '../components/common/MitraReviewModal';
+import ReasonSheet from '../components/common/ReasonSheet';
+import { setMerchantActive } from '../services/partnerAdminService';
+import { Link } from 'react-router-dom';
 import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
 import { toMerchantApplication } from '../services/merchantApprovalService';
 
@@ -13,6 +15,7 @@ const STATUS = {
   pending: { tone: 'warning', label: 'Menunggu' },
   approved: { tone: 'success', label: 'Tayang' },
   rejected: { tone: 'danger', label: 'Ditolak' },
+  suspended: { tone: 'danger', label: 'Dinonaktifkan' },
 };
 const statusOf = (v) => (v.listing_status === 'approved' && v.is_open === false ? { tone: 'neutral', label: 'Dijeda' } : STATUS[v.listing_status] || STATUS.approved);
 
@@ -90,15 +93,17 @@ const VillasPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  // Villas are deactivated, never deleted (admin_set_merchant_active,
+  // migrations/0101): hidden from guests, bookings history kept, reversible.
+  const confirmActive = async (reason) => {
+    const v = deleteTarget;
     try {
-      const { error, data } = await supabase.from('merchants').delete().eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error('Akses ditolak atau data tidak ditemukan.');
-      toast.success('Vila berhasil dihapus');
+      await setMerchantActive(v.id, v.listing_status === 'suspended', reason);
+      toast.success(v.listing_status === 'suspended' ? `${v.name} aktif kembali` : `${v.name} dinonaktifkan`);
+      setDeleteTarget(null);
       fetchVillas();
     } catch (err) {
-      toast.error(err.message || 'Gagal menghapus vila');
+      toast.error(err.message || 'Gagal mengubah status');
     }
   };
 
@@ -240,18 +245,20 @@ const VillasPage = () => {
                   <td>
                     <p className="whitespace-nowrap font-semibold">{v.name}</p>
                     <p className="text-[12px] text-ink-muted">{v.address}</p>
-                    {v.listing_status === 'rejected' && v.review_note && <p className="text-[12px] text-danger-ink">Alasan: {v.review_note}</p>}
+                    {['rejected', 'suspended'].includes(v.listing_status) && v.review_note && <p className="text-[12px] text-danger-ink">Alasan: {v.review_note}</p>}
                   </td>
                   <td className="whitespace-nowrap">
-                    <p>{v.owner?.name || '—'}</p>
+                    {v.owner_id ? <Link to={`/partners/${v.owner_id}`} className="hover:underline">{v.owner?.name || 'Pemilik'}</Link> : <p>—</p>}
                     {v.owner_id && <p className="text-[12px] text-ink-muted">{perHost[v.owner_id]} properti</p>}
                   </td>
                   <td className="text-right"><Money value={v.price_per_night || 0} /></td>
                   <td><Badge tone={st.tone} dot>{st.label}</Badge></td>
                   <td className="text-right">
-                    <Button size="sm" variant="danger-soft" leftIcon={<Trash2 size={15} />} onClick={() => setDeleteTarget(v)}>
-                      Hapus
-                    </Button>
+                    {['approved', 'suspended'].includes(v.listing_status) && (
+                      <Button size="sm" variant={v.listing_status === 'suspended' ? 'secondary' : 'danger-soft'} leftIcon={<Power size={15} />} onClick={() => setDeleteTarget(v)}>
+                        {v.listing_status === 'suspended' ? 'Aktifkan' : 'Nonaktifkan'}
+                      </Button>
+                    )}
                   </td>
                 </tr>
               );
@@ -294,14 +301,16 @@ const VillasPage = () => {
         <MitraReviewModal isOpen={!!reviewApp} onClose={() => setReviewApp(null)} mitra={reviewApp} onVerify={handleVerify} />
       )}
 
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        tone="danger"
-        title="Hapus Vila"
-        message={deleteTarget ? `Hapus vila "${deleteTarget.name}"?` : ''}
-        confirmLabel="Hapus"
-        onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); handleDelete(id); }}
-        onCancel={() => setDeleteTarget(null)}
+      <ReasonSheet
+        open={!!deleteTarget}
+        tone={deleteTarget?.listing_status === 'suspended' ? 'default' : 'danger'}
+        title={deleteTarget ? (deleteTarget.listing_status === 'suspended' ? `Aktifkan lagi ${deleteTarget.name}?` : `Nonaktifkan ${deleteTarget.name}?`) : ''}
+        description={deleteTarget?.listing_status === 'suspended'
+          ? 'Tampil lagi untuk tamu dan bisa dipesan.'
+          : 'Tidak tampil untuk tamu dan tidak bisa dipesan. Riwayat pemesanan tetap tersimpan; bisa diaktifkan lagi kapan saja.'}
+        confirmLabel={deleteTarget?.listing_status === 'suspended' ? 'Aktifkan' : 'Nonaktifkan'}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmActive}
       />
       <MerchantFormSheet open={isAddOpen} kind="villa" onClose={() => setIsAddOpen(false)} onSaved={() => fetchVillas()} />
     </div>
