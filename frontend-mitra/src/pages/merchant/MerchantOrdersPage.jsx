@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner } from '../../components/ui';
+import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner, Select } from '../../components/ui';
 import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
@@ -10,6 +10,7 @@ import { updateOrderStatus } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
 import API_BASE_URL from '../../config/api';
+import useMyMerchants from '../../hooks/useMyMerchants';
 
 // Status badge tone (DESIGN.md §5): waiting = warning, in progress = brand,
 // done = success, cancelled = danger. Display only.
@@ -55,7 +56,10 @@ const OrderItems = ({ details, fallback }) => {
 
 const MerchantOrdersPage = () => {
   const { user } = useAuth();
-  const [merchantId, setMerchantId] = useState(null);
+  // All of this owner's properties on this portal (migration 0097).
+  const { merchants, ids: merchantIds, loading: merchantsLoading } = useMyMerchants();
+  const idsKey = merchantIds.join(',');
+  const [property, setProperty] = useState('all');
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
@@ -71,21 +75,10 @@ const MerchantOrdersPage = () => {
   };
 
   const fetchOrders = async () => {
-    if (!user) return;
+    if (!user || merchantsLoading) return;
     setLoading(true);
 
-    let mId = merchantId;
-    if (!mId) {
-      const { data: merchantData } = await supabase
-        .from('merchants')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single();
-      mId = merchantData?.id;
-      setMerchantId(mId || null);
-    }
-
-    if (!mId) {
+    if (!idsKey) {
       setOrders([]);
       setLoading(false);
       return;
@@ -94,7 +87,7 @@ const MerchantOrdersPage = () => {
     const { data } = await supabase
       .from('orders')
       .select('*')
-      .eq('merchant_id', mId)
+      .in('merchant_id', idsKey.split(','))
       .order('created_at', { ascending: false });
 
     setOrders(data || []);
@@ -103,7 +96,7 @@ const MerchantOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [user]);
+  }, [user, idsKey, merchantsLoading]);
 
   // Fires the real push-notification pipeline (backend's POST
   // /api/notifications/order-alert, see notification.routes.js) the moment
@@ -137,7 +130,7 @@ const MerchantOrdersPage = () => {
 
   const updateStatus = async (order, newStatus) => {
     try {
-      await updateOrderStatus(supabase, order.id, newStatus, merchantId, 'merchant');
+      await updateOrderStatus(supabase, order.id, newStatus, order.merchant_id, 'merchant');
       toast.success('Status pesanan diperbarui');
       if (newStatus === OrderStatus.READY) {
         notifyOrderReady(order);
@@ -148,7 +141,8 @@ const MerchantOrdersPage = () => {
     }
   };
 
-  const filteredOrders = orders.filter(o => tab === 'active' ? (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) : (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED));
+  const propertyName = (id) => merchants.find((m) => m.id === id)?.name;
+  const filteredOrders = orders.filter(o => property === 'all' || o.merchant_id === property).filter(o => tab === 'active' ? (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) : (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED));
 
   return (
     <div className="flex flex-col gap-5 pb-20">
@@ -161,6 +155,13 @@ const MerchantOrdersPage = () => {
           </Button>
         }
       />
+
+      {merchants.length > 1 && (
+        <Select id="orders-property" aria-label="Pilih properti" value={property} onChange={(e) => setProperty(e.target.value)}>
+          <option value="all">Semua properti ({merchants.length})</option>
+          {merchants.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </Select>
+      )}
 
       <Segmented
         ariaLabel="Daftar Pesanan"
@@ -195,6 +196,9 @@ const MerchantOrdersPage = () => {
 
             <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/60 p-3">
               <p className="text-[14px] font-semibold text-ink">{order.title || (isVilla ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+              {merchants.length > 1 && property === 'all' && propertyName(order.merchant_id) && (
+                <span><Badge tone="neutral">{propertyName(order.merchant_id)}</Badge></span>
+              )}
               <OrderItems details={order.details} fallback={isVilla ? 'Tidak ada detail reservasi' : 'Tidak ada detail menu'} />
             </div>
 

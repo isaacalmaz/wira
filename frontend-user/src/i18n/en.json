@@ -245,7 +245,10 @@
     "default_amenity_wifi": "Fast Wi-Fi",
     "default_amenity_pool": "Swimming pool",
     "default_amenity_breakfast": "Breakfast included",
-    "default_desc": "An exclusive Lombok villa with green, open views."
+    "default_desc": "An exclusive Lombok villa with green, open views.",
+    "photo_count": "{{count}} photos",
+    "max_guests_line": "Up to {{count}} guests",
+    "more_from_host": "More from this host"
   },
   "service": {
     "title": "WiraService — Home Repairs & Technicians",

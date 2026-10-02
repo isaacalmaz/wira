@@ -37,7 +37,7 @@ const MitraLayout = ({ children }) => {
     }
 
     if (activeRole === 'villa') {
-      base.push({ to: `/villa/listing`, icon: Building2, label: 'Listing' });
+      base.push({ to: `/villa/listing`, icon: Building2, label: 'Properti' });
     }
 
     if (activeRole === 'technician') {

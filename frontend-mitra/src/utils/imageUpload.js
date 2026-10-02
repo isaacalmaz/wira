@@ -35,8 +35,8 @@ function compressImageToBlob(file, maxDim = 800, quality = 0.75) {
   });
 }
 
-export async function uploadImageToBucket(supabaseClient, bucket, userId, file) {
-  const blob = await compressImageToBlob(file);
+export async function uploadImageToBucket(supabaseClient, bucket, userId, file, { maxDim = 800, quality = 0.75 } = {}) {
+  const blob = await compressImageToBlob(file, maxDim, quality);
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
   const { error } = await supabaseClient.storage.from(bucket).upload(path, blob, {
     contentType: 'image/jpeg',

@@ -25,6 +25,7 @@ const MerchantMenuPage = lazy(() => import('./pages/merchant/MerchantMenuPage'))
 const MerchantEarningsPage = lazy(() => import('./pages/merchant/MerchantEarningsPage'));
 const MerchantProfilePage = lazy(() => import('./pages/merchant/MerchantProfilePage'));
 const VillaListingPage = lazy(() => import('./pages/merchant/VillaListingPage'));
+const VillaEditPage = lazy(() => import('./pages/merchant/VillaEditPage'));
 
 const TechHomePage = lazy(() => import('./pages/technician/TechHomePage'));
 const TechOrdersPage = lazy(() => import('./pages/technician/TechOrdersPage'));
@@ -113,7 +114,6 @@ function App() {
                 <Route path="/" element={<MerchantHomePage />} />
                 <Route path="orders" element={<MerchantOrdersPage />} />
                 <Route path="menu" element={<MerchantMenuPage />} />
-                <Route path="listing" element={<VillaListingPage />} />
                 <Route path="earnings" element={<MerchantEarningsPage />} />
                 <Route path="profile" element={<MerchantProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />
@@ -127,14 +127,15 @@ function App() {
               reuses the same Home/Orders/Earnings/Profile components as merchant,
               since they already branch on merchants.service_type internally (see
               isVillaOrder() in each) - only the "Menu" slot differs, pointing at
-              VillaListingPage (single-row listing edit) instead of MerchantMenuPage
-              (products CRUD list), which villa merchants don't need. */}
+              VillaListingPage ("Properti Saya": every villa the host runs, migration
+              0097) instead of MerchantMenuPage (products CRUD list). */}
           <Route path="/villa/*" element={
             <ProtectedRoute allowedRole="villa">
               <Routes>
                 <Route path="/" element={<MerchantHomePage />} />
                 <Route path="orders" element={<MerchantOrdersPage />} />
                 <Route path="listing" element={<VillaListingPage />} />
+                <Route path="listing/:id" element={<VillaEditPage />} />
                 <Route path="earnings" element={<MerchantEarningsPage />} />
                 <Route path="profile" element={<MerchantProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />

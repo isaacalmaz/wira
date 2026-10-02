@@ -2,13 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { StatTile } from '../../components/shared/UIComponents';
 import { Card, Badge, Button, Sheet, Money, IconTile, cx } from '../../components/ui';
-import { Store, TrendingUp, ShoppingBag, BellRing, MessageCircle, Home, UtensilsCrossed } from 'lucide-react';
+import { Store, TrendingUp, ShoppingBag, BellRing, MessageCircle, Home, UtensilsCrossed, Building2, ChevronRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
 import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
+import useMyMerchants from '../../hooks/useMyMerchants';
 
 // Display-only: food orders store their items as a JSON array in `details`;
 // list them one per line with the quantity in mono. Anything else (villa
@@ -70,40 +71,36 @@ const MerchantHomePage = () => {
   const [todayOrders, setTodayOrders] = useState(0);
   const [todayEarnings, setTodayEarnings] = useState(0);
 
-  const [merchantId, setMerchantId] = useState(null);
+  // Every property this owner runs on this portal (several villas, or one
+  // restaurant): stats, incoming orders and the realtime feed cover all.
+  const { merchants, ids: merchantIds, kind } = useMyMerchants();
+  const idsKey = merchantIds.join(',');
+  const merchantId = merchantIds.length ? merchantIds : null;
+  const propertyName = (order) => merchants.find((m) => m.id === order?.merchant_id)?.name;
+  const liveCount = merchants.filter((m) => m.listing_status !== 'pending' && m.listing_status !== 'rejected').length;
 
   useEffect(() => {
-    const fetchMerchantAndStats = async () => {
-      if (!user) return;
-      
-      const { data: merchantData } = await supabase
-        .from('merchants')
-        .select('id')
-        .eq('owner_id', user.id)
-        .single();
+    const fetchStats = async () => {
+      if (!idsKey) return;
+      const { data } = await supabase
+        .from('orders')
+        .select('total_price, delivery_fee, payment_method, driver_id, status, service_type')
+        .in('merchant_id', idsKey.split(','))
+        .gte('created_at', new Date().toISOString().split('T')[0]);
 
-      if (merchantData) {
-        setMerchantId(merchantData.id);
-        const { data } = await supabase
-          .from('orders')
-          .select('total_price, delivery_fee, payment_method, driver_id, status')
-          .eq('merchant_id', merchantData.id)
-          .gte('created_at', new Date().toISOString().split('T')[0]);
-
-        if (data) {
-          setTodayOrders(data.length);
-          // Real merchant share per migrations/0028's payout trigger, not
-          // raw total_price (which for food also includes the delivery fee
-          // the driver earns, and for either order type includes the 20%
-          // platform commission the merchant never sees) - see
-          // merchantEarnedAmount's doc comment in orderService.js.
-          const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + merchantEarnedAmount(d), 0);
-          setTodayEarnings(earnings);
-        }
+      if (data) {
+        setTodayOrders(data.length);
+        // Real merchant share per migrations/0028's payout trigger, not
+        // raw total_price (which for food also includes the delivery fee
+        // the driver earns, and for either order type includes the 20%
+        // platform commission the merchant never sees) - see
+        // merchantEarnedAmount's doc comment in orderService.js.
+        const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + merchantEarnedAmount(d), 0);
+        setTodayEarnings(earnings);
       }
     };
-    fetchMerchantAndStats();
-  }, [user]);
+    fetchStats();
+  }, [idsKey]);
 
   useEffect(() => {
     if (!isOpen || !merchantId) {
@@ -147,14 +144,14 @@ const MerchantHomePage = () => {
       clearInterval(interval);
       unsubscribe();
     };
-  }, [isOpen, activeOrder, merchantId]);
+  }, [isOpen, activeOrder, idsKey]);
 
   const isVillaOrder = (order) => order && (order.service_type === 'villa' || order.service_type === 'WiraVilla');
 
   const handleAcceptOrder = async () => {
     if (!incomingOrder) return;
     try {
-      const accepted = await acceptOrder(supabase, incomingOrder.id, merchantId, 'merchant');
+      const accepted = await acceptOrder(supabase, incomingOrder.id, incomingOrder.merchant_id, 'merchant');
       setActiveOrder(accepted);
       setIncomingOrder(null);
       toast.success(isVillaOrder(accepted) ? 'Reservasi Dikonfirmasi!' : 'Pesanan Diterima! Silakan siapkan makanan.');
@@ -171,14 +168,14 @@ const MerchantHomePage = () => {
         // Villa reservations have no prep/delivery leg - ACCEPTED -> COMPLETED
         // directly is correct here, and the DB payout trigger credits the
         // merchant right away on this same transition.
-        await completeOrder(supabase, activeOrder.id, merchantId, 'merchant');
+        await completeOrder(supabase, activeOrder.id, activeOrder.merchant_id, 'merchant');
         setActiveOrder(null);
         toast.success('Reservasi Selesai!');
         setTodayOrders(prev => prev + 1);
         // Villa's delivery_fee is always 0, so merchantEarnedAmount here is
-        // total_price * 0.8 (the trigger's real commission-adjusted share),
-        // or -20% of total_price for a Tunai booking the merchant collected
-        // in cash (migrations/0075) - not the raw total_price this used to add.
+        // total_price * 0.95 (5% commission since migrations/0098), or -5% of
+        // total_price for a Tunai booking the merchant collected in cash
+        // (migrations/0075) - not the raw total_price this used to add.
         setTodayEarnings(prev => prev + merchantEarnedAmount(activeOrder));
       } else {
         // Food: this button means "I've finished preparing it," NOT "hand
@@ -187,8 +184,8 @@ const MerchantHomePage = () => {
         // intermediate hop) so the order actually becomes visible to
         // drivers, instead of jumping straight to COMPLETED and skipping
         // the driver leg entirely.
-        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING, merchantId, 'merchant');
-        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY, merchantId, 'merchant');
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING, activeOrder.merchant_id, 'merchant');
+        await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY, activeOrder.merchant_id, 'merchant');
         setActiveOrder(null);
         toast.success('Pesanan Siap! Menunggu driver mengambil.');
         setTodayOrders(prev => prev + 1);
@@ -226,6 +223,23 @@ const MerchantHomePage = () => {
         )}
       </Card>
 
+      {kind === 'villa' && (
+        <button
+          type="button"
+          onClick={() => navigate('/villa/listing')}
+          className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-card p-3.5 text-left transition-colors hover:bg-sunken"
+        >
+          <IconTile tone="brand" size="sm"><Building2 size={18} /></IconTile>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[14px] font-semibold text-ink">Properti Saya</span>
+            <span className="text-[12px] text-ink-muted">
+              {merchants.length === 0 ? 'Belum ada properti' : `${liveCount} tayang dari ${merchants.length} properti`}
+            </span>
+          </span>
+          <ChevronRight size={18} className="text-ink-muted" aria-hidden="true" />
+        </button>
+      )}
+
       {!activeOrder ? (
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-3">
           <StatTile icon={ShoppingBag} tone="brand" value={todayOrders} label="Pesanan Hari Ini" />
@@ -249,6 +263,9 @@ const MerchantHomePage = () => {
           <div className="flex flex-col gap-4 p-4">
             <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/60 p-3">
               <p className="text-[14px] font-semibold text-ink">{activeOrder.title || (isVillaOrder(activeOrder) ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+              {merchants.length > 1 && propertyName(activeOrder) && (
+                <span><Badge tone="neutral">{propertyName(activeOrder)}</Badge></span>
+              )}
               <OrderItems details={activeOrder.details} fallback="Tidak ada detail" />
             </div>
 
@@ -291,6 +308,9 @@ const MerchantHomePage = () => {
       >
         {incomingOrder && (
           <div className="flex flex-col gap-4">
+            {merchants.length > 1 && propertyName(incomingOrder) && (
+              <span><Badge tone="brand">{propertyName(incomingOrder)}</Badge></span>
+            )}
             <div className="rounded-control border border-line bg-card p-3.5">
               <OrderItems details={incomingOrder.details} fallback="Pesanan baru masuk!" />
             </div>

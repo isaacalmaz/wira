@@ -229,7 +229,10 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
   if (mode === 'technician') {
     query = query.in('service_type', TECHNICIAN_SERVICE_TYPES).is('driver_id', null);
   } else if (mode === 'merchant' && filterId) {
-    query = query.in('service_type', MERCHANT_SERVICE_TYPES).eq('merchant_id', filterId);
+    // One owner can run several villas (migration 0097): filterId may be a
+    // list of their merchant ids.
+    query = query.in('service_type', MERCHANT_SERVICE_TYPES);
+    query = Array.isArray(filterId) ? query.in('merchant_id', filterId) : query.eq('merchant_id', filterId);
   } else if (mode === 'merchant') {
     query = query.in('service_type', MERCHANT_SERVICE_TYPES);
   }
@@ -412,8 +415,9 @@ export async function completeOrder(supabaseClient, orderId, partnerId, mode = '
  * These mirror migrations/0028_mitra_payout_system.sql's
  * credit_payout_on_order_completed trigger, as amended by
  * migrations/0075_cash_orders_commission_debt.sql, EXACTLY (20% platform
- * commission, i.e. mitra keep 80%) - keep them in sync if that trigger's
- * math ever changes. Earnings screens across the mitra app must show what
+ * commission, i.e. mitra keep 80%; villas 5% since migrations/0098, see
+ * platform_commission_rate) - keep them in sync if that trigger's math ever
+ * changes. Earnings screens across the mitra app must show what
  * the trigger actually credited, not raw order.total_price (which
  * double-counts: for a food order, total_price is the whole meal+delivery
  * bill, but the merchant only ever earns the food portion and the driver
@@ -429,6 +433,9 @@ export async function completeOrder(supabaseClient, orderId, partnerId, mode = '
  * Orders must be selected with payment_method (and driver_id for merchants).
  */
 const MITRA_SHARE = 0.8;
+// Villa hosts keep 95% (migrations/0098). Orders must carry service_type.
+const VILLA_SHARE = 0.95;
+const isVillaOrder = (order) => order.service_type === 'villa' || order.service_type === 'WiraVilla';
 
 const isCashOrder = (order) => order.payment_method === 'cash';
 
@@ -440,7 +447,7 @@ function driverShare(order) {
 }
 
 function merchantShare(order) {
-  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * MITRA_SHARE;
+  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * (isVillaOrder(order) ? VILLA_SHARE : MITRA_SHARE);
 }
 
 // The assigned driver collects the cash; only with no driver does the merchant.
@@ -603,11 +610,14 @@ export function subscribeToDriverOrders(supabaseClient, onOrder, getDriverPos = 
  * Subscribe to realtime merchant orders
  */
 export function subscribeToMerchantOrders(supabaseClient, merchantId, onOrder) {
+  // merchantId may be a list (an owner with several villas, migration 0097).
+  const ids = Array.isArray(merchantId) ? merchantId : [merchantId];
+  const filter = ids.length === 1 ? `merchant_id=eq.${ids[0]}` : `merchant_id=in.(${ids.join(',')})`;
   const channel = supabaseClient
-    .channel(`merchant-orders-${merchantId}`)
+    .channel(`merchant-orders-${ids[0]}-${ids.length}`)
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}` },
+      { event: 'INSERT', schema: 'public', table: 'orders', filter },
       (payload) => {
         const order = payload.new;
         if (order && order.status === OrderStatus.PENDING) {

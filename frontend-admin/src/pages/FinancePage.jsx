@@ -17,6 +17,7 @@ const PLATFORM_COMMISSION_RATE = 0.20;
 
 const FinancePage = () => {
   const [revenue, setRevenue] = useState(0);
+  const [commission, setCommission] = useState(null);
   const [topups, setTopups] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,8 @@ const FinancePage = () => {
       const { data: agg, error: aggError } = await supabase.rpc('admin_order_stats');
       if (!aggError && agg) {
         setRevenue(Number(agg.gmv) || 0);
+        // Per-order rate from the database (villa 5%, others 20%; 0098).
+        setCommission(agg.commission != null ? Number(agg.commission) || 0 : null);
       } else {
         if (aggError && aggError.code !== 'PGRST202') throw aggError;
         const { data: ordersData, error: ordersError } = await supabase.from('orders').select('total_price').eq('status', 'completed');
@@ -218,8 +221,8 @@ const FinancePage = () => {
           hint="Seluruh pesanan selesai"
         />
         <Stat
-          label="Estimasi Komisi Aplikasi (20%)"
-          value={<Money value={revenue * PLATFORM_COMMISSION_RATE} />}
+          label="Estimasi Komisi Aplikasi (20%, villa 5%)"
+          value={<Money value={commission ?? revenue * PLATFORM_COMMISSION_RATE} />}
           icon={<Percent size={18} />}
           tone="pay"
         />

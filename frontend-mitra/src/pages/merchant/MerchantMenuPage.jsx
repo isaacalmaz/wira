@@ -87,10 +87,15 @@ const MerchantMenuPage = () => {
       // lain (menampilkan menu mereka, dan insert produk baru ke toko
       // mereka). Dihapus: bila belum terikat, tampilkan status error yang
       // jelas alih-alih fallback ke toko sembarang.
+      // An owner may also run villas (migration 0097): the menu belongs to
+      // their restaurant row, never to a villa.
       const { data: mData } = await supabase
         .from('merchants')
         .select('id')
         .eq('owner_id', user.id)
+        .or('service_type.is.null,service_type.not.in.(villa,WiraVilla)')
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       const targetMerchantId = mData?.id || null;

@@ -129,13 +129,14 @@ const DashboardPage = () => {
             drivers: Number(agg.drivers) || 0,
             merchants: merchantsRes.count || 0,
             transactions: Number(agg.completed_count) || 0,
-            revenue: gmv * PLATFORM_COMMISSION_RATE,
+            // Per-order rate from the database (villa 5%, others 20%; 0098).
+            revenue: agg.commission != null ? Number(agg.commission) || 0 : gmv * PLATFORM_COMMISSION_RATE,
             gmv,
             ordersToday: Number(agg.orders_today) || 0,
           });
           setChartData((agg.daily || []).map((d) => ({
             name: new Date(`${d.day}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }),
-            Pendapatan: (Number(d.gmv) || 0) * PLATFORM_COMMISSION_RATE,
+            Pendapatan: d.commission != null ? Number(d.commission) || 0 : (Number(d.gmv) || 0) * PLATFORM_COMMISSION_RATE,
           })));
           setServiceData(
             Object.entries(agg.by_service || {})
@@ -268,7 +269,7 @@ const DashboardPage = () => {
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Pesanan Hari Ini" value={stats.ordersToday.toLocaleString('id-ID')} icon={<ShoppingBag size={18} />} hint="Semua status layanan" />
         <Stat label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
-        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi 20% dari GMV" />
+        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi: 20%, villa 5%" />
         <Stat label="Menunggu Verifikasi" value={pendingApps.length.toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={pendingApps.length > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
         <Stat label="Total Pengguna" value={stats.users.toLocaleString('id-ID')} icon={<Users size={18} />} tone="neutral" hint="Aktif" />
         <Stat label="Total Driver" value={stats.drivers.toLocaleString('id-ID')} icon={<Car size={18} />} tone="neutral" hint="Aktif" />

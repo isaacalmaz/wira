@@ -145,6 +145,10 @@ export default function VillaPage() {
         .from('merchants')
         .select('*')
         .eq('service_type', 'villa')
+        // Only live, bookable properties (migration 0097: hosts add villas
+        // that wait for an admin, and can pause one at a time).
+        .eq('listing_status', 'approved')
+        .neq('is_open', false)
         .order('created_at', { ascending: false });
       
       if (data) {
@@ -155,7 +159,9 @@ export default function VillaPage() {
           area: v.address || 'Lombok',
           rating: v.rating || 5.0,
           pricePerNight: v.price_per_night || 750000,
-          image: v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600',
+          image: v.photos?.[0] || v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600',
+          photos: v.photos?.length ? v.photos : [v.image || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600'],
+          maxGuests: v.max_guests || null,
           desc: v.description || t('villa.default_desc'),
           bedrooms: v.bedrooms || 2,
           // Merchant-supplied amenities are data and stay untouched; only
@@ -190,6 +196,17 @@ export default function VillaPage() {
   const [activePromo, setActivePromo] = useState(null);
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
+
+  const openVilla = (villa) => {
+    setSelectedVilla(villa);
+    setActivePromo(null);
+    setPromoCode('');
+    setPromoError('');
+    setGuests((g) => (villa.maxGuests ? Math.min(g, villa.maxGuests) : g));
+  };
+  const guestOptions = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20].filter((g) => !selectedVilla?.maxGuests || g <= selectedVilla.maxGuests);
+  if (selectedVilla?.maxGuests && !guestOptions.includes(selectedVilla.maxGuests)) guestOptions.push(selectedVilla.maxGuests);
+  const moreFromHost = selectedVilla ? villas.filter((v) => v.ownerId && v.ownerId === selectedVilla.ownerId && v.id !== selectedVilla.id) : [];
 
   const filtered = area === 'Semua' ? villas : villas.filter((v) => v.area.toLowerCase().includes(area.toLowerCase()));
 
@@ -343,12 +360,7 @@ export default function VillaPage() {
             <Card
               key={villa.id}
               padding="none"
-              onClick={() => {
-                setSelectedVilla(villa);
-                setActivePromo(null);
-                setPromoCode('');
-                setPromoError('');
-              }}
+              onClick={() => openVilla(villa)}
               className="flex flex-col overflow-hidden"
             >
               <div className="aspect-[16/10] bg-sunken">
@@ -424,15 +436,50 @@ export default function VillaPage() {
         {selectedVilla && (
           <form id="villa-booking-form" onSubmit={handleConfirmBooking} className="flex flex-col gap-5">
             <div className="overflow-hidden rounded-card border border-line bg-card">
-              <img
-                src={selectedVilla.image}
-                alt={selectedVilla.name}
-                className="h-40 w-full bg-sunken object-cover"
-              />
-              <p className="px-3.5 py-2.5 text-[13px] text-ink">
-                {withMoney(t('villa.per_night', { price: SLOT }), selectedVilla.pricePerNight, { className: 'font-medium' })}
-              </p>
+              <div className="flex snap-x snap-mandatory overflow-x-auto" aria-label={t('villa.photo_count', { count: selectedVilla.photos.length })}>
+                {selectedVilla.photos.map((src, i) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt={`${selectedVilla.name} ${i + 1}`}
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    className="h-48 w-full shrink-0 snap-center bg-sunken object-cover sm:h-56"
+                  />
+                ))}
+              </div>
+              <div className="flex flex-col gap-1.5 px-3.5 py-2.5">
+                <p className="flex flex-wrap items-baseline justify-between gap-2 text-[13px] text-ink">
+                  <span>{withMoney(t('villa.per_night', { price: SLOT }), selectedVilla.pricePerNight, { className: 'font-medium' })}</span>
+                  {selectedVilla.photos.length > 1 && (
+                    <span className="font-mono text-[11.5px] text-ink-muted">{t('villa.photo_count', { count: selectedVilla.photos.length })}</span>
+                  )}
+                </p>
+                {selectedVilla.maxGuests && (
+                  <p className="text-[12.5px] text-ink-muted">{t('villa.max_guests_line', { count: selectedVilla.maxGuests })}</p>
+                )}
+                {selectedVilla.desc && <p className="text-[13px] leading-relaxed text-ink-muted">{selectedVilla.desc}</p>}
+              </div>
             </div>
+
+            {moreFromHost.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{t('villa.more_from_host')}</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {moreFromHost.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => openVilla(v)}
+                      className="flex w-44 shrink-0 flex-col overflow-hidden rounded-control border border-line bg-card text-left transition-colors hover:border-line-strong"
+                    >
+                      <img src={v.image} alt="" loading="lazy" className="h-20 w-full bg-sunken object-cover" />
+                      <span className="truncate px-2.5 pt-1.5 text-[12.5px] font-semibold text-ink">{v.name}</span>
+                      <Money value={v.pricePerNight} className="px-2.5 pb-2 text-[12px] text-ink-muted" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <Field label={t('villa.check_in')} htmlFor="villa-checkin" required>
@@ -466,7 +513,7 @@ export default function VillaPage() {
                 value={guests}
                 onChange={(e) => setGuests(Number(e.target.value))}
               >
-                {[1, 2, 3, 4, 6, 8, 10].map((g) => (
+                {guestOptions.map((g) => (
                   <option key={g} value={g}>
                     {t('villa.guests_option', { count: g })}
                   </option>

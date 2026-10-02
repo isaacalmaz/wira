@@ -245,7 +245,10 @@
     "default_amenity_wifi": "WiFi Cepat",
     "default_amenity_pool": "Kolam Renang",
     "default_amenity_breakfast": "Sarapan Gratis",
-    "default_desc": "Villa eksklusif di Lombok dengan pemandangan asri."
+    "default_desc": "Villa eksklusif di Lombok dengan pemandangan asri.",
+    "photo_count": "{{count}} foto",
+    "max_guests_line": "Maksimal {{count}} tamu",
+    "more_from_host": "Properti lain dari tuan rumah ini"
   },
   "service": {
     "title": "WiraService — Teknisi & Jasa Rumah Tangga",
