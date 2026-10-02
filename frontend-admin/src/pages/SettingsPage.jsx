@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Save, ShieldCheck, Plus, Trash2 } from 'lucide-react';
-import { Badge, Button, Card, Field, IconTile, Input, Notice, PageHeader, Select, Table } from '../components/ui';
+import { Save } from 'lucide-react';
+import StaffSection from '../components/common/StaffSection';
+import { Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
@@ -13,14 +14,6 @@ const SettingsPage = () => {
   const [tagline, setTagline] = useState('Semua Kebutuhan Pulau Lombok');
   const [defaultRegion, setDefaultRegion] = useState('Kota Mataram');
   const [csPhone, setCsPhone] = useState('081234567890');
-
-  // Admin users - see the honest-UI note near the "Pengelola & Hak Akses
-  // Admin" card below: this list is just a JSON array inside feature_flags,
-  // never real Supabase Auth users or public.users rows, so it is display
-  // information only now, not an editable access-control list.
-  const [admins, setAdmins] = useState([
-    { id: 'adm_1', name: 'Super Administrator', email: 'admin@wira.app', role: 'Superadmin', status: 'Active' }
-  ]);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -39,7 +32,6 @@ const SettingsPage = () => {
         if (s.tagline) setTagline(s.tagline);
         if (s.defaultRegion) setDefaultRegion(s.defaultRegion);
         if (s.csPhone) setCsPhone(s.csPhone);
-        if (Array.isArray(s.admins) && s.admins.length > 0) setAdmins(s.admins);
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -52,14 +44,13 @@ const SettingsPage = () => {
     fetchSettings();
   }, []);
 
-  const saveSettingsToCloud = async (overrideAdmins) => {
+  const saveSettingsToCloud = async () => {
     setSaving(true);
     const settingsPayload = {
       appName,
       tagline,
       defaultRegion,
       csPhone,
-      admins: overrideAdmins || admins
     };
 
     try {
@@ -80,21 +71,6 @@ const SettingsPage = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  // Tambah/Hapus Admin used to only write a fake entry into this JSON array
-  // inside feature_flags - it never created a real Supabase Auth user or a
-  // public.users row, so nothing granted here ever actually worked, yet the
-  // old UI showed a green "Admin baru berhasil ditambahkan" success toast as
-  // if it had. That's actively misleading: an operator could walk away
-  // believing they'd granted someone real dashboard access when they had
-  // not granted anything at all. Building the real version needs a
-  // server-side endpoint with service-role privileges (out of scope for
-  // this fix - flagged for the coordinator/backend). Until then, both
-  // actions are disabled and just point at that gap honestly instead of
-  // faking success.
-  const notifyAuthNotConnected = () => {
-    toast.error('Fitur ini belum terhubung ke sistem otentikasi - hubungi developer.');
   };
 
   return (
@@ -166,77 +142,8 @@ const SettingsPage = () => {
         </Card>
       </div>
 
-      {/* Admin Management */}
-      <section className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <IconTile tone="brand" size="sm"><ShieldCheck size={18} /></IconTile>
-            <div className="min-w-0">
-              <h2 className="text-[15px] font-bold tracking-tight text-ink">Pengelola &amp; Hak Akses Admin</h2>
-              <p className="text-xs text-ink-muted">Daftar pengguna dengan hak akses dashboard admin</p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={notifyAuthNotConnected}
-            disabled
-            title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
-            leftIcon={<Plus size={15} />}
-          >
-            Tambah Admin
-          </Button>
-        </div>
-
-        <Notice tone="warning">
-          Fitur ini belum terhubung ke sistem otentikasi - hubungi developer. Daftar di bawah hanya catatan
-          lokal (bukan akun login Supabase sungguhan): menambah atau menghapus baris di sini <strong>tidak</strong> membuat
-          atau mencabut akses masuk dashboard admin secara nyata.
-        </Notice>
-
-        <Table>
-          <thead>
-            <tr>
-              <th>Nama Administrator</th>
-              <th>Email</th>
-              <th>Peran (Role)</th>
-              <th>Status</th>
-              <th className="text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {admins.map(a => (
-              <tr key={a.id}>
-                <td className="whitespace-nowrap font-semibold">{a.name}</td>
-                <td className="font-mono text-[12.5px] text-ink-muted">{a.email}</td>
-                <td><Badge tone="brand">{a.role}</Badge></td>
-                <td>
-                  <Badge tone={String(a.status).toLowerCase() === 'active' ? 'success' : 'neutral'} dot>{a.status}</Badge>
-                </td>
-                <td className="text-right">
-                  {/* Guard fixed to compare against the real 'Superadmin' role
-                      string (no space) used everywhere else in this codebase -
-                      it previously compared against 'Super Admin' (with a
-                      space), which never matched. The action itself stays
-                      disabled either way until real admin management ships. */}
-                  {a.role !== 'Superadmin' && (
-                    <Button
-                      size="sm"
-                      variant="danger-soft"
-                      onClick={notifyAuthNotConnected}
-                      disabled
-                      title="Fitur ini belum terhubung ke sistem otentikasi - hubungi developer"
-                      aria-label="Hapus admin"
-                    >
-                      <Trash2 size={15} />
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </section>
+      {/* Staff: real accounts and roles (migrations/0102) */}
+      <StaffSection />
     </div>
   );
 };

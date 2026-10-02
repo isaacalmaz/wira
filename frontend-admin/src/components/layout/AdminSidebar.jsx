@@ -19,6 +19,7 @@ import {
   Star,
   ClipboardList,
   Percent,
+  History,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import { supabase } from '../../config/supabase';
@@ -32,7 +33,7 @@ import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEA
 export const MENU_ITEMS = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ADMIN_ROLES, group: 'ringkasan' },
   { name: 'Feature Flags', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
-  { name: 'Users', icon: Users, path: '/users', roles: CS_ADMIN_ROLES, group: 'operasional' },
+  { name: 'Users', icon: Users, path: '/users', roles: ADMIN_ROLES, group: 'operasional' },
   { name: 'Orders', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
   { name: 'Proyek', icon: ClipboardList, path: '/projects', roles: CORE_ADMIN_ROLES, group: 'operasional' },
   { name: 'Drivers', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
@@ -46,6 +47,7 @@ export const MENU_ITEMS = [
   { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'WhatsApp', icon: MessageCircle, path: '/whatsapp', roles: CS_ADMIN_ROLES, group: 'layanan' },
   { name: 'Pusat Bantuan', icon: MessageSquare, path: '/support', roles: CS_ADMIN_ROLES, group: 'layanan' },
+  { name: 'Log Aktivitas', icon: History, path: '/audit', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Settings', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
 ];
 

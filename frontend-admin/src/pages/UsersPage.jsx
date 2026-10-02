@@ -6,6 +6,8 @@ import { ConfirmModal } from '../components/common/UIComponents';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { setUserBlocked, setPartnerAccess } from '../services/partnerAdminService';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { CORE_ADMIN_ROLES, FINANCE_ADMIN_ROLES } from '../config/roles';
 import { Badge, Button, Card, Field, Input, Money, PageHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // 'courier' is no longer a separate mitra_access role - Driver now covers
@@ -17,6 +19,11 @@ const MITRA_ROLES = [
 ];
 
 const UsersPage = () => {
+  // What this role may do here (enforced again in the database, 0102):
+  // finance roles correct balances, core admins suspend and change access.
+  const { user: me } = useAuth();
+  const canCorrect = FINANCE_ADMIN_ROLES.includes(me?.role);
+  const canModerate = CORE_ADMIN_ROLES.includes(me?.role);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -216,7 +223,8 @@ const UsersPage = () => {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setPendingAction({ kind: 'access', user: u, roleKey: key, label, active })}
+                          onClick={() => canModerate && setPendingAction({ kind: 'access', user: u, roleKey: key, label, active })}
+                          disabled={!canModerate}
                           title={active ? `Cabut akses ${label}` : `Berikan akses ${label}`}
                           aria-pressed={active}
                           className={cx(
@@ -234,7 +242,7 @@ const UsersPage = () => {
                 </td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <Button
+                    {canCorrect && <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setCorrectionModal(u)}
@@ -243,8 +251,8 @@ const UsersPage = () => {
                       className="whitespace-nowrap"
                     >
                       Koreksi Saldo
-                    </Button>
-                    <Button
+                    </Button>}
+                    {canModerate && <Button
                       size="sm"
                       variant={isActive ? 'danger-soft' : 'secondary'}
                       onClick={() => setPendingAction({ kind: 'status', user: u, isActive })}
@@ -253,7 +261,7 @@ const UsersPage = () => {
                       className="whitespace-nowrap"
                     >
                       {isActive ? 'Tangguhkan' : 'Aktifkan'}
-                    </Button>
+                    </Button>}
                   </div>
                 </td>
               </tr>
