@@ -1,4 +1,5 @@
 import { useTranslation } from '../i18n';
+import PromoCarousel from '../components/home/PromoCarousel';
 import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { Link } from 'react-router-dom';
