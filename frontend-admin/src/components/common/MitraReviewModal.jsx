@@ -83,10 +83,11 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
         <>
           <p className="text-sm leading-relaxed text-danger-ink sm:mr-auto sm:self-center">
             Yakin menolak pendaftaran <span className="font-semibold">{mitra.name}</span>?
+            {adminNotes.trim().length < 5 ? ' Isi alasan di kolom Catatan Admin (dikirim ke pendaftar).' : ''}
             {rejectMode === 'wa' ? ' Pesan penolakan WhatsApp akan dibuka setelahnya.' : ''}
           </p>
           <Button variant="secondary" onClick={() => setRejectMode(null)}>Batal</Button>
-          <Button variant="danger" onClick={handleReject} leftIcon={<XCircle size={16} />}>Ya, tolak</Button>
+          <Button variant="danger" onClick={handleReject} leftIcon={<XCircle size={16} />} disabled={adminNotes.trim().length < 5}>Ya, tolak</Button>
         </>
       ) : (
         <>

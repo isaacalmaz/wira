@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
+import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
 import { Car, Package, Utensils, Ban, CheckCircle, Eye, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -55,67 +55,8 @@ const DriversPage = () => {
 
   const handleVerify = async (id, accept, notes = '') => {
     try {
-      if (accept) {
-        const pending = pendingDrivers.find(m => m.id === id);
-        if (pending && pending.auth_id) {
-          const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
-          if (profileErr) throw profileErr;
-
-          // Always grant the single unified 'driver' role now (migrations/0033
-          // collapsed the earlier driver/courier split) - a pre-existing
-          // pending record from before tonight's change may still literally
-          // say role: 'courier', but it still grants 'driver' access, not a
-          // separate 'courier' tag that no longer means anything.
-          let currentAccess = userProfile?.mitra_access || [];
-          if (!currentAccess.includes('driver')) currentAccess.push('driver');
-
-          // Carry vehicle_type/job_type_preferences from the registration
-          // payload into the granted user row - only set them if the
-          // account doesn't already have a value (an existing driver who
-          // self-served a preference change in Settings before approval,
-          // e.g. re-registering, should not be silently reset).
-          const grantedVehicleType = userProfile?.vehicle_type || pending.vehicle_type || 'motor';
-          const grantedJobPrefs = (Array.isArray(userProfile?.job_type_preferences) && userProfile.job_type_preferences.length > 0)
-            ? userProfile.job_type_preferences
-            : (Array.isArray(pending.job_type_preferences) ? pending.job_type_preferences : ['ride', 'send', 'food']);
-
-          if (userProfile) {
-            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
-              mitra_access: currentAccess,
-              vehicle_type: grantedVehicleType,
-              job_type_preferences: grantedJobPrefs,
-              status: 'Aktif'
-            }).eq('id', pending.auth_id).select();
-            if (updateErr) throw updateErr;
-            if (!updatedUser || updatedUser.length === 0) {
-              throw new Error("Gagal! Akses ditolak oleh sistem keamanan RLS Supabase.");
-            }
-          } else {
-            const { error: insertErr } = await supabase.from('users').insert([{
-              id: pending.auth_id,
-              name: pending.name,
-              email: pending.email,
-              phone: pending.phone,
-              role: 'mitra',
-              status: 'Aktif',
-              mitra_access: currentAccess,
-              vehicle_type: grantedVehicleType,
-              job_type_preferences: grantedJobPrefs
-            }]);
-            if (insertErr) throw insertErr;
-          }
-        }
-        toast.success('Driver berhasil disetujui!');
-      } else {
-        toast.success('Pendaftaran ditolak.');
-      }
-
-      // Only mark the registration handled after the write above actually
-      // succeeded - if it threw, the registration stays 'Pending' so it's
-      // still visible to retry, instead of looking silently "done" with no
-      // real mitra_access grant.
-      await setApplicationStatus(id, accept, notes);
-
+      await reviewApplication(id, accept, notes);
+      toast.success(accept ? 'Driver disetujui. Pendaftar diberi tahu lewat notifikasi.' : 'Pendaftaran ditolak; alasannya dikirim ke pendaftar.');
       setIsReviewOpen(false);
       fetchData();
     } catch (err) {

@@ -81,6 +81,9 @@ const LoginPage = () => {
               />
             </div>
 
+            <div className="text-right mt-[-8px] mb-2">
+              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline">Lupa Password?</Link>
+            </div>
             <Button type="submit" size="lg" block isLoading={isLoggingIn} className="mt-1">
               {isLoggingIn ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
             </Button>

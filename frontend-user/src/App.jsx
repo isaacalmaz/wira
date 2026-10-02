@@ -20,6 +20,8 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
 const SavedAddressesPage = lazy(() => import('./pages/SavedAddressesPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
@@ -56,6 +58,8 @@ export default function Root() {
                         <Routes>
                           {/* Pelanggan (User) Authentication */}
                           <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />
 
                           {/* Pelanggan (User) Main Layout & Services */}

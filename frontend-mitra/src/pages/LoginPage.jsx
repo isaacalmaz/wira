@@ -125,6 +125,9 @@ export default function LoginPage() {
               />
             </Field>
 
+            <div className="text-right mt-[-8px] mb-2">
+              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline">Lupa Password?</Link>
+            </div>
             <Button
               type="submit"
               size="lg"

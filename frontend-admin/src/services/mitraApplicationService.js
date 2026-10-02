@@ -17,6 +17,18 @@ export async function fetchPendingApplications(roles, columns = '*') {
   return data || [];
 }
 
+// Approves or rejects a registration in one database transaction
+// (admin_review_application, migrations/0101): access, merchants row,
+// technician verification, the applicant's notification and the audit log.
+// Rejecting needs a reason (min. 5 characters), which the applicant sees.
+export async function reviewApplication(id, accept, note = '') {
+  const { data, error } = await supabase.rpc('admin_review_application', {
+    p_application_id: id, p_accept: accept, p_note: note?.trim() || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // Marks an application Active (accepted) or Rejected.
 export async function setApplicationStatus(id, accept, notes = '') {
   const patch = { status: accept ? 'Active' : 'Rejected', reviewed_at: new Date().toISOString() };

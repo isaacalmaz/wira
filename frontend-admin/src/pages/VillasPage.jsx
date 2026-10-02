@@ -6,8 +6,8 @@ import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, PageHeader, Segmented, Sheet, Table, Textarea } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
 import MitraReviewModal from '../components/common/MitraReviewModal';
-import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
-import { approveMerchantApplication, toMerchantApplication } from '../services/merchantApprovalService';
+import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
+import { toMerchantApplication } from '../services/merchantApprovalService';
 
 const STATUS = {
   pending: { tone: 'warning', label: 'Menunggu' },
@@ -81,8 +81,7 @@ const VillasPage = () => {
   const handleVerify = async (id, accept, notes = '') => {
     try {
       const app = applications.find((a) => a.id === id);
-      if (accept && app) await approveMerchantApplication(app);
-      await setApplicationStatus(id, accept, notes);
+      await reviewApplication(id, accept, notes);
       toast.success(accept ? `${app?.name || 'Villa'} disetujui. Pemilik bisa masuk ke portal Villa.` : 'Pendaftaran ditolak.');
       setReviewApp(null);
       fetchVillas();

@@ -10,6 +10,8 @@ import Spinner from './components/ui/Spinner';
 // wraps every protected route, so both ship in the entry chunk. Every other
 // page is lazy so drivers on mobile data don't download the whole app up front.
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const PendingVerificationPage = lazy(() => import('./pages/PendingVerificationPage'));
 const UnauthorizedPage = lazy(() => import('./pages/UnauthorizedPage'));
@@ -89,6 +91,8 @@ function App() {
           } />
         
           <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/gabung" element={<Suspense fallback={<PageFallback />}><JoinPage /></Suspense>} />
           <Route path="/pending-verification" element={<PendingVerificationPage />} />

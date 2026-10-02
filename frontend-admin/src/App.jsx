@@ -11,6 +11,8 @@ const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
 
 // Pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const FeatureFlagsPage = lazy(() => import('./pages/FeatureFlagsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
@@ -86,6 +88,8 @@ function App() {
       <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-ground text-brand"><Spinner size={32} label="Memuat" /></div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           {/* Rute Admin dengan Layout Utama */}
           <Route path="/" element={

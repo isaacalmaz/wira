@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Search, RefreshCw, FileSearch, Trash2, Plus, Store, Star, Clock, DoorOpen } from 'lucide-react';
 import { supabase } from '../config/supabase';
-import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
+import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
 import MitraReviewModal from '../components/common/MitraReviewModal';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
-import { approveMerchantApplication, toMerchantApplication } from '../services/merchantApprovalService';
+import { toMerchantApplication } from '../services/merchantApprovalService';
 
 const MerchantsPage = () => {
   const [liveMerchants, setLiveMerchants] = useState([]);
@@ -53,22 +53,8 @@ const MerchantsPage = () => {
 
   const handleVerify = async (id, accept, notes = '') => {
     try {
-      if (accept) {
-        const pending = pendingMerchants.find(m => m.id === id);
-        if (pending) {
-          await approveMerchantApplication(pending);
-          toast.success(`${pending.name} berhasil disetujui dan ditambahkan ke Live Database!`);
-        }
-      } else {
-        toast.success('Pendaftaran ditolak.');
-      }
-
-      // Only mark the registration handled (Active/Rejected) after the
-      // writes above actually succeeded - if they threw, the registration
-      // stays 'Pending' so it's still visible to retry, instead of looking
-      // silently "done" with nothing actually granted.
-      await setApplicationStatus(id, accept, notes);
-
+      await reviewApplication(id, accept, notes);
+      toast.success(accept ? 'Restoran disetujui dan siap mengisi menu.' : 'Pendaftaran ditolak; alasannya dikirim ke pendaftar.');
       setIsReviewOpen(false);
       fetchData();
     } catch (err) {

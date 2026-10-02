@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { fetchPendingApplications, setApplicationStatus } from '../services/mitraApplicationService';
+import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
 import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import MitraReviewModal from '../components/common/MitraReviewModal';
@@ -65,54 +65,10 @@ const TechniciansPage = () => {
 
   const handleVerify = async (id, accept, notes = '') => {
     try {
-      if (accept) {
-        const pending = pendingTechs.find(m => m.id === id);
-        if (pending && pending.auth_id) {
-          const { data: userProfile, error: profileErr } = await supabase.from('users').select('*').eq('id', pending.auth_id).maybeSingle();
-          if (profileErr) throw profileErr;
-
-          let currentAccess = userProfile?.mitra_access || [];
-          if (!currentAccess.includes('technician')) currentAccess.push('technician');
-
-          if (userProfile) {
-            const { error: updateErr, data: updatedUser } = await supabase.from('users').update({
-              mitra_access: currentAccess,
-              status: 'Aktif'
-            }).eq('id', pending.auth_id).select();
-            if (updateErr) throw updateErr;
-            if (!updatedUser || updatedUser.length === 0) {
-              throw new Error("Gagal! Akses ditolak oleh sistem keamanan RLS Supabase.");
-            }
-          } else {
-            const { error: insertErr } = await supabase.from('users').insert([{
-              id: pending.auth_id,
-              name: pending.name,
-              email: pending.email,
-              phone: pending.phone,
-              role: 'mitra',
-              status: 'Aktif',
-              mitra_access: currentAccess
-            }]);
-            if (insertErr) throw insertErr;
-          }
-        }
-        // KTP and selfie were reviewed in the modal: approving verifies them
-        // (migrations/0092). The profile exists once access is granted.
-        if (pending?.ktp_photo && pending?.selfie_photo) {
-          const { error: verErr } = await supabase.rpc('admin_set_technician_verified', { p_user_id: pending.auth_id, p_verified: true });
-          if (verErr) console.error('verify failed', verErr);
-        }
-        toast.success('Teknisi berhasil disetujui!');
-      } else {
-        toast.success('Pendaftaran ditolak.');
-      }
-
-      // Only mark the registration handled after the write above actually
-      // succeeded - if it threw, the registration stays 'Pending' so it's
-      // still visible to retry, instead of looking silently "done" with no
-      // real mitra_access grant.
-      await setApplicationStatus(id, accept, notes);
-
+      // KTP + selfie reviewed in the modal: approving also verifies the
+      // technician (done inside admin_review_application, migrations/0101).
+      await reviewApplication(id, accept, notes);
+      toast.success(accept ? 'Teknisi disetujui. Pendaftar diberi tahu lewat notifikasi.' : 'Pendaftaran ditolak; alasannya dikirim ke pendaftar.');
       setIsReviewOpen(false);
       fetchData();
     } catch (err) {
