@@ -343,7 +343,17 @@
     "package_subtitle": "4 visits, once a week, starting on the date you choose. The Wira pool technician brings equipment and chemicals.",
     "first_visit": "First Visit",
     "package_wirapay_only": "The package is paid at once with WiraPay. Any visit that is not served goes back to your balance.",
-    "package_insufficient": "Your WiraPay balance is not enough for this package. Top up first in Wallet."
+    "package_insufficient": "Your WiraPay balance is not enough for this package. Top up first in Wallet.",
+    "auto_renew": "Renew automatically every 4 weeks",
+    "auto_renew_desc": "3 days before the next period, 4 new visits are booked on the same day and time, paid from WiraPay, and offered first to the same technician. Stop any time.",
+    "sub_title": "Pool Package Subscription",
+    "sub_active": "Active",
+    "sub_paused": "Paused",
+    "sub_next": "Renews automatically from {{date}}",
+    "sub_stop": "Stop",
+    "sub_resume": "Turn Back On",
+    "sub_stopped": "Automatic renewal stopped",
+    "sub_resumed": "Automatic renewal is back on"
   },
   "pulsa": {
     "title": "Mobile Credit & Bills",

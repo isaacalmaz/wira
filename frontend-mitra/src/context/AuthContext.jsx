@@ -98,6 +98,12 @@ export const AuthProvider = ({ children }) => {
         try {
           // Loaded on demand: firebase/messaging is ~150 kB+ and only needed
           // once someone is signed in, so the login screen doesn't pay for it.
+          // Android app: native push token (web push does not work in the WebView).
+          const { isNative, registerNativePush } = await import('../native/nativeShell');
+          if (isNative()) {
+            await registerNativePush((t) => supabase.from('users').update({ fcm_token: t }).eq('id', user.id));
+            return;
+          }
           const { requestForToken } = await import('../config/firebase');
           const token = await requestForToken();
           if (token) {

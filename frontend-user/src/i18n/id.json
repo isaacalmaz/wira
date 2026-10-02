@@ -343,7 +343,17 @@
     "package_subtitle": "4 kunjungan, seminggu sekali, mulai tanggal yang Anda pilih. Teknisi kolam Wira datang dengan perlengkapan dan bahan kimia.",
     "first_visit": "Kunjungan Pertama",
     "package_wirapay_only": "Paket dibayar sekaligus dengan WiraPay. Kunjungan yang tidak terlayani dikembalikan ke saldo Anda.",
-    "package_insufficient": "Saldo WiraPay belum cukup untuk paket ini. Isi saldo dulu di menu Dompet."
+    "package_insufficient": "Saldo WiraPay belum cukup untuk paket ini. Isi saldo dulu di menu Dompet.",
+    "auto_renew": "Perpanjang otomatis tiap 4 minggu",
+    "auto_renew_desc": "3 hari sebelum periode berikutnya, 4 kunjungan baru dibuat di hari dan jam yang sama, dibayar dari WiraPay, dan ditawarkan dulu ke teknisi yang sama. Bisa dihentikan kapan saja.",
+    "sub_title": "Langganan Paket Kolam",
+    "sub_active": "Aktif",
+    "sub_paused": "Dijeda",
+    "sub_next": "Diperpanjang otomatis mulai {{date}}",
+    "sub_stop": "Hentikan",
+    "sub_resume": "Aktifkan Lagi",
+    "sub_stopped": "Perpanjangan otomatis dihentikan",
+    "sub_resumed": "Perpanjangan otomatis aktif lagi"
   },
   "pulsa": {
     "title": "Pulsa & Tagihan",

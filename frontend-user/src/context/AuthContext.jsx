@@ -73,6 +73,12 @@ export const AuthProvider = ({ children }) => {
     const updateFCM = async () => {
       if (user) {
         try {
+          // Android app: native push token (web push does not work in the WebView).
+          const { isNative, registerNativePush } = await import('../native/nativeShell');
+          if (isNative()) {
+            await registerNativePush((t) => supabase.from('users').update({ fcm_token: t }).eq('id', user.id));
+            return;
+          }
           const token = await requestForToken();
           if (token) {
             await supabase.from('users').update({ fcm_token: token }).eq('id', user.id);

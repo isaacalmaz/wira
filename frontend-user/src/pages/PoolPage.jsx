@@ -161,6 +161,19 @@ export default function PoolPage() {
   }, []);
   const noPoolTechs = poolTechCount === 0;
 
+  // Monthly package auto-renewal (migrations/0095).
+  const [autoRenew, setAutoRenew] = useState(false);
+  const [subs, setSubs] = useState([]);
+  const loadSubs = () => supabase.from('pool_subscriptions').select('*').order('created_at', { ascending: false })
+    .then(({ data }) => setSubs(data || []));
+  useEffect(() => { loadSubs(); }, []);
+  const toggleSub = async (sub, active) => {
+    const { error } = await supabase.rpc('set_pool_subscription_active', { p_id: sub.id, p_active: active });
+    if (error) { toast.error(error.message); return; }
+    toast.success(active ? t('pool.sub_resumed') : t('pool.sub_stopped'));
+    loadSubs();
+  };
+
   // Form State
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState(null);
@@ -300,8 +313,10 @@ export default function PoolPage() {
           p_details: details,
           p_pickup_lat: point?.lat ?? null,
           p_pickup_lng: point?.lng ?? null,
+          p_auto_renew: autoRenew,
         });
         if (error) throw error;
+        loadSubs();
         refreshWallet();
         refreshOrders();
         toast.success(t('pool.package_success'));
@@ -366,6 +381,25 @@ export default function PoolPage() {
       />
 
       {noPoolTechs && <Notice tone="warning">{t('pool.unavailable')}</Notice>}
+
+      {subs.map((sub) => (
+        <Card key={sub.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-[14px] font-bold text-ink">{t('pool.sub_title')}</span>
+              <Badge tone={sub.active ? 'success' : 'neutral'} dot>{sub.active ? t('pool.sub_active') : t('pool.sub_paused')}</Badge>
+            </span>
+            <span className="text-[12.5px] leading-relaxed text-ink-muted">
+              {sub.active
+                ? t('pool.sub_next', { date: new Date(sub.next_start).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }) })
+                : (sub.paused_reason || t('pool.sub_paused'))}
+            </span>
+          </div>
+          <Button variant={sub.active ? 'secondary' : 'primary'} size="sm" onClick={() => toggleSub(sub, !sub.active)}>
+            {sub.active ? t('pool.sub_stop') : t('pool.sub_resume')}
+          </Button>
+        </Card>
+      ))}
 
       {/* Paket Langganan Bulanan */}
       <Card padding="none" className="overflow-hidden">
@@ -518,6 +552,20 @@ export default function PoolPage() {
               <Notice tone="danger">{isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance')}</Notice>
             )}
             {isPackage && <p className="text-[12px] leading-relaxed text-ink-muted">{t('pool.package_wirapay_only')}</p>}
+            {isPackage && (
+              <label className="flex min-h-11 items-start gap-3 rounded-control border border-line bg-card px-3.5 py-3 text-[13.5px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={autoRenew}
+                  onChange={(e) => setAutoRenew(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded border-line-strong text-brand focus:ring-brand/30"
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-semibold">{t('pool.auto_renew')}</span>
+                  <span className="text-[12px] leading-relaxed text-ink-muted">{t('pool.auto_renew_desc')}</span>
+                </span>
+              </label>
+            )}
           </div>
 
           {/* Kode Promo (not for the package: four orders, one price) */}

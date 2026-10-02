@@ -6,6 +6,7 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
+import { startNativeShell } from './native/nativeShell';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -40,3 +41,6 @@ if ('serviceWorker' in navigator) {
     );
   });
 }
+
+// Android app: status bar, splash, back button (no-op in the browser).
+startNativeShell({ color: '#B7862A' });

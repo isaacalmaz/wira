@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike } from 'lucide-react';
 import { Button, Card, Field, Input, Textarea, IconTile, cx } from '../components/ui';
 import WiraMark from '../components/brand/WiraMark';
@@ -98,7 +98,11 @@ const SummaryRow = ({ label, children }) => (
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState('driver');
+  // /register?role=technician (from the /gabung recruitment page) picks the role.
+  const [searchParams] = useSearchParams();
+  const [role, setRole] = useState(() => (
+    ['driver', 'merchant', 'villa', 'technician'].includes(searchParams.get('role')) ? searchParams.get('role') : 'driver'
+  ));
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { skills: skillOptions, nameOf } = useSkills();
