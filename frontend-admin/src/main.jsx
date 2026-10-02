@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css'
 import { startNativeShell } from './native/nativeShell'
+import { checkAppUpdates } from './native/appUpdates'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 
@@ -37,3 +38,4 @@ if ('serviceWorker' in navigator) {
 
 // Android app: status bar, splash, back button (no-op in the browser).
 startNativeShell({ color: '#21201D' })
+checkAppUpdates({ app: 'admin', origin: 'https://admin.wira.one', color: '#21201D', appName: 'Wira Admin' })

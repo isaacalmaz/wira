@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
 import { startNativeShell } from './native/nativeShell';
+import { checkAppUpdates } from './native/appUpdates';
 
 // =========================================
 // 📌 Entry Point Aplikasi Wira
@@ -36,3 +37,4 @@ if ('serviceWorker' in navigator) {
 
 // Android app: status bar, splash, back button (no-op in the browser).
 startNativeShell({ color: '#0B4F5E' });
+checkAppUpdates({ app: 'user', origin: 'https://wira.one', color: '#0B4F5E', appName: 'Wira' });

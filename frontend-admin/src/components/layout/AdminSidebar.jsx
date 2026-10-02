@@ -22,6 +22,7 @@ import {
   History,
   Megaphone,
   MapPinned,
+  Smartphone,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import { supabase } from '../../config/supabase';
@@ -50,6 +51,7 @@ export const MENU_ITEMS = [
   { name: 'Pengumuman', icon: Megaphone, path: '/announcements', roles: CS_ADMIN_ROLES, group: 'layanan' },
   { name: 'Fitur Layanan', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
   { name: 'Wilayah Operasi', icon: MapPinned, path: '/zones', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
+  { name: 'Rilis Aplikasi', icon: Smartphone, path: '/releases', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Log Aktivitas', icon: History, path: '/audit', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Pengaturan', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
 ];

@@ -22,6 +22,13 @@ allprojects {
         google()
         mavenCentral()
     }
+    // @capgo/capacitor-updater pulls androidx.work 2.10.x, which needs
+    // compileSdk 35; 2.9.1 does the same job on our compileSdk 34.
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.work:work-runtime:2.9.1'
+        }
+    }
 }
 
 task clean(type: Delete) {

@@ -959,5 +959,21 @@
     "chat_empty": "Belum ada pesan. Tanyakan detail atau minta survei lokasi.",
     "chat_failed": "Pesan belum terkirim",
     "chat_note": "Nomor HP dan tautan WhatsApp disembunyikan sampai proyek diberikan, agar pembayaran tetap terlindungi Wira."
+  },
+  "download": {
+    "title": "Unduh aplikasi Wira untuk Android",
+    "subtitle": "Pasang langsung dari situs resmi Wira. Setelah terpasang, tampilan baru diperbarui otomatis; Anda hanya perlu mengunduh lagi bila aplikasi memintanya.",
+    "user_sub": "Untuk pelanggan: ojek, kirim, makanan, villa, servis",
+    "mitra_sub": "Untuk driver, restoran, pemilik villa dan teknisi",
+    "version": "Versi {{v}}",
+    "button": "Unduh APK",
+    "loading": "Memuat...",
+    "soon": "Segera tersedia.",
+    "how_title": "Cara memasang",
+    "step1": "Ketuk Unduh APK dan tunggu sampai selesai.",
+    "step2": "Buka file yang diunduh. Bila diminta, izinkan browser memasang aplikasi dari sumber ini.",
+    "step3": "Ketuk Pasang. Bila sudah ada versi lama, data dan akun Anda tetap aman.",
+    "step4": "Buka aplikasi dan masuk dengan akun Anda.",
+    "note": "Unduh hanya dari wira.one. Wira tidak pernah mengirim file APK lewat WhatsApp atau pesan pribadi."
   }
 }

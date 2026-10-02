@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
 import { startNativeShell } from './native/nativeShell';
+import { checkAppUpdates } from './native/appUpdates';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -44,3 +45,4 @@ if ('serviceWorker' in navigator) {
 
 // Android app: status bar, splash, back button (no-op in the browser).
 startNativeShell({ color: '#B7862A' });
+checkAppUpdates({ app: 'mitra', origin: 'https://mitra.wira.one', color: '#B7862A', appName: 'Wira Mitra' });

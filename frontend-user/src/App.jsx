@@ -11,6 +11,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import { Suspense, lazy } from 'react';
 
 const Layout = lazy(() => import('./components/layout/Layout'));
+const DownloadPage = lazy(() => import('./pages/DownloadPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const RidePage = lazy(() => import('./pages/RidePage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
@@ -59,6 +60,7 @@ export default function Root() {
                           {/* Pelanggan (User) Authentication */}
                           <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/unduh" element={<DownloadPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />
 

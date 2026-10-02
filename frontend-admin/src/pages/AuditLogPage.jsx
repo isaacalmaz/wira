@@ -20,6 +20,7 @@ const ACTIONS = {
   order_cancel: 'Pesanan dibatalkan', order_complete: 'Pesanan diselesaikan', order_reassign: 'Mitra pesanan diganti',
   order_compensate: 'Kompensasi pesanan', order_note: 'Catatan pesanan',
   commission_changed: 'Komisi diubah', staff_role_changed: 'Peran staf diubah',
+  release_published: 'Rilis aplikasi diterbitkan', announcement_sent: 'Pengumuman dikirim',
   ticket_in_progress: 'Tiket diproses', ticket_resolved: 'Tiket selesai', ticket_open: 'Tiket dibuka lagi',
 };
 const TABLE_LABEL = { pricing_rules: 'Harga', vehicles: 'Kendaraan', promos: 'Promo', feature_flags: 'Pengaturan aplikasi' };

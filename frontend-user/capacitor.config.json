@@ -12,6 +12,14 @@
     },
     "SplashScreen": {
       "backgroundColor": "#0B4F5E"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "",
+      "statsUrl": "",
+      "channelUrl": "",
+      "appReadyTimeout": 15000,
+      "resetWhenUpdate": true
     }
   }
 }

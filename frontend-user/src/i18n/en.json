@@ -959,5 +959,21 @@
     "chat_empty": "No messages yet. Ask for details or a site visit.",
     "chat_failed": "Message not sent",
     "chat_note": "Phone numbers and WhatsApp links are hidden until the project is awarded, so your payment stays protected by Wira."
+  },
+  "download": {
+    "title": "Download the Wira apps for Android",
+    "subtitle": "Install straight from the official Wira site. Once installed, new screens update automatically; you only download again when the app asks you to.",
+    "user_sub": "For customers: rides, delivery, food, villas, home services",
+    "mitra_sub": "For drivers, restaurants, villa hosts and technicians",
+    "version": "Version {{v}}",
+    "button": "Download APK",
+    "loading": "Loading...",
+    "soon": "Coming soon.",
+    "how_title": "How to install",
+    "step1": "Tap Download APK and wait until it finishes.",
+    "step2": "Open the downloaded file. If asked, allow your browser to install apps from this source.",
+    "step3": "Tap Install. If an older version is installed, your data and account stay as they are.",
+    "step4": "Open the app and sign in.",
+    "note": "Only download from wira.one. Wira never sends APK files over WhatsApp or private messages."
   }
 }
