@@ -21,6 +21,7 @@ import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import API_BASE_URL from '../config/api';
+import StayCalendar, { nightsBetween } from '../components/villa/StayCalendar';
 import { useTranslation } from '../i18n';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
@@ -181,12 +182,10 @@ export default function VillaPage() {
 
   // Modal State
   const [selectedVilla, setSelectedVilla] = useState(null);
-  const [checkIn, setCheckIn] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
-  const [nights, setNights] = useState(1);
+  // Stay picked on the availability calendar (migrations/0104).
+  const [checkIn, setCheckIn] = useState(null);
+  const [checkOut, setCheckOut] = useState(null);
+  const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
   const [guests, setGuests] = useState(2);
   const [paymentMethod, setPaymentMethod] = useState('WiraPay');
   const [loading, setLoading] = useState(false);
@@ -203,6 +202,8 @@ export default function VillaPage() {
     setPromoCode('');
     setPromoError('');
     setGuests((g) => (villa.maxGuests ? Math.min(g, villa.maxGuests) : g));
+    setCheckIn(null);
+    setCheckOut(null);
   };
   const guestOptions = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20].filter((g) => !selectedVilla?.maxGuests || g <= selectedVilla.maxGuests);
   if (selectedVilla?.maxGuests && !guestOptions.includes(selectedVilla.maxGuests)) guestOptions.push(selectedVilla.maxGuests);
@@ -255,6 +256,10 @@ export default function VillaPage() {
 
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
+    if (!checkIn || !checkOut) {
+      toast.error(t('villa.pick_dates'));
+      return;
+    }
     if (paymentMethod === 'WiraPay' && balance < totalPrice) {
       toast.error(t('villa.insufficient_balance'));
       return;
@@ -276,6 +281,7 @@ export default function VillaPage() {
         price: totalPrice,
         paymentMethod: paymentMethod,
         nights,
+        metadata: { check_in: checkIn, guests },
         promoCode: activePromo?.code || null,
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
@@ -427,7 +433,7 @@ export default function VillaPage() {
             <Button variant="secondary" size="lg" onClick={() => setSelectedVilla(null)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" form="villa-booking-form" size="lg" disabled={loading} isLoading={loading}>
+            <Button type="submit" form="villa-booking-form" size="lg" disabled={loading || !nights} isLoading={loading}>
               {loading ? t('common.processing') : t('villa.submit')}
             </Button>
           </>
@@ -481,30 +487,23 @@ export default function VillaPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t('villa.check_in')} htmlFor="villa-checkin" required>
-                <Input
-                  id="villa-checkin"
-                  type="date"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  className="font-mono"
-                  required
-                />
-              </Field>
-              <Field label={t('villa.nights_label')} htmlFor="villa-nights">
-                <Select
-                  id="villa-nights"
-                  value={nights}
-                  onChange={(e) => setNights(Number(e.target.value))}
-                >
-                  {[1, 2, 3, 4, 5, 7, 14].map((n) => (
-                    <option key={n} value={n}>
-                      {t('villa.nights_option', { count: n })}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] font-semibold text-ink">{t('villa.dates_label')}</p>
+              <StayCalendar
+                villaId={selectedVilla.id}
+                checkIn={checkIn}
+                checkOut={checkOut}
+                onChange={({ checkIn: ci, checkOut: co }) => { setCheckIn(ci); setCheckOut(co); }}
+              />
+              <p className="text-[13px] text-ink-muted" aria-live="polite">
+                {!checkIn ? t('villa.pick_checkin')
+                  : !checkOut ? t('villa.pick_checkout', { date: new Date(`${checkIn}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) })
+                    : t('villa.stay_summary', {
+                      from: new Date(`${checkIn}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                      to: new Date(`${checkOut}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                      count: nights,
+                    })}
+              </p>
             </div>
 
             <Field label={t('villa.guests_label')} htmlFor="villa-guests">

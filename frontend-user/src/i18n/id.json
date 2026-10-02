@@ -248,7 +248,17 @@
     "default_desc": "Villa eksklusif di Lombok dengan pemandangan asri.",
     "photo_count": "{{count}} foto",
     "max_guests_line": "Maksimal {{count}} tamu",
-    "more_from_host": "Properti lain dari tuan rumah ini"
+    "more_from_host": "Properti lain dari tuan rumah ini",
+    "dates_label": "Tanggal menginap",
+    "pick_dates": "Pilih tanggal check-in dan check-out dulu",
+    "pick_checkin": "Ketuk tanggal check-in. Tanggal yang dicoret sudah terisi.",
+    "pick_checkout": "Check-in {{date}}. Sekarang ketuk tanggal check-out.",
+    "stay_summary": "{{from}} → {{to}} · {{count}} malam",
+    "cal_prev": "Bulan sebelumnya",
+    "cal_next": "Bulan berikutnya",
+    "cal_taken": "sudah terisi",
+    "cal_selected": "dipilih",
+    "cal_loading": "memuat ketersediaan..."
   },
   "service": {
     "title": "WiraService — Teknisi & Jasa Rumah Tangga",

@@ -196,6 +196,13 @@ const MerchantOrdersPage = () => {
 
             <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/60 p-3">
               <p className="text-[14px] font-semibold text-ink">{order.title || (isVilla ? 'Reservasi WiraVilla' : 'Pesanan WiraFood')}</p>
+              {isVilla && order.check_in && (
+                <p className="font-mono text-[12.5px] text-ink">
+                  Check-in {new Date(`${order.check_in}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                  {' → '}{new Date(`${order.check_out}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' · '}{order.nights} malam
+                </p>
+              )}
               {merchants.length > 1 && property === 'all' && propertyName(order.merchant_id) && (
                 <span><Badge tone="neutral">{propertyName(order.merchant_id)}</Badge></span>
               )}

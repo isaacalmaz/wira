@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, MapPin, BedDouble, Users, Image as ImageIcon, Pencil, Building2 } from 'lucide-react';
+import { Plus, MapPin, BedDouble, Users, Image as ImageIcon, Pencil, Building2, CalendarDays } from 'lucide-react';
 import { Card, Button, Badge, Money, PageHeader, EmptyState, Spinner, Notice, cx } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
@@ -121,9 +121,12 @@ export default function VillaListingPage() {
                   {m.listing_status === 'pending' && (
                     <p className="text-[12px] text-ink-muted">Admin biasanya meninjau dalam 1x24 jam. Anda akan mendapat notifikasi.</p>
                   )}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button variant="secondary" className="flex-1" leftIcon={<Pencil size={16} />} onClick={() => navigate(`/villa/listing/${m.id}`)}>
                       {m.listing_status === 'rejected' ? 'Perbaiki' : 'Ubah'}
+                    </Button>
+                    <Button variant="secondary" className="flex-1" leftIcon={<CalendarDays size={16} />} onClick={() => navigate(`/villa/calendar/${m.id}`)}>
+                      Kalender
                     </Button>
                     {live && (
                       <Button

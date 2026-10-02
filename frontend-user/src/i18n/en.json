@@ -248,7 +248,17 @@
     "default_desc": "An exclusive Lombok villa with green, open views.",
     "photo_count": "{{count}} photos",
     "max_guests_line": "Up to {{count}} guests",
-    "more_from_host": "More from this host"
+    "more_from_host": "More from this host",
+    "dates_label": "Your stay",
+    "pick_dates": "Pick check-in and check-out dates first",
+    "pick_checkin": "Tap your check-in date. Crossed-out dates are taken.",
+    "pick_checkout": "Check-in {{date}}. Now tap your check-out date.",
+    "stay_summary": "{{from}} → {{to}} · {{count}} nights",
+    "cal_prev": "Previous month",
+    "cal_next": "Next month",
+    "cal_taken": "taken",
+    "cal_selected": "selected",
+    "cal_loading": "loading availability..."
   },
   "service": {
     "title": "WiraService — Home Repairs & Technicians",

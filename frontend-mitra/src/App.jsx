@@ -28,6 +28,7 @@ const MerchantEarningsPage = lazy(() => import('./pages/merchant/MerchantEarning
 const MerchantProfilePage = lazy(() => import('./pages/merchant/MerchantProfilePage'));
 const VillaListingPage = lazy(() => import('./pages/merchant/VillaListingPage'));
 const VillaEditPage = lazy(() => import('./pages/merchant/VillaEditPage'));
+const VillaCalendarPage = lazy(() => import('./pages/merchant/VillaCalendarPage'));
 
 const TechHomePage = lazy(() => import('./pages/technician/TechHomePage'));
 const TechOrdersPage = lazy(() => import('./pages/technician/TechOrdersPage'));
@@ -140,6 +141,8 @@ function App() {
                 <Route path="orders" element={<MerchantOrdersPage />} />
                 <Route path="listing" element={<VillaListingPage />} />
                 <Route path="listing/:id" element={<VillaEditPage />} />
+                <Route path="calendar" element={<VillaCalendarPage />} />
+                <Route path="calendar/:id" element={<VillaCalendarPage />} />
                 <Route path="earnings" element={<MerchantEarningsPage />} />
                 <Route path="profile" element={<MerchantProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />

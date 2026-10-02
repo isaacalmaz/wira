@@ -254,6 +254,11 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
             ) : null}
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
               {order.scheduled_at && (<><dt className="text-ink-muted">Jadwal</dt><dd className="text-ink">{when(order.scheduled_at)} WITA</dd></>)}
+              {order.check_in && (
+                <><dt className="text-ink-muted">Menginap</dt><dd className="font-mono text-ink">
+                  {new Date(`${order.check_in}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} → {new Date(`${order.check_out}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </dd></>
+              )}
               {order.nights && (<><dt className="text-ink-muted">Malam</dt><dd className="font-mono text-ink">{order.nights}</dd></>)}
               {(meta.pickup_address || order.pickup_lat) && (
                 <><dt className="text-ink-muted">Jemput / lokasi</dt><dd className="text-ink">
