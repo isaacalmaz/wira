@@ -52,8 +52,8 @@ const APPS = {
     headline: 'Terima pesanan, atur penghasilan Anda sendiri.',
     chips: ['Pengemudi', 'Merchant', 'Pemilik villa', 'Teknisi'],
     captions: [
-      ['Pesanan masuk langsung', 'Notifikasi begitu ada order baru'],
-      ['Pantau penghasilan', 'Ringkasan harian dan mingguan'],
+      ['Pesanan & riwayat rapi', 'Setiap order selesai tercatat jelas'],
+      ['Akun mitra terverifikasi', 'Kelola profil dan pengaturan dengan mudah'],
       ['Kelola menu & villa', 'Atur harga, foto, dan ketersediaan'],
       ['Navigasi ke pelanggan', 'Rute dan chat dalam satu layar'],
       ['Gabung jadi mitra', 'Daftar cukup dengan KTP'],
