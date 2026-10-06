@@ -34,7 +34,7 @@ const EarningsCard = ({ today, week, cashDeduction = 0 }) => {
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/15 pt-3.5 text-[13px] text-white/80">
           <TrendingUp size={16} className="shrink-0 text-laut-300" aria-hidden="true" />
-          <span>Minggu ini:</span>
+          <span>7 hari terakhir:</span>
           <Signed value={week} className="font-medium text-white" />
         </div>
 

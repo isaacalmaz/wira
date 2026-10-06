@@ -4,6 +4,7 @@
  * consolidating the two mitra apps onto one order-handling implementation.
  */
 import { OrderStatus } from '../constants/orderStatus';
+import { withNetworkRetry, isNetworkError } from '../utils/retry';
 
 const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
@@ -249,7 +250,7 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
  * (heading to the restaurant) rather than 'accepted', since 'accepted' was
  * already consumed earlier in this same order's lifecycle by the merchant.
  */
-export async function claimDeliveryOrder(supabaseClient, orderId, driverId) {
+async function claimDeliveryOrderOnce(supabaseClient, orderId, driverId) {
   const { data, error } = await supabaseClient
     .from('orders')
     .update({ status: OrderStatus.PICKING_UP, driver_id: driverId })
@@ -284,7 +285,7 @@ export async function getOrderById(supabaseClient, orderId) {
  * still be pending, and for driver/technician modes driver_id must still be
  * null) so two mitra accepting the same order at once can't both succeed.
  */
-export async function acceptOrder(supabaseClient, orderId, partnerId, mode = 'driver') {
+async function acceptOrderOnce(supabaseClient, orderId, partnerId, mode = 'driver') {
   const assignsDriverId = mode === 'driver' || mode === 'technician';
 
   let query = supabaseClient
@@ -339,7 +340,7 @@ const VALID_TRANSITIONS = {
  * knowing/guessing its id - this is defense-in-depth (final enforcement
  * should also live in Postgres RLS), not a replacement for it.
  */
-export async function updateOrderStatus(supabaseClient, orderId, nextStatus, partnerId, mode = 'driver') {
+async function updateOrderStatusOnce(supabaseClient, orderId, nextStatus, partnerId, mode = 'driver') {
   if (!partnerId) {
     throw new Error('updateOrderStatus requires the current mitra\'s own id (partnerId) to scope the update to orders they own.');
   }
@@ -370,7 +371,7 @@ export async function updateOrderStatus(supabaseClient, orderId, nextStatus, par
 /**
  * Update driver/technician location (lat/lng)
  */
-export async function updateDriverLocation(supabaseClient, driverId, lat, lng) {
+async function updateDriverLocationOnce(supabaseClient, driverId, lat, lng) {
   if (lat === null || lng === null || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
     throw new Error(`Invalid GPS coordinates: [${lat}, ${lng}]. Refusing to update location.`);
   }
@@ -393,7 +394,7 @@ export async function updateDriverLocation(supabaseClient, driverId, lat, lng) {
  * without this every driver who has ever gone online stays "online" forever
  * in public.drivers regardless of what the app UI shows).
  */
-export async function setDriverOffline(supabaseClient, driverId) {
+async function setDriverOfflineOnce(supabaseClient, driverId) {
   const { error, data } = await supabaseClient
     .from('drivers')
     .update({ is_online: false, updated_at: new Date().toISOString() })
@@ -666,20 +667,40 @@ export function subscribeToMerchantOrders(supabaseClient, merchantId, onOrder) {
   return () => channel.unsubscribe();
 }
 
-/**
- * Subscribe to realtime updates for a specific order
- */
-export function subscribeToOrderUpdates(supabaseClient, orderId, onUpdate) {
-  const channel = supabaseClient
-    .channel(`order-track-${orderId}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
-      (payload) => {
-        if (payload.new) onUpdate(payload.new);
-      }
-    )
-    .subscribe();
+// Field writes retry through dropped connections (utils/retry.js).
+export const claimDeliveryOrder = withNetworkRetry(claimDeliveryOrderOnce);
+export const acceptOrder = withNetworkRetry(acceptOrderOnce);
+export const updateOrderStatus = withNetworkRetry(updateOrderStatusOnce);
+export const updateDriverLocation = withNetworkRetry(updateDriverLocationOnce);
 
-  return () => channel.unsubscribe();
+// Live GPS: latest position wins. While the connection is down only the
+// newest fix is kept and it is sent as soon as the connection returns, so a
+// stale position can never overwrite a newer one.
+let pendingLocation = null;
+let sendingLocation = false;
+async function flushDriverLocation() {
+  if (sendingLocation || !pendingLocation) return;
+  const next = pendingLocation;
+  pendingLocation = null;
+  sendingLocation = true;
+  try {
+    await updateDriverLocationOnce(next.client, next.driverId, next.lat, next.lng);
+  } catch (err) {
+    if (isNetworkError(err)) {
+      if (!pendingLocation) pendingLocation = next;
+    } else {
+      console.warn('updateDriverLocation failed:', err.message);
+    }
+  } finally {
+    sendingLocation = false;
+    if (pendingLocation && (typeof navigator === 'undefined' || navigator.onLine)) setTimeout(flushDriverLocation, 3000);
+  }
 }
+if (typeof window !== 'undefined') window.addEventListener('online', () => flushDriverLocation());
+
+/** Fire-and-forget GPS update for live tracking (see above). */
+export function sendDriverLocation(supabaseClient, driverId, lat, lng) {
+  pendingLocation = { client: supabaseClient, driverId, lat, lng };
+  flushDriverLocation();
+}
+export const setDriverOffline = withNetworkRetry(setDriverOfflineOnce);

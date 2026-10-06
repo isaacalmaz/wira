@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
-import { updateOrderStatus, updateDriverLocation } from '../../services/orderService';
+import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
 import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
 import { getDisplayStatus } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
@@ -167,7 +167,7 @@ export default function ActiveOrderPage() {
         try {
           const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
           if (position?.coords) {
-            await updateDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude);
+            sendDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude);
           }
         } catch (e) {
           console.error("GPS error", e);

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { StatTile } from '../../components/shared/UIComponents';
 import { Card, Badge, Button, Sheet, Money, IconTile, Notice, cx } from '../../components/ui';
 import { Store, TrendingUp, ShoppingBag, BellRing, MessageCircle, Home, UtensilsCrossed, Building2, ChevronRight } from 'lucide-react';
@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
 import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
+import { EARNINGS_COLUMNS, startOfTodayISO } from '../../utils/earnings';
 import useMyMerchants from '../../hooks/useMyMerchants';
 
 // Display-only: food orders store their items as a JSON array in `details`;
@@ -68,6 +69,12 @@ const MerchantHomePage = () => {
   const [incomingOrder, setIncomingOrder] = useState(null);
   const navigate = useNavigate();
   const [activeOrder, setActiveOrder] = useState(null);
+  // Read by the realtime/polling effect below without being one of its deps:
+  // depending on activeOrder tore the channel down and rebuilt it on every
+  // status change, dropping orders that arrived in between.
+  const activeOrderRef = useRef(activeOrder);
+  useEffect(() => { activeOrderRef.current = activeOrder; }, [activeOrder]);
+
   const [todayOrders, setTodayOrders] = useState(0);
   const [todayEarnings, setTodayEarnings] = useState(0);
 
@@ -87,9 +94,9 @@ const MerchantHomePage = () => {
       await loadCommissionRates(supabase);
       const { data } = await supabase
         .from('orders')
-        .select('total_price, delivery_fee, payment_method, driver_id, status, service_type, commission_rate')
+        .select(EARNINGS_COLUMNS)
         .in('merchant_id', idsKey.split(','))
-        .gte('created_at', new Date().toISOString().split('T')[0]);
+        .gte('created_at', startOfTodayISO());
 
       if (data) {
         setTodayOrders(data.length);
@@ -112,7 +119,7 @@ const MerchantHomePage = () => {
     }
 
     const checkPendingOrders = async () => {
-      if (activeOrder) return;
+      if (activeOrderRef.current) return;
       try {
         const pending = await fetchPendingOrders(supabase, 'merchant', merchantId);
         const latest = pending[0];
@@ -137,7 +144,7 @@ const MerchantHomePage = () => {
     }, 10000);
 
     const unsubscribe = subscribeToMerchantOrders(supabase, merchantId, (order) => {
-      if (!activeOrder) {
+      if (!activeOrderRef.current) {
         setIncomingOrder(order);
         toast.success(isVillaOrder(order) ? 'Permintaan Reservasi Baru Masuk!' : 'Pesanan Makanan Baru Masuk!', { icon: isVillaOrder(order) ? <Home size={18} className="text-brand-ink" /> : <UtensilsCrossed size={18} className="text-brand-ink" /> });
       }
@@ -147,7 +154,7 @@ const MerchantHomePage = () => {
       clearInterval(interval);
       unsubscribe();
     };
-  }, [isOpen, activeOrder, idsKey]);
+  }, [isOpen, idsKey]);
 
   const isVillaOrder = (order) => order && (order.service_type === 'villa' || order.service_type === 'WiraVilla');
 

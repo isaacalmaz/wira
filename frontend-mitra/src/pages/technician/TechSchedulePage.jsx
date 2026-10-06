@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, Badge, EmptyState, PageHeader, SectionHeader, cx } from '../../components/ui';
+import { Card, Badge, EmptyState, PageHeader, SectionHeader, Spinner, cx } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar, CalendarX, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -40,6 +40,7 @@ const scheduleOf = (order) => {
 const TechSchedulePage = () => {
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selected, setSelected] = useState(() => dayKey(today));
@@ -62,6 +63,7 @@ const TechSchedulePage = () => {
           ...scheduleOf(d),
         })));
       }
+      setLoading(false);
     };
     fetchSchedule();
   }, [user]);
@@ -154,7 +156,9 @@ const TechSchedulePage = () => {
             </span>
           }
         />
-        {agenda.length > 0 ? (
+        {loading ? (
+          <Card className="flex min-h-[120px] items-center justify-center"><Spinner /></Card>
+        ) : agenda.length > 0 ? (
           <Card padding="none">
             <ul className="divide-y divide-line">
               {agenda.map((s) => (

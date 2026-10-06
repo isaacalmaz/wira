@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button } from '../../components/ui';
+import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button, Spinner } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -118,13 +118,15 @@ const DriverOrdersPage = () => {
             <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} isFoodDelivery={!!activeOrder.merchant_id} />
           </div>
         </Card>
+      ) : loading ? (
+        <Card className="flex min-h-[120px] items-center justify-center"><Spinner /></Card>
       ) : (
         <EmptyState icon={<Package size={24} />} title="Belum ada pesanan aktif" description="Pesanan yang Anda terima akan muncul di sini." />
       )}
 
       <section>
         <SectionHeader title="Riwayat Selesai" />
-        {history.length === 0 ? (
+        {history.length === 0 && loading ? null : history.length === 0 ? (
           <EmptyState icon={<History size={24} />} title="Belum ada riwayat" description="Pesanan yang sudah selesai akan tercatat di sini." />
         ) : (
           <Card padding="none">

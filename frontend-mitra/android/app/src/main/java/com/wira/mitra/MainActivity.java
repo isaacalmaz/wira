@@ -1,5 +1,6 @@
 package com.wira.mitra;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 
@@ -16,6 +17,9 @@ public class MainActivity extends BridgeActivity {
         // Android 15+ draws apps edge-to-edge (no opt-out when targeting 36),
         // so pad the WebView clear of the status bar, navigation bar and keyboard.
         View content = findViewById(android.R.id.content);
+        // The padding strips sit behind the (transparent) system bars: paint
+        // them in the app colour so the light status-bar icons stay visible.
+        content.setBackgroundColor(Color.parseColor("#B7862A"));
         ViewCompat.setOnApplyWindowInsetsListener(content, (v, windowInsets) -> {
             Insets bars = windowInsets.getInsets(
                     WindowInsetsCompat.Type.systemBars()

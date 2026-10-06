@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
+import { toast } from 'react-hot-toast';
 import { MapContainer, TileLayer, Marker as LeafletMarker, Popup, Polyline, useMap } from 'react-leaflet';
 import { LocateFixed, MapPin, Navigation } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
@@ -88,16 +90,16 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
   const mapCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
   const [mapInstance, setMapInstance] = useState(null);
 
-  const locateUser = () => {
-    if (navigator.geolocation && mapInstance) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          mapInstance.flyTo([position.coords.latitude, position.coords.longitude], 19, { animate: true });
-        },
-        (err) => {
-          console.error("Geolocation error:", err);
-        }
-      );
+  // @capacitor/geolocation: native permission prompt in the app, browser
+  // geolocation on the web.
+  const locateUser = async () => {
+    if (!mapInstance) return;
+    try {
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
+      mapInstance.flyTo([position.coords.latitude, position.coords.longitude], 19, { animate: true });
+    } catch (err) {
+      console.error('Geolocation error:', err);
+      toast.error('Lokasi tidak bisa diambil. Aktifkan GPS dan izin lokasi.');
     }
   };
 

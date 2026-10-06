@@ -10,6 +10,7 @@ import {
   ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchMyTechnicianProfile, fetchOpenJobs, setAccepting,
   subscribeToVisitChanges, takeJob, visitInfo, takePackage, groupOpenJobs,
 } from '../../services/technicianService';
+import { dayKey } from '../../utils/earnings';
 import VisitJobCard from '../../components/shared/VisitJobCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
 
@@ -48,7 +49,6 @@ const OnlineSwitch = ({ isOnline, onChange, disabled }) => (
   </button>
 );
 
-const dayKey = (d) => d.toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar' });
 
 const TechHomePage = () => {
   const { user } = useAuth();

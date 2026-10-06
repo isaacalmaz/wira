@@ -9,9 +9,12 @@ import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { summarizeEarnings } from '../../utils/earnings';
+import { Geolocation } from '@capacitor/geolocation';
+import { isNative } from '../../native/nativeShell';
 import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
-  subscribeToDriverOrders, updateDriverLocation, setDriverOffline, distanceMeters,
+  subscribeToDriverOrders, sendDriverLocation, setDriverOffline, distanceMeters,
   driverEarnedAmount,
   loadCommissionRates,
 } from '../../services/orderService';
@@ -104,6 +107,12 @@ const DriverHomePage = () => {
   const [isOnline, setIsOnline] = useState(true);
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
+  // Read by the realtime/polling effect below without being one of its deps:
+  // depending on activeOrder tore the channel down and rebuilt it on every
+  // status change, dropping orders that arrived in between.
+  const activeOrderRef = useRef(activeOrder);
+  useEffect(() => { activeOrderRef.current = activeOrder; }, [activeOrder]);
+
   const [isChatOpen, setIsChatOpen] = useState(false); // Jika sedang menjalankan order
   const [customerName, setCustomerName] = useState('Penumpang');
   
@@ -153,22 +162,11 @@ const DriverHomePage = () => {
         const completed = data.filter(d => d.status === 'completed');
         setCompletedTrips(completed.length);
 
-        const todayStr = new Date().toLocaleDateString('id-ID');
-        let tEarn = 0;
-        let wEarn = 0;
-
-        completed.forEach(c => {
-          // Real driver share per migrations/0028's payout trigger, not raw
-          // total_price - see driverEarnedAmount's doc comment.
-          const price = driverEarnedAmount(c);
-          if (new Date(c.created_at).toLocaleDateString('id-ID') === todayStr) {
-            tEarn += price;
-          }
-          wEarn += price;
-        });
-
-        setTodayEarnings(tEarn);
-        setWeekEarnings(wEarn);
+        // Real driver share per migrations/0028's payout trigger, counted on
+        // the Lombok day each order was completed (utils/earnings).
+        const { today, week } = summarizeEarnings(completed, { amount: driverEarnedAmount });
+        setTodayEarnings(today);
+        setWeekEarnings(week);
 
         // Check active job on load
         const activeJob = data.find(d => [OrderStatus.ACCEPTED, OrderStatus.PICKING_UP, OrderStatus.IN_TRIP].includes(d.status));
@@ -203,7 +201,7 @@ const DriverHomePage = () => {
     // memfilter service_type sama sekali, jadi order food/villa/service bisa
     // muncul sebagai "pesanan masuk" untuk driver.
     const checkPendingOrders = async () => {
-      if (activeOrder) return; // Jangan cari jika sedang sibuk
+      if (activeOrderRef.current) return; // Jangan cari jika sedang sibuk
       try {
         const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current, driverPrefs);
         const latest = pending[0];
@@ -234,7 +232,7 @@ const DriverHomePage = () => {
     const unsubscribe = subscribeToDriverOrders(
       supabase,
       (order) => {
-        if (!activeOrder) {
+        if (!activeOrderRef.current) {
           setIncomingOrder(order);
           toast.success('Pesanan Baru Masuk!');
         }
@@ -248,60 +246,75 @@ const DriverHomePage = () => {
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline, activeOrder, user?.vehicle_type, user?.job_type_preferences]);
+  }, [isOnline, user?.vehicle_type, user?.job_type_preferences]);
 
   // Lacak lokasi GPS driver secara live ke public.drivers selama online, agar
   // pencarian driver terdekat (PostGIS) punya data nyata untuk dicari - tanpa
   // ini kolom lat/lng driver tidak pernah terisi sama sekali.
   useEffect(() => {
     if (!isOnline || !user) return;
-    if (!navigator.geolocation) return;
 
     let lastSentAt = 0;
     let warnedPermission = false;
-    // Debounce timeout/POSITION_UNAVAILABLE toasts separately from the
-    // one-shot permission warning above - those two error codes are the
-    // realistic "riding through an area with weak signal" case and can
-    // legitimately recur many times a minute while GPS is flaky, so warn at
-    // most once per window instead of either spamming every failed fix or
-    // (the previous bug) never telling the driver at all beyond a
-    // console.warn they'd never see.
+    // Weak-signal warnings (timeout / position unavailable) recur while GPS
+    // is flaky: warn at most once per window, the permission warning once.
     let lastUnavailableWarnAt = 0;
     const UNAVAILABLE_WARN_INTERVAL_MS = 30000;
+    let watchId = null;
+    let stopped = false;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        driverPosRef.current = { lat: position.coords.latitude, lng: position.coords.longitude };
+    const onFix = (position) => {
+      driverPosRef.current = { lat: position.coords.latitude, lng: position.coords.longitude };
+      const now = Date.now();
+      if (now - lastSentAt < 8000) return; // throttle: kirim maksimal tiap ~8 detik
+      lastSentAt = now;
+      setDriverPos(driverPosRef.current);
+      sendDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude);
+    };
 
+    const onError = (error) => {
+      const denied = error?.code === 1 || /denied|permission/i.test(error?.message || '');
+      if (denied) {
+        if (!warnedPermission) {
+          warnedPermission = true;
+          toast.error('Aktifkan izin lokasi agar Anda muncul di pencarian driver terdekat.');
+        }
+      } else {
         const now = Date.now();
-        if (now - lastSentAt < 8000) return; // throttle: kirim maksimal tiap ~8 detik
-        lastSentAt = now;
-        setDriverPos(driverPosRef.current);
-        updateDriverLocation(supabase, user.id, position.coords.latitude, position.coords.longitude)
-          .catch((err) => console.warn('updateDriverLocation failed:', err.message));
-      },
-      (error) => {
-        if (error.code === 1) {
-          if (!warnedPermission) {
-            warnedPermission = true;
-            toast.error('Aktifkan izin lokasi agar Anda muncul di pencarian driver terdekat.');
-          }
-        } else if (error.code === 2 || error.code === 3) {
-          // POSITION_UNAVAILABLE or TIMEOUT - the driver's live position has
-          // silently stopped updating. Previously this only console.warn'd,
-          // so a driver riding through a weak-signal area never found out.
-          const now = Date.now();
-          if (now - lastUnavailableWarnAt > UNAVAILABLE_WARN_INTERVAL_MS) {
-            lastUnavailableWarnAt = now;
-            toast.error('Sinyal GPS lemah - posisi Anda mungkin tidak ter-update. Periksa koneksi/GPS Anda.');
+        if (now - lastUnavailableWarnAt > UNAVAILABLE_WARN_INTERVAL_MS) {
+          lastUnavailableWarnAt = now;
+          toast.error('Sinyal GPS lemah - posisi Anda mungkin tidak ter-update. Periksa koneksi/GPS Anda.');
+        }
+      }
+      console.warn('GPS tracking error:', error);
+    };
+
+    // @capacitor/geolocation: Android's own location permission and fused
+    // provider in the app, navigator.geolocation in a browser.
+    (async () => {
+      try {
+        if (isNative()) {
+          const perm = await Geolocation.checkPermissions();
+          if (perm.location !== 'granted') {
+            const req = await Geolocation.requestPermissions({ permissions: ['location'] });
+            if (req.location !== 'granted') { onError({ code: 1 }); return; }
           }
         }
-        console.warn('GPS tracking error:', error);
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-    );
+        if (stopped) return;
+        watchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+          (position, err) => { if (err) onError(err); else if (position) onFix(position); }
+        );
+        if (stopped && watchId) Geolocation.clearWatch({ id: watchId });
+      } catch (err) {
+        onError(err);
+      }
+    })();
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      stopped = true;
+      if (watchId) Geolocation.clearWatch({ id: watchId });
+    };
   }, [isOnline, user]);
 
   // Saat driver mematikan toggle atau meninggalkan halaman, tandai offline di DB.
@@ -606,7 +619,7 @@ const DriverHomePage = () => {
                 value={<SignedMoney value={todayEarnings} />}
                 icon={<Wallet size={18} />}
                 tone="pay"
-                hint={<>Minggu ini: <SignedMoney value={weekEarnings} className="font-medium text-ink" /></>}
+                hint={<>7 hari terakhir: <SignedMoney value={weekEarnings} className="font-medium text-ink" /></>}
               />
               <div className="grid grid-cols-2 gap-3">
                 <Stat label="Trip Selesai" value={completedTrips} icon={<Target size={18} />} />
