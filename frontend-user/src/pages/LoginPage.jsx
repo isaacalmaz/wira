@@ -5,6 +5,7 @@ import { Button, Card, Field, Input } from '../components/ui';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import WiraMark from '../components/brand/WiraMark';
+import { isNative } from '../native/nativeShell';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -85,10 +86,10 @@ export default function LoginPage() {
         <Link to="/register" className="inline-flex min-h-11 items-center font-semibold text-brand-ink hover:underline">{t('auth.register_link')}</Link>
       </p>
 
-      <div className="mt-4 text-center text-[13px] text-ink-muted md:hidden">
-        <p>Aplikasi untuk Pelanggan & Mitra juga tersedia</p>
-        <Link to="/install" className="inline-flex min-h-[32px] items-center font-bold text-brand-ink hover:underline">Unduh Aplikasinya</Link>
-      </div>
+      {!isNative() && <div className="mt-4 text-center text-[13px] text-ink-muted md:hidden">
+        <p>{t('download.login_hint')}</p>
+        <Link to="/install" className="inline-flex min-h-[32px] items-center font-bold text-brand-ink hover:underline">{t('download.login_cta')}</Link>
+      </div>}
 
     </div>
   );

@@ -974,6 +974,11 @@
     "step2": "Buka file yang diunduh. Bila diminta, izinkan browser memasang aplikasi dari sumber ini.",
     "step3": "Ketuk Pasang. Bila sudah ada versi lama, data dan akun Anda tetap aman.",
     "step4": "Buka aplikasi dan masuk dengan akun Anda.",
-    "note": "Unduh hanya dari wira.one. Wira tidak pernah mengirim file APK lewat WhatsApp atau pesan pribadi."
+    "note": "Unduh hanya dari wira.one. Wira tidak pernah mengirim file APK lewat WhatsApp atau pesan pribadi.",
+    "banner_title": "Aplikasi Wira tersedia",
+    "banner_sub": "Unduh untuk pengalaman terbaik",
+    "banner_cta": "Unduh",
+    "login_hint": "Aplikasi untuk pelanggan dan mitra juga tersedia",
+    "login_cta": "Unduh aplikasinya"
   }
 }

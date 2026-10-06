@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, ShieldCheck, Smartphone, Store } from 'lucide-react';
+import { Download, Smartphone, Store } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 import WiraMark from '../components/brand/WiraMark';
-import { Card, Notice } from '../components/ui';
+import { Card } from '../components/ui';
 
 const APPS = [
   { app: 'user', name: 'Wira', icon: Smartphone, color: '#0B4F5E' },
@@ -12,7 +12,7 @@ const APPS = [
 ];
 
 /**
- * Public download page for the Android apps (wira.one/unduh): the latest
+ * Public download page for the Android apps (wira.one/install): the latest
  * APK of each app from app_releases (migrations/0105), with install steps.
  * Linked from the "Versi baru tersedia" prompt inside the apps.
  */
@@ -80,8 +80,6 @@ export default function DownloadPage() {
             );
           })}
         </div>
-
-        
       </div>
     </div>
   );

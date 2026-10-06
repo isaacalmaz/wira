@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LangProvider } from './i18n';
 import { ThemeProvider } from './context/ThemeContext';
@@ -61,6 +61,7 @@ export default function Root() {
                           <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/install" element={<DownloadPage />} />
+        <Route path="/unduh" element={<Navigate to="/install" replace />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />
 

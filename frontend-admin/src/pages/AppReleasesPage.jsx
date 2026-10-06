@@ -71,7 +71,7 @@ export default function AppReleasesPage() {
         className="!mb-0"
         title="Rilis aplikasi"
         subtitle="Terbitkan APK Android baru. Perubahan tampilan sampai ke aplikasi sendiri; APK baru hanya perlu bila bagian sistem Android berubah."
-        actions={<a href="https://wira.one/unduh" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-ink hover:underline">wira.one/unduh <ExternalLink size={14} /></a>}
+        actions={<a href="https://wira.one/install" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-ink hover:underline">wira.one/install <ExternalLink size={14} /></a>}
       />
 
       <Card className="flex flex-col gap-4">

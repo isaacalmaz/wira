@@ -9,7 +9,7 @@
 //    updater rolls back (notifyAppReady below must run on every launch).
 // 2. APK (app_releases, migrations/0105): when admins publish a newer APK
 //    than this one, the app shows "Versi baru tersedia" with a download
-//    link (wira.one/unduh); a mandatory release blocks the app until updated.
+//    link (wira.one/install); a mandatory release blocks the app until updated.
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { supabase } from '../config/supabase';
 

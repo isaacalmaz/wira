@@ -974,6 +974,11 @@
     "step2": "Open the downloaded file. If asked, allow your browser to install apps from this source.",
     "step3": "Tap Install. If an older version is installed, your data and account stay as they are.",
     "step4": "Open the app and sign in.",
-    "note": "Only download from wira.one. Wira never sends APK files over WhatsApp or private messages."
+    "note": "Only download from wira.one. Wira never sends APK files over WhatsApp or private messages.",
+    "banner_title": "The Wira app is available",
+    "banner_sub": "Download it for the best experience",
+    "banner_cta": "Download",
+    "login_hint": "Apps for customers and partners are also available",
+    "login_cta": "Download the app"
   }
 }
