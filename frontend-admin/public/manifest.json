@@ -3,7 +3,7 @@
   "short_name": "Wira Admin",
   "description": "Dashboard admin layanan Wira",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#F7F6F3",
   "theme_color": "#21201D",
   "orientation": "portrait",

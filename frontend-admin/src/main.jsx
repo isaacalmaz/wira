@@ -39,3 +39,7 @@ if ('serviceWorker' in navigator) {
 // Android app: status bar, splash, back button (no-op in the browser).
 startNativeShell({ color: '#21201D' })
 checkAppUpdates({ app: 'admin', origin: 'https://admin.wira.one', color: '#21201D', appName: 'Wira Admin' })
+
+// The Android app (wira.one/install) is the only install option: no
+// "Install app" prompt from Chrome (manifest display is also "browser").
+window.addEventListener('beforeinstallprompt', (e) => e.preventDefault())

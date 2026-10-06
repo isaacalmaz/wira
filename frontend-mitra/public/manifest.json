@@ -3,7 +3,7 @@
   "short_name": "Wira Mitra",
   "description": "Dashboard mitra Wira untuk driver, merchant, dan teknisi",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#F7F6F3",
   "theme_color": "#062F3C",
   "orientation": "portrait",

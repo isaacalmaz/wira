@@ -46,3 +46,7 @@ if ('serviceWorker' in navigator) {
 // Android app: status bar, splash, back button (no-op in the browser).
 startNativeShell({ color: '#B7862A' });
 checkAppUpdates({ app: 'mitra', origin: 'https://mitra.wira.one', color: '#B7862A', appName: 'Wira Mitra' });
+
+// The Android app (wira.one/install) is the only install option: no
+// "Install app" prompt from Chrome (manifest display is also "browser").
+window.addEventListener('beforeinstallprompt', (e) => e.preventDefault());

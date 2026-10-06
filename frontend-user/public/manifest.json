@@ -3,7 +3,7 @@
   "short_name": "Wira",
   "description": "Aplikasi layanan WiraRide dan WiraFood",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#F7F6F3",
   "theme_color": "#0B4F5E",
   "orientation": "portrait",
