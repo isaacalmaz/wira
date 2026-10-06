@@ -40,6 +40,7 @@ const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'
 const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
+const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -61,6 +62,7 @@ export default function Root() {
                           <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/install" element={<DownloadPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/unduh" element={<Navigate to="/install" replace />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />

@@ -8,8 +8,7 @@
   },
   "android": {
     "allowMixedContent": true,
-    "captureInput": true,
-    "webContentsDebuggingEnabled": true
+    "captureInput": true
   },
   "plugins": {
     "LocalNotifications": {

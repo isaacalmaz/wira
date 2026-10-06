@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "react-hot-toast";
-import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList } from 'lucide-react';
+import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 
@@ -141,6 +141,7 @@ export default function ProfilePage() {
           <ListRow as={Link} to="/contact" className={rowCls} leading={lead(Headphones)} title={t('profile.contact')} chevron />
           <ListRow as={Link} to="/terms" className={rowCls} leading={lead(FileText)} title={t('profile.terms')} chevron />
           <ListRow as={Link} to="/refund" className={rowCls} leading={lead(RotateCcw)} title={t('profile.refund')} chevron />
+          <ListRow as={Link} to="/privacy" className={rowCls} leading={lead(ShieldCheck)} title={t('profile.privacy')} chevron />
         </Card>
 
         <Button variant="danger-soft" block leftIcon={<LogOut size={18} aria-hidden="true" />} onClick={logout}>

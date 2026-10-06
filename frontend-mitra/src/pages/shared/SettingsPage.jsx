@@ -3,7 +3,7 @@ import { Badge, Button, Card, Field, IconTile, Input, ListRow, PageHeader, cx } 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
-import { User, Phone, Save, Moon, Camera, Store, Car, Package, Utensils, MessageSquare, Bike } from 'lucide-react';
+import { User, Phone, Save, Moon, Camera, Store, Car, Package, Utensils, MessageSquare, Bike, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
@@ -352,6 +352,16 @@ const SettingsPage = () => {
           leading={<IconTile tone="brand" size="sm"><MessageSquare size={18} /></IconTile>}
           title="Pusat Bantuan & Komplain"
           trailing={<Badge tone="brand">Baru</Badge>}
+          chevron
+        />
+        <ListRow
+          as="a"
+          href="https://wira.one/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="min-h-11 border-t border-line px-4 py-3.5"
+          leading={<IconTile tone="brand" size="sm"><ShieldCheck size={18} /></IconTile>}
+          title="Kebijakan Privasi"
           chevron
         />
       </Card>
