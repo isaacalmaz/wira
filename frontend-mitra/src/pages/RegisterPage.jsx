@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike } from 'lucide-react';
 import { Button, Card, Field, Input, Textarea, IconTile, cx } from '../components/ui';
@@ -6,6 +6,7 @@ import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { submitMitraApplication } from '../services/mitraApplicationService';
+import { useAuth } from '../context/AuthContext';
 import useSkills from '../hooks/useSkills';
 
 // Kompres gambar otomatis agar ringan di cloud Supabase
@@ -106,6 +107,11 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { skills: skillOptions, nameOf } = useSkills();
+  // Signed in already (e.g. a Wira customer): apply with that account
+  // instead of creating a new one - the same email cannot sign up twice.
+  const { user } = useAuth();
+  const signedIn = Boolean(user?.id);
+  const [emailTaken, setEmailTaken] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -184,6 +190,16 @@ const RegisterPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (!signedIn) return;
+    setFormData((d) => ({
+      ...d,
+      name: d.name || user.name || user.user_metadata?.name || '',
+      phone: d.phone || user.phone || user.user_metadata?.phone || '',
+      email: user.email || d.email,
+    }));
+  }, [signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     // KYC gate: the SIM/STNK file input is a hidden, custom-styled
@@ -209,9 +225,9 @@ const RegisterPage = () => {
     } else {
       setLoading(true);
 
-      let authData;
-      // 0. Buat akun di Supabase Auth
-      try {
+      let authId = signedIn ? user.id : null;
+      // 0. Buat akun di Supabase Auth (skipped for a signed-in account)
+      if (!signedIn) try {
         const { data, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -225,13 +241,23 @@ const RegisterPage = () => {
         });
         if (authError) throw authError;
         
-        if (!data?.user?.id) {
-          throw new Error("Email ini sudah terdaftar. Silakan gunakan email lain atau langsung Masuk (Login).");
+        // An existing email comes back as a user with no identities (or an
+        // "already registered" error, depending on project settings).
+        if (!data?.user?.id || data.user.identities?.length === 0) {
+          const taken = new Error('EMAIL_TAKEN');
+          taken.taken = true;
+          throw taken;
         }
-        
-        authData = data;
+
+        authId = data.user.id;
       } catch (err) {
-        toast.error(`Gagal mendaftar: ${err.message}`);
+        if (err.taken || /already|registered|exists/i.test(err.message || '')) {
+          setEmailTaken(true);
+          setStep(2);
+          toast.error('Email ini sudah punya akun Wira. Masuk dengan akun tersebut untuk lanjut mendaftar mitra.');
+        } else {
+          toast.error(`Gagal mendaftar: ${err.message}`);
+        }
         setLoading(false);
         return;
       }
@@ -257,7 +283,7 @@ const RegisterPage = () => {
       };
 
       try {
-        await submitMitraApplication(supabase, { ...application, email: formData.email }, authData.user.id);
+        await submitMitraApplication(supabase, { ...application, email: formData.email }, authId);
         toast.success('Pendaftaran berhasil dikirim!');
         navigate('/pending-verification');
       } catch (err) {
@@ -370,30 +396,44 @@ const RegisterPage = () => {
                     required
                   />
                 </Field>
-                <Field label="Alamat Email" htmlFor="reg-email" required>
-                  <Input
-                    id="reg-email"
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </Field>
-                <Field label="Kata Sandi" htmlFor="reg-password" hint="Minimal 6 karakter" required>
-                  <Input
-                    id="reg-password"
-                    type="password"
-                    name="password"
-                    autoComplete="new-password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    minLength={6}
-                  />
-                </Field>
+                {signedIn ? (
+                  <p className="rounded-control border border-line bg-ground px-4 py-3 text-sm text-ink-muted">
+                    Mendaftar dengan akun <span className="font-semibold text-ink">{user.email}</span>. Tidak perlu membuat akun baru.
+                  </p>
+                ) : (
+                  <>
+                  <Field label="Alamat Email" htmlFor="reg-email" required>
+                    <Input
+                      id="reg-email"
+                      type="email"
+                      name="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </Field>
+                  <Field label="Kata Sandi" htmlFor="reg-password" hint="Minimal 6 karakter" required>
+                    <Input
+                      id="reg-password"
+                      type="password"
+                      name="password"
+                      autoComplete="new-password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength={6}
+                    />
+                  </Field>
+                      {emailTaken && (
+                      <div className="flex flex-col gap-2.5 rounded-control border border-brand-line bg-brand-soft px-4 py-3 text-sm text-ink">
+                        <p>Email <span className="font-semibold">{formData.email}</span> sudah terdaftar di Wira (misalnya sebagai pelanggan). Masuk dengan email dan kata sandi yang sama, lalu pilih <span className="font-semibold">Daftar Menjadi Mitra</span>.</p>
+                        <Button type="button" size="sm" onClick={() => navigate('/login')}>Masuk dengan akun ini</Button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
