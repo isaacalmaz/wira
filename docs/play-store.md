@@ -39,3 +39,43 @@ Google's reviewers must sign in. Create two dedicated accounts — never a real 
    email + password and a one-line note, e.g. "Sign in with the details below. Orders need a real
    partner nearby, so the order screens can be viewed but not completed."
 4. Keep both accounts free of real data, and don't delete them while the app is in review.
+
+## Updates once the apps are on Play
+- Screens (web code) still update themselves through the live bundle — Play allows JavaScript
+  updates inside the WebView.
+- Native changes need a new AAB: bump `versionCode`/`versionName`, build, upload to Play.
+- Admin → Rilis Aplikasi still works: builds from Play (versionCode ≥ 3) are sent to their Play Store
+  page, older sideloaded APKs to wira.one/install (Play forbids a Play app from installing APKs).
+- When the Play listing is public, point wira.one/install at the Play Store instead of APK files: an
+  APK signed with our key cannot be updated by Play (Play re-signs with its own key).
+
+## Play Console answers (App content)
+**Privacy policy:** https://wira.one/privacy · **Data deletion URL:** https://wira.one/hapus-akun
+**Ads:** No ads. **Target audience:** 18 and over only. **News app:** No. **Government app:** No.
+**Health:** None. **Financial features:** WiraPay balance (top-up by QRIS, pay for services) — tick
+"Digital wallet / mobile payments" only while WiraPay exists; untick if it is removed.
+**Content rating (IARC):** category "All other app types"; no violence, sexuality, language, drugs,
+gambling; *Users can interact / exchange messages:* Yes (chat with partner); *Shares user location
+with other users:* Yes (during an order); *Digital purchases:* No.
+**Category:** Wira → Travel & Local · Wira Mitra → Business.
+
+### Data safety — Wira (com.wira.user)
+Collects data: Yes · Shares data: No (service providers and the partner serving an order the user
+placed do not count as sharing) · Encrypted in transit: Yes · Users can request deletion: Yes.
+| Data type | Collected | Optional? | Purpose |
+|---|---|---|---|
+| Location: precise + approximate | Yes | Required | App functionality |
+| Personal info: name, email, phone, address | Yes | Required (address optional) | App functionality, Account management |
+| Financial info: purchase history | Yes | Required | App functionality |
+| Messages: other in-app messages (chat) | Yes | Optional | App functionality |
+| Photos | Yes | Optional (profile, chat, review) | App functionality |
+| App activity: other user-generated content (reviews) | Yes | Optional | App functionality |
+| Device or other IDs (push token) | Yes | Required | App functionality (notifications) |
+
+### Data safety — Wira Mitra (com.wira.mitra)
+Same as Wira, plus:
+| Data type | Collected | Optional? | Purpose |
+|---|---|---|---|
+| Personal info: other info (ID card, selfie, driving licence, vehicle) | Yes | Required | Account management, Fraud prevention/security |
+| Financial info: other financial info (bank / e-wallet account for payouts) | Yes | Required | App functionality |
+| Location | Yes | Required | App functionality (shown to customers during an order) |

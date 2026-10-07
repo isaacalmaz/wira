@@ -7,18 +7,23 @@
 //    without installing an APK. A bundle that needs a newer APK
 //    (minNativeBuild) is skipped. If a new bundle fails to start, the
 //    updater rolls back (notifyAppReady below must run on every launch).
-// 2. APK (app_releases, migrations/0105): when admins publish a newer APK
-//    than this one, the app shows "Versi baru tersedia" with a download
-//    link (wira.one/install); a mandatory release blocks the app until updated.
+// 2. APK (app_releases, migrations/0105): when admins publish a newer build
+//    than this one, the app shows "Versi baru tersedia"; a mandatory release
+//    blocks the app until updated. Builds from Google Play (versionCode >= 3)
+//    are sent to their Play Store page: Play policy forbids a Play app from
+//    updating itself any other way. Older sideloaded APKs keep the
+//    wira.one/install link.
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { supabase } from '../config/supabase';
 
 const DISMISS_KEY = 'wira_update_dismissed';
+// First versionCode published on Google Play (1.2).
+const FIRST_PLAY_BUILD = 3;
 
 async function nativeBuild() {
   const { App } = await import('@capacitor/app');
   const info = await App.getInfo();
-  return { build: Number(info.build) || 0, version: info.version };
+  return { build: Number(info.build) || 0, version: info.version, id: info.id };
 }
 
 async function liveUpdate(origin, build) {
@@ -59,7 +64,7 @@ function showPrompt({ release, color, appName }) {
   }
   const go = document.createElement('button');
   go.type = 'button';
-  go.textContent = 'Unduh versi baru';
+  go.textContent = release.fromPlay ? 'Perbarui di Play Store' : 'Unduh versi baru';
   go.style.cssText = `min-height:48px;border:0;border-radius:12px;background:${color};color:#fff;font-size:15px;font-weight:700`;
   // Navigating to an external URL opens the system browser in Capacitor.
   go.onclick = () => { window.location.href = release.download_url; };
@@ -79,7 +84,7 @@ function showPrompt({ release, color, appName }) {
   document.body.append(wrap);
 }
 
-async function apkUpdate({ app, build, color, appName }) {
+async function apkUpdate({ app, build, appId, color, appName }) {
   const { data } = await supabase.from('app_releases').select('version_name, version_code, download_url, notes, mandatory')
     .eq('app', app).order('version_code', { ascending: false }).limit(1).maybeSingle();
   if (!data || data.version_code <= build) return;
@@ -90,14 +95,18 @@ async function apkUpdate({ app, build, color, appName }) {
       if (d && d.code === data.version_code && Date.now() - d.at < 3 * 86400000) return;
     } catch { /* ignore */ }
   }
-  showPrompt({ release: data, color, appName });
+  const release = build >= FIRST_PLAY_BUILD && appId
+    ? { ...data, fromPlay: true, download_url: `https://play.google.com/store/apps/details?id=${appId}` }
+    : data;
+  showPrompt({ release, color, appName });
 }
 
 /** app: 'user' | 'mitra' | 'admin'; origin: the site this app is served from. */
 export async function checkAppUpdates({ app, origin, color, appName }) {
   if (!Capacitor.isNativePlatform()) return;
   let build = 0;
-  try { ({ build } = await nativeBuild()); } catch { /* ignore */ }
+  let appId = null;
+  try { ({ build, id: appId } = await nativeBuild()); } catch { /* ignore */ }
   liveUpdate(origin, build).catch((e) => console.warn('live update skipped:', e?.message || e));
-  apkUpdate({ app, build, color, appName }).catch((e) => console.warn('apk update check skipped:', e?.message || e));
+  apkUpdate({ app, build, appId, color, appName }).catch((e) => console.warn('apk update check skipped:', e?.message || e));
 }
