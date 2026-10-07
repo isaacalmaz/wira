@@ -6,10 +6,9 @@ import { supabase } from '../../config/supabase';
 import { useTranslation } from '../../i18n';
 import { SERVICES } from '../../config/services';
 import { setPendingPromo } from '../../utils/pendingPromo';
+import { todayLombok } from '../../utils/promoDates';
 import { SectionHeader, cx } from '../ui';
 
-const LOMBOK_TZ = 'Asia/Makassar';
-const todayLombok = () => new Date().toLocaleDateString('en-CA', { timeZone: LOMBOK_TZ }); // YYYY-MM-DD
 
 const serviceOf = (promo) => {
   const type = String(promo.service_type || '').toLowerCase().replace(/^wira/, '');

@@ -30,6 +30,7 @@ import { fetchCoordinates } from '../utils/osmHelpers';
 import { avatarSrc } from '../utils/avatar';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 import { usePendingPromo } from '../utils/pendingPromo';
+import { isPromoExpired } from '../utils/promoDates';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -260,7 +261,7 @@ export default function ServicePage() {
 
       if (error || !data) throw new Error(t('promo.not_found'));
       if (data.status !== 'Active') throw new Error(t('promo.inactive'));
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (isPromoExpired(data.validUntil)) throw new Error(t('promo.expired'));
       if (data.service_type && data.service_type !== 'service') throw new Error(t('promo.wrong_service'));
 
       setActivePromo(data);

@@ -24,6 +24,7 @@ import API_BASE_URL from '../config/api';
 import StayCalendar, { nightsBetween } from '../components/villa/StayCalendar';
 import { useTranslation } from '../i18n';
 import { usePendingPromo } from '../utils/pendingPromo';
+import { isPromoExpired } from '../utils/promoDates';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -227,7 +228,7 @@ export default function VillaPage() {
 
       if (error || !data) throw new Error(t('promo.not_found'));
       if (data.status !== 'Active') throw new Error(t('promo.inactive'));
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (isPromoExpired(data.validUntil)) throw new Error(t('promo.expired'));
       if (data.service_type && data.service_type !== 'villa') throw new Error(t('promo.wrong_service'));
 
       setActivePromo(data);

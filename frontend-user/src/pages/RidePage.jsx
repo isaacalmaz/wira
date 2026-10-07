@@ -26,6 +26,7 @@ import { useTranslation } from '../i18n';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
+import { isPromoExpired } from '../utils/promoDates';
 
 export default function RidePage() {
   const navigate = useNavigate();
@@ -196,7 +197,7 @@ export default function RidePage() {
       
       if (error || !data) throw new Error(t('promo.not_found'));
       if (data.status !== 'Active') throw new Error(t('promo.inactive'));
-      if (data.validUntil && new Date(data.validUntil) < new Date()) throw new Error(t('promo.expired'));
+      if (isPromoExpired(data.validUntil)) throw new Error(t('promo.expired'));
       if (data.service_type && data.service_type !== 'ride') throw new Error(t('promo.wrong_service'));
 
       setActivePromo(data);
