@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, QrCode } from 'lucide-react';
+import { Wallet, QrCode, Banknote } from 'lucide-react';
 import {
   Button,
   Card,
@@ -191,7 +191,7 @@ export default function PoolPage() {
     const slots = openSlots(date);
     if (!slots.includes(visitTime)) setVisitTime(slots[0] || '');
   };
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay');
+  const [paymentMethod, setPaymentMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
@@ -292,7 +292,7 @@ export default function PoolPage() {
     }
 
     const finalPrice = calculateFinalPrice();
-    if ((isPackage || paymentMethod === 'WiraPay') && balance < finalPrice) {
+    if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error(isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance'));
       return;
     }
@@ -317,7 +317,9 @@ export default function PoolPage() {
           p_details: details,
           p_pickup_lat: point?.lat ?? null,
           p_pickup_lng: point?.lng ?? null,
-          p_auto_renew: autoRenew,
+          p_auto_renew: paymentMethod === 'WiraPay' && autoRenew,
+          // 0115: cash = each weekly visit paid to the technician on the day.
+          p_payment_method: paymentMethod === 'Tunai' ? 'cash' : 'wallet',
         });
         if (error) throw error;
         loadSubs();
@@ -544,6 +546,13 @@ export default function PoolPage() {
                 title="WiraPay"
                 subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
               />
+              <ChoiceCard
+                selected={paymentMethod === 'Tunai'}
+                onClick={() => setPaymentMethod('Tunai')}
+                leading={<IconTile tone="success" size="sm"><Banknote size={18} /></IconTile>}
+                title={t('common.pay_cash')}
+                subtitle={isPackage ? t('pool.package_cash_desc') : t('pool.cash_desc')}
+              />
               {!isPackage && <ChoiceCard
                 selected={paymentMethod === 'QRIS'}
                 onClick={() => setPaymentMethod('QRIS')}
@@ -552,11 +561,10 @@ export default function PoolPage() {
                 subtitle={t('common.pay_qris_desc')}
               />}
             </div>
-            {(isPackage || paymentMethod === 'WiraPay') && balance < calculateFinalPrice() && (
+            {paymentMethod === 'WiraPay' && balance < calculateFinalPrice() && (
               <Notice tone="danger">{isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance')}</Notice>
             )}
-            {isPackage && <p className="text-[12px] leading-relaxed text-ink-muted">{t('pool.package_wirapay_only')}</p>}
-            {isPackage && (
+            {isPackage && paymentMethod === 'WiraPay' && (
               <label className="flex min-h-11 items-start gap-3 rounded-control border border-line bg-card px-3.5 py-3 text-[13.5px] text-ink">
                 <input
                   type="checkbox"

@@ -330,6 +330,8 @@
     "project_mine": "Proyek Saya"
   },
   "pool": {
+    "cash_desc": "Bayar langsung ke teknisi setelah selesai",
+    "package_cash_desc": "Bayar ke teknisi di setiap kunjungan (4 kali)",
     "title": "WiraPool — Perawatan Kolam Renang",
     "subtitle": "Perawatan kolam renang villa dan rumah pribadi di Lombok, supaya airnya selalu jernih dan sehat.",
     "popular_badge": "Paling Diminati Pemilik Villa",
@@ -537,6 +539,10 @@
     "route_dropoff": "Tujuan"
   },
   "order": {
+    "cancel_desc_villa_full": "Pembatalan lebih dari 3 hari sebelum check-in: pembayaran dikembalikan penuh ke saldo WiraPay.",
+    "cancel_desc_villa_half": "Kurang dari 3 hari sebelum check-in: 50% dikembalikan ke saldo WiraPay, 50% tetap untuk pemilik villa.",
+    "food_no_cancel": "Restoran sudah menyiapkan pesanan, jadi tidak bisa dibatalkan dari aplikasi. Butuh bantuan? Hubungi CS lewat Pusat Bantuan.",
+    "villa_no_cancel": "Sudah masuk hari check-in, reservasi tidak bisa dibatalkan lagi. Hubungi CS lewat Pusat Bantuan jika ada masalah.",
     "food_waiting": "Menunggu restoran menerima pesanan",
     "food_waiting_desc": "Setelah restoran menerima dan menyiapkan makanan, kami carikan kurir terdekat.",
     "title": "Status Pesanan",

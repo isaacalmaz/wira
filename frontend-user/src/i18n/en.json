@@ -330,6 +330,8 @@
     "project_mine": "My Projects"
   },
   "pool": {
+    "cash_desc": "Pay the technician when the job is done",
+    "package_cash_desc": "Pay the technician at each of the 4 visits",
     "title": "WiraPool — Swimming Pool Care",
     "subtitle": "Pool maintenance for villas and private homes across Lombok, so the water stays clear and safe.",
     "popular_badge": "Villa Owners' Favourite",
@@ -537,6 +539,10 @@
     "route_dropoff": "Destination"
   },
   "order": {
+    "cancel_desc_villa_full": "More than 3 days before check-in: you get a full refund to your WiraPay balance.",
+    "cancel_desc_villa_half": "Less than 3 days before check-in: 50% is refunded to WiraPay, 50% goes to the villa owner.",
+    "food_no_cancel": "The restaurant is already preparing your order, so it can no longer be cancelled in the app. Need help? Contact support from the Help Center.",
+    "villa_no_cancel": "It is check-in day, so the booking can no longer be cancelled. Contact support from the Help Center if something is wrong.",
     "food_waiting": "Waiting for the restaurant to accept",
     "food_waiting_desc": "Once the restaurant accepts and prepares your food, we find the nearest courier.",
     "title": "Order Status",

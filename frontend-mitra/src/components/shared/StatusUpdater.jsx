@@ -9,7 +9,7 @@ const StatusUpdater = ({ currentStatus, role, onUpdate, isFoodDelivery = false }
 
   if (role === 'driver') {
     if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PICKING_UP; buttonText = 'Menuju Lokasi'; }
-    else if (currentStatus === OrderStatus.PICKING_UP) { nextStatus = OrderStatus.IN_TRIP; buttonText = isFoodDelivery ? 'Sudah Ambil di Resto' : 'Sudah Di Jemput'; }
+    else if (currentStatus === OrderStatus.PICKING_UP) { nextStatus = OrderStatus.IN_TRIP; buttonText = isFoodDelivery ? 'Makanan Sudah Diambil (PIN)' : 'Mulai Perjalanan (PIN)'; }
     else if (currentStatus === OrderStatus.IN_TRIP) { nextStatus = OrderStatus.COMPLETED; buttonText = 'Selesaikan Pesanan'; variant = 'success'; }
   } else if (role === 'merchant') {
     if (currentStatus === OrderStatus.ACCEPTED) { nextStatus = OrderStatus.PREPARING; buttonText = 'Mulai Siapkan'; }

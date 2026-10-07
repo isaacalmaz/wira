@@ -173,6 +173,21 @@ const MerchantHomePage = () => {
     }
   };
 
+  // 0115: the incoming prompt's "Tolak" really declines (WiraPay/QRIS
+  // refunded, customer told) instead of only hiding the prompt.
+  const handleRejectIncoming = async () => {
+    if (!incomingOrder) return;
+    const order = incomingOrder;
+    setIncomingOrder(null);
+    const { error } = await supabase.rpc('merchant_reject_order', { p_order_id: order.id, p_reason: null });
+    if (error) toast.error(orderErrorMessage(error, error.message || 'Gagal menolak pesanan'));
+    else toast.success('Pesanan ditolak. Pelanggan sudah diberi tahu.');
+  };
+
+  // Villa stays complete only from the check-out date (server-enforced).
+  const todayWita = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  const stayNotOver = (order) => isVillaOrder(order) && order.check_out && order.check_out > todayWita;
+
   const handleCompleteOrder = async () => {
     if (!activeOrder) return;
     try {
@@ -306,9 +321,15 @@ const MerchantHomePage = () => {
               >
                 Chat
               </Button>
-              <Button variant="primary" size="lg" className="flex-1" onClick={handleCompleteOrder}>
-                {isVillaOrder(activeOrder) ? 'Tandai Selesai' : 'Tandai Siap / Selesai'}
-              </Button>
+              {stayNotOver(activeOrder) ? (
+                <p className="flex flex-1 items-center text-[13px] text-ink-muted">
+                  Selesai otomatis setelah check-out {new Date(`${activeOrder.check_out}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}.
+                </p>
+              ) : (
+                <Button variant="primary" size="lg" className="flex-1" onClick={handleCompleteOrder}>
+                  {isVillaOrder(activeOrder) ? 'Tandai Selesai' : 'Tandai Siap / Selesai'}
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -324,7 +345,7 @@ const MerchantHomePage = () => {
         title={incomingOrder ? (incomingOrder.title || (isVillaOrder(incomingOrder) ? 'Reservasi WiraVilla' : 'Wira Food')) : ''}
         footer={incomingOrder && (
           <>
-            <Button variant="secondary" size="lg" onClick={() => setIncomingOrder(null)}>Tolak</Button>
+            <Button variant="secondary" size="lg" onClick={handleRejectIncoming}>Tolak</Button>
             <Button variant="primary" size="lg" onClick={handleAcceptOrder}>{isVillaOrder(incomingOrder) ? 'Konfirmasi Reservasi' : 'Terima Pesanan'}</Button>
           </>
         )}

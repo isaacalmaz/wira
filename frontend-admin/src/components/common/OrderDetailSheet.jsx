@@ -40,7 +40,8 @@ function actionsFor(order, core) {
   const isFood = ['food', 'WiraFood'].includes(order.service_type);
   const usesPartner = ['ride', 'send', 'service', 'pool', 'food', 'WiraFood'].includes(order.service_type);
   if (core && open) list.push('cancel');
-  if (core && open && (order.driver_id || order.merchant_id)) list.push('complete');
+  // An unpaid QRIS order can't be completed (migrations/0115).
+  if (core && open && order.status !== 'awaiting_payment' && (order.driver_id || order.merchant_id)) list.push('complete');
   if (core && usesPartner && order.driver_id && (isFood ? order.status === 'picking_up' : ['accepted', 'on_the_way', 'picking_up'].includes(order.status))) list.push('reassign');
   if (core && ['completed', 'cancelled'].includes(order.status)) list.push('compensate');
   list.push('note');

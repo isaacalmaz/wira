@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner, Select } from '../../components/ui';
+import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner, Select, Sheet, Field, Textarea } from '../../components/ui';
 import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { OrderStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, orderErrorMessage } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
@@ -20,8 +20,13 @@ const statusTone = (status) => {
   if (status === OrderStatus.CANCELLED) return 'danger';
   return 'brand';
 };
-// The raw status value, as before, just without the underscore.
-const statusLabel = (status) => String(status || '').replace(/_/g, ' ');
+const statusLabel = (status, serviceType) => getDisplayStatus(status, serviceType);
+
+// Villa stays: the server lets the host complete only from check-out
+// (migrations/0115) and decline only before check-in.
+const todayWita = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+const canCompleteStay = (order) => !order.check_out || order.check_out <= todayWita();
+const canDeclineStay = (order) => !order.check_in || order.check_in > todayWita();
 
 // Display-only: food orders store their items as a JSON array in `details`;
 // list them one per line with the quantity in mono. Anything else falls back
@@ -66,6 +71,23 @@ const MerchantOrdersPage = () => {
   const [chatOrder, setChatOrder] = useState(null); // {id, customerName} | null
   const [names, setNames] = useState({}); // user_id -> customer name
   const [pins, setPins] = useState({}); // order_id -> handover PIN (food, ready/picking_up)
+  const [rejecting, setRejecting] = useState(null); // order being declined
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectBusy, setRejectBusy] = useState(false);
+
+  // merchant_reject_order (0115): any payment method, WiraPay/QRIS refunded,
+  // the customer is told the reason.
+  const submitReject = async () => {
+    if (!rejecting) return;
+    setRejectBusy(true);
+    const { error } = await supabase.rpc('merchant_reject_order', { p_order_id: rejecting.id, p_reason: rejectReason.trim() || null });
+    setRejectBusy(false);
+    if (error) { toast.error(orderErrorMessage(error, error.message || 'Gagal menolak pesanan')); return; }
+    toast.success('Pesanan ditolak. Pelanggan sudah diberi tahu.');
+    setRejecting(null);
+    setRejectReason('');
+    fetchOrders();
+  };
 
   const openChat = async (order) => {
     let customerName = 'Pelanggan';
@@ -199,7 +221,7 @@ const MerchantOrdersPage = () => {
           <Card key={order.id} className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1.5">
-                <span><Badge tone={statusTone(order.status)} dot className="capitalize">{statusLabel(order.status)}</Badge></span>
+                <span><Badge tone={statusTone(order.status)} dot>{statusLabel(order.status, order.service_type)}</Badge></span>
                 <h3 className="font-mono text-[13px] font-medium text-ink">{order.id.slice(0,12)}</h3>
                 <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-muted">
                   <Clock size={12} aria-hidden="true" />
@@ -237,33 +259,47 @@ const MerchantOrdersPage = () => {
               <div className="flex items-stretch gap-2">
                 {order.status === OrderStatus.PENDING ? (
                   <>
-                    {/* Only cash orders: nothing to refund (WiraPay refunds go through an admin). */}
-                    {order.payment_method === 'cash' && (
-                      <Button variant="danger-soft" onClick={() => { if (window.confirm('Tolak pesanan ini? Pelanggan akan diberi tahu.')) updateStatus(order, OrderStatus.CANCELLED); }}>
-                        Tolak
-                      </Button>
-                    )}
+                    <Button variant="danger-soft" onClick={() => setRejecting(order)}>Tolak</Button>
                     <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.ACCEPTED)}>{isVilla ? 'Konfirmasi Reservasi' : 'Terima'}</Button>
                   </>
                 ) : (
                   <>
                     {isVilla ? (
                       order.status === OrderStatus.ACCEPTED && (
-                        <Button variant="primary" className="flex-1" leftIcon={<CheckCircle2 size={16} />} onClick={() => updateStatus(order, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                        canCompleteStay(order) ? (
+                          <Button variant="primary" className="flex-1" leftIcon={<CheckCircle2 size={16} />} onClick={() => updateStatus(order, OrderStatus.COMPLETED)}>Tandai Selesai</Button>
+                        ) : (
+                          <>
+                            <Notice tone="info" className="flex-1 items-center py-2.5">
+                              Selesai otomatis setelah check-out {order.check_out ? new Date(`${order.check_out}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : ''}.
+                            </Notice>
+                            {canDeclineStay(order) && (
+                              <Button variant="danger-soft" onClick={() => setRejecting(order)}>Batalkan</Button>
+                            )}
+                          </>
+                        )
                       )
                     ) : order.status === OrderStatus.ACCEPTED ? (
                       <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.PREPARING)}>Mulai Siapkan</Button>
                     ) : order.status === OrderStatus.PREPARING ? (
                       <Button variant="primary" className="flex-1" onClick={() => updateStatus(order, OrderStatus.READY)}>Siap Diambil</Button>
-                    ) : order.status === OrderStatus.READY ? (
-                      <Notice tone="warning" className="flex-1 items-center py-2.5">
-                        {pins[order.id]
-                          ? <>Berikan PIN <span className="font-mono text-[15px] font-semibold tracking-[0.2em]">{pins[order.id]}</span> ke kurir saat menyerahkan pesanan.</>
-                          : 'Menunggu kurir mengambil pesanan...'}
-                      </Notice>
-                    ) : order.status === OrderStatus.PICKING_UP || order.status === OrderStatus.IN_TRIP ? (
+                    ) : order.status === OrderStatus.READY || order.status === OrderStatus.PICKING_UP ? (
+                      <div className="flex flex-1 flex-col gap-1.5 rounded-control border border-warning-line bg-warning-soft px-3 py-2.5">
+                        <span className="text-[12.5px] font-semibold text-ink">
+                          {order.status === OrderStatus.PICKING_UP ? 'Kurir menuju restoran. ' : 'Menunggu kurir. '}
+                          Berikan PIN ini saat menyerahkan pesanan:
+                        </span>
+                        {pins[order.id] ? (
+                          <span className="flex gap-1.5" aria-label={`PIN ${pins[order.id].split('').join(' ')}`}>
+                            {pins[order.id].split('').map((d, i) => (
+                              <span key={i} aria-hidden="true" className="inline-flex h-11 w-9 items-center justify-center rounded-[10px] border border-line-strong bg-card font-mono text-[24px] font-medium text-ink">{d}</span>
+                            ))}
+                          </span>
+                        ) : <Spinner size={16} />}
+                      </div>
+                    ) : order.status === OrderStatus.IN_TRIP ? (
                       <Notice tone="info" className="flex-1 items-center py-2.5">
-                        Kurir sedang mengantar
+                        Kurir sedang mengantar ke pelanggan
                       </Notice>
                     ) : null}
                     <Button variant="secondary" leftIcon={<MessageCircle size={16} />} onClick={() => openChat(order)}>
@@ -279,6 +315,25 @@ const MerchantOrdersPage = () => {
           <EmptyState icon={<ClipboardList size={24} />} title="Tidak ada pesanan" description={tab === 'active' ? 'Pesanan baru akan muncul di sini.' : 'Belum ada riwayat pesanan.'} />
         )}
       </div>
+
+      <Sheet
+        open={Boolean(rejecting)}
+        onClose={() => { if (!rejectBusy) { setRejecting(null); setRejectReason(''); } }}
+        title={rejecting && (rejecting.service_type === 'villa' || rejecting.service_type === 'WiraVilla') ? 'Batalkan reservasi?' : 'Tolak pesanan?'}
+        description="Pelanggan diberi tahu. Pembayaran WiraPay atau QRIS dikembalikan penuh ke saldonya."
+        tone="danger"
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" disabled={rejectBusy} onClick={() => { setRejecting(null); setRejectReason(''); }}>Kembali</Button>
+            <Button variant="danger" size="lg" isLoading={rejectBusy} onClick={submitReject}>Tolak Pesanan</Button>
+          </>
+        )}
+      >
+        <Field label="Alasan (dikirim ke pelanggan)" htmlFor="reject-reason">
+          <Textarea id="reject-reason" rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Contoh: bahan habis, atau tanggal sudah terisi" />
+        </Field>
+      </Sheet>
 
       {chatOrder && (
         <ChatModal

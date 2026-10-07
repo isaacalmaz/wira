@@ -256,7 +256,9 @@ export default function ActiveOrderPage() {
         if (s === 'preparing') return { label: 'Siap Diambil', next: 'ready' };
       }
     } else if (type === 'villa') {
-      if (s === 'accepted' && order.merchant?.owner_id === user.id) return { label: 'Selesaikan Pesanan', next: 'completed' };
+      // 0115: only from the check-out date (server-enforced).
+      const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+      if (s === 'accepted' && order.merchant?.owner_id === user.id && (!order.check_out || order.check_out <= today)) return { label: 'Selesaikan Pesanan', next: 'completed' };
     }
     return null;
   };

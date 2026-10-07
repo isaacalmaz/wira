@@ -475,16 +475,19 @@ function orderRate(order) {
 
 const isCashOrder = (order) => order.payment_method === 'cash';
 
+// 0115: Wira funds every promo, so shares are on the pre-discount price.
+const grossPrice = (order) => (Number(order.total_price) || 0) + Math.max(Number(order.promo_discount) || 0, 0);
+
 function driverShare(order) {
   const share = 1 - orderRate(order);
   if (order.merchant_id) return (order.delivery_fee || 0) * share; // food: driver earns the delivery fee only
   // ride/send/service/pool: the work minus commission, all of the materials (0090)
   const material = Math.min(Math.max(Number(order.material_amount) || 0, 0), order.total_price || 0);
-  return ((order.total_price || 0) - material) * share + material;
+  return (grossPrice(order) - material) * share + material;
 }
 
 function merchantShare(order) {
-  return Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) * (1 - orderRate(order));
+  return Math.max(grossPrice(order) - (order.delivery_fee || 0), 0) * (1 - orderRate(order));
 }
 
 // The assigned driver collects the cash; only with no driver does the merchant.

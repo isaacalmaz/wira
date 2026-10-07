@@ -3,6 +3,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button, Spinner } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
+import OrderPinSheet from '../../components/shared/OrderPinSheet';
 import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
@@ -72,7 +73,14 @@ const DriverOrdersPage = () => {
   const activeOrder = orders.find(o => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.PICKING_UP || o.status === OrderStatus.IN_TRIP);
   const history = orders.filter(o => o.status === OrderStatus.COMPLETED);
 
+  // 0113: starting the trip goes through the PIN (the server refuses a plain update).
+  const [pinOpen, setPinOpen] = useState(false);
+
   const updateStatus = async (newStatus) => {
+    if (newStatus === OrderStatus.IN_TRIP) {
+      setPinOpen(true);
+      return;
+    }
     if(activeOrder) {
       try {
         await updateOrderStatus(supabase, activeOrder.id, newStatus, user.id, 'driver');
@@ -113,11 +121,22 @@ const DriverOrdersPage = () => {
               <IconTile tone="neutral" size="sm"><User size={18} /></IconTile>
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold text-ink">Pemesan: <span className="font-medium">{customerNames[activeOrder.user_id] || 'Pelanggan'}</span></p>
-                <p className="text-xs text-ink-muted">Bayar via: <span className="capitalize">{activeOrder.payment_method}</span></p>
+                <p className="text-xs text-ink-muted">Bayar: <span className="font-semibold text-ink">{activeOrder.payment_method === 'cash' ? 'Tunai, tagih ke pelanggan' : 'Lunas via WiraPay, jangan ditagih'}</span></p>
               </div>
             </div>
 
             <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} isFoodDelivery={!!activeOrder.merchant_id} />
+            <OrderPinSheet
+              order={activeOrder}
+              open={pinOpen}
+              onClose={() => setPinOpen(false)}
+              onStarted={() => { setPinOpen(false); fetchOrders(); }}
+              description={activeOrder.merchant_id
+                ? 'Minta 4 digit PIN dari restoran saat makanan diserahkan.'
+                : activeOrder.service_type === 'send'
+                  ? 'Minta 4 digit PIN dari pengirim saat paket diserahkan.'
+                  : 'Minta 4 digit PIN dari penumpang saat bertemu.'}
+            />
           </div>
         </Card>
       ) : loading ? (

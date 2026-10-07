@@ -279,8 +279,21 @@ export default function ActiveOrderPage() {
   const scheduledMs = order?.scheduled_at ? new Date(order.scheduled_at).getTime() : null;
   const sinceAccept = order?.accepted_at ? nowTick - new Date(order.accepted_at).getTime() : null;
   const visitLate = scheduledMs != null && nowTick > scheduledMs + VISIT_LATE_MS;
+  // 0115: villa - free until 3 days before check-in, 50% refund within 3
+  // days, none from the check-in day; food - only until the restaurant has
+  // accepted (plus 3 minutes), then through CS.
+  const isVilla = ['villa', 'WiraVilla'].includes(order?.service_type);
+  const isFood = ['food', 'WiraFood'].includes(order?.service_type);
+  const villaRatio = () => {
+    if (!order?.check_in) return 1;
+    const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+    const days = Math.round((new Date(`${order.check_in}T00:00Z`) - new Date(`${today}T00:00Z`)) / 86400000);
+    return days >= 3 ? 1 : days >= 1 ? 0.5 : 0;
+  };
   const isCancelable = () => {
     if (!order) return false;
+    if (isVilla) return order.status === 'pending' || (order.status === 'accepted' && villaRatio() > 0);
+    if (isFood) return order.status === 'pending' || (order.status === 'accepted' && sinceAccept != null && sinceAccept <= FREE_WINDOW_MS);
     if (order.status === 'pending') return true;
     if (isVisit && ['accepted', 'on_the_way'].includes(order.status)) {
       if (!isBabysit && sinceAccept != null && sinceAccept <= FREE_WINDOW_MS) return true;
@@ -318,7 +331,9 @@ export default function ActiveOrderPage() {
   const paidWithWallet = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
   const partnerName = order.driver?.name || t('chat.default_partner');
   const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
-  const cancelDescription = order.status === 'pending'
+  const cancelDescription = isVilla && order.status !== 'pending'
+    ? t(villaRatio() >= 1 ? 'order.cancel_desc_villa_full' : 'order.cancel_desc_villa_half')
+    : order.status === 'pending'
     ? t('order.cancel_desc_pending')
     : isVisit
       ? (visitLate ? t(isBabysit ? 'order.cancel_desc_babysit_late' : 'order.cancel_desc_visit_late') : t('order.cancel_desc_visit'))
@@ -531,7 +546,13 @@ export default function ActiveOrderPage() {
         </div>
       </Card>
 
-      {cancelReopensAt && (
+      {!isCancelable() && isFood && ['accepted', 'preparing', 'ready', 'picking_up'].includes(order.status) && (
+        <p className="text-center text-[12.5px] leading-relaxed text-ink-muted">{t('order.food_no_cancel')}</p>
+      )}
+      {!isCancelable() && isVilla && order.status === 'accepted' && (
+        <p className="text-center text-[12.5px] leading-relaxed text-ink-muted">{t('order.villa_no_cancel')}</p>
+      )}
+      {cancelReopensAt && !isFood && !isVilla && (
         <p className="text-center text-[12.5px] leading-relaxed text-ink-muted">
           {t('order.cancel_available_at', {
             time: cancelReopensAt.toDateString() === new Date(nowTick).toDateString()
