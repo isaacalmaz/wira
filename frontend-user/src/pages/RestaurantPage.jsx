@@ -353,7 +353,7 @@ export default function RestaurantPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next order
       toast.success(t('restaurant.order_placed'));
     } catch (err) {
-      toast.error(t('restaurant.order_failed', { message: err.message }));
+      toast.error(t('restaurant.order_failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     }
     setLoading(false);
   };

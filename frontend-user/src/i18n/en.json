@@ -570,6 +570,7 @@
     "created_qris": "Order created. Please complete the QRIS payment.",
     "create_failed": "We couldn't create that order: {{message}}",
     "create_failed_generic": "We couldn't create that order. Check your connection and try again.",
+    "create_failed_server": "something went wrong on our side. Try again shortly, or contact support from the Help menu.",
     "login_required": "Please sign in to place an order.",
     "update_status_failed": "We couldn't update the order status. Please try again in a moment.",
     "cancel_confirm_title": "Cancel this order?",

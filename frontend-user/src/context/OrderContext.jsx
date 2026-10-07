@@ -207,7 +207,14 @@ export const OrderProvider = ({ children }) => {
       return uiOrder;
     } catch (err) {
       console.error('Failed to create order:', err);
-      toast.error(err?.message ? t('order.create_failed', { message: err.message }) : t('order.create_failed_generic'));
+      // Database/driver wording (constraints, permissions) means nothing to
+      // a customer; the pages show err.userMessage under the same toast id,
+      // so a failure appears once.
+      const raw = String(err?.message || '');
+      err.userMessage = !raw || /violates|constraint|permission denied|function|relation|column|JSON|fetch/i.test(raw)
+        ? t(raw ? 'order.create_failed_server' : 'order.create_failed_generic')
+        : raw;
+      toast.error(t('order.create_failed', { message: err.userMessage }), { id: 'order-create-error' });
       throw err; // Proper error handling instead of local fallback
     }
   };

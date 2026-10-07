@@ -45,14 +45,16 @@ export const AuthProvider = ({ children }) => {
     if (error) throw error;
 
     if (data.user) {
-      const { error: insertError } = await supabase.from('users').insert([{
+      // migrations/0111 also creates this row in the database; this just
+      // fills in the details when the session allows it.
+      const { error: insertError } = await supabase.from('users').upsert([{
         id: data.user.id,
         name: userData.name,
         email: email,
         phone: userData.phone,
         role: 'user',
         status: 'Aktif'
-      }]);
+      }], { onConflict: 'id', ignoreDuplicates: true });
       if (insertError) console.error('Insert user error:', insertError);
     }
     return data;

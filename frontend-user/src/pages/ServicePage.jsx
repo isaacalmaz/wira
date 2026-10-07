@@ -359,7 +359,7 @@ export default function ServicePage() {
 
       handleRemovePromo(); // don't let a used promo silently discount the next order
     } catch (err) {
-      toast.error(t('service.failed', { message: err.message }));
+      toast.error(t('service.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }

@@ -207,7 +207,7 @@ export default function SendPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next Send order
       toast.success(t('send.searching_courier'));
     } catch (err) {
-      toast.error(t('send.failed', { message: err.message }));
+      toast.error(t('send.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }

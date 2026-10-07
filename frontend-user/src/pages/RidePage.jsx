@@ -296,7 +296,7 @@ export default function RidePage() {
         toast.success(t('ride.searching_driver'));
       }
     } catch (err) {
-      toast.error(t('ride.book_failed', { message: err.message }));
+      toast.error(t('ride.book_failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     }
   };
 

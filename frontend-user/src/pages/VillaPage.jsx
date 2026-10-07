@@ -322,7 +322,7 @@ export default function VillaPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next booking
       if (paymentMethod !== 'QRIS') toast.success(t('villa.success'));
     } catch (err) {
-      toast.error(t('villa.failed', { message: err.message }));
+      toast.error(t('villa.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }

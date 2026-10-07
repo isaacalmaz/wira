@@ -570,6 +570,7 @@
     "created_qris": "Pesanan dibuat. Selesaikan pembayaran QRIS-nya, ya.",
     "create_failed": "Pesanan belum bisa dibuat: {{message}}",
     "create_failed_generic": "Pesanan belum bisa dibuat. Periksa koneksi Anda, lalu coba lagi.",
+    "create_failed_server": "ada kendala di server. Coba lagi sebentar lagi, atau hubungi CS lewat menu Bantuan.",
     "login_required": "Masuk dulu ke akun Anda untuk membuat pesanan.",
     "update_status_failed": "Status pesanan belum bisa diperbarui. Coba lagi sebentar lagi.",
     "cancel_confirm_title": "Batalkan pesanan ini?",

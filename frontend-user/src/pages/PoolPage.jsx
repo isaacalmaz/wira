@@ -357,7 +357,7 @@ export default function PoolPage() {
       // OrderContext.addOrder already confirms the order (QRIS: shows the QR).
       handleRemovePromo(); // don't let a used promo silently discount the next order
     } catch (err) {
-      toast.error(t('pool.failed', { message: err.message }));
+      toast.error(t('pool.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }
