@@ -20,15 +20,18 @@ const OrdersPage = () => {
   const openId = params.get('id');
   const openOrder = (id) => setParams(id ? { id } : {}, { replace: !id });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
     // Kita ambil juga data user dan driver agar tau nama pelakunya
-    const { data } = await supabase.from('orders')
+    const { data, error } = await supabase.from('orders')
       .select('*, user:users!user_id(name), driver:users!driver_id(name)')
       .order('created_at', { ascending: false })
       .limit(1000);
 
+    // A failed load must not look like "no orders".
+    setLoadError(Boolean(error));
     if (data) setOrders(data);
     setLoading(false);
   };
@@ -130,6 +133,11 @@ const OrdersPage = () => {
       {loading ? (
         <Card className="flex items-center justify-center gap-3 py-16 text-[13.5px] text-ink-muted">
           <Spinner size={18} className="text-brand" /> Memuat...
+        </Card>
+      ) : loadError && orders.length === 0 ? (
+        <Card className="flex flex-col items-center gap-3 py-12 text-center text-[13.5px] text-ink-muted">
+          Pesanan belum bisa dimuat. Periksa koneksi, lalu coba lagi.
+          <button type="button" onClick={fetchOrders} className="min-h-11 rounded-control border border-line-strong px-4 font-semibold text-ink hover:bg-sunken">Coba lagi</button>
         </Card>
       ) : filteredOrders.length === 0 ? (
         <EmptyState

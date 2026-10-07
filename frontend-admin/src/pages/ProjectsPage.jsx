@@ -82,7 +82,7 @@ export default function ProjectsPage() {
                 <td>{r.customer_name || '–'}</td>
                 <td>{r.technician_name || '–'}</td>
                 <td className="whitespace-nowrap">
-                  <Badge tone={STATUS[r.status][0]} dot>{STATUS[r.status][1]}</Badge>
+                  <Badge tone={(STATUS[r.status] || ['neutral'])[0]} dot>{(STATUS[r.status] || [null, r.status])[1]}</Badge>
                   {r.disputed_count > 0 && <Badge tone="danger" className="ml-1">Keberatan</Badge>}
                 </td>
                 <td className="text-right">{r.total ? <Money value={Number(r.total)} /> : '–'}</td>
@@ -137,7 +137,11 @@ export default function ProjectsPage() {
         footer={(
           <>
             <Button variant="secondary" onClick={() => setDecide(null)} disabled={busy}>Batal</Button>
-            <Button variant={decide?.action === 'refund' ? 'danger' : 'primary'} isLoading={busy} disabled={note.trim().length < 5} onClick={resolve}>Putuskan</Button>
+            <Button variant={decide?.action === 'refund' ? 'danger' : 'primary'} isLoading={busy} disabled={note.trim().length < 5} onClick={resolve}>
+              {decide?.action === 'release'
+                ? `Cairkan Rp ${Number(decide?.stage?.amount || 0).toLocaleString('id-ID')} ke teknisi`
+                : `Kembalikan Rp ${Number(decide?.stage?.amount || 0).toLocaleString('id-ID')}`}
+            </Button>
           </>
         )}
       >

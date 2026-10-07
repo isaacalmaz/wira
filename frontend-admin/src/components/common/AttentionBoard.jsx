@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Clock, Gavel, Wallet, ArrowDownToLine, LifeBuoy, Star, UserPlus, Home, CheckCircle2, RefreshCw,
+  Coins, Ban, Baby, CalendarCheck, QrCode, UtensilsCrossed,
 } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -13,14 +14,20 @@ const ROLE_NAME = { driver: 'driver', courier: 'kurir', merchant: 'resto', villa
 
 // Kinds from admin_attention() (migrations/0100). level: 3 = money or a
 // customer waiting right now, 2 = someone waiting on a decision, 1 = follow-up.
-const KINDS = [
+export const KINDS = [
   { key: 'stale_orders', label: 'Pesanan macet', icon: AlertTriangle, level: 3, link: '/orders', roles: CS_ADMIN_ROLES, hint: 'Status tidak bergerak' },
   { key: 'unmatched_orders', label: 'Belum dapat mitra', icon: Clock, level: 3, link: '/orders', roles: CS_ADMIN_ROLES, hint: 'Lebih dari 10 menit; batal otomatis di menit 30' },
+  { key: 'food_unclaimed', label: 'Makanan siap, belum ada kurir', icon: UtensilsCrossed, level: 3, link: '/orders', roles: CS_ADMIN_ROLES, hint: 'Lebih dari 10 menit' },
+  { key: 'babysit_requests', label: 'Permintaan WiraAsuh', icon: Baby, level: 3, link: '/orders', roles: CORE_ADMIN_ROLES, hint: 'Batal otomatis di jam mulai' },
   { key: 'disputes', label: 'Keberatan proyek', icon: Gavel, level: 3, link: '/projects', roles: CORE_ADMIN_ROLES, hint: 'Dana ditahan sampai diputuskan' },
   { key: 'payouts', label: 'Permintaan pencairan', icon: Wallet, level: 2, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true },
   { key: 'topups', label: 'Top-up menunggu', icon: ArrowDownToLine, level: 2, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true },
+  { key: 'commission_deposits', label: 'Setoran komisi menunggu', icon: Coins, level: 2, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true },
+  { key: 'awaiting_payment', label: 'Pesanan menunggu pembayaran QRIS', icon: QrCode, level: 2, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true, hint: 'Cek mutasi, lalu setujui top-up-nya' },
+  { key: 'villa_bookings', label: 'Reservasi villa belum dikonfirmasi', icon: CalendarCheck, level: 2, link: '/orders', roles: CORE_ADMIN_ROLES, hint: 'Batal otomatis setelah 24 jam' },
   { key: 'applications', label: 'Pendaftar mitra baru', icon: UserPlus, level: 2, link: null, roles: CORE_ADMIN_ROLES },
   { key: 'villa_listings', label: 'Properti villa menunggu', icon: Home, level: 2, link: '/villas', roles: CORE_ADMIN_ROLES },
+  { key: 'commission_debtors', label: 'Mitra terblokir utang komisi', icon: Ban, level: 1, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true, hint: 'Tagih lewat WhatsApp' },
   { key: 'tickets', label: 'Tiket bantuan terbuka', icon: LifeBuoy, level: 1, link: '/support', roles: CS_ADMIN_ROLES },
   { key: 'low_reviews', label: 'Ulasan 1–2 bintang', icon: Star, level: 1, link: '/reviews', roles: CORE_ADMIN_ROLES, hint: '7 hari terakhir' },
 ];
@@ -81,7 +88,10 @@ export default function AttentionBoard({ onLoaded }) {
         </Button>
       </div>
       {error ? (
-        <Card className="text-[13px] text-ink-muted">Daftar tugas belum bisa dimuat: {error}</Card>
+        <Card className="flex items-center justify-between gap-3 text-[13px] text-ink-muted">
+          <span>Daftar tugas belum bisa dimuat. Periksa koneksi, lalu coba lagi.</span>
+          <Button size="sm" variant="secondary" onClick={load}>Coba lagi</Button>
+        </Card>
       ) : !data && loading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
           {[0, 1, 2].map((n) => <div key={n} className="h-[104px] animate-pulse rounded-card border border-line bg-sunken" />)}
@@ -91,7 +101,7 @@ export default function AttentionBoard({ onLoaded }) {
           <CheckCircle2 size={22} className="shrink-0 text-success" aria-hidden="true" />
           <div>
             <p className="text-[14px] font-semibold text-ink">Semua beres</p>
-            <p className="text-[13px] text-ink-muted">Tidak ada pendaftar, pesanan bermasalah, pencairan atau tiket yang menunggu.</p>
+            <p className="text-[13px] text-ink-muted">Tidak ada pesanan bermasalah, pembayaran, setoran, pendaftar atau tiket yang menunggu.</p>
           </div>
         </Card>
       ) : (

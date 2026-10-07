@@ -237,6 +237,15 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
   // replaces the old "Simpan Konfigurasi Global" button, since a global
   // toggle affects the whole city/service and deserves visible confirmation
   // that it actually took effect.
+  // Switching a service OFF stops new orders for every customer
+  // (migrations/0116), so it is confirmed first; switching on is instant.
+  const [offTarget, setOffTarget] = useState(null);
+  const requestToggleFeature = (id) => {
+    const f = features.find((x) => x.id === id);
+    if (f?.status) setOffTarget(f);
+    else toggleFeature(id);
+  };
+
   const toggleFeature = async (id) => {
     const updatedFeatures = features.map(f =>
       f.id === id ? { ...f, status: !f.status } : f
@@ -371,7 +380,7 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
                 </span>
                 <Switch
                   checked={!!feature.status}
-                  onChange={() => toggleFeature(feature.id)}
+                  onChange={() => requestToggleFeature(feature.id)}
                   label={feature.name}
                 />
               </li>
@@ -484,6 +493,15 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
         )}
       </Sheet>
 
+      <ConfirmModal
+        isOpen={!!offTarget}
+        tone="danger"
+        title={offTarget ? `Matikan ${offTarget.name}?` : ''}
+        message="Pelanggan di semua wilayah tidak bisa memesan layanan ini sampai dinyalakan lagi. Pesanan yang sudah berjalan tidak terpengaruh."
+        confirmLabel="Matikan"
+        onConfirm={() => { const id = offTarget.id; setOffTarget(null); toggleFeature(id); }}
+        onCancel={() => setOffTarget(null)}
+      />
       <ConfirmModal
         isOpen={!!deleteZoneTarget}
         tone="danger"

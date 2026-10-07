@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
@@ -45,6 +45,13 @@ const NannyProfilePage = lazy(() => import('./pages/nanny/NannyProfilePage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const ActiveOrderPage = lazy(() => import('./pages/shared/ActiveOrderPage'));
 const SupportPage = lazy(() => import('./pages/shared/SupportPage'));
+const NotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
+
+// Unknown page inside a portal (e.g. an old notification link) -> that portal's home.
+const PortalHome = () => {
+  const { pathname } = useLocation();
+  return <Navigate to={`/${pathname.split('/').filter(Boolean)[0] || ''}`} replace />;
+};
 
 const PageFallback = () => (
   <div className="flex min-h-[60vh] w-full items-center justify-center bg-ground text-brand-ink">
@@ -102,6 +109,10 @@ function App() {
           <Route path="/gabung" element={<Suspense fallback={<PageFallback />}><JoinPage /></Suspense>} />
           <Route path="/pending-verification" element={<PendingVerificationPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          {/* Role-less links from notifications (e.g. "/earnings") open in the partner's own portal. */}
+          {['/earnings', '/notifications', '/orders', '/profile', '/settings', '/support'].map((path) => (
+            <Route key={path} path={path} element={user && mitraAccess?.length ? <Navigate to={`/${mitraAccess[0]}${path}`} replace /> : <Navigate to="/" replace />} />
+          ))}
         
           <Route path="/driver/*" element={
             <ProtectedRoute allowedRole="driver">
@@ -113,6 +124,8 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="*" element={<PortalHome />} />
               </Routes>
             </ProtectedRoute>
           } />
@@ -128,6 +141,8 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="*" element={<PortalHome />} />
               </Routes>
             </ProtectedRoute>
           } />
@@ -152,6 +167,8 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="*" element={<PortalHome />} />
               </Routes>
             </ProtectedRoute>
           } />
@@ -168,6 +185,8 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="*" element={<PortalHome />} />
               </Routes>
             </ProtectedRoute>
           } />
@@ -183,9 +202,12 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="*" element={<PortalHome />} />
               </Routes>
             </ProtectedRoute>
           } />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

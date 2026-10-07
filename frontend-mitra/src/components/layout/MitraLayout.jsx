@@ -1,7 +1,9 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby, Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
 import { cx } from '../ui';
 
@@ -15,7 +17,7 @@ const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Vil
 const ROLE_ICON = { driver: Car, merchant: Store, villa: Building2, technician: Wrench, nanny: Baby };
 
 const MitraLayout = ({ children }) => {
-  const { logout, mitraAccess } = useAuth();
+  const { logout, mitraAccess, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const online = useOnlineStatus();
@@ -66,6 +68,26 @@ const MitraLayout = ({ children }) => {
   const navItems = getNavItems();
   const ActiveRoleIcon = ROLE_ICON[activeRole];
   const roleLabel = ROLE_DISPLAY_LABEL[activeRole] || activeRole;
+
+  // Unread notifications dot on the bell (inbox: /<role>/notifications).
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let alive = true;
+    const count = async () => {
+      const { count: n } = await supabase.from('notifications').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('is_read', false);
+      if (alive) setUnread(n || 0);
+    };
+    count();
+    const channel = supabase.channel(`mitra-notifs-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, count)
+      .subscribe();
+    const onRead = () => setUnread(0);
+    window.addEventListener('wira:notifications-read', onRead);
+    const t = setInterval(count, 60000);
+    return () => { alive = false; supabase.removeChannel(channel); window.removeEventListener('wira:notifications-read', onRead); clearInterval(t); };
+  }, [user?.id]);
 
   // Display only: the driver home draws its own full-height map
   // (h-[calc(100vh-4rem)]), so it gets no mobile top bar and no extra
@@ -146,10 +168,20 @@ const MitraLayout = ({ children }) => {
                 <WiraMark size={30} />
                 {wordmark('md')}
               </NavLink>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-brand-ink">
-                {ActiveRoleIcon && <ActiveRoleIcon size={14} aria-hidden="true" />}
-                {roleLabel}
-              </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-brand-ink">
+                  {ActiveRoleIcon && <ActiveRoleIcon size={14} aria-hidden="true" />}
+                  {roleLabel}
+                </span>
+                <NavLink
+                  to={`/${activeRole}/notifications`}
+                  aria-label={unread > 0 ? `Notifikasi, ${unread} belum dibaca` : 'Notifikasi'}
+                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-control text-ink-muted hover:bg-sunken hover:text-ink"
+                >
+                  <Bell size={20} />
+                  {unread > 0 && <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-ground bg-danger" aria-hidden="true" />}
+                </NavLink>
+              </div>
             </div>
           </header>
         )}

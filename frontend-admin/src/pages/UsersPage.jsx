@@ -363,10 +363,12 @@ const UsersPage = () => {
           const current = Number(correctionModal.wallet_balance) || 0;
           const next = current + amt;
           const direction = amt >= 0 ? 'Menambah' : 'Mengurangi';
-          return `${direction} saldo ${correctionModal.name} sebesar Rp ${Math.abs(amt).toLocaleString('id-ID')}. ` +
-            `Saldo saat ini: Rp ${current.toLocaleString('id-ID')} -> Saldo baru: Rp ${next.toLocaleString('id-ID')}. ` +
-            `Catatan: "${correctionDesc}". Tindakan ini langsung berlaku pada saldo asli pengguna.`;
+          return `${direction} saldo WiraPay ${correctionModal.name} sebesar Rp ${Math.abs(amt).toLocaleString('id-ID')}: ` +
+            `Rp ${current.toLocaleString('id-ID')} → Rp ${next.toLocaleString('id-ID')}. ` +
+            `Catatan: "${correctionDesc}". Langsung berlaku pada saldo asli pengguna.`;
         })() : ''}
+        tone={Number(correctionAmount) < 0 ? 'danger' : 'default'}
+        confirmLabel={Number(correctionAmount) < 0 ? 'Kurangi Saldo' : 'Tambah Saldo'}
         onConfirm={confirmBalanceCorrection}
         onCancel={() => setIsCorrectionConfirmOpen(false)}
       />

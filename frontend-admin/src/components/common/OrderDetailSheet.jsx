@@ -7,7 +7,7 @@ import { CORE_ADMIN_ROLES } from '../../config/roles';
 import { orderStatusLabel } from '../../config/orderStatus';
 import { Badge, Button, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../ui';
 
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa' };
+const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', babysit: 'WiraAsuh', pulsa: 'WiraPulsa' };
 const PAY_LABEL = { wallet: 'WiraPay', qris: 'QRIS', cash: 'Tunai', transfer: 'Transfer' };
 const PAY_STATUS = { paid: 'Lunas', unpaid: 'Belum dibayar', refunded: 'Dikembalikan' };
 const FINAL = ['completed', 'cancelled', 'expired'];
@@ -39,7 +39,9 @@ function actionsFor(order, core) {
   const open = !FINAL.includes(order.status);
   const isFood = ['food', 'WiraFood'].includes(order.service_type);
   const usesPartner = ['ride', 'send', 'service', 'pool', 'food', 'WiraFood'].includes(order.service_type);
-  if (core && open) list.push('cancel');
+  // WiraAsuh requests: approve on behalf of the nanny, or decline (babysit_respond, 0107).
+  if (core && order.service_type === 'babysit' && order.status === 'pending') list.push('babysit_accept', 'babysit_decline');
+  if (core && open && !(order.service_type === 'babysit' && order.status === 'pending')) list.push('cancel');
   // An unpaid QRIS order can't be completed (migrations/0115).
   if (core && open && order.status !== 'awaiting_payment' && (order.driver_id || order.merchant_id)) list.push('complete');
   if (core && usesPartner && order.driver_id && (isFood ? order.status === 'picking_up' : ['accepted', 'on_the_way', 'picking_up'].includes(order.status))) list.push('reassign');
@@ -49,6 +51,8 @@ function actionsFor(order, core) {
 }
 
 const ACTION_META = {
+  babysit_accept: { label: 'Setujui', icon: CheckCircle2, variant: 'primary', title: 'Setujui permintaan WiraAsuh', confirm: 'Setujui untuk pengasuh' },
+  babysit_decline: { label: 'Tolak', icon: XCircle, variant: 'danger-soft', title: 'Tolak permintaan WiraAsuh', confirm: 'Tolak permintaan' },
   cancel: { label: 'Batalkan', icon: XCircle, variant: 'danger-soft', title: 'Batalkan pesanan', confirm: 'Batalkan pesanan' },
   complete: { label: 'Tandai selesai', icon: CheckCircle2, variant: 'secondary', title: 'Tandai pesanan selesai', confirm: 'Tandai selesai' },
   reassign: { label: 'Ganti mitra', icon: Repeat, variant: 'secondary', title: 'Lepas mitra dan cari ulang', confirm: 'Cari mitra lain' },
@@ -101,6 +105,18 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
 
   const submit = async () => {
     setBusy(true);
+    if (action === 'babysit_accept' || action === 'babysit_decline') {
+      const { error: bErr } = await supabase.rpc('babysit_respond', {
+        p_order_id: orderId, p_accept: action === 'babysit_accept', p_reason: note.trim() || null,
+      });
+      setBusy(false);
+      if (bErr) { toast.error(bErr.message); return; }
+      toast.success(action === 'babysit_accept' ? 'Disetujui. Pengasuh dan orang tua sudah diberi tahu.' : 'Permintaan ditolak. Orang tua sudah diberi tahu.');
+      setAction(null);
+      await load();
+      onChanged?.();
+      return;
+    }
     const { data, error } = await supabase.rpc('admin_order_action', {
       p_order_id: orderId,
       p_action: action,
@@ -132,7 +148,7 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
   const paidViaWira = order && ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
   const people = order ? [
     { role: 'Pelanggan', name: order.user?.name, phone: order.user?.phone },
-    order.driver_id && { role: isFood ? 'Kurir' : ['service', 'pool'].includes(order.service_type) ? 'Teknisi' : 'Driver', name: order.driver?.name, phone: order.driver?.phone },
+    order.driver_id && { role: isFood ? 'Kurir' : order.service_type === 'babysit' ? 'Pengasuh' : ['service', 'pool'].includes(order.service_type) ? 'Teknisi' : 'Driver', name: order.driver?.name, phone: order.driver?.phone },
     order.merchant_id && { role: order.service_type === 'villa' ? 'Villa' : 'Resto', name: order.merchant?.name },
   ].filter(Boolean) : [];
   const senderLabel = (id) => (id === order?.user_id ? 'Pelanggan' : id === order?.driver_id ? 'Mitra' : id === order?.merchant?.owner_id ? 'Resto/Villa' : 'Lainnya');
@@ -147,6 +163,8 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
       : 'Mitra dilepas dan pesanan ditawarkan lagi ke mitra lain. Pelanggan diberi tahu.',
     compensate: `Masuk ke saldo WiraPay pelanggan. Total pengembalian untuk pesanan ini tidak boleh melebihi Rp ${Number(order.total_price || 0).toLocaleString('id-ID')}.`,
     note: 'Hanya terlihat oleh admin, tercatat di riwayat pesanan.',
+    babysit_accept: 'Sesi diberikan ke akun pengasuh aktif. Orang tua dan pengasuh diberi tahu. Catatan boleh dikosongkan.',
+    babysit_decline: 'Orang tua diberi tahu bahwa jadwal ini tidak tersedia. Tulis alasannya (opsional), misalnya pengasuh sedang ada sesi lain.',
   }[action];
 
   return (
@@ -165,9 +183,9 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
             variant={action === 'cancel' ? 'danger' : 'primary'}
             onClick={submit}
             isLoading={busy}
-            disabled={note.trim().length < 5 || (action === 'compensate' && !(Number(amount) > 0))}
+            disabled={(action !== 'babysit_accept' && action !== 'babysit_decline' && note.trim().length < 5) || (action === 'compensate' && !(Number(amount) > 0))}
           >
-            {am.confirm}
+            {action === 'compensate' && Number(amount) > 0 ? `Kirim Rp ${Number(amount).toLocaleString('id-ID')}` : am.confirm}
           </Button>
         </>
       ) : order ? (

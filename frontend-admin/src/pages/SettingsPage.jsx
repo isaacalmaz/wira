@@ -65,9 +65,9 @@ const SettingsPage = () => {
       if (error) throw error;
       toast.success('Pengaturan sistem berhasil disimpan ke cloud');
     } catch (err) {
-      console.warn('Sync error, saving locally:', err);
-      localStorage.setItem('wira_platform_settings', JSON.stringify(settingsPayload));
-      toast.success('Pengaturan disimpan secara lokal');
+      // Never report a failed save as saved: the apps read the cloud copy only.
+      console.warn('Settings save failed:', err);
+      toast.error('Pengaturan belum tersimpan. Periksa koneksi, lalu klik Simpan lagi.');
     } finally {
       setSaving(false);
     }

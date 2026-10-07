@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { Badge, IconTile, cx } from '../ui';
 import { supabase } from '../../config/supabase';
-import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
+import { subscribeToApplications } from '../../services/mitraApplicationService';
+import { KINDS } from '../common/AttentionBoard';
 
 // One brand tile per notification; the icon (not a colour) tells the role apart.
 const NOTIF_ICONS = { driver: Car, courier: Package, merchant: Store, villa: Home, technician: Wrench };
@@ -52,58 +53,43 @@ const AdminLayout = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Ambil notifikasi awal dari Supabase Cloud & dengarkan Real-time
+  // The bell lists every queue waiting for this admin - the same
+  // admin_attention() source as the dashboard board (migrations/0116),
+  // refreshed every minute and when a partner application arrives.
   useEffect(() => {
-    const fetchInitialNotifs = async () => {
-      try {
-        const pendings = await fetchPendingApplications(null, 'id, role, name, phone, created_at');
-        if (pendings.length > 0) {
-          // Every role must be named/linked explicitly here - the old
-          // 3-way ternary (driver/merchant/else-Teknisi) silently mislabeled
-          // any other role as "Teknisi Baru" and linked it to /technicians.
-          // That's exactly the bug already fixed once for Villa
-          // (MerchantsPage.jsx's pending queue, commit 1476fc0): a Kurir
-          // registration would have shown up here as a fake "Teknisi Baru"
-          // notification pointing admins at the wrong page entirely.
-          const ROLE_NOTIF_META = {
-            driver: { title: 'Driver', link: '/drivers' },
-            courier: { title: 'Kurir', link: '/drivers' },
-            merchant: { title: 'Restoran', link: '/merchants' },
-            villa: { title: 'Villa', link: '/villas' },
-            technician: { title: 'Teknisi', link: '/technicians' },
-          };
-          const dynamicNotifs = pendings.map((m) => {
-            const meta = ROLE_NOTIF_META[m.role] || { title: m.role || 'Mitra', link: '/users' };
-            return {
-              id: m.id,
-              title: `Pendaftaran ${meta.title} Baru`,
-              desc: `${m.name} (${m.phone}) menunggu verifikasi.`,
-              time: m.created_at ? new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
-              unread: true,
-              link: meta.link,
-              type: m.role,
-            };
-          });
-          setNotifications((prev) => {
-            const prevNotifs = new Map(prev.map(p => [p.id, p]));
-            return dynamicNotifs.map(newNotif => {
-              const existing = prevNotifs.get(newNotif.id);
-              return existing ? { ...newNotif, unread: existing.unread } : newNotif;
-            });
-          });
-        } else {
-          setNotifications([]);
-        }
-      } catch (err) {
-        console.error('Error memuat notifikasi riil:', err);
-      }
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase.rpc('admin_attention');
+      if (cancelled || !data) return;
+      const fmtSince = (ts) => {
+        if (!ts) return '';
+        const mins = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
+        return mins < 60 ? `${mins} mnt` : mins < 2880 ? `${Math.round(mins / 60)} jam` : `${Math.round(mins / 1440)} hari`;
+      };
+      const items = KINDS
+        .filter((k) => k.roles.includes(user?.role))
+        .map((k) => ({ k, d: data[k.key] || {} }))
+        .filter(({ d }) => Number(d.count) > 0)
+        .sort((x, y) => y.k.level - x.k.level)
+        .map(({ k, d }) => ({
+          id: k.key,
+          title: `${k.label}: ${Number(d.count).toLocaleString('id-ID')}`,
+          desc: k.hint || (k.money && Number(d.amount) > 0 ? `Total Rp ${Math.round(Number(d.amount)).toLocaleString('id-ID')}` : 'Buka untuk menindaklanjuti.'),
+          time: d.oldest ? `terlama ${fmtSince(d.oldest)}` : '',
+          unread: true,
+          link: k.link || '/dashboard',
+          icon: k.icon,
+        }));
+      setNotifications((prev) => items.map((n) => {
+        const old = prev.find((p) => p.id === n.id);
+        return old && old.title === n.title ? { ...n, unread: old.unread } : n;
+      }));
     };
-
-    fetchInitialNotifs();
-
-    // Listener Real-time
-    return subscribeToApplications('realtime-admin-notifs', fetchInitialNotifs);
-  }, []);
+    load();
+    const t = setInterval(load, 60000);
+    const unsubscribe = subscribeToApplications('realtime-admin-notifs', load);
+    return () => { cancelled = true; clearInterval(t); unsubscribe?.(); };
+  }, [user?.role]);
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
@@ -227,12 +213,12 @@ const AdminLayout = () => {
                     {notifications.length === 0 ? (
                       <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
                         <IconTile tone="neutral" size="md"><Bell size={19} /></IconTile>
-                        <p className="text-[13px] text-ink-muted">Tidak ada notifikasi riil baru</p>
+                        <p className="text-[13px] text-ink-muted">Tidak ada yang menunggu. Semua beres.</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-line">
                         {notifications.map((notif) => {
-                          const TypeIcon = NOTIF_ICONS[notif.type] || Bell;
+                          const TypeIcon = notif.icon || NOTIF_ICONS[notif.type] || Bell;
                           return (
                             <div
                               key={notif.id}
@@ -262,9 +248,9 @@ const AdminLayout = () => {
                   </div>
 
                   <div className="border-t border-line bg-sunken/50 px-4 py-2.5 text-center">
-                    <button type="button" className="text-[12.5px] font-semibold text-ink-muted hover:text-ink">
-                      Lihat Semua Riwayat Notifikasi
-                    </button>
+                    <Link to="/dashboard" onClick={() => setShowNotifications(false)} className="text-[12.5px] font-semibold text-ink-muted hover:text-ink">
+                      Buka Dasbor
+                    </Link>
                   </div>
                 </div>
               )}
@@ -341,7 +327,10 @@ const AdminLayout = () => {
             onClick={() => setMobileNavOpen(true)}
             className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-ink-muted"
           >
-            <Menu size={20} aria-hidden="true" />
+            <span className="relative">
+              <Menu size={20} aria-hidden="true" />
+              {notifications.length > 0 && <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-danger" aria-hidden="true" />}
+            </span>
             Menu
           </button>
         </nav>

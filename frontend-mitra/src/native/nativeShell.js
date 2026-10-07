@@ -33,8 +33,10 @@ export async function registerNativePush(onToken) {
   if (perm.receive !== 'granted') return;
   PushNotifications.addListener('registration', ({ value }) => onToken(value));
   PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+    // Role-less or customer links are resolved by the router's aliases
+    // (App.jsx); anything unknown lands on the portal home.
     const url = notification?.data?.url;
-    if (url) window.location.assign(url);
+    if (url && url.startsWith('/')) window.location.assign(url);
   });
   await PushNotifications.register();
 }

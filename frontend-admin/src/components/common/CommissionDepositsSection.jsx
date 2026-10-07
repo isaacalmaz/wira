@@ -21,6 +21,17 @@ export default function CommissionDepositsSection() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(null);
+  const [approving, setApproving] = useState(null);
+  const [proofUrl, setProofUrl] = useState(null);
+
+  // Show the transfer proof inside the confirm sheet (a popup opened after
+  // an await is blocked on iPhones).
+  useEffect(() => {
+    setProofUrl(null);
+    if (!approving?.proof_path) return;
+    supabase.storage.from('commission-proofs').createSignedUrl(approving.proof_path, 300)
+      .then(({ data }) => setProofUrl(data?.signedUrl || null));
+  }, [approving]);
   const [reason, setReason] = useState('');
   const [info, setInfo] = useState('');
   const [limit, setLimit] = useState('200000');
@@ -139,7 +150,7 @@ export default function CommissionDepositsSection() {
                       <Button size="sm" variant="ghost" leftIcon={<ImageIcon size={15} />} onClick={() => viewProof(r.proof_path)}>Bukti</Button>
                       {r.status === 'pending' && (
                         <>
-                          <Button size="sm" variant="secondary" leftIcon={<CheckCircle size={15} />} disabled={busy} onClick={() => review(r, true)}>
+                          <Button size="sm" variant="secondary" leftIcon={<CheckCircle size={15} />} disabled={busy} onClick={() => setApproving(r)}>
                             Terima
                           </Button>
                           <Button size="sm" variant="danger-soft" leftIcon={<XCircle size={15} />} disabled={busy} onClick={() => setRejecting(r)}>
@@ -155,6 +166,44 @@ export default function CommissionDepositsSection() {
           </tbody>
         </Table>
       )}
+
+      <Sheet
+        open={Boolean(approving)}
+        onClose={() => { if (!busy) setApproving(null); }}
+        title="Terima setoran komisi?"
+        description="Pastikan uangnya sudah masuk di mutasi QRIS/BCA. Saldo mitra langsung bertambah."
+        size="sm"
+        footer={approving && (
+          <>
+            <Button variant="secondary" size="lg" disabled={busy} onClick={() => setApproving(null)}>Batal</Button>
+            <Button variant="primary" size="lg" isLoading={busy} onClick={async () => { await review(approving, true); setApproving(null); }}>
+              Terima Rp {Number(approving.amount).toLocaleString('id-ID')}
+            </Button>
+          </>
+        )}
+      >
+        {approving && (() => {
+          const before = Number(approving.users?.payable_balance) || 0;
+          const after = before + Number(approving.amount);
+          const fmt = (n) => `${n < 0 ? '−' : ''}Rp ${Math.abs(Math.round(n)).toLocaleString('id-ID')}`;
+          return (
+            <div className="flex flex-col gap-3">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13.5px]">
+                <dt className="text-ink-muted">Mitra</dt><dd className="text-right font-semibold text-ink">{approving.users?.name || 'Mitra'}</dd>
+                <dt className="text-ink-muted">Saldo sekarang</dt><dd className="text-right font-mono text-ink">{fmt(before)}</dd>
+                <dt className="text-ink-muted">Setoran</dt><dd className="text-right font-mono text-success-ink">+{fmt(Number(approving.amount))}</dd>
+                <dt className="text-ink-muted">Saldo baru</dt><dd className="text-right font-mono font-semibold text-ink">{fmt(after)}</dd>
+                {approving.note && (<><dt className="text-ink-muted">Catatan</dt><dd className="text-right text-ink">{approving.note}</dd></>)}
+              </dl>
+              {proofUrl ? (
+                <a href={proofUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-control border border-line">
+                  <img src={proofUrl} alt="Bukti transfer" className="max-h-80 w-full object-contain" />
+                </a>
+              ) : <div className="flex h-24 items-center justify-center rounded-control border border-line text-[12.5px] text-ink-muted">Memuat bukti…</div>}
+            </div>
+          );
+        })()}
+      </Sheet>
 
       <Sheet
         open={Boolean(rejecting)}
