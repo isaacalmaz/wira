@@ -131,6 +131,8 @@ const MerchantMenuPage = () => {
 
   useEffect(() => {
     fetchMenu();
+  // Re-fetch when these inputs change; the fetch function is recreated each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Buka Modal Tambah

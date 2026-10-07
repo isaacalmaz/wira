@@ -154,6 +154,8 @@ const MerchantHomePage = () => {
       clearInterval(interval);
       unsubscribe();
     };
+  // merchantId is derived from idsKey.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, idsKey]);
 
   const isVillaOrder = (order) => order && (order.service_type === 'villa' || order.service_type === 'WiraVilla');

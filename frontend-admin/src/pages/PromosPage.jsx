@@ -78,6 +78,15 @@ const PromosPage = () => {
       toast.error('Judul dan Kode promo wajib diisi');
       return;
     }
+    const discount = Number(formData.discount);
+    if (!Number.isFinite(discount) || discount <= 0) {
+      toast.error('Isi besar diskon lebih dari 0');
+      return;
+    }
+    if (formData.type === 'Percentage' && discount > 100) {
+      toast.error('Diskon persentase maksimal 100%');
+      return;
+    }
 
     const payload = {
       title: formData.title.trim(),

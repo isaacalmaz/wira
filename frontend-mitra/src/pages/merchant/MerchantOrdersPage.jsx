@@ -96,6 +96,8 @@ const MerchantOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+  // Re-fetch when these inputs change; the fetch function is recreated each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, idsKey, merchantsLoading]);
 
   // Fires the real push-notification pipeline (backend's POST

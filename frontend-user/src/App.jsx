@@ -41,6 +41,7 @@ const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
 const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage'));
+const DeleteAccountPage = lazy(() => import('./pages/legal/DeleteAccountPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -63,6 +64,8 @@ export default function Root() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/install" element={<DownloadPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/hapus-akun" element={<DeleteAccountPage />} />
+        <Route path="/delete-account" element={<Navigate to="/hapus-akun" replace />} />
         <Route path="/unduh" element={<Navigate to="/install" replace />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
                           <Route path="/register" element={<RegisterPage />} />

@@ -208,8 +208,11 @@ export default function ActiveOrderPage() {
     } else if (type === 'food') {
       // Driver side for food
       if (isDriver) {
-        if (s === 'ready') return { label: 'Ambil Pesanan', next: 'delivering' };
-        if (s === 'delivering') return { label: 'Selesaikan Pesanan', next: 'completed' };
+        // Same steps as VALID_TRANSITIONS / StatusUpdater: ready -> picking_up
+        // -> in_trip -> completed ('delivering' is not an order status).
+        if (s === 'ready') return { label: 'Menuju Resto', next: 'picking_up' };
+        if (s === 'picking_up') return { label: 'Sudah Ambil di Resto', next: 'in_trip' };
+        if (s === 'in_trip') return { label: 'Selesaikan Pesanan', next: 'completed' };
       }
       // Merchant side for food
       if (order.merchant?.owner_id === user.id) {

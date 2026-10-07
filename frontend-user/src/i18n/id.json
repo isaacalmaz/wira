@@ -981,5 +981,25 @@
     "banner_cta": "Unduh",
     "login_hint": "Aplikasi untuk pelanggan dan mitra juga tersedia",
     "login_cta": "Unduh aplikasinya"
+  },
+  "delete_account": {
+    "title": "Hapus akun",
+    "subtitle": "Tindakan ini permanen dan tidak bisa dibatalkan.",
+    "confirm_button": "Hapus akun saya",
+    "done": "Akun Anda sudah dihapus.",
+    "point_profile": "Nama, nomor HP, email, foto, alamat tersimpan, serta foto KTP/SIM pendaftaran mitra dihapus. Toko atau villa Anda berhenti tampil.",
+    "point_history": "Riwayat pesanan dan transaksi tetap disimpan tanpa nama Anda, untuk keperluan pembukuan.",
+    "point_open": "Akun hanya bisa dihapus jika tidak ada pesanan berjalan, saldo, pendapatan, atau komisi yang belum diselesaikan.",
+    "type_label": "Ketik HAPUS untuk mengonfirmasi",
+    "menu": "Hapus Akun",
+    "page_title": "Hapus Akun Wira",
+    "page_intro": "Anda bisa menghapus akun Wira (pelanggan) atau Wira Mitra beserta data pribadinya kapan saja.",
+    "page_steps_title": "Cara menghapus akun",
+    "page_step_app": "Di aplikasi: buka Profil (pelanggan) atau Pengaturan (mitra), lalu pilih Hapus Akun.",
+    "page_step_web": "Di halaman ini: masuk dengan akun Anda, lalu tekan tombol di bawah.",
+    "page_step_email": "Lewat email: kirim permintaan dari email atau nomor terdaftar ke wiraapp123@gmail.com. Kami proses dalam 14 hari kerja.",
+    "page_login": "Masuk untuk menghapus akun",
+    "page_signed_in": "Anda masuk sebagai",
+    "page_what_title": "Data yang dihapus dan disimpan"
   }
 }

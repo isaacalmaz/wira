@@ -981,5 +981,25 @@
     "banner_cta": "Download",
     "login_hint": "Apps for customers and partners are also available",
     "login_cta": "Download the app"
+  },
+  "delete_account": {
+    "title": "Delete account",
+    "subtitle": "This is permanent and cannot be undone.",
+    "confirm_button": "Delete my account",
+    "done": "Your account has been deleted.",
+    "point_profile": "Your name, phone number, email, photo, saved addresses, and partner ID/licence photos are deleted. Your restaurant or villa stops being listed.",
+    "point_history": "Order and transaction history is kept without your name, for bookkeeping.",
+    "point_open": "An account can only be deleted when no order, balance, earnings or commission is still open.",
+    "type_label": "Type HAPUS to confirm",
+    "menu": "Delete Account",
+    "page_title": "Delete your Wira account",
+    "page_intro": "You can delete your Wira (customer) or Wira Mitra account and its personal data at any time.",
+    "page_steps_title": "How to delete your account",
+    "page_step_app": "In the app: open Profile (customer) or Settings (partner), then choose Delete Account.",
+    "page_step_web": "On this page: sign in with your account, then press the button below.",
+    "page_step_email": "By email: send a request from your registered email or number to wiraapp123@gmail.com. We handle it within 14 working days.",
+    "page_login": "Sign in to delete your account",
+    "page_signed_in": "Signed in as",
+    "page_what_title": "What is deleted and what is kept"
   }
 }

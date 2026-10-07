@@ -42,7 +42,7 @@ const CONTENT = {
       ['Hak dan pilihan Anda', [
         'Mengubah data profil kapan saja dari menu Profil.',
         'Mematikan izin lokasi, kamera, atau notifikasi dari pengaturan perangkat. Sebagian fitur mungkin tidak berjalan tanpa izin tersebut.',
-        `Meminta salinan atau penghapusan akun beserta datanya dengan mengirim email ke ${CONTACT_EMAIL} dari email atau nomor yang terdaftar. Kami proses dalam 14 hari kerja.`,
+        `Menghapus akun beserta datanya kapan saja dari menu Profil/Pengaturan di aplikasi atau di wira.one/hapus-akun. Salinan data bisa diminta lewat email ke ${CONTACT_EMAIL} dari email atau nomor yang terdaftar, kami proses dalam 14 hari kerja.`,
       ]],
       ['Anak-anak', [
         'Wira tidak ditujukan untuk anak di bawah 13 tahun. Mitra wajib berusia minimal 17 tahun dan memiliki KTP.',
@@ -88,7 +88,7 @@ const CONTENT = {
       ['Your rights and choices', [
         'Edit your profile at any time from the Profile menu.',
         'Turn off location, camera or notification permissions in your device settings. Some features may not work without them.',
-        `Request a copy or deletion of your account and its data by emailing ${CONTACT_EMAIL} from your registered email or number. We handle requests within 14 working days.`,
+        `Delete your account and its data at any time from Profile/Settings in the app or at wira.one/hapus-akun. Request a copy of your data by emailing ${CONTACT_EMAIL} from your registered email or number; we handle requests within 14 working days.`,
       ]],
       ['Children', [
         'Wira is not intended for children under 13. Partners must be at least 17 and hold an Indonesian ID card.',

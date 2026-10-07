@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Button, Card, Field, Input } from '../components/ui';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
 
   const handleLogin = async (e) => {
@@ -21,7 +22,8 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success(t('auth.login_success'));
-      navigate('/');
+      const back = location.state?.from;
+      navigate(typeof back === 'string' && back.startsWith('/') && !back.startsWith('//') ? back : '/');
     } catch (err) {
       // Supabase's own message here is an untranslated developer string
       // ("Invalid login credentials"), so we always show our own wording.

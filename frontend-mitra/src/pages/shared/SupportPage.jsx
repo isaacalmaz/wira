@@ -38,6 +38,8 @@ export default function SupportPage() {
 
   useEffect(() => {
     fetchTickets();
+  // Re-fetch when these inputs change; the fetch function is recreated each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleSubmit = async (e) => {

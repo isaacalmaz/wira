@@ -4,11 +4,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "react-hot-toast";
+import DeleteAccountSheet from '../components/account/DeleteAccountSheet';
 import { User, Languages, MessageSquare, LogOut, Heart, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 
 export default function ProfilePage() {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { user, logout } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
   const { t, toggleLang, lang } = useTranslation();
@@ -147,6 +149,10 @@ export default function ProfilePage() {
         <Button variant="danger-soft" block leftIcon={<LogOut size={18} aria-hidden="true" />} onClick={logout}>
           {t('profile.logout')}
         </Button>
+        <Button variant="ghost" size="sm" className="self-center text-ink-muted" onClick={() => setDeleteOpen(true)}>
+          {t('delete_account.menu')}
+        </Button>
+        <DeleteAccountSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
       </div>
     </div>
   );

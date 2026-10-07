@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import useMyMerchants from '../../hooks/useMyMerchants';
+import DeleteAccountSheet from '../../components/account/DeleteAccountSheet';
 
 // ---- display-only helpers ----
 const uploadBtnCls = 'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-control border border-line-strong bg-card px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60';
@@ -34,6 +35,7 @@ const SettingsPage = () => {
   const { user, mitraAccess, refreshProfile } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: ''
@@ -400,10 +402,8 @@ const SettingsPage = () => {
       </Card>
 
       {/* Penjelasan Arsitektur */}
-      <div className="flex flex-col gap-0.5 pt-2 text-center text-xs leading-relaxed text-ink-muted">
-        <p>Halaman ini dikelola secara dinamis via session (JWT)</p>
-        <p>Bukan menggunakan parameter URL Publik (seperti /driver/:id)</p>
-      </div>
+      <Button variant="ghost" size="sm" className="self-center text-ink-muted" onClick={() => setDeleteOpen(true)}>Hapus Akun</Button>
+      <DeleteAccountSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </div>
   );
 };

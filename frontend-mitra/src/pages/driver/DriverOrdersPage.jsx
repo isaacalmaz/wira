@@ -65,6 +65,8 @@ const DriverOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+  // Re-fetch when these inputs change; the fetch function is recreated each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const activeOrder = orders.find(o => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.PICKING_UP || o.status === OrderStatus.IN_TRIP);
@@ -77,7 +79,7 @@ const DriverOrdersPage = () => {
         fetchOrders();
         toast.success(`Status diperbarui ke: ${getDisplayStatus(newStatus)}`);
       } catch (err) {
-        toast.error('Gagal memperbarui status');
+        toast.error(err?.message || 'Gagal memperbarui status');
       }
     }
   };
