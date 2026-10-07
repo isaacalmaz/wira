@@ -24,6 +24,9 @@ export default function FoodPage() {
         .from('merchants')
         .select('*')
         .eq('service_type', 'food')
+        // Suspended or not-yet-approved restaurants are not shown (the
+        // database refuses their orders anyway, migrations/0101).
+        .eq('listing_status', 'approved')
         .order('created_at', { ascending: false });
 
       if (data) {
