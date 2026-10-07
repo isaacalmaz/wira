@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, Percent } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PaymentModeCard from '../components/common/PaymentModeCard';
 import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Sheet, Spinner, Stat, Table } from '../components/ui';
 
 // Platform commission on every completed order - 20%, matching
@@ -211,6 +212,8 @@ const FinancePage = () => {
         title="Keuangan & Top-Up"
         subtitle="Laporan pendapatan asli dan permintaan saldo pengguna"
       />
+
+      <PaymentModeCard />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_1.35fr_1fr_1fr]">
         <Stat

@@ -75,6 +75,15 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       return res.status(200).json({ received: true, skipped: true, reason: 'account_mismatch' });
     }
 
+    // Admins may switch automatic approval off (migrations/0108,
+    // app_settings.topup_auto_confirm); top-ups are then approved by hand in
+    // Admin -> Keuangan. Missing row or read error = manual (the safe side).
+    const { data: autoSetting } = await supabaseAdmin
+      .from('app_settings').select('value').eq('key', 'topup_auto_confirm').maybeSingle();
+    if (autoSetting?.value !== true) {
+      return res.status(200).json({ received: true, skipped: true, reason: 'manual_mode' });
+    }
+
     const notifiedAmount = Math.round(Number(data.amount));
     if (!notifiedAmount || notifiedAmount <= 0) {
       return res.status(200).json({ received: true, skipped: true, reason: 'invalid_amount' });

@@ -8,19 +8,27 @@ import { formatAmountWithUniqueHighlight } from '../../services/topupService';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { useTranslation } from '../../i18n';
 
-// Must match expire_awaiting_qris_orders() in migrations/0078.
-const PAY_WINDOW_MS = 15 * 60 * 1000;
+// Default of app_settings.qris_order_window_minutes, which
+// expire_awaiting_qris_orders() (migrations/0108) cancels on.
+const DEFAULT_WINDOW_MIN = 60;
 
 // Payment screen for an order created with "QRIS" (status 'awaiting_payment',
 // migrations/0077). The exact nominal comes from the order's linked
-// topup_requests row; the Mutasiku webhook verifies the transfer and the DB
-// moves the order on to 'pending', which ActiveOrderPage picks up.
+// topup_requests row; an admin approves the transfer (or the Mutasiku
+// webhook, when automatic approval is on) and the DB moves the order on to
+// 'pending', which ActiveOrderPage picks up.
 export default function QrisOrderPayment({ order, onCancel, cancelling }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const { t } = useTranslation();
   const [amount, setAmount] = useState(null);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [windowMin, setWindowMin] = useState(DEFAULT_WINDOW_MIN);
+
+  useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', 'qris_order_window_minutes').maybeSingle()
+      .then(({ data }) => { const n = Number(data?.value); if (n > 0) setWindowMin(n); });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +50,7 @@ export default function QrisOrderPayment({ order, onCancel, cancelling }) {
     return () => clearInterval(timer);
   }, []);
 
-  const remainingMs = Math.max(0, new Date(order.created_at).getTime() + PAY_WINDOW_MS - now);
+  const remainingMs = Math.max(0, new Date(order.created_at).getTime() + windowMin * 60000 - now);
   const mm = String(Math.floor(remainingMs / 60000)).padStart(2, '0');
   const ss = String(Math.floor((remainingMs % 60000) / 1000)).padStart(2, '0');
   const formatted = amount ? formatAmountWithUniqueHighlight(amount) : null;
