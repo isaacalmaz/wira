@@ -36,7 +36,7 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, o
             {open && order.is_preferred && (
               <Badge tone="pay"><Star size={11} aria-hidden="true" /> Dipilih pelanggan</Badge>
             )}
-            {!open && <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>}
+            {!open && <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status, order.service_type)}</Badge>}
             {order.package_id && (
               <Badge tone="brand"><Repeat size={11} aria-hidden="true" /> {packageVisit ? `Paket ${packageVisit}/4` : 'Paket bulanan'}</Badge>
             )}

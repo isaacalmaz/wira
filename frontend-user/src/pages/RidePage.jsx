@@ -157,7 +157,8 @@ export default function RidePage() {
     const distKm = routeInfo.distance / 1000;
     const extraKm = Math.max(0, distKm - 2);
     const perKmRate = v.perKmRate || (v.id === 'motor' ? 3000 : 5000);
-    const dynamicPrice = (v.basePrice || v.price || 15000) + Math.ceil(extraKm * perKmRate);
+    // Rounded up to Rp500, as the server does (migrations/0113).
+    const dynamicPrice = Math.ceil(((v.basePrice || v.price || 15000) + Math.ceil(extraKm * perKmRate)) / 500) * 500;
     const estMins = Math.ceil(routeInfo.duration / 60);
     return { ...v, price: dynamicPrice, time: t('ride.eta_minutes', { minutes: estMins }) };
   });

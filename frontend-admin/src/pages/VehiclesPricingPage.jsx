@@ -18,7 +18,7 @@ const emptyDraft = { name: '', type: '', service_type: 'ride', price: 0, per_km_
 // (per_km_rate is always 0 for them per migration 0057's seed), so only the
 // WiraFood delivery-fee section exposes the per-km input to avoid clutter.
 const RULE_GROUPS = [
-  { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga tiap tingkat paket kiriman.', showPerKmRate: false },
+  { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga = harga dasar + (tarif/km x jarak jalan). Isi tarif/km 0 untuk harga tetap berapa pun jaraknya.', showPerKmRate: true },
   { key: 'service', title: 'WiraService - Tarif Layanan', description: 'Harga dasar tiap kategori jasa servis.', showPerKmRate: false },
   { key: 'pool', title: 'WiraPool - Tarif Layanan', description: 'Harga dasar tiap layanan kolam renang.', showPerKmRate: false },
   { key: 'babysit', title: 'WiraAsuh - Tarif Pengasuh', description: 'HOURLY = tarif per jam (1 anak); EXTRA_CHILD = tambahan per anak berikutnya per jam.', showPerKmRate: false },
@@ -207,8 +207,12 @@ const VehiclesPricingPage = () => {
       return;
     }
     const group = RULE_GROUPS.find(g => g.key === r.service_type);
-    if (group?.showPerKmRate && patch.per_km_rate !== undefined && !isSanePrice(patch.per_km_rate)) {
-      toast.error('Tarif/km harus lebih besar dari 0');
+    // WiraSend may be a flat price (0/km); food delivery always needs a rate.
+    const perKmOk = r.service_type === 'send'
+      ? Number.isFinite(Number(patch.per_km_rate)) && Number(patch.per_km_rate) >= 0
+      : isSanePrice(patch.per_km_rate);
+    if (group?.showPerKmRate && patch.per_km_rate !== undefined && !perKmOk) {
+      toast.error(r.service_type === 'send' ? 'Tarif/km tidak boleh negatif' : 'Tarif/km harus lebih besar dari 0');
       return;
     }
     setConfirmRule(r);

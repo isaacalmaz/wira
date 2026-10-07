@@ -45,6 +45,11 @@
     "offline_banner": "Anda sedang offline. Periksa koneksi internet Anda."
   },
   "status": {
+    "babysit_pending": "Menunggu Persetujuan",
+    "babysit_on_the_way": "Pengasuh Menuju Lokasi",
+    "babysit_working": "Sesi Berlangsung",
+    "food_pending": "Menunggu Restoran",
+    "villa_pending": "Menunggu Konfirmasi",
     "awaiting_payment": "Menunggu Pembayaran",
     "pending": "Mencari Mitra",
     "accepted": "Dikonfirmasi",
@@ -194,6 +199,8 @@
     "closed_notice": "Restoran ini sedang tutup. Menu tetap bisa dilihat, tapi pesanan baru bisa dibuat saat restoran buka kembali."
   },
   "send": {
+    "per_km": "+ {{price}}/km",
+    "distance_km": "{{km}} km",
     "title": "WiraSend — Kirim Paket Kilat",
     "subtitle": "Kirim barang, makanan, dan dokumen sampai di hari yang sama, se-Pulau Lombok.",
     "sender_section": "Titik Penjemputan (Pengirim)",
@@ -530,6 +537,8 @@
     "route_dropoff": "Tujuan"
   },
   "order": {
+    "food_waiting": "Menunggu restoran menerima pesanan",
+    "food_waiting_desc": "Setelah restoran menerima dan menyiapkan makanan, kami carikan kurir terdekat.",
     "title": "Status Pesanan",
     "load_failed": "Pesanan ini belum bisa dimuat: {{message}}",
     "completed_toast": "Pesanan Anda selesai. Terima kasih!",

@@ -218,19 +218,23 @@ const MerchantHomePage = () => {
         <div className="flex items-center gap-3 p-4">
           <IconTile tone="brand" size="md"><Store size={20} /></IconTile>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <h1 className="break-words text-[18px] font-extrabold leading-tight tracking-tight text-ink">{user?.name || 'Warung Anda'}</h1>
+            <h1 className="break-words text-[18px] font-extrabold leading-tight tracking-tight text-ink">
+              {merchants.length === 1 ? merchants[0].name : merchants.length > 1 ? `${merchants.length} properti` : (user?.name || 'Warung Anda')}
+            </h1>
             {activeOrder ? (
               <span><Badge tone="brand" dot>{isVillaOrder(activeOrder) ? 'Reservasi Aktif...' : 'Sedang Memasak...'}</Badge></span>
+            ) : merchants.length === 0 ? (
+              <p className="text-[13px] text-ink-muted">Belum terhubung ke restoran atau villa. Hubungi admin Wira lewat menu Bantuan.</p>
             ) : (
-              <p className="text-[13px] text-ink-muted">{isOpen ? 'Toko Buka' : 'Toko Tutup'}</p>
+              <p className="text-[13px] text-ink-muted">{isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'}</p>
             )}
           </div>
         </div>
-        {!activeOrder && (
+        {!activeOrder && merchants.length > 0 && (
           <div className="flex items-center gap-3 border-t border-line bg-sunken/50 py-1.5 pl-4 pr-2">
             <Badge tone={isOpen ? 'success' : 'neutral'} dot>{isOpen ? 'Buka' : 'Tutup'}</Badge>
             <span className="flex-1" />
-            <Switch checked={isOpen} onChange={setIsOpen} label={isOpen ? 'Toko Buka' : 'Toko Tutup'} />
+            <Switch checked={isOpen} onChange={setIsOpen} label={isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'} />
           </div>
         )}
       </Card>

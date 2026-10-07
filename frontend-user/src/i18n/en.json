@@ -45,6 +45,11 @@
     "offline_banner": "You are offline. Check your internet connection."
   },
   "status": {
+    "babysit_pending": "Awaiting Approval",
+    "babysit_on_the_way": "Nanny On The Way",
+    "babysit_working": "Session In Progress",
+    "food_pending": "Waiting for Restaurant",
+    "villa_pending": "Awaiting Confirmation",
     "awaiting_payment": "Awaiting Payment",
     "pending": "Finding a Partner",
     "accepted": "Confirmed",
@@ -194,6 +199,8 @@
     "closed_notice": "This restaurant is closed right now. You can browse the menu, but orders open again when the restaurant does."
   },
   "send": {
+    "per_km": "+ {{price}}/km",
+    "distance_km": "{{km}} km",
     "title": "WiraSend — Same-Day Delivery",
     "subtitle": "Send parcels, food and documents across Lombok, delivered the same day.",
     "sender_section": "Pickup (Sender)",
@@ -530,6 +537,8 @@
     "route_dropoff": "Destination"
   },
   "order": {
+    "food_waiting": "Waiting for the restaurant to accept",
+    "food_waiting_desc": "Once the restaurant accepts and prepares your food, we find the nearest courier.",
     "title": "Order Status",
     "load_failed": "We couldn't load this order: {{message}}",
     "completed_toast": "Your order is complete. Thank you!",

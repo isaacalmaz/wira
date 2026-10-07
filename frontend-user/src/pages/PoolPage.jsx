@@ -477,7 +477,7 @@ export default function PoolPage() {
                 type="date"
                 value={visitDate}
                 min={witaToday()}
-                max={witaDatePlus(60)}
+                max={witaDatePlus(7)}
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="font-mono"
                 required

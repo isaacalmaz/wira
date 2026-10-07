@@ -4,6 +4,7 @@ import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Pac
 import { Button, Badge, Sheet, Money, IconTile, Stat, cx } from '../../components/ui';
 import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
+import OrderPinSheet from '../../components/shared/OrderPinSheet';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
@@ -441,10 +442,18 @@ const DriverHomePage = () => {
     [OrderStatus.IN_TRIP]: { next: OrderStatus.COMPLETED, label: 'Selesaikan Perjalanan', icon: PackageCheck },
   };
 
+  // 0113: starting the trip needs the PIN (customer's for ride/send, the
+  // restaurant's for food) - the server refuses a plain status update.
+  const [pinOpen, setPinOpen] = useState(false);
+
   const handleAdvanceStage = async () => {
     if (!activeOrder) return;
     const step = STAGE_FLOW[activeOrder.status];
     if (!step) return;
+    if (step.next === OrderStatus.IN_TRIP) {
+      setPinOpen(true);
+      return;
+    }
     try {
       const updated = await updateOrderStatus(supabase, activeOrder.id, step.next, user.id, 'driver');
       if (step.next === OrderStatus.COMPLETED) {
@@ -553,7 +562,10 @@ const DriverHomePage = () => {
   // Incoming-order prompt: parsed route + straight-line trip distance
   // (display only, from the same coordinates the order already carries).
   const incomingDetails = incomingOrder?.details ? tryParseJson(incomingOrder.details) : null;
-  const incomingTripMeters = incomingDetails?.pickup?.lat != null && incomingDetails?.dropoff?.lat != null
+  // Same road distance the customer saw (orders.distance_meters); a straight
+  // line only when the order has none.
+  const incomingTripMeters = Number(incomingOrder?.distance_meters) > 0 ? Number(incomingOrder.distance_meters)
+    : incomingDetails?.pickup?.lat != null && incomingDetails?.dropoff?.lat != null
     ? distanceMeters(incomingDetails.pickup.lat, incomingDetails.pickup.lng, incomingDetails.dropoff.lat, incomingDetails.dropoff.lng)
     : null;
 
@@ -590,9 +602,12 @@ const DriverHomePage = () => {
             <h1 className="line-clamp-2 break-words text-[17px] font-extrabold leading-tight tracking-tight text-ink">Halo, {user?.name || 'Driver'}!</h1>
             <p className="text-[13px] leading-snug text-ink-muted">
               {activeOrder
-                ? (activeOrder.status === OrderStatus.ACCEPTED ? 'Menuju lokasi jemputan...'
-                  : activeOrder.status === OrderStatus.PICKING_UP ? 'Menjemput penumpang...'
-                  : 'Dalam perjalanan ke tujuan...')
+                ? (activeOrder.status === OrderStatus.ACCEPTED
+                    ? (activeOrder.merchant_id ? 'Menuju restoran...' : 'Menuju lokasi jemputan...')
+                  : activeOrder.status === OrderStatus.PICKING_UP
+                    ? (activeOrder.merchant_id ? 'Mengambil makanan di restoran...'
+                      : activeOrder.service_type === 'send' ? 'Menjemput paket...' : 'Menjemput penumpang...')
+                  : activeOrder.merchant_id || activeOrder.service_type === 'send' ? 'Mengantar ke tujuan...' : 'Dalam perjalanan ke tujuan...')
                 : (isOnline ? 'Mencari pesanan...' : 'Anda offline')}
             </p>
           </div>
@@ -825,6 +840,21 @@ const DriverHomePage = () => {
           </div>
         )}
       </Sheet>
+
+      <OrderPinSheet
+        order={activeOrder}
+        open={pinOpen && !!activeOrder}
+        onClose={() => setPinOpen(false)}
+        onStarted={(status) => {
+          setPinOpen(false);
+          setActiveOrder((prev) => (prev ? { ...prev, status } : prev));
+        }}
+        description={isFoodDelivery
+          ? 'Minta 4 digit PIN dari restoran saat makanan diserahkan.'
+          : activeOrder?.service_type === 'send'
+            ? 'Minta 4 digit PIN dari pengirim saat paket diserahkan.'
+            : 'Minta 4 digit PIN dari penumpang saat bertemu.'}
+      />
 
       {isChatOpen && activeOrder && (
         <ChatModal

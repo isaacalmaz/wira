@@ -161,6 +161,15 @@ export default function RestaurantPage() {
   }, [id]);
 
 
+  // Delivery fee formula from Admin -> Harga (pricing_rules food_delivery),
+  // computed and rounded up to Rp500 exactly as the server does (0113).
+  const [feeRule, setFeeRule] = useState({ base: 5000, perKm: 2000 });
+  useEffect(() => {
+    supabase.from('pricing_rules').select('base_price, per_km_rate')
+      .eq('service_type', 'food_delivery').eq('code', 'default').eq('is_active', true).maybeSingle()
+      .then(({ data }) => { if (data) setFeeRule({ base: Number(data.base_price) || 0, perKm: Number(data.per_km_rate) || 0 }); });
+  }, []);
+
   useEffect(() => {
     if (merchantCoords && deliveryCoords) {
       const getRoute = async () => {
@@ -168,14 +177,14 @@ export default function RestaurantPage() {
         if (res && res.distance) {
           const distKm = res.distance / 1000;
           setDistance(distKm);
-          setDynamicDeliveryFee(5000 + (Math.ceil(distKm) * 2000));
+          setDynamicDeliveryFee(Math.ceil((feeRule.base + Math.ceil(distKm) * feeRule.perKm) / 500) * 500);
         } else {
           setDynamicDeliveryFee(8000);
         }
       };
       getRoute();
     }
-  }, [merchantCoords, deliveryCoords]);
+  }, [merchantCoords, deliveryCoords, feeRule]);
 
   // A code chosen with "Use now" on the home promos (utils/pendingPromo); the
   // check itself is defined below the loading returns, hence the ref.

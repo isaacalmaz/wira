@@ -38,7 +38,7 @@ export default function NannyOrdersPage() {
                     <span className="text-[14px] font-semibold text-ink">
                       {new Date(o.scheduled_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} · {o.metadata?.hours || '-'} jam
                     </span>
-                    <Badge tone={TONE[o.status] || 'brand'} dot className="self-start">{getDisplayStatus(o.status)}</Badge>
+                    <Badge tone={TONE[o.status] || 'brand'} dot className="self-start">{getDisplayStatus(o.status, o.service_type || 'babysit')}</Badge>
                   </div>
                   <Money value={o.total_price} className="shrink-0 text-[14px] font-medium text-ink" />
                   <ChevronRight size={18} className="shrink-0 text-ink-muted" aria-hidden="true" />

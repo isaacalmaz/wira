@@ -109,7 +109,8 @@ export default function AsuhPage() {
     }
   };
 
-  const dateOptions = useMemo(() => Array.from({ length: 30 }, (_, i) => witaDatePlus(i)).filter((d) => openTimes(d).length), []);
+  // Today plus 7 days: bookings open one week ahead (migrations/0113).
+  const dateOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => witaDatePlus(i)).filter((d) => openTimes(d).length), []);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-16">

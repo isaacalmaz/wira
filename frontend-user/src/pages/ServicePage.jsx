@@ -573,7 +573,7 @@ export default function ServicePage() {
                 type="date"
                 value={serviceDate}
                 min={witaToday()}
-                max={witaDatePlus(60)}
+                max={witaDatePlus(7)}
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="font-mono"
                 required

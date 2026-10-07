@@ -40,7 +40,7 @@ export const OrderProvider = ({ children }) => {
       // fallback so the label follows the customer's chosen language.
       title: o.title || null,
       date: new Date(o.created_at || Date.now()).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID'),
-      statusKey: getStatusKey(o.status),
+      statusKey: getStatusKey(o.status, o.service_type),
       price: o.total_price || 0,
 
       rawStatus: o.status,
@@ -226,7 +226,7 @@ export const OrderProvider = ({ children }) => {
 
     // Optimistic Update
     setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, rawStatus: newStatus, statusKey: getStatusKey(newStatus), ...extraData } : o))
+      prev.map((o) => (o.id === id ? { ...o, rawStatus: newStatus, statusKey: getStatusKey(newStatus, o.serviceType || o.service_type), ...extraData } : o))
     );
 
     try {

@@ -29,7 +29,14 @@ const STATUS_KEYS = new Set(Object.values(OrderStatus));
  * `t()` returned by useTranslation(); every key here exists in id.json and
  * en.json.
  */
-export function getStatusKey(rawStatus) {
+export function getStatusKey(rawStatus, serviceType) {
   const normalized = typeof rawStatus === 'string' ? rawStatus.toLowerCase() : '';
-  return STATUS_KEYS.has(normalized) ? `status.${normalized}` : 'status.unknown';
+  if (!STATUS_KEYS.has(normalized)) return 'status.unknown';
+  // Service-specific wording: a nanny is not a technician, and a food order
+  // waits for the restaurant before any driver is involved.
+  const service = String(serviceType || '').toLowerCase();
+  if (service === 'babysit' && ['pending', 'on_the_way', 'working'].includes(normalized)) return `status.babysit_${normalized}`;
+  if ((service === 'food' || service === 'wirafood') && normalized === 'pending') return 'status.food_pending';
+  if ((service === 'villa' || service === 'wiravilla') && normalized === 'pending') return 'status.villa_pending';
+  return `status.${normalized}`;
 }

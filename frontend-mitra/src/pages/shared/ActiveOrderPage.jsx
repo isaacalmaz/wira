@@ -309,7 +309,7 @@ export default function ActiveOrderPage() {
     if (isBabysit) {
       const { error } = await supabase.rpc('babysit_set_status', { p_order_id: order.id, p_status: info.next });
       if (error) { toast.error(error.message); return; }
-      toast.success(`Status: ${getDisplayStatus(info.next)}`);
+      toast.success(`Status: ${getDisplayStatus(info.next, order.service_type)}`);
       fetchOrder();
       return;
     }
@@ -320,7 +320,7 @@ export default function ActiveOrderPage() {
       const partnerId = isMerchantAdvancing ? order.merchant_id : user.id;
       const updated = await updateOrderStatus(supabase, order.id, info.next, partnerId, mode);
       if (updated) setOrder(updated);
-      toast.success(`Status: ${getDisplayStatus(info.next)}`);
+      toast.success(`Status: ${getDisplayStatus(info.next, order.service_type)}`);
     } catch (e) {
       console.error(e);
       toast.error('Gagal update status');
@@ -396,7 +396,7 @@ export default function ActiveOrderPage() {
           <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink sm:text-2xl">
             Order <span className="font-mono font-medium">#{order.id.slice(0,6)}</span>
           </h1>
-          <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>
+          <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status, order.service_type)}</Badge>
         </div>
       </div>
 

@@ -350,7 +350,7 @@ export default function ActiveOrderPage() {
             {t(`order.service_title.${order.service_type}`)}
           </span>
           <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance sm:text-2xl">{t('order.title')}</h1>
-          <Badge tone={statusTone(order.status)} dot>{t(getStatusKey(order.status))}</Badge>
+          <Badge tone={statusTone(order.status)} dot>{t(getStatusKey(order.status, order.service_type))}</Badge>
         </div>
       </div>
 
@@ -381,12 +381,14 @@ export default function ActiveOrderPage() {
             <Spinner size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-[14px] font-semibold text-ink">{isBabysit ? t('order.babysit_waiting') : isVisit ? t('order.searching_technician') : t('order.searching_driver')}</p>
+            <p className="text-[14px] font-semibold text-ink">{isBabysit ? t('order.babysit_waiting') : isVisit ? t('order.searching_technician') : order.service_type === 'food' ? t('order.food_waiting') : t('order.searching_driver')}</p>
             <p className="text-[13px] leading-relaxed text-ink-muted">
               {isBabysit
                 ? t('order.babysit_waiting_desc')
                 : isVisit
                 ? t('order.visit_waiting')
+                : order.service_type === 'food'
+                ? t('order.food_waiting_desc')
                 : totalCandidates > 0
                   ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
                   : t('order.dispatch_connecting')}

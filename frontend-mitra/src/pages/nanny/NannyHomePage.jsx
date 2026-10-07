@@ -106,7 +106,7 @@ export default function NannyHomePage() {
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <p className="text-[14px] font-semibold text-ink">{when(o.scheduled_at, o.metadata?.hours)}</p>
                 <p className="truncate text-[12.5px] text-ink-muted">{kidsLine(o.metadata?.children)}</p>
-                <Badge tone={o.status === 'working' ? 'success' : 'brand'} dot className="self-start">{getDisplayStatus(o.status)}</Badge>
+                <Badge tone={o.status === 'working' ? 'success' : 'brand'} dot className="self-start">{getDisplayStatus(o.status, o.service_type || 'babysit')}</Badge>
               </div>
               <ChevronRight size={18} className="shrink-0 text-ink-muted" aria-hidden="true" />
             </Card>

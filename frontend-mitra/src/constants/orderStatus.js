@@ -35,6 +35,11 @@ const DISPLAY_LABEL_ID = {
 };
 
 /** Indonesian display label for a raw DB status value. Falls back to the raw value if unknown. */
-export function getDisplayStatus(rawStatus) {
+export function getDisplayStatus(rawStatus, serviceType) {
+  if (serviceType === 'babysit') {
+    if (rawStatus === OrderStatus.ON_THE_WAY) return 'Pengasuh Menuju Lokasi';
+    if (rawStatus === OrderStatus.WORKING) return 'Sesi Berlangsung';
+    if (rawStatus === OrderStatus.PENDING) return 'Menunggu Persetujuan';
+  }
   return DISPLAY_LABEL_ID[rawStatus] || rawStatus;
 }

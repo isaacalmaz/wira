@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Ticket, X } from 'lucide-react';
 import { Button, Card, Field, Input, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
-import { fetchCoordinates } from '../utils/osmHelpers';
+import { fetchCoordinates, fetchRoute } from '../utils/osmHelpers';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
@@ -49,14 +49,46 @@ export default function SendPage() {
   // `name` stays Indonesian on purpose: it is written into the order's
   // `details`, which the courier reads in the partner app. Only the labels
   // rendered on this screen are translated.
-  const packages = [
-    { id: 'dokumen', name: 'Dokumen', price: 8000, icon: '📄' },
-    { id: 'kecil', name: 'Paket Kecil', price: 12000, icon: '📦' },
-    { id: 'sedang', name: 'Paket Sedang', price: 18000, icon: '💼' },
-    { id: 'besar', name: 'Paket Besar', price: 30000, icon: '🧳' },
+  // Fallback until pricing_rules (service_type 'send', edited in Admin ->
+  // Harga) loads. The server prices the order from the same rows:
+  // base_price + ceil(km x per_km_rate) (migrations/0059).
+  const FALLBACK_PACKAGES = [
+    { id: 'dokumen', name: 'Dokumen', base: 8000, perKm: 0 },
+    { id: 'kecil', name: 'Paket Kecil', base: 12000, perKm: 0 },
+    { id: 'sedang', name: 'Paket Sedang', base: 18000, perKm: 0 },
+    { id: 'besar', name: 'Paket Besar', base: 30000, perKm: 0 },
   ];
+  const [rules, setRules] = useState(null);
+  const [routeMeters, setRouteMeters] = useState(null);
 
-  const currentPkg = packages.find((p) => p.id === selectedPackage) || packages[1];
+  useEffect(() => {
+    supabase.from('pricing_rules').select('code, name, base_price, per_km_rate, is_active')
+      .eq('service_type', 'send').eq('is_active', true).order('base_price')
+      .then(({ data }) => {
+        if (data?.length) {
+          setRules(data.map((r) => ({ id: r.code, name: r.name || r.code, base: Number(r.base_price) || 0, perKm: Number(r.per_km_rate) || 0 })));
+        }
+      });
+  }, []);
+
+  // Road distance once both points are known (same OSRM route as WiraRide).
+  useEffect(() => {
+    if (!senderCoords || !receiverCoords) { setRouteMeters(null); return; }
+    let cancelled = false;
+    fetchRoute(senderCoords, receiverCoords).then((r) => { if (!cancelled) setRouteMeters(r?.distance ?? null); });
+    return () => { cancelled = true; };
+  }, [senderCoords, receiverCoords]);
+
+  // Distance prices round up to Rp500, as the server does (migrations/0113).
+  const priceOf = (p) => (p.perKm > 0 && routeMeters ? Math.ceil((p.base + Math.ceil((routeMeters / 1000) * p.perKm)) / 500) * 500 : p.base);
+  const packages = (rules || FALLBACK_PACKAGES).map((p) => ({ ...p, price: priceOf(p) }));
+  const packageLabel = (p, suffix = '') => {
+    const key = `send.packages.${p.id}${suffix}`;
+    const txt = t(key);
+    return txt === key ? (suffix ? '' : p.name) : txt;
+  };
+
+  const currentPkg = packages.find((p) => p.id === selectedPackage) || packages[0];
 
   const handleCheckPromo = async () => {
     if (!promoCode.trim()) return;
@@ -194,7 +226,8 @@ export default function SendPage() {
         // selectedPackage already holds the exact tier id ('dokumen' |
         // 'kecil' | 'sedang' | 'besar'), matching pricing_rules.code for
         // service_type='send' (migrations/0057's seed).
-        rateCode: selectedPackage,
+        rateCode: currentPkg.id,
+        distanceMeters: routeMeters ?? null,
         promoCode: activePromo?.code || null,
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
@@ -353,10 +386,17 @@ export default function SendPage() {
                   >
                     <IconTile tone="brand" size="sm"><Icon size={18} /></IconTile>
                     <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-[14px] font-bold leading-snug text-ink">{t(`send.packages.${p.id}`)}</span>
-                      <span className="text-[11.5px] leading-snug text-ink-muted">{t(`send.packages.${p.id}_desc`)}</span>
+                      <span className="text-[14px] font-bold leading-snug text-ink">{packageLabel(p)}</span>
+                      <span className="text-[11.5px] leading-snug text-ink-muted">{packageLabel(p, '_desc')}</span>
                     </span>
-                    <Money value={p.price} className="mt-auto text-[14px] font-medium text-ink" />
+                    <span className="mt-auto flex flex-col gap-0.5">
+                      <Money value={p.price} className="text-[14px] font-medium text-ink" />
+                      {p.perKm > 0 && (
+                        <span className="text-[11px] text-ink-muted">
+                          {routeMeters ? t('send.distance_km', { km: (routeMeters / 1000).toFixed(1) }) : t('send.per_km', { price: formatRupiah(p.perKm) })}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -441,7 +481,7 @@ export default function SendPage() {
           </section>
 
           {/* Booking panel: pinned above the bottom nav so the CTA is always reachable */}
-          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex flex-col gap-3 rounded-t-sheet bg-ground px-4 pt-2 pb-4 shadow-sheet md:bottom-4 md:mx-0 md:rounded-sheet md:px-5">
+          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex flex-col gap-3 rounded-t-sheet bg-ground px-4 pt-2 pb-4 shadow-sheet md:bottom-4 md:mx-0 md:rounded-sheet md:px-5 [@media(max-height:760px)]:static [@media(max-height:760px)]:mx-0 [@media(max-height:760px)]:rounded-sheet">
             <div className="flex justify-center" aria-hidden="true">
               <span className="h-1 w-10 rounded-full bg-line-strong" />
             </div>
