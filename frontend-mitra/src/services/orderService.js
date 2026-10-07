@@ -494,11 +494,21 @@ function cashCollected(order, role) {
   return order.total_price || 0;
 }
 
+// 0109 model A: cash food with a courier. The driver paid the restaurant the
+// menu price, so only commissions move: the restaurant owes its rate on the
+// menu subtotal, the driver its rate on the delivery fee and is refunded
+// the promo discount Wira funds.
+const isCashFoodWithCourier = (order) => isCashOrder(order) && order.service_type === 'food' && order.driver_id && order.merchant_id;
+const promoDiscount = (order) => Math.max(Number(order.promo_discount) || 0, 0);
+const menuSubtotal = (order) => Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) + promoDiscount(order);
+
 export function driverEarnedAmount(order) {
+  if (isCashFoodWithCourier(order)) return promoDiscount(order) - Math.round((order.delivery_fee || 0) * orderRate(order));
   return driverShare(order) - cashCollected(order, 'driver');
 }
 
 export function merchantEarnedAmount(order) {
+  if (isCashFoodWithCourier(order)) return -Math.round(menuSubtotal(order) * orderRate(order));
   return merchantShare(order) - cashCollected(order, 'merchant');
 }
 
@@ -516,6 +526,11 @@ export function technicianEarnedAmount(order) {
  * `role` is 'driver' (also technicians) or 'merchant'.
  */
 export function cashCommissionDeduction(order, role) {
+  if (isCashFoodWithCourier(order)) {
+    return role === 'merchant'
+      ? Math.round(menuSubtotal(order) * orderRate(order))
+      : Math.round((order.delivery_fee || 0) * orderRate(order));
+  }
   const collected = cashCollected(order, role);
   if (!collected) return 0;
   const share = role === 'merchant' ? merchantShare(order) : driverShare(order);
@@ -668,6 +683,17 @@ export function subscribeToMerchantOrders(supabaseClient, merchantId, onOrder) {
 }
 
 // Field writes retry through dropped connections (utils/retry.js).
+/**
+ * The server refuses a new order while commission is overdue (migrations/
+ * 0109); its message tells the partner what to do. Returns that message,
+ * or `fallback` for any other error.
+ */
+export function orderErrorMessage(err, fallback) {
+  const msg = String(err?.message || '');
+  const i = msg.indexOf('Komisi Rp');
+  return i >= 0 ? msg.slice(i).replace(/\)\s*$/, '') : fallback;
+}
+
 export const claimDeliveryOrder = withNetworkRetry(claimDeliveryOrderOnce);
 export const acceptOrder = withNetworkRetry(acceptOrderOnce);
 export const updateOrderStatus = withNetworkRetry(updateOrderStatusOnce);

@@ -20,7 +20,7 @@ export function startOfTodayISO(now = new Date()) {
 
 /** Columns every earnings query needs for summarizeEarnings + the *EarnedAmount helpers. */
 export const EARNINGS_COLUMNS =
-  'id, total_price, delivery_fee, material_amount, payment_method, driver_id, merchant_id, created_at, status_changed_at, service_type, status, commission_rate';
+  'id, total_price, delivery_fee, material_amount, payment_method, driver_id, merchant_id, created_at, status_changed_at, service_type, status, commission_rate, promo_discount';
 
 /**
  * Today, the last 7 days (today included) and one bar per day.

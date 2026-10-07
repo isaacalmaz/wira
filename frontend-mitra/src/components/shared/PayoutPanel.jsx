@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Wallet, Clock, CheckCircle2, XCircle, HandCoins, Camera } from 'lucide-react';
 import { Badge, Button, Card, Field, IconTile, Input, Money, Notice, Select, Sheet } from '../ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,17 @@ const STATUS_LABEL = {
   cancelled: { text: 'Dibatalkan', icon: XCircle, tone: 'neutral' },
 };
 
+const DEPOSIT_STATUS = {
+  pending: { text: 'Menunggu dicek admin', icon: Clock, tone: 'warning' },
+  approved: { text: 'Diterima', icon: CheckCircle2, tone: 'success' },
+  rejected: { text: 'Ditolak', icon: XCircle, tone: 'danger' },
+};
+
+const settingValue = (rows, key, fallback) => {
+  const row = rows?.find((r) => r.key === key);
+  return row ? row.value : fallback;
+};
+
 /**
  * Shared "Tarik Saldo" panel for driver/merchant/technician earnings pages.
  * Shows the real, server-tracked payable_balance (credited automatically
@@ -22,6 +33,9 @@ const STATUS_LABEL = {
  * Since migrations/0075 the balance can be negative: a Tunai order debits
  * the platform commission from it, and request_payout refuses any amount
  * above the balance, so withdrawal stays unavailable until it's positive.
+ * Since migrations/0109 the commission owed is paid with "Setor Komisi":
+ * the partner transfers to Wira, attaches the proof, an admin approves and
+ * the amount is added to the balance. Paying ahead works as a deposit.
  */
 export default function PayoutPanel() {
   const { user } = useAuth();
@@ -33,15 +47,37 @@ export default function PayoutPanel() {
   const [destination, setDestination] = useState('');
   const [accountName, setAccountName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deposits, setDeposits] = useState([]);
+  const [debtSince, setDebtSince] = useState(null);
+  const [settings, setSettings] = useState({ info: '', limit: 200000, grace: 7 });
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositNote, setDepositNote] = useState('');
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [depositing, setDepositing] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user) return;
-    const [{ data: userRow }, { data: reqRows }] = await Promise.all([
-      supabase.from('users').select('payable_balance').eq('id', user.id).single(),
+    const [{ data: userRow }, { data: reqRows }, { data: depRows }, { data: settingRows }] = await Promise.all([
+      supabase.from('users').select('payable_balance, commission_debt_since').eq('id', user.id).single(),
       supabase.from('payout_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('commission_deposits').select('id, amount, status, reject_reason, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('app_settings').select('key, value').in('key', ['commission_payment_info', 'commission_debt_limit', 'commission_debt_grace_days']),
     ]);
-    if (userRow) setBalance(Number(userRow.payable_balance) || 0);
+    if (userRow) {
+      setBalance(Number(userRow.payable_balance) || 0);
+      setDebtSince(userRow.commission_debt_since || null);
+    }
     if (reqRows) setRequests(reqRows);
+    if (depRows) setDeposits(depRows);
+    if (settingRows) {
+      setSettings({
+        info: settingValue(settingRows, 'commission_payment_info', ''),
+        limit: Number(settingValue(settingRows, 'commission_debt_limit', 200000)),
+        grace: Number(settingValue(settingRows, 'commission_debt_grace_days', 7)),
+      });
+    }
   }, [user]);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -94,7 +130,66 @@ export default function PayoutPanel() {
     }
   };
 
+  const openDeposit = () => {
+    setDepositAmount(balance < 0 ? String(Math.ceil(-balance)) : '');
+    setDepositOpen(true);
+  };
+
+  const pickProof = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Pilih foto bukti transfer (gambar)');
+      return;
+    }
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+  };
+
+  const handleDeposit = async (e) => {
+    e.preventDefault();
+    const numAmount = Math.round(Number(depositAmount));
+    if (!numAmount || numAmount < 10000) {
+      toast.error('Setoran minimal Rp 10.000');
+      return;
+    }
+    if (!proofFile) {
+      toast.error('Lampirkan foto bukti transfer');
+      return;
+    }
+    setDepositing(true);
+    try {
+      const ext = (proofFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('commission-proofs').upload(path, proofFile, {
+        contentType: proofFile.type,
+        upsert: false,
+      });
+      if (upErr) throw upErr;
+      const { error } = await supabase.rpc('submit_commission_deposit', {
+        p_amount: numAmount,
+        p_proof_path: path,
+        p_note: depositNote.trim() || null,
+      });
+      if (error) throw error;
+      toast.success('Setoran terkirim. Saldo bertambah setelah admin mengecek transfer Anda.');
+      setDepositOpen(false);
+      setDepositAmount('');
+      setDepositNote('');
+      setProofFile(null);
+      setProofPreview(null);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Gagal mengirim setoran');
+    } finally {
+      setDepositing(false);
+    }
+  };
+
   const maxAmount = Math.floor(balance);
+  const debtDays = debtSince ? Math.floor((Date.now() - new Date(debtSince).getTime()) / 86400000) : 0;
+  const blocked = balance <= -settings.limit && debtDays > settings.grace;
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -113,17 +208,49 @@ export default function PayoutPanel() {
 
         {balance < 0 && (
           <Notice tone="danger">
-            Saldo minus karena komisi tunai (dipotong dari saldo): pada order Tunai uang dari pelanggan sudah Anda terima langsung, jadi komisi Wira ditagih dari saldo ini. Kekurangan ini tertutup otomatis dari pendapatan order non-tunai berikutnya. Tarik saldo belum bisa dilakukan sampai saldo kembali positif.
+            {blocked ? (
+              <>Anda belum bisa menerima pesanan baru: komisi belum disetor lebih dari {settings.grace} hari. Setor sekarang, pesanan terbuka lagi setelah admin mengecek transfer Anda.</>
+            ) : (
+              <>Ini komisi Wira dari pesanan tunai, yang uangnya sudah Anda terima langsung. Setor lewat tombol di bawah. Kalau utang mencapai <Money value={settings.limit} className="font-medium" /> lebih dari {settings.grace} hari, Anda tidak bisa menerima pesanan baru.</>
+            )}
           </Notice>
         )}
         {balance === 0 && (
           <p className="text-[13px] text-ink-muted">Belum ada saldo yang bisa dicairkan.</p>
         )}
 
-        <Button variant="primary" size="lg" block onClick={() => setModalOpen(true)} disabled={balance <= 0}>
-          Tarik Saldo
-        </Button>
+        <div className="flex flex-col gap-2.5 sm:flex-row">
+          <Button variant={balance < 0 ? 'primary' : 'secondary'} size="lg" block onClick={openDeposit}>
+            Setor Komisi
+          </Button>
+          <Button variant={balance < 0 ? 'secondary' : 'primary'} size="lg" block onClick={() => setModalOpen(true)} disabled={balance <= 0}>
+            Tarik Saldo
+          </Button>
+        </div>
       </div>
+
+      {deposits.length > 0 && (
+        <div className="border-t border-line">
+          <p className="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:px-5">Riwayat Setoran Komisi</p>
+          <ul className="flex flex-col">
+            {deposits.map((d) => {
+              const s = DEPOSIT_STATUS[d.status] || DEPOSIT_STATUS.pending;
+              const Icon = s.icon;
+              return (
+                <li key={d.id} className="flex flex-col items-start gap-1.5 border-b border-line px-4 py-3 last:border-b-0 sm:px-5">
+                  <Money value={d.amount} className="text-[14px] font-medium text-ink" />
+                  <Badge tone={s.tone}>
+                    <Icon size={12} aria-hidden="true" /> {s.text}
+                  </Badge>
+                  {d.status === 'rejected' && d.reject_reason && (
+                    <p className="text-[12.5px] text-ink-muted">Alasan: {d.reject_reason}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {requests.length > 0 && (
         <div className="border-t border-line">
@@ -215,6 +342,68 @@ export default function PayoutPanel() {
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="Sesuai buku tabungan/akun"
+            />
+          </Field>
+        </form>
+      </Sheet>
+
+      <Sheet
+        open={depositOpen}
+        onClose={() => setDepositOpen(false)}
+        title="Setor Komisi"
+        icon={<HandCoins size={22} />}
+        tone="pay"
+        size="sm"
+        footer={(
+          <Button type="submit" form="deposit-form" variant="primary" size="lg" isLoading={depositing}>
+            {depositing ? 'Mengirim...' : 'Kirim Bukti Setoran'}
+          </Button>
+        )}
+      >
+        <form id="deposit-form" onSubmit={handleDeposit} className="flex flex-col gap-4">
+          <Notice tone="info">
+            <span className="whitespace-pre-line">{settings.info || 'Hubungi admin Wira untuk nomor rekening atau QRIS setoran komisi.'}</span>
+          </Notice>
+          <Field
+            label={balance < 0 ? <>Nominal (komisi Anda <Money value={Math.ceil(-balance)} className="font-medium" />)</> : 'Nominal deposit'}
+            htmlFor="deposit-amount"
+          >
+            <Input
+              id="deposit-amount"
+              type="number"
+              inputMode="numeric"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              className="font-mono"
+              placeholder="Contoh: 50000"
+              min="10000"
+              required
+            />
+          </Field>
+          <Field label="Foto bukti transfer" htmlFor="deposit-proof">
+            <label
+              htmlFor="deposit-proof"
+              className="relative flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-control border border-dashed border-line-strong bg-ground px-3 py-4 text-center hover:bg-sunken"
+            >
+              {proofPreview ? (
+                <img src={proofPreview} alt="Bukti transfer" className="max-h-48 w-auto rounded-[8px] object-contain" />
+              ) : (
+                <>
+                  <Camera size={20} className="text-brand-ink" aria-hidden="true" />
+                  <span className="text-[13px] font-semibold text-ink">Pilih foto</span>
+                  <span className="text-[11px] text-ink-muted">Screenshot atau foto struk transfer</span>
+                </>
+              )}
+            </label>
+            <input id="deposit-proof" type="file" accept="image/*" className="sr-only" onChange={pickProof} />
+          </Field>
+          <Field label="Catatan (opsional)" htmlFor="deposit-note">
+            <Input
+              id="deposit-note"
+              type="text"
+              value={depositNote}
+              onChange={(e) => setDepositNote(e.target.value)}
+              placeholder="Contoh: transfer BCA a.n. Budi"
             />
           </Field>
         </form>

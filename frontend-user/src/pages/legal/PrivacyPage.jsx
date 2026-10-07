@@ -46,7 +46,7 @@ const CONTENT = {
         `Menghapus akun beserta datanya kapan saja dari menu Profil/Pengaturan di aplikasi atau di wira.one/hapus-akun. Salinan data bisa diminta lewat email ke ${CONTACT_EMAIL} dari email atau nomor yang terdaftar, kami proses dalam 14 hari kerja.`,
       ]],
       ['Anak-anak', [
-        'Akun Wira hanya untuk pengguna berusia 18 tahun ke atas, dan anak tidak membuat akun sendiri. Data anak di WiraAsuh hanya diberikan oleh orang tua atau walinya. Mitra wajib berusia minimal 17 tahun dan memiliki KTP.',
+        'Akun Wira hanya untuk pengguna berusia 18 tahun ke atas, dan anak tidak membuat akun sendiri. Data anak di WiraAsuh hanya diberikan oleh orang tua atau walinya. Mitra juga wajib berusia minimal 18 tahun dan memiliki KTP.',
       ]],
       ['Perubahan kebijakan', [
         'Jika kebijakan ini berubah, tanggal di atas akan diperbarui dan perubahan penting akan diumumkan di aplikasi.',
@@ -93,7 +93,7 @@ const CONTENT = {
         `Delete your account and its data at any time from Profile/Settings in the app or at wira.one/hapus-akun. Request a copy of your data by emailing ${CONTACT_EMAIL} from your registered email or number; we handle requests within 14 working days.`,
       ]],
       ['Children', [
-        'Wira accounts are for people aged 18 and over; children never create an account. Children\u2019s details in WiraAsuh are provided only by a parent or guardian. Partners must be at least 17 and hold an Indonesian ID card.',
+        'Wira accounts are for people aged 18 and over; children never create an account. Children\u2019s details in WiraAsuh are provided only by a parent or guardian. Partners must also be at least 18 and hold an Indonesian ID card.',
       ]],
       ['Changes', [
         'If this policy changes, the date above will be updated and important changes will be announced in the app.',

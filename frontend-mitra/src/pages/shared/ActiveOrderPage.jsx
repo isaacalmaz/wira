@@ -410,6 +410,36 @@ export default function ActiveOrderPage() {
         <Money value={order.total_price} className="shrink-0 pt-0.5 text-[15px] font-medium text-ink" />
       </Card>
 
+      {/* 0109: cash food - the driver pays the restaurant the menu price at
+          pickup and collects the order total from the customer. */}
+      {order.service_type === 'food' && order.payment_method === 'cash' && !['completed', 'cancelled'].includes(order.status) && (() => {
+        const menuPrice = Math.max(Number(order.total_price || 0) - Number(order.delivery_fee || 0), 0) + Number(order.promo_discount || 0);
+        const isRestaurant = order.merchant?.owner_id === user.id;
+        return (
+          <Card className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13.5px] font-semibold text-ink">
+                {isRestaurant ? 'Terima tunai dari driver' : 'Bayar tunai ke restoran'}
+              </span>
+              <Money value={menuPrice} className="text-[15px] font-medium text-ink" />
+            </div>
+            {!isRestaurant && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13.5px] font-semibold text-ink">Tagih ke pelanggan</span>
+                <Money value={order.total_price} className="text-[15px] font-medium text-ink" />
+              </div>
+            )}
+            <p className="text-[12.5px] leading-relaxed text-ink-muted">
+              {isRestaurant
+                ? 'Driver membayar harga menu saat mengambil pesanan. Komisi Wira dari pesanan ini dicatat di Pendapatan.'
+                : Number(order.promo_discount) > 0
+                  ? 'Ada promo Wira di pesanan ini: selisihnya ditambahkan ke saldo Anda setelah pesanan selesai.'
+                  : 'Bayar restoran saat mengambil makanan, lalu tagih total ke pelanggan saat diantar.'}
+            </p>
+          </Card>
+        );
+      })()}
+
       {(isVisit || isBabysit) && (() => {
         const v = visitInfo(order);
         return (

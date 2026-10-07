@@ -7,7 +7,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount, loadCommissionRates } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount, loadCommissionRates, orderErrorMessage } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
 import { EARNINGS_COLUMNS, startOfTodayISO } from '../../utils/earnings';
 import useMyMerchants from '../../hooks/useMyMerchants';
@@ -168,7 +168,7 @@ const MerchantHomePage = () => {
       setIncomingOrder(null);
       toast.success(isVillaOrder(accepted) ? 'Reservasi Dikonfirmasi!' : 'Pesanan Diterima! Silakan siapkan makanan.');
     } catch (err) {
-      toast.error('Pesanan sudah diproses.');
+      toast.error(orderErrorMessage(err, 'Pesanan sudah diproses.'));
       setIncomingOrder(null);
     }
   };

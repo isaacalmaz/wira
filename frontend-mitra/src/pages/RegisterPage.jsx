@@ -112,6 +112,8 @@ const RegisterPage = () => {
   const { user } = useAuth();
   const signedIn = Boolean(user?.id);
   const [emailTaken, setEmailTaken] = useState(false);
+  // Partners must be 18+ (privacy policy and the Play target audience).
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -218,6 +220,10 @@ const RegisterPage = () => {
     }
     if (step === 3 && role === 'technician' && (!formData.ktpPhoto || !formData.selfiePhoto)) {
       toast.error('Lampirkan foto KTP dan foto selfie Anda.');
+      return;
+    }
+    if (step === 4 && !ageConfirmed) {
+      toast.error('Centang pernyataan usia 18 tahun ke atas untuk mengirim pendaftaran.');
       return;
     }
     if (step < 4) {
@@ -714,6 +720,10 @@ const RegisterPage = () => {
                     <SummaryRow label="Keahlian">{formData.skills.map(nameOf).join(', ')} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>
                   )}
                 </div>
+                <CheckRow checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)}>
+                  Saya berusia 18 tahun ke atas, memiliki KTP, dan menyetujui{' '}
+                  <a href="https://wira.one/privacy" target="_blank" rel="noreferrer" className="text-brand-ink underline">Kebijakan Privasi</a>.
+                </CheckRow>
                 <p className="text-center text-xs leading-relaxed text-ink-muted">
                   Data akan langsung terkirim ke Admin Wira untuk proses verifikasi.
                 </p>

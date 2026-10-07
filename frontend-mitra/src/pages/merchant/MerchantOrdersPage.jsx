@@ -6,7 +6,7 @@ import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, 
 import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus } from '../../constants/orderStatus';
-import { updateOrderStatus } from '../../services/orderService';
+import { updateOrderStatus, orderErrorMessage } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
 import API_BASE_URL from '../../config/api';
@@ -139,7 +139,7 @@ const MerchantOrdersPage = () => {
       }
       fetchOrders();
     } catch (err) {
-      toast.error(err.message || 'Gagal memperbarui status pesanan');
+      toast.error(orderErrorMessage(err, err.message || 'Gagal memperbarui status pesanan'));
     }
   };
 

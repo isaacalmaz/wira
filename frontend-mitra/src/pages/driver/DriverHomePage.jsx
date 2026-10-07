@@ -17,6 +17,7 @@ import {
   subscribeToDriverOrders, sendDriverLocation, setDriverOffline, distanceMeters,
   driverEarnedAmount,
   loadCommissionRates,
+  orderErrorMessage,
 } from '../../services/orderService';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
@@ -396,7 +397,7 @@ const DriverHomePage = () => {
     } catch (err) {
       // Order was very likely taken by another driver first - this is expected
       // under the atomic accept guard, not a real error.
-      toast.error('Pesanan sudah diambil mitra lain.');
+      toast.error(orderErrorMessage(err, 'Pesanan sudah diambil mitra lain.'));
       setIncomingOrder(null);
     }
   };

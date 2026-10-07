@@ -51,7 +51,7 @@ Google's reviewers must sign in. Create two dedicated accounts — never a real 
 
 ## Play Console answers (App content)
 **Privacy policy:** https://wira.one/privacy · **Data deletion URL:** https://wira.one/hapus-akun
-**Ads:** No ads. **Target audience:** Wira → 18 and over. Wira Mitra → 18 and over (also tick 16–17 only if you accept 17-year-old partners, as the privacy policy allows). **News app:** No. **Government app:** No.
+**Ads:** No ads. **Target audience:** Wira → 18 and over. Wira Mitra → 18 and over (partners confirm 18+ when registering). **News app:** No. **Government app:** No.
 **Health:** None (WiraAsuh allergy notes are declared under Data safety, not as a health app). **Financial features:** WiraPay balance (top-up by QRIS, pay for services) — tick
 "Digital wallet / mobile payments" only while WiraPay exists; untick if it is removed.
 **Content rating (IARC):** category "All other app types"; no violence, sexuality, language, drugs,

@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, Percent } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PaymentModeCard from '../components/common/PaymentModeCard';
+import CommissionDepositsSection from '../components/common/CommissionDepositsSection';
 import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Sheet, Spinner, Stat, Table } from '../components/ui';
 
 // Platform commission on every completed order - 20%, matching
@@ -246,6 +247,8 @@ const FinancePage = () => {
 
       {activeTab === 'requests' && (
         <div className="flex flex-col gap-6">
+          <CommissionDepositsSection />
+
           <section>
             <SectionHeader
               title="Permintaan Top-Up WiraPay"
