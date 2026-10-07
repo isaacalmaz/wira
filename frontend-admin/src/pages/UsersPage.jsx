@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet } from 'lucide-react';
+import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet, Baby } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import ReasonSheet from '../components/common/ReasonSheet';
@@ -16,6 +16,7 @@ const MITRA_ROLES = [
   { key: 'driver', label: 'Driver', icon: Car },
   { key: 'merchant', label: 'Merchant', icon: Store },
   { key: 'technician', label: 'Teknisi', icon: Wrench },
+  { key: 'nanny', label: 'Pengasuh', icon: Baby },
 ];
 
 const UsersPage = () => {

@@ -1,7 +1,7 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby } from 'lucide-react';
 import WiraMark from '../brand/WiraMark';
 import { cx } from '../ui';
 
@@ -11,8 +11,8 @@ import { cx } from '../ui';
 // is a separate portal - this keeps the sidebar label consistent with that.
 // 'courier' no longer exists as its own portal (see migrations/0033) - Driver
 // now covers Ride/Kurir/Makanan together via Settings preferences.
-const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
-const ROLE_ICON = { driver: Car, merchant: Store, villa: Building2, technician: Wrench };
+const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi', nanny: 'Pengasuh' };
+const ROLE_ICON = { driver: Car, merchant: Store, villa: Building2, technician: Wrench, nanny: Baby };
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess } = useAuth();
@@ -29,7 +29,7 @@ const MitraLayout = ({ children }) => {
   const getNavItems = () => {
     const base = [
       { to: `/${activeRole}`, icon: Home, label: 'Beranda' },
-      { to: `/${activeRole}/orders`, icon: ListOrdered, label: activeRole === 'technician' ? 'Pekerjaan' : 'Pesanan' },
+      { to: `/${activeRole}/orders`, icon: ListOrdered, label: activeRole === 'technician' ? 'Pekerjaan' : activeRole === 'nanny' ? 'Sesi' : 'Pesanan' },
     ];
 
     if (activeRole === 'merchant') {

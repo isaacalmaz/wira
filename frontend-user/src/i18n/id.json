@@ -551,7 +551,8 @@
       "villa": "WiraVilla",
       "service": "WiraService",
       "pool": "WiraPool",
-      "pulsa": "WiraPulsa"
+      "pulsa": "WiraPulsa",
+      "babysit": "WiraAsuh"
     },
     "qris_pay_title": "Bayar dengan QRIS",
     "qris_loading_amount": "Menyiapkan nominal...",
@@ -582,7 +583,11 @@
     "cancel_desc_visit": "Pembatalan gratis, dan pembayaran WiraPay dikembalikan ke saldo Anda.",
     "cancel_desc_visit_late": "Teknisi terlambat lebih dari 1 jam, jadi pembatalan gratis.",
     "review_prompt_title": "Pesanan selesai. Bagaimana hasilnya?",
-    "review_prompt_desc": "Ulasan Anda membantu pelanggan lain memilih mitra dan membantu Wira menjaga kualitas."
+    "review_prompt_desc": "Ulasan Anda membantu pelanggan lain memilih mitra dan membantu Wira menjaga kualitas.",
+    "babysit_waiting": "Menunggu persetujuan pengasuh",
+    "babysit_waiting_desc": "Kami cek jadwal pengasuh dan kabari Anda lewat notifikasi.",
+    "pin_label_babysit": "Berikan PIN ini kepada pengasuh saat tiba, untuk memulai sesi:",
+    "cancel_desc_babysit_late": "Pengasuh terlambat lebih dari 1 jam, jadi pembatalan gratis."
   },
   "review": {
     "title": "Beri Ulasan",
@@ -739,7 +744,9 @@
     "s4_title": "4. Pembayaran (WiraPay)",
     "s4_body": "Pembayaran dapat dilakukan secara tunai atau dengan saldo WiraPay. Pengisian saldo WiraPay dilakukan lewat QRIS atau penyedia pembayaran pihak ketiga yang terhubung dengan Wira. Seluruh transaksi menggunakan mata uang Rupiah (IDR).",
     "s5_title": "5. Batasan Tanggung Jawab",
-    "s5_body": "Wira tidak bertanggung jawab atas kerugian langsung maupun tidak langsung yang timbul dari penggunaan atau ketidakmampuan menggunakan layanan kami, termasuk namun tidak terbatas pada keterlambatan pengantaran atau tindakan mitra."
+    "s5_body": "Wira tidak bertanggung jawab atas kerugian langsung maupun tidak langsung yang timbul dari penggunaan atau ketidakmampuan menggunakan layanan kami, termasuk namun tidak terbatas pada keterlambatan pengantaran atau tindakan mitra.",
+    "s6_title": "6. WiraAsuh (Pengasuh Anak)",
+    "s6_body": "Pengasuh WiraAsuh membantu menjaga anak di lokasi yang Anda tentukan; orang tua atau wali tetap bertanggung jawab penuh atas anak. Anda wajib memberikan informasi kesehatan, alergi, dan kontak darurat yang benar, serta tetap bisa dihubungi selama sesi. Pengasuh tidak memberikan obat tanpa instruksi tertulis, tidak membawa anak keluar lokasi tanpa izin di aplikasi, dan dapat mengakhiri sesi bila keselamatan anak atau pengasuh terancam. Pembayaran tunai setelah sesi; pembatalan gratis sampai 2 jam sebelum mulai."
   },
   "refund": {
     "title": "Kebijakan Pengembalian Dana",
@@ -1011,5 +1018,48 @@
     "copied": "Kode {{code}} disalin",
     "copy_manual": "Kode promo: {{code}}",
     "copy_aria": "Salin kode {{code}}"
+  },
+  "asuh": {
+    "subtitle": "Pengasuh anak tepercaya ke rumah atau villa Anda",
+    "intro_title": "Pengasuh pilihan Wira",
+    "intro_body": "Pengasuh kami dikenal langsung oleh tim Wira. Setiap pesanan kami cek dan setujui dulu, lalu Anda dikabari lewat notifikasi.",
+    "per_hour": "per jam",
+    "closed": "WiraAsuh sedang tidak menerima pesanan.",
+    "when": "Kapan",
+    "date": "Tanggal",
+    "start": "Jam mulai",
+    "duration": "Durasi",
+    "until": "Selesai sekitar pukul {{time}}",
+    "less": "Kurangi jam",
+    "more": "Tambah jam",
+    "hours": "{{n}} jam",
+    "clash": "Pengasuh sudah terjadwal pukul {{slots}}. Anda tetap bisa mengirim permintaan, tapi kemungkinan besar perlu memilih jam lain.",
+    "children": "Anak yang diasuh",
+    "child_name": "Nama panggilan",
+    "child_name_ph": "Anak {{n}}",
+    "child_age": "Usia",
+    "under1": "< 1 tahun",
+    "years": "{{n}} tahun",
+    "remove_child": "Hapus anak",
+    "add_child": "Tambah anak",
+    "where": "Di mana",
+    "address": "Alamat atau nama villa",
+    "address_ph": "Cari alamat atau villa",
+    "phone": "Nomor darurat",
+    "phone_hint": "Nomor yang bisa dihubungi pengasuh selama sesi.",
+    "notes": "Catatan untuk pengasuh",
+    "notes_hint": "Alergi, obat, jadwal tidur dan makan, aturan di rumah.",
+    "notes_ph": "Contoh: alergi kacang, tidur siang jam 13.00, susu formula 120 ml",
+    "summary": "{{hours}} jam · {{kids}} anak",
+    "pay_note": "Bayar tunai ke pengasuh setelah sesi selesai. Gratis dibatalkan sampai 2 jam sebelum mulai.",
+    "agree": "Saya setuju dengan syarat WiraAsuh, termasuk tetap bertanggung jawab atas anak dan memberikan informasi kesehatan yang benar.",
+    "terms_link": "Baca syarat",
+    "submit": "Kirim permintaan",
+    "sent": "Permintaan terkirim. Kami kabari setelah disetujui.",
+    "failed": "Permintaan belum terkirim. Coba lagi.",
+    "err_time": "Pilih jam mulai paling cepat 2 jam dari sekarang.",
+    "err_under3": "Maksimal 2 anak di bawah 3 tahun untuk satu pengasuh.",
+    "err_phone": "Isi nomor darurat yang aktif.",
+    "err_agree": "Centang persetujuan syarat WiraAsuh dulu."
   }
 }

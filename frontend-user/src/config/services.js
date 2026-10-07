@@ -5,7 +5,7 @@
 
 import {
   Car, UtensilsCrossed, Package, Wallet, Smartphone,
-  Home, Wrench, Waves
+  Home, Wrench, Waves, Baby
 } from 'lucide-react';
 
 // Daftar semua layanan yang tersedia
@@ -105,6 +105,18 @@ const SERVICES = [
     icon: Waves,
     path: '/pool',
     color: '#3B82F6',       // Blue
+    enabled: true,
+  },
+  {
+    id: 'wira_asuh',
+    key: 'wira_asuh',
+    name_id: 'WiraAsuh',
+    name_en: 'WiraAsuh',
+    description_id: 'Pengasuh anak ke rumah atau villa',
+    description_en: 'Babysitter at your home or villa',
+    icon: Baby,
+    path: '/asuh',
+    color: '#C4912F',       // Emas
     enabled: true,
   },
 ];

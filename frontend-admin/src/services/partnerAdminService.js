@@ -21,4 +21,4 @@ export async function setMerchantActive(merchantId, active, note) {
   return data;
 }
 
-export const KIND_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
+export const KIND_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi', nanny: 'Pengasuh' };

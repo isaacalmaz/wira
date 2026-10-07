@@ -28,6 +28,7 @@ const INITIAL_FEATURES = [
   { id: 'wira_villa', name: 'WiraVilla (Sewa Villa & Penginapan)', status: true, regions: ['Senggigi', 'Lombok Tengah'] },
   { id: 'wira_service', name: 'WiraService (Jasa Servis & Tukang)', status: true, regions: ['Kota Mataram'] },
   { id: 'wira_pool', name: 'WiraPool (Perawatan Kolam Renang)', status: false, regions: [] },
+  { id: 'wira_asuh', name: 'WiraAsuh (Pengasuh Anak)', status: true, regions: [] },
 ];
 
 const MapModal = ({ zone, onClose, onSaveMap }) => {
@@ -139,7 +140,9 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
         // Names come from INITIAL_FEATURES for known keys (the stored copy
         // once called WiraPool a ride-sharing service); saved back on the
         // next toggle.
-        setFeatures(configRes.data.features.map((f) => ({ ...f, name: INITIAL_FEATURES.find((x) => x.id === f.id)?.name || f.name })));
+        const saved = configRes.data.features.map((f) => ({ ...f, name: INITIAL_FEATURES.find((x) => x.id === f.id)?.name || f.name }));
+        // Services added after the config was first saved (e.g. WiraAsuh) still get a switch.
+        setFeatures([...saved, ...INITIAL_FEATURES.filter((x) => !saved.some((f) => f.id === x.id))]);
       }
       
       if (zonesRes.data) {

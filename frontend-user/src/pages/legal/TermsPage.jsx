@@ -4,7 +4,7 @@ import { Card, PageHeader } from '../../components/ui';
 export default function TermsPage() {
   const { t } = useTranslation();
 
-  const sections = ['s1', 's2', 's3', 's4', 's5'];
+  const sections = ['s1', 's2', 's3', 's4', 's5', 's6'];
 
   return (
     <div className="flex flex-col gap-6 pb-6">

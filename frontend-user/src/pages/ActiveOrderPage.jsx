@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
@@ -28,7 +28,7 @@ const statusTone = (status) => {
   return 'brand';
 };
 
-const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves };
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, babysit: Baby };
 
 // Pickup/destination names for the route summary, read from the order's
 // details text (ride = JSON, send = the SendPage template). Returns null
@@ -246,7 +246,9 @@ export default function ActiveOrderPage() {
     if (!order) return;
     setIsCancelling(true);
     try {
-      const { error } = order.status === OrderStatus.AWAITING_PAYMENT
+      const { error } = order.service_type === 'babysit'
+        ? await supabase.rpc('babysit_cancel', { p_order_id: id })
+        : order.status === OrderStatus.AWAITING_PAYMENT
         ? await supabase.rpc('cancel_awaiting_qris_order', { p_order_id: id })
         : await supabase.rpc('wallet_refund_matched_ride', {
           p_order_id: id,
@@ -271,7 +273,9 @@ export default function ActiveOrderPage() {
   const NO_SHOW_MS = 20 * 60 * 1000;
   const VISIT_LOCK_MS = 2 * 60 * 60 * 1000;
   const VISIT_LATE_MS = 60 * 60 * 1000;
-  const isVisit = ['service', 'pool'].includes(order?.service_type);
+  // WiraAsuh (migrations/0107) is scheduled and PIN-started like a visit.
+  const isBabysit = order?.service_type === 'babysit';
+  const isVisit = ['service', 'pool', 'babysit'].includes(order?.service_type);
   const scheduledMs = order?.scheduled_at ? new Date(order.scheduled_at).getTime() : null;
   const sinceAccept = order?.accepted_at ? nowTick - new Date(order.accepted_at).getTime() : null;
   const visitLate = scheduledMs != null && nowTick > scheduledMs + VISIT_LATE_MS;
@@ -279,7 +283,7 @@ export default function ActiveOrderPage() {
     if (!order) return false;
     if (order.status === 'pending') return true;
     if (isVisit && ['accepted', 'on_the_way'].includes(order.status)) {
-      if (sinceAccept != null && sinceAccept <= FREE_WINDOW_MS) return true;
+      if (!isBabysit && sinceAccept != null && sinceAccept <= FREE_WINDOW_MS) return true;
       return scheduledMs == null || nowTick < scheduledMs - VISIT_LOCK_MS || visitLate;
     }
     if (!isVisit && ['accepted', 'picking_up'].includes(order.status)) {
@@ -317,7 +321,7 @@ export default function ActiveOrderPage() {
   const cancelDescription = order.status === 'pending'
     ? t('order.cancel_desc_pending')
     : isVisit
-      ? (visitLate ? t('order.cancel_desc_visit_late') : t('order.cancel_desc_visit'))
+      ? (visitLate ? t(isBabysit ? 'order.cancel_desc_babysit_late' : 'order.cancel_desc_visit_late') : t('order.cancel_desc_visit'))
       : sinceAccept != null && sinceAccept >= NO_SHOW_MS
         ? t('order.cancel_desc_late')
         : t('order.cancel_desc_accepted');
@@ -377,9 +381,11 @@ export default function ActiveOrderPage() {
             <Spinner size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-[14px] font-semibold text-ink">{isVisit ? t('order.searching_technician') : t('order.searching_driver')}</p>
+            <p className="text-[14px] font-semibold text-ink">{isBabysit ? t('order.babysit_waiting') : isVisit ? t('order.searching_technician') : t('order.searching_driver')}</p>
             <p className="text-[13px] leading-relaxed text-ink-muted">
-              {isVisit
+              {isBabysit
+                ? t('order.babysit_waiting_desc')
+                : isVisit
                 ? t('order.visit_waiting')
                 : totalCandidates > 0
                   ? t('order.dispatch_progress', { pinged: pingedCount, total: totalCandidates })
@@ -400,7 +406,7 @@ export default function ActiveOrderPage() {
           <Card className="flex flex-col items-center gap-3 text-center">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
               <ShieldCheck size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
-              {isVisit ? t('order.pin_label_visit') : t('order.pin_label')}
+              {isBabysit ? t('order.pin_label_babysit') : isVisit ? t('order.pin_label_visit') : t('order.pin_label')}
             </p>
             {securityPin ? (
               <div className="flex justify-center gap-2" aria-label={String(securityPin).split('').join(' ')}>
@@ -480,7 +486,7 @@ export default function ActiveOrderPage() {
         />
       )}
 
-      {isVisit && <VisitExtras order={order} />}
+      {isVisit && !isBabysit && <VisitExtras order={order} />}
 
       {/* Order + route summary */}
       <Card className="flex flex-col gap-4">

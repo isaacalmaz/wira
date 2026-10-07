@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone, Mail, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage } from 'lucide-react';
+import { Phone, Mail, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,7 @@ import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHead
 import ReasonSheet from '../components/common/ReasonSheet';
 import { setUserBlocked, setPartnerAccess, setMerchantActive, KIND_LABEL } from '../services/partnerAdminService';
 
-const KIND_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench };
+const KIND_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench, nanny: Baby };
 const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool' };
 const AUDIT_LABEL = {
   application_approved: 'Pendaftaran disetujui', application_rejected: 'Pendaftaran ditolak',

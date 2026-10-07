@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2 } from 'lucide-react';
+import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2, Baby, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
@@ -39,8 +39,35 @@ const statusTone = (status) => {
   if (status === 'cancelled') return 'danger';
   return 'brand';
 };
-const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, villa: Building2 };
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', service: 'WiraService', pool: 'WiraPool', villa: 'WiraVilla' };
+// Children, notes and emergency number of a WiraAsuh session.
+const BabysitDetails = ({ order }) => {
+  const m = order.metadata || {};
+  const kids = Array.isArray(m.children) ? m.children : [];
+  return (
+    <Card className="flex flex-col gap-3 text-[13.5px] text-ink">
+      <h2 className="text-[15px] font-bold tracking-tight">Detail Sesi</h2>
+      <p className="text-ink-muted">{m.hours ? `${m.hours} jam` : ''}{order.scheduled_at && m.hours ? ` · selesai ${new Date(new Date(order.scheduled_at).getTime() + m.hours * 3600000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} WITA` : ''}</p>
+      <ul className="flex flex-col gap-1.5">
+        {kids.map((k, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <Baby size={15} className="shrink-0 text-ink-muted" aria-hidden="true" />
+            <span className="font-semibold">{k.name || `Anak ${i + 1}`}</span>
+            <span className="text-ink-muted">· {Number(k.age_years) === 0 ? '< 1 tahun' : `${k.age_years} tahun`}</span>
+          </li>
+        ))}
+      </ul>
+      {m.notes && <p className="whitespace-pre-line break-words rounded-control bg-sunken px-3 py-2.5 leading-relaxed">{m.notes}</p>}
+      {m.emergency_phone && (
+        <a href={`tel:${String(m.emergency_phone).replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-line-strong px-4 font-semibold transition-colors hover:bg-sunken">
+          <Phone size={16} aria-hidden="true" /> Nomor darurat: <span className="font-mono">{m.emergency_phone}</span>
+        </a>
+      )}
+    </Card>
+  );
+};
+
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, villa: Building2, babysit: Baby };
+const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', service: 'WiraService', pool: 'WiraPool', villa: 'WiraVilla', babysit: 'WiraAsuh' };
 
 export default function ActiveOrderPage() {
   const { id } = useParams();
@@ -68,6 +95,8 @@ export default function ActiveOrderPage() {
   // Technician visits (service/pool): accepted -> on_the_way -> working
   // (customer PIN, migrations/0089) -> completed. No GPS tracking.
   const isVisit = ['service', 'pool'].includes(order?.service_type);
+  // WiraAsuh (migrations/0107): every step goes through its own functions.
+  const isBabysit = order?.service_type === 'babysit';
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
@@ -196,6 +225,13 @@ export default function ActiveOrderPage() {
     const s = order.status;
     const type = order.service_type;
 
+    if (type === 'babysit') {
+      if (!isDriver) return null;
+      if (s === 'accepted') return { label: 'Berangkat ke Lokasi', next: 'on_the_way' };
+      if (s === 'on_the_way') return { label: 'Mulai Sesi (PIN Orang Tua)', next: 'working' };
+      if (s === 'working') return { label: 'Selesaikan Sesi', next: 'completed' };
+      return null;
+    }
     if (type === 'service' || type === 'pool') {
       if (!isDriver) return null;
       if (s === 'accepted') return { label: 'Berangkat ke Lokasi', next: 'on_the_way' };
@@ -270,6 +306,14 @@ export default function ActiveOrderPage() {
        }
     }
 
+    if (isBabysit) {
+      const { error } = await supabase.rpc('babysit_set_status', { p_order_id: order.id, p_status: info.next });
+      if (error) { toast.error(error.message); return; }
+      toast.success(`Status: ${getDisplayStatus(info.next)}`);
+      fetchOrder();
+      return;
+    }
+
     try {
       const isMerchantAdvancing = !isDriver && order.merchant?.owner_id === user.id;
       const mode = isMerchantAdvancing ? 'merchant' : 'driver';
@@ -300,7 +344,7 @@ export default function ActiveOrderPage() {
           setPinError(data.error || 'PIN Salah!');
           toast.error(data.error || 'PIN Salah!');
        } else {
-          toast.success(isVisit ? 'PIN benar. Selamat bekerja!' : 'PIN benar. Perjalanan dimulai.');
+          toast.success(isBabysit ? 'PIN benar. Sesi dimulai.' : isVisit ? 'PIN benar. Selamat bekerja!' : 'PIN benar. Perjalanan dimulai.');
           setOrder(prev => ({...prev, status: data.status || 'in_trip'}));
           setShowPinModal(false);
           setPinInput('');
@@ -366,7 +410,7 @@ export default function ActiveOrderPage() {
         <Money value={order.total_price} className="shrink-0 pt-0.5 text-[15px] font-medium text-ink" />
       </Card>
 
-      {isVisit && (() => {
+      {(isVisit || isBabysit) && (() => {
         const v = visitInfo(order);
         return (
           <Card className="flex flex-col gap-2.5 text-[13.5px] text-ink">
@@ -447,6 +491,19 @@ export default function ActiveOrderPage() {
       {hasAccess && nextStageInfo && (
         <Button size="lg" block onClick={advanceStage}>
           {nextStageInfo.label}
+        </Button>
+      )}
+
+      {isBabysit && <BabysitDetails order={order} />}
+
+      {isBabysit && isDriver && ['accepted', 'on_the_way'].includes(order.status) && (
+        <Button variant="secondary" block leftIcon={<XCircle size={17} />} onClick={async () => {
+          const reason = window.prompt('Alasan membatalkan sesi ini (dikirim ke orang tua):');
+          if (reason === null) return;
+          const { error } = await supabase.rpc('babysit_cancel', { p_order_id: order.id, p_reason: reason });
+          if (error) toast.error(error.message); else { toast.success('Sesi dibatalkan'); fetchOrder(); }
+        }}>
+          Batalkan Sesi
         </Button>
       )}
 
@@ -546,7 +603,7 @@ export default function ActiveOrderPage() {
         size="sm"
         icon={<Lock size={22} />}
         title="Masukkan PIN Pesanan"
-        description={isVisit ? 'Minta 4 digit PIN dari pelanggan saat Anda tiba, untuk mulai bekerja.' : 'Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.'}
+        description={isBabysit ? 'Minta 4 digit PIN dari orang tua saat Anda tiba, untuk memulai sesi.' : isVisit ? 'Minta 4 digit PIN dari pelanggan saat Anda tiba, untuk mulai bekerja.' : 'Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.'}
         footer={(
           <>
             <Button variant="secondary" size="lg" onClick={closePinModal} disabled={isVerifying}>

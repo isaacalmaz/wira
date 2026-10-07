@@ -551,7 +551,8 @@
       "villa": "WiraVilla",
       "service": "WiraService",
       "pool": "WiraPool",
-      "pulsa": "WiraPulsa"
+      "pulsa": "WiraPulsa",
+      "babysit": "WiraAsuh"
     },
     "qris_pay_title": "Pay with QRIS",
     "qris_loading_amount": "Preparing the amount...",
@@ -582,7 +583,11 @@
     "cancel_desc_visit": "Cancelling is free, and a WiraPay payment goes back to your balance.",
     "cancel_desc_visit_late": "The technician is more than an hour late, so cancelling is free.",
     "review_prompt_title": "Order finished. How did it go?",
-    "review_prompt_desc": "Your review helps other customers choose a partner and helps Wira keep quality high."
+    "review_prompt_desc": "Your review helps other customers choose a partner and helps Wira keep quality high.",
+    "babysit_waiting": "Waiting for the babysitter's approval",
+    "babysit_waiting_desc": "We're checking the babysitter's schedule and will notify you.",
+    "pin_label_babysit": "Give this PIN to the babysitter when they arrive to start the session:",
+    "cancel_desc_babysit_late": "The babysitter is more than an hour late, so cancelling is free."
   },
   "review": {
     "title": "Leave a Review",
@@ -739,7 +744,9 @@
     "s4_title": "4. Payments (WiraPay)",
     "s4_body": "You can pay in cash or with your WiraPay balance. WiraPay top-ups are made via QRIS or a third-party payment provider connected to Wira. All transactions are in Indonesian Rupiah (IDR).",
     "s5_title": "5. Limitation of Liability",
-    "s5_body": "Wira is not liable for direct or indirect losses arising from your use of, or inability to use, our services, including but not limited to delivery delays or the conduct of a partner."
+    "s5_body": "Wira is not liable for direct or indirect losses arising from your use of, or inability to use, our services, including but not limited to delivery delays or the conduct of a partner.",
+    "s6_title": "6. WiraAsuh (Babysitting)",
+    "s6_body": "WiraAsuh babysitters help look after children at the location you choose; parents or guardians remain fully responsible for their children. You must give accurate health, allergy and emergency-contact information and stay reachable during the session. The babysitter gives no medicine without written instructions, does not take children off the premises without permission in the app, and may end a session if the child's or the babysitter's safety is at risk. Payment is in cash after the session; cancellation is free up to 2 hours before the start."
   },
   "refund": {
     "title": "Refund Policy",
@@ -1011,5 +1018,48 @@
     "copied": "Code {{code}} copied",
     "copy_manual": "Promo code: {{code}}",
     "copy_aria": "Copy code {{code}}"
+  },
+  "asuh": {
+    "subtitle": "A trusted babysitter at your home or villa",
+    "intro_title": "Wira's own babysitter",
+    "intro_body": "Our babysitter is personally known to the Wira team. We review and approve every request, then let you know by notification.",
+    "per_hour": "per hour",
+    "closed": "WiraAsuh isn't taking bookings right now.",
+    "when": "When",
+    "date": "Date",
+    "start": "Start time",
+    "duration": "Duration",
+    "until": "Ends around {{time}}",
+    "less": "Fewer hours",
+    "more": "More hours",
+    "hours": "{{n}} h",
+    "clash": "The babysitter is already booked {{slots}}. You can still send a request, but you'll likely need another time.",
+    "children": "Children",
+    "child_name": "Nickname",
+    "child_name_ph": "Child {{n}}",
+    "child_age": "Age",
+    "under1": "< 1 year",
+    "years": "{{n}} yrs",
+    "remove_child": "Remove child",
+    "add_child": "Add a child",
+    "where": "Where",
+    "address": "Address or villa name",
+    "address_ph": "Search an address or villa",
+    "phone": "Emergency number",
+    "phone_hint": "A number the babysitter can reach during the session.",
+    "notes": "Notes for the babysitter",
+    "notes_hint": "Allergies, medicine, sleep and meal times, house rules.",
+    "notes_ph": "E.g. peanut allergy, naps at 1 pm, 120 ml formula",
+    "summary": "{{hours}} h · {{kids}} children",
+    "pay_note": "Pay the babysitter in cash after the session. Free cancellation up to 2 hours before the start.",
+    "agree": "I agree to the WiraAsuh terms, including staying responsible for my children and giving accurate health information.",
+    "terms_link": "Read the terms",
+    "submit": "Send request",
+    "sent": "Request sent. We'll let you know once it's approved.",
+    "failed": "The request wasn't sent. Try again.",
+    "err_time": "Pick a start time at least 2 hours from now.",
+    "err_under3": "At most 2 children under 3 per babysitter.",
+    "err_phone": "Enter a working emergency number.",
+    "err_agree": "Tick the WiraAsuh terms first."
   }
 }

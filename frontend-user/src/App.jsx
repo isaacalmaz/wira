@@ -32,6 +32,7 @@ const PulsaPage = lazy(() => import('./pages/PulsaPage'));
 const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
+const AsuhPage = lazy(() => import('./pages/AsuhPage'));
 const TechnicianDirectoryPage = lazy(() => import('./pages/technicians/TechnicianDirectoryPage'));
 const TechnicianProfilePage = lazy(() => import('./pages/technicians/TechnicianProfilePage'));
 const MyProjectsPage = lazy(() => import('./pages/projects/MyProjectsPage'));
@@ -88,6 +89,7 @@ export default function Root() {
                             <Route path="/villa" element={<VillaPage />} />
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />
+                            <Route path="/asuh" element={<AsuhPage />} />
                             <Route path="/technicians" element={<TechnicianDirectoryPage />} />
                             <Route path="/technicians/:id" element={<TechnicianProfilePage />} />
                             <Route path="/projects" element={<MyProjectsPage />} />

@@ -21,6 +21,7 @@ const RULE_GROUPS = [
   { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga tiap tingkat paket kiriman.', showPerKmRate: false },
   { key: 'service', title: 'WiraService - Tarif Layanan', description: 'Harga dasar tiap kategori jasa servis.', showPerKmRate: false },
   { key: 'pool', title: 'WiraPool - Tarif Layanan', description: 'Harga dasar tiap layanan kolam renang.', showPerKmRate: false },
+  { key: 'babysit', title: 'WiraAsuh - Tarif Pengasuh', description: 'HOURLY = tarif per jam (1 anak); EXTRA_CHILD = tambahan per anak berikutnya per jam.', showPerKmRate: false },
   { key: 'food_delivery', title: 'WiraFood - Ongkos Kirim', description: 'Formula ongkos kirim: harga dasar + (tarif/km x jarak).', showPerKmRate: true },
 ];
 

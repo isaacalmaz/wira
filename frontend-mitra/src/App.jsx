@@ -38,6 +38,10 @@ const TechProfilePage = lazy(() => import('./pages/technician/TechProfilePage'))
 const TechProjectPage = lazy(() => import('./pages/technician/TechProjectPage'));
 const JoinPage = lazy(() => import('./pages/JoinPage'));
 
+const NannyHomePage = lazy(() => import('./pages/nanny/NannyHomePage'));
+const NannyOrdersPage = lazy(() => import('./pages/nanny/NannyOrdersPage'));
+const NannyEarningsPage = lazy(() => import('./pages/nanny/NannyEarningsPage'));
+const NannyProfilePage = lazy(() => import('./pages/nanny/NannyProfilePage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const ActiveOrderPage = lazy(() => import('./pages/shared/ActiveOrderPage'));
 const SupportPage = lazy(() => import('./pages/shared/SupportPage'));
@@ -161,6 +165,21 @@ function App() {
                 <Route path="earnings" element={<TechEarningsPage />} />
                 <Route path="projects/:id" element={<TechProjectPage />} />
                 <Route path="profile" element={<TechProfilePage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="active-order/:id" element={<ActiveOrderPage />} />
+                <Route path="support" element={<SupportPage />} />
+              </Routes>
+            </ProtectedRoute>
+          } />
+
+          {/* WiraAsuh nanny (migrations/0107); access granted by an admin */}
+          <Route path="/nanny/*" element={
+            <ProtectedRoute allowedRole="nanny">
+              <Routes>
+                <Route path="/" element={<NannyHomePage />} />
+                <Route path="orders" element={<NannyOrdersPage />} />
+                <Route path="earnings" element={<NannyEarningsPage />} />
+                <Route path="profile" element={<NannyProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="active-order/:id" element={<ActiveOrderPage />} />
                 <Route path="support" element={<SupportPage />} />
