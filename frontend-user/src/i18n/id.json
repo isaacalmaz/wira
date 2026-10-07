@@ -1001,5 +1001,15 @@
     "page_login": "Masuk untuk menghapus akun",
     "page_signed_in": "Anda masuk sebagai",
     "page_what_title": "Data yang dihapus dan disimpan"
+  },
+  "home_promo": {
+    "title": "Promo untuk Anda",
+    "off": "hemat",
+    "use_now": "Pakai sekarang",
+    "all_services": "Semua layanan",
+    "until": "s/d {{date}}",
+    "copied": "Kode {{code}} disalin",
+    "copy_manual": "Kode promo: {{code}}",
+    "copy_aria": "Salin kode {{code}}"
   }
 }

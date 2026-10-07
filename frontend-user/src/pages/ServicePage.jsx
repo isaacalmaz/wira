@@ -29,6 +29,7 @@ import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
 import { avatarSrc } from '../utils/avatar';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -271,6 +272,8 @@ export default function ServicePage() {
       setCheckingPromo(false);
     }
   };
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+  usePendingPromo('service', promoCode, setPromoCode, handleCheckPromo);
 
   const handleRemovePromo = () => {
     setActivePromo(null);

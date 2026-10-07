@@ -27,6 +27,7 @@ import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -258,6 +259,8 @@ export default function PoolPage() {
       setCheckingPromo(false);
     }
   };
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+  usePendingPromo('pool', promoCode, setPromoCode, handleCheckPromo);
 
   const handleRemovePromo = () => {
     setActivePromo(null);

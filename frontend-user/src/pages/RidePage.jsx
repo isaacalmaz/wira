@@ -25,6 +25,7 @@ import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 export default function RidePage() {
   const navigate = useNavigate();
@@ -207,6 +208,8 @@ export default function RidePage() {
       setCheckingPromo(false);
     }
   };
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+  usePendingPromo('ride', promoCode, setPromoCode, handleCheckPromo);
   
   const calculateFinalPrice = () => {
     const basePrice = selectedVehicle?.price || 15000;

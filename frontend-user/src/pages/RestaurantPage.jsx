@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWallet } from '../context/WalletContext';
@@ -42,6 +42,7 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 // Placeholder used to drop a <Money> into a translated sentence, so an
 // amount inside "Pesan Sekarang • {{price}}" still renders in mono.
@@ -175,6 +176,11 @@ export default function RestaurantPage() {
     }
   }, [merchantCoords, deliveryCoords]);
 
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo); the
+  // check itself is defined below the loading returns, hence the ref.
+  const applyPromoRef = useRef(null);
+  usePendingPromo('food', promoCode, setPromoCode, () => applyPromoRef.current?.(), !!rest);
+
   if (fetchError) {
     return (
       <div className="mx-auto max-w-md py-10">
@@ -282,6 +288,7 @@ export default function RestaurantPage() {
       setCheckingPromo(false);
     }
   };
+  applyPromoRef.current = handleCheckPromo;
 
   const handleRemovePromo = () => {
     setActivePromo(null);

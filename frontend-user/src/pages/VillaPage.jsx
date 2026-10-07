@@ -23,6 +23,7 @@ import { supabase } from '../config/supabase';
 import API_BASE_URL from '../config/api';
 import StayCalendar, { nightsBetween } from '../components/villa/StayCalendar';
 import { useTranslation } from '../i18n';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -238,6 +239,8 @@ export default function VillaPage() {
       setCheckingPromo(false);
     }
   };
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+  usePendingPromo('villa', promoCode, setPromoCode, handleCheckPromo);
 
   const handleRemovePromo = () => {
     setActivePromo(null);

@@ -1001,5 +1001,15 @@
     "page_login": "Sign in to delete your account",
     "page_signed_in": "Signed in as",
     "page_what_title": "What is deleted and what is kept"
+  },
+  "home_promo": {
+    "title": "Promos for you",
+    "off": "off",
+    "use_now": "Use now",
+    "all_services": "All services",
+    "until": "until {{date}}",
+    "copied": "Code {{code}} copied",
+    "copy_manual": "Promo code: {{code}}",
+    "copy_aria": "Copy code {{code}}"
   }
 }

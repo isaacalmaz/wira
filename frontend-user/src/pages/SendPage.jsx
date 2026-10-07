@@ -12,6 +12,7 @@ import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
+import { usePendingPromo } from '../utils/pendingPromo';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -81,6 +82,8 @@ export default function SendPage() {
       setCheckingPromo(false);
     }
   };
+  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+  usePendingPromo('send', promoCode, setPromoCode, handleCheckPromo);
 
   const handleRemovePromo = () => {
     setActivePromo(null);

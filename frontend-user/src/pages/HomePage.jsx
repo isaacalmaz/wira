@@ -217,7 +217,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PromoCarousel />
+      <PromoCarousel services={availableServices} />
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
