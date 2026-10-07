@@ -4,6 +4,7 @@ import { TrendingUp, CheckCircle, XCircle, Clock, Landmark, List, Percent } from
 import toast from 'react-hot-toast';
 import PaymentModeCard from '../components/common/PaymentModeCard';
 import CommissionDepositsSection from '../components/common/CommissionDepositsSection';
+import CommissionDebtsSection from '../components/common/CommissionDebtsSection';
 import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Sheet, Spinner, Stat, Table } from '../components/ui';
 
 // Platform commission on every completed order - 20%, matching
@@ -247,6 +248,8 @@ const FinancePage = () => {
 
       {activeTab === 'requests' && (
         <div className="flex flex-col gap-6">
+          <CommissionDebtsSection />
+
           <CommissionDepositsSection />
 
           <section>
