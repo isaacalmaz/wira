@@ -24,7 +24,7 @@ const EarningsCard = ({ today, week, cashDeduction = 0 }) => {
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/70">Pendapatan Hari Ini</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/70">Saldo Wira Hari Ini</p>
             <Signed value={today} className="text-[26px] font-medium leading-none tracking-tight sm:text-[30px]" />
           </div>
           <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-white/15 bg-white/10">
@@ -47,7 +47,7 @@ const EarningsCard = ({ today, week, cashDeduction = 0 }) => {
               </span>
               <Signed value={-cashDeduction} className="shrink-0 font-medium text-emas-200" />
             </div>
-            <p className="text-xs leading-relaxed text-white/70">Order Tunai: uang dari pelanggan sudah Anda terima langsung, jadi komisi Wira (dan bagian resto untuk WiraFood yang Anda antar) dipotong dari saldo. Sudah termasuk dalam angka di atas.</p>
+            <p className="text-xs leading-relaxed text-white/70">Pesanan tunai: uangnya sudah Anda terima langsung dari pelanggan, jadi di sini hanya tercatat komisi Wira yang perlu disetor. Angka minus berarti komisi yang belum disetor; setor lewat tombol Setor Komisi di bawah.</p>
           </div>
         )}
       </div>

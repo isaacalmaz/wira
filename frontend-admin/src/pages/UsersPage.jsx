@@ -217,7 +217,7 @@ const UsersPage = () => {
                   <Badge tone={isActive ? 'success' : 'danger'} dot>{u.status || 'Aktif'}</Badge>
                 </td>
                 <td>
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap justify-end gap-1.5 md:justify-start">
                     {MITRA_ROLES.map(({ key, label, icon: Icon }) => {
                       const active = access.includes(key);
                       return (

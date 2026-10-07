@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { Star, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Button, Card, Textarea, cx } from '../ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 /**
  * After a finished job the partner rates the customer (migrations/0091).
@@ -32,7 +33,7 @@ export default function CustomerRatingCard({ order }) {
       toast.success('Terima kasih, penilaian tersimpan');
       setDone(true);
     } catch (err) {
-      toast.error(err.message || 'Gagal menyimpan penilaian');
+      toast.error(friendlyError(err) || 'Gagal menyimpan penilaian');
     } finally {
       setSaving(false);
     }

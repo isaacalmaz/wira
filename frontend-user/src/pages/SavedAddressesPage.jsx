@@ -9,6 +9,7 @@ import { MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide
 import { Button, Card, EmptyState, Field, IconTile, Input, PageHeader, Sheet, Spinner } from '../components/ui';
 import { APP_CONFIG } from '../config/app';
 import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 const DEFAULT_COORDS = { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng };
 
@@ -160,7 +161,7 @@ export default function SavedAddressesPage() {
       fetchAddresses();
     } catch (err) {
       console.error('Error deleting:', err);
-      toast.error(err.message === t('addresses.delete_denied') ? err.message : t('addresses.delete_failed'));
+      toast.error(friendlyError(err) === t('addresses.delete_denied') ? friendlyError(err) : t('addresses.delete_failed'));
     }
   };
 

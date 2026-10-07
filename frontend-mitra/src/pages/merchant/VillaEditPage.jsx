@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { AMENITY_PRESETS, MAX_PHOTOS, listingState } from './villaShared';
+import { friendlyError } from '../../utils/friendlyError';
 
 const EMPTY = { name: '', address: '', price: '', bedrooms: '', guests: '', description: '' };
 
@@ -67,7 +68,7 @@ export default function VillaEditPage() {
       }
       setPhotos((p) => [...p, ...urls].slice(0, MAX_PHOTOS));
     } catch (err) {
-      toast.error('Gagal mengunggah foto: ' + err.message);
+      toast.error('Gagal mengunggah foto: ' + friendlyError(err));
     } finally {
       setUploading(false);
     }
@@ -133,7 +134,7 @@ export default function VillaEditPage() {
       }
       navigate('/villa/listing');
     } catch (err) {
-      toast.error('Gagal menyimpan: ' + err.message);
+      toast.error('Gagal menyimpan: ' + friendlyError(err));
     } finally {
       setSaving(false);
     }

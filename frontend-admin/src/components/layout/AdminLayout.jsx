@@ -299,7 +299,7 @@ const AdminLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="mx-auto w-full min-w-0 max-w-7xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-8 lg:pb-16 lg:pt-6">
+        <main className="mx-auto w-full min-w-0 max-w-7xl overflow-x-clip px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-8 lg:pb-16 lg:pt-6">
           <Outlet />
         </main>
 

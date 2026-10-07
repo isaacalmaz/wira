@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Star, Clock, UtensilsCrossed } from 'lucide-react';
 import { Badge, Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
+import SafeImg from '../components/ui/SafeImg';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
 
@@ -89,7 +90,7 @@ export default function FoodPage() {
               padding="none"
               className="flex gap-3.5 p-3.5"
             >
-              <img
+              <SafeImg icon={UtensilsCrossed}
                 src={rest.image}
                 alt={rest.name}
                 className="h-20 w-20 shrink-0 rounded-control bg-sunken object-cover"
@@ -103,11 +104,13 @@ export default function FoodPage() {
                   {[rest.category, rest.address].filter(Boolean).join(' · ')}
                 </p>
                 <div className="mt-auto flex items-center gap-3 text-[12px] font-semibold text-ink">
-                  {rest.rating != null && (
+                  {Number(rest.rating) > 0 ? (
                     <span className="inline-flex items-center gap-1">
-                      <Star size={13} className="fill-current" aria-hidden="true" />
-                      <span className="font-mono">{rest.rating}</span>
+                      <Star size={13} className="fill-pay text-pay" aria-hidden="true" />
+                      <span className="font-mono">{Number(rest.rating).toFixed(1)}</span>
                     </span>
+                  ) : (
+                    <Badge tone="brand">{t('restaurant.new_badge')}</Badge>
                   )}
                   {rest.delivery_time && (
                     <span className="inline-flex items-center gap-1 text-ink-muted">

@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { User, Camera } from 'lucide-react';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
 import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function EditProfilePage() {
   const { user } = useAuth();
@@ -96,7 +97,7 @@ export default function EditProfilePage() {
       navigate('/profile');
     } catch (err) {
       console.error('Error updating profile:', err);
-      toast.error(err.message === t('edit_profile.denied') ? err.message : t('edit_profile.failed'));
+      toast.error(friendlyError(err) === t('edit_profile.denied') ? friendlyError(err) : t('edit_profile.failed'));
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
 import { Button, Field, Input, Sheet } from '../ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 /**
  * Permanent account deletion (delete_my_account, migrations/0106). The
@@ -23,7 +24,7 @@ export default function DeleteAccountSheet({ open, onClose }) {
     const { error } = await supabase.rpc('delete_my_account', { p_confirm: confirm });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(friendlyError(error));
       return;
     }
     toast.success(t('delete_account.done'));

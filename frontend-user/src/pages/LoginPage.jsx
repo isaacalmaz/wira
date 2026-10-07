@@ -74,7 +74,7 @@ export default function LoginPage() {
               />
             </Field>
             <div className="text-right mt-[-8px] mb-2">
-              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline">Lupa Password?</Link>
+              <Link to="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-ink hover:underline">Lupa kata sandi?</Link>
             </div>
             <Button type="submit" block size="lg" className="mt-2" isLoading={loading}>
               {loading ? t('common.processing') : t('auth.login_submit')}

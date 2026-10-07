@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { submitMitraApplication } from '../services/mitraApplicationService';
 import { useAuth } from '../context/AuthContext';
 import useSkills from '../hooks/useSkills';
+import { friendlyError } from '../utils/friendlyError';
 
 // Kompres gambar otomatis agar ringan di cloud Supabase
 const compressImage = (file) => {
@@ -262,7 +263,7 @@ const RegisterPage = () => {
           setStep(2);
           toast.error('Email ini sudah punya akun Wira. Masuk dengan akun tersebut untuk lanjut mendaftar mitra.');
         } else {
-          toast.error(`Gagal mendaftar: ${err.message}`);
+          toast.error(`Gagal mendaftar: ${friendlyError(err)}`);
         }
         setLoading(false);
         return;
@@ -294,7 +295,7 @@ const RegisterPage = () => {
         navigate('/pending-verification');
       } catch (err) {
         console.error('Submit application error:', err);
-        toast.error(`Akun dibuat, tetapi pendaftaran mitra gagal dikirim: ${err.message || 'Error tidak diketahui'}. Masuk (Login) lalu ajukan ulang.`);
+        toast.error(`Akun dibuat, tetapi pendaftaran mitra gagal dikirim: ${friendlyError(err) || 'Error tidak diketahui'}. Masuk (Login) lalu ajukan ulang.`);
       } finally {
         setLoading(false);
       }

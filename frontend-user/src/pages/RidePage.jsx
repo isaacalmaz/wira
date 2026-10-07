@@ -27,6 +27,7 @@ import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function RidePage() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function RidePage() {
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay'); // 'WiraPay' or 'Tunai'
+  const [paymentMethod, setPaymentMethod] = useState('Tunai'); // 'WiraPay' or 'Tunai'
 
   const [vehicles, setVehicles] = useState([]);
   
@@ -297,7 +298,7 @@ export default function RidePage() {
         toast.success(t('ride.searching_driver'));
       }
     } catch (err) {
-      toast.error(t('ride.book_failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('ride.book_failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     }
   };
 

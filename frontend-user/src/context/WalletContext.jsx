@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 const WalletContext = createContext();
 
@@ -66,7 +67,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.transfer_generic_failed'));
+        toast.error(friendlyError(error) ? t('wallet.transfer_failed', { message: friendlyError(error) }) : t('wallet.transfer_generic_failed'));
         throw error;
       }
       if (data !== true) {
@@ -92,7 +93,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.payment_failed'));
+        toast.error(friendlyError(error) ? t('wallet.transfer_failed', { message: friendlyError(error) }) : t('wallet.payment_failed'));
         throw error;
       }
       if (data !== true) {
@@ -123,7 +124,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message ? t('wallet.transfer_failed', { message: error.message }) : t('wallet.refund_failed'));
+        toast.error(friendlyError(error) ? t('wallet.transfer_failed', { message: friendlyError(error) }) : t('wallet.refund_failed'));
         throw error;
       }
 
@@ -155,7 +156,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       if (error) {
-        toast.error(error.message ? t('wallet.cancel_failed', { message: error.message }) : t('wallet.cancel_order_failed'));
+        toast.error(friendlyError(error) ? t('wallet.cancel_failed', { message: friendlyError(error) }) : t('wallet.cancel_order_failed'));
         throw error;
       }
 

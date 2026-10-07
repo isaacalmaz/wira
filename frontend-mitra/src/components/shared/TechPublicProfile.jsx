@@ -4,6 +4,7 @@ import { BadgeCheck, Image as ImageIcon, ImagePlus, MapPin, Languages, Pencil, T
 import { supabase } from '../../config/supabase';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { Badge, Button, Card, EmptyState, Field, Sheet, Textarea, cx } from '../ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 // Same lists as migrations/0092 (service_area_list, language_list).
 export const SERVICE_AREAS = ['Mataram', 'Lombok Barat', 'Senggigi', 'Lombok Utara', 'Gili', 'Lombok Tengah', 'Kuta Mandalika', 'Lombok Timur'];
@@ -76,7 +77,7 @@ export default function TechPublicProfile({ userId }) {
       setEditOpen(false);
       load();
     } catch (err) {
-      toast.error(err.message || 'Gagal menyimpan profil');
+      toast.error(friendlyError(err) || 'Gagal menyimpan profil');
     } finally {
       setSaving(false);
     }
@@ -97,7 +98,7 @@ export default function TechPublicProfile({ userId }) {
       toast.success('Foto portofolio ditambahkan');
       load();
     } catch (err) {
-      toast.error(err.message || 'Gagal mengunggah foto');
+      toast.error(friendlyError(err) || 'Gagal mengunggah foto');
     } finally {
       setUploading(false);
     }

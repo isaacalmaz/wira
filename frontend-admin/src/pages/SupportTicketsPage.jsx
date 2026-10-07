@@ -124,7 +124,7 @@ export default function SupportTicketsPage() {
       ) : tickets.length === 0 ? (
         <EmptyState icon={<LifeBuoy size={22} />} title="Tidak ada tiket ditemukan." />
       ) : (
-        <Table>
+        <Table titleCol={2}>
           <thead>
             <tr>
               <th>Waktu</th>

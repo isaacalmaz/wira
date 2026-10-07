@@ -20,6 +20,7 @@ import {
   Spinner,
   cx,
 } from '../components/ui';
+import SafeImg from '../components/ui/SafeImg';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
@@ -35,8 +36,7 @@ import {
   Store,
   LocateFixed,
   Wallet,
-  Banknote,
-} from 'lucide-react';
+  Banknote, UtensilsCrossed } from 'lucide-react';
 import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
@@ -44,6 +44,7 @@ import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 // Placeholder used to drop a <Money> into a translated sentence, so an
 // amount inside "Pesan Sekarang • {{price}}" still renders in mono.
@@ -106,7 +107,7 @@ export default function RestaurantPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('Jl. Pejanggik No. 8, Mataram');
   const [deliveryNote, setDeliveryNote] = useState('');
   const [deliveryCoords, setDeliveryCoords] = useState({ lat: -8.5833, lng: 116.1167 });
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay');
+  const [paymentMethod, setPaymentMethod] = useState('Tunai');
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [activePromo, setActivePromo] = useState(null);
@@ -362,7 +363,7 @@ export default function RestaurantPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next order
       toast.success(t('restaurant.order_placed'));
     } catch (err) {
-      toast.error(t('restaurant.order_failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('restaurant.order_failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     }
     setLoading(false);
   };
@@ -389,7 +390,7 @@ export default function RestaurantPage() {
       {step === 'menu' && (
         <>
           <Card padding="none" className="overflow-hidden">
-            <img
+            <SafeImg icon={UtensilsCrossed}
               src={rest.image}
               alt={rest.name}
               className="h-44 w-full bg-sunken object-cover sm:h-56"
@@ -425,7 +426,7 @@ export default function RestaurantPage() {
                     className={cx('flex gap-3.5 p-3.5', !isAvailable && 'opacity-60')}
                   >
                     {item.image && (
-                      <img
+                      <SafeImg icon={UtensilsCrossed}
                         src={item.image}
                         alt={item.name}
                         className="h-20 w-20 shrink-0 rounded-control bg-sunken object-cover"

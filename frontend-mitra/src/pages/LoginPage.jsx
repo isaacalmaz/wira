@@ -5,6 +5,7 @@ import { LogIn, Car, Store, Home, Wrench, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import WiraMark from '../components/brand/WiraMark';
 import { Button, Card, Field, Input, Segmented } from '../components/ui';
+import { friendlyError } from '../utils/friendlyError';
 
 // Single source of truth for the 4 mitra portals - label and icon, so
 // adding a role later only means adding one entry here instead of touching
@@ -56,7 +57,7 @@ export default function LoginPage() {
         navigate('/unauthorized');
       }
     } catch (error) {
-      toast.error(error.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.');
+      toast.error(friendlyError(error) || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.');
     } finally {
       setLoading(false);
     }
@@ -126,7 +127,7 @@ export default function LoginPage() {
             </Field>
 
             <div className="text-right mt-[-8px] mb-2">
-              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline">Lupa Password?</Link>
+              <Link to="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-ink hover:underline">Lupa kata sandi?</Link>
             </div>
             <Button
               type="submit"

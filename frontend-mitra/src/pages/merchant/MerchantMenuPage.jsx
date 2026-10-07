@@ -5,6 +5,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, Sheet, Field, Input, Select, Textarea, Badge, Money, PageHeader, EmptyState, Segmented, Spinner, cx } from '../../components/ui';
 import { uploadImageToBucket } from '../../utils/imageUpload';
+import { friendlyError } from '../../utils/friendlyError';
 
 const categories = [
   { id: 'all', name: 'Semua Menu' },
@@ -66,7 +67,7 @@ const MerchantMenuPage = () => {
       setImage(url);
       toast.success('Foto berhasil diunggah');
     } catch (err) {
-      toast.error('Gagal mengunggah foto: ' + err.message);
+      toast.error('Gagal mengunggah foto: ' + friendlyError(err));
     } finally {
       setIsUploadingImage(false);
       e.target.value = null;
@@ -123,7 +124,7 @@ const MerchantMenuPage = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Gagal memuat menu: ' + err.message);
+      toast.error('Gagal memuat menu: ' + friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -209,7 +210,7 @@ const MerchantMenuPage = () => {
       setIsModalOpen(false);
       fetchMenu();
     } catch (err) {
-      toast.error('Gagal menyimpan menu: ' + err.message);
+      toast.error('Gagal menyimpan menu: ' + friendlyError(err));
     }
   };
 
@@ -223,7 +224,7 @@ const MerchantMenuPage = () => {
         toast.success(`Menu "${itemName}" telah dihapus`);
         fetchMenu();
       } catch (err) {
-        toast.error('Gagal menghapus: ' + err.message);
+        toast.error('Gagal menghapus: ' + friendlyError(err));
       }
     }
   };

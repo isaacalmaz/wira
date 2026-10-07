@@ -10,6 +10,7 @@ import AddressMapPicker from '../../components/common/AddressMapPicker';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { witaToday, witaDatePlus } from '../../utils/visitSchedule';
 import { PROJECT_AREAS } from './projectShared';
+import { friendlyError } from '../../utils/friendlyError';
 
 const MAX_PHOTOS = 6;
 
@@ -76,7 +77,7 @@ export default function NewProjectPage() {
       toast.success(t('projects.created'));
       navigate(`/projects/${data}`, { replace: true });
     } catch (err) {
-      toast.error(err.message || t('projects.create_failed'));
+      toast.error(friendlyError(err) || t('projects.create_failed'));
     } finally {
       setSaving(false);
     }

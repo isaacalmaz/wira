@@ -318,7 +318,7 @@ const VehiclesPricingPage = () => {
           )}
         />
 
-        <Table>
+        <Table titleCol={1}>
           <thead>
             <tr>
               <th>Layanan</th>

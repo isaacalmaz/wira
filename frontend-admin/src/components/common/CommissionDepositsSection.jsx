@@ -110,7 +110,7 @@ export default function CommissionDepositsSection() {
       ) : rows.length === 0 ? (
         <EmptyState icon={<Coins size={24} />} title="Belum ada setoran komisi." />
       ) : (
-        <Table>
+        <Table titleCol={1}>
           <thead>
             <tr>
               <th>Waktu</th>

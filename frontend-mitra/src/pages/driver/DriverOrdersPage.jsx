@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
+import { friendlyError } from '../../utils/friendlyError';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
@@ -87,7 +88,7 @@ const DriverOrdersPage = () => {
         fetchOrders();
         toast.success(`Status diperbarui ke: ${getDisplayStatus(newStatus)}`);
       } catch (err) {
-        toast.error(err?.message || 'Gagal memperbarui status');
+        toast.error(friendlyError(err) || 'Gagal memperbarui status');
       }
     }
   };

@@ -29,6 +29,7 @@ import { fetchCoordinates } from '../utils/osmHelpers';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -171,7 +172,7 @@ export default function PoolPage() {
   useEffect(() => { loadSubs(); }, []);
   const toggleSub = async (sub, active) => {
     const { error } = await supabase.rpc('set_pool_subscription_active', { p_id: sub.id, p_active: active });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error)); return; }
     toast.success(active ? t('pool.sub_resumed') : t('pool.sub_stopped'));
     loadSubs();
   };
@@ -359,7 +360,7 @@ export default function PoolPage() {
       // OrderContext.addOrder already confirms the order (QRIS: shows the QR).
       handleRemovePromo(); // don't let a used promo silently discount the next order
     } catch (err) {
-      toast.error(t('pool.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('pool.failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }

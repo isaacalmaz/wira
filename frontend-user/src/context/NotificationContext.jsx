@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 const NotificationContext = createContext();
 
@@ -31,7 +32,7 @@ export const NotificationProvider = ({ children }) => {
 
     if (error) {
       console.error('Failed to load notifications:', error);
-      toast.error(t('notifications.load_failed', { message: error.message }));
+      toast.error(t('notifications.load_failed', { message: friendlyError(error) }));
       return;
     }
 

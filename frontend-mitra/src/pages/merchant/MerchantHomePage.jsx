@@ -11,6 +11,7 @@ import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subs
 import { OrderStatus } from '../../constants/orderStatus';
 import { EARNINGS_COLUMNS, startOfTodayISO } from '../../utils/earnings';
 import useMyMerchants from '../../hooks/useMyMerchants';
+import { friendlyError } from '../../utils/friendlyError';
 
 // Display-only: food orders store their items as a JSON array in `details`;
 // list them one per line with the quantity in mono. Anything else (villa
@@ -180,7 +181,7 @@ const MerchantHomePage = () => {
     const order = incomingOrder;
     setIncomingOrder(null);
     const { error } = await supabase.rpc('merchant_reject_order', { p_order_id: order.id, p_reason: null });
-    if (error) toast.error(orderErrorMessage(error, error.message || 'Gagal menolak pesanan'));
+    if (error) toast.error(orderErrorMessage(error, friendlyError(error) || 'Gagal menolak pesanan'));
     else toast.success('Pesanan ditolak. Pelanggan sudah diberi tahu.');
   };
 

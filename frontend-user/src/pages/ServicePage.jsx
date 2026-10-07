@@ -31,6 +31,7 @@ import { avatarSrc } from '../utils/avatar';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -184,7 +185,7 @@ export default function ServicePage() {
   const [serviceTime, setServiceTime] = useState(() => openSlots(firstBookableDate())[0] || VISIT_SLOTS[0]);
   const timeSlots = openSlots(serviceDate);
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay');
+  const [paymentMethod, setPaymentMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
@@ -359,7 +360,7 @@ export default function ServicePage() {
 
       handleRemovePromo(); // don't let a used promo silently discount the next order
     } catch (err) {
-      toast.error(t('service.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('service.failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }

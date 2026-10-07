@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function NotificationsPage() {
   const { notifications: notifs, setNotifications } = useNotification();
@@ -39,7 +40,7 @@ export default function NotificationsPage() {
       .select();
 
     if (error) {
-      toast.error(t('notifications.mark_all_failed', { message: error.message }));
+      toast.error(t('notifications.mark_all_failed', { message: friendlyError(error) }));
     } else if (!data || data.length === 0) {
       toast.error(t('notifications.mark_all_denied'));
     } else {

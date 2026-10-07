@@ -343,7 +343,7 @@ const DashboardPage = () => {
         {recentOrders.length === 0 ? (
           <EmptyState icon={<ShoppingBag size={22} />} title="Belum ada pesanan." />
         ) : (
-          <Table>
+          <Table titleCol={2}>
             <thead>
               <tr>
                 <th>ID Pesanan</th>

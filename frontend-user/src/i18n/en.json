@@ -168,6 +168,7 @@
     }
   },
   "restaurant": {
+    "new_badge": "New",
     "not_found_title": "Restaurant Not Found",
     "not_found_desc": "This restaurant may have closed, or your connection dropped. Try loading the page again.",
     "back_to_food": "Back to WiraFood",

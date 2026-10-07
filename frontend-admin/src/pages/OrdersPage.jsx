@@ -145,7 +145,7 @@ const OrdersPage = () => {
           title={orders.length === 0 ? 'Belum ada pesanan.' : 'Tidak ada pesanan yang cocok dengan pencarian/filter.'}
         />
       ) : (
-        <Table>
+        <Table titleCol={2}>
           <thead>
             <tr>
               <th>ID Pesanan</th>

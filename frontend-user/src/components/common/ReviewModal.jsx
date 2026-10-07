@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from '../../i18n';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { NEGATIVE_TAGS, POSITIVE_TAGS } from '../../utils/review';
+import { friendlyError } from '../../utils/friendlyError';
 
 const MAX_PHOTOS = 3;
 
@@ -87,7 +88,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
       onClose();
     } catch (err) {
       console.error('Submit review error:', err);
-      toast.error(t('review.failed', { message: err.message }));
+      toast.error(t('review.failed', { message: friendlyError(err) }));
     } finally {
       setIsSubmitting(false);
     }

@@ -4,6 +4,7 @@ import { ClipboardList, ReceiptText, SearchCheck, Lock } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Badge, Button, Card, Field, Input, Money, Segmented, Sheet, Textarea, cx } from '../ui';
 import { cancelAdjustment, finishAsCheck, requestAdjustment } from '../../services/technicianService';
+import { friendlyError } from '../../utils/friendlyError';
 
 const ADJ_STATUS = {
   pending: { tone: 'warning', label: 'Menunggu pelanggan' },
@@ -66,7 +67,7 @@ export default function VisitTools({ order, onFinished }) {
       setDesc('');
       load();
     } catch (err) {
-      toast.error(err.message || 'Gagal mengirim pengajuan');
+      toast.error(friendlyError(err) || 'Gagal mengirim pengajuan');
     } finally {
       setSending(false);
     }
@@ -135,7 +136,7 @@ export default function VisitTools({ order, onFinished }) {
                         type="button"
                         className="min-h-9 text-[12.5px] font-semibold text-danger-ink"
                         onClick={async () => {
-                          try { await cancelAdjustment(supabase, a.id); load(); } catch (err) { toast.error(err.message); }
+                          try { await cancelAdjustment(supabase, a.id); load(); } catch (err) { toast.error(friendlyError(err)); }
                         }}
                       >
                         Batalkan

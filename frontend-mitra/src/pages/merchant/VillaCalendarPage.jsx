@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { Badge, Button, Card, EmptyState, Field, Notice, PageHeader, Select, Sheet, Spinner, Textarea, cx } from '../../components/ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 // Dates are 'YYYY-MM-DD' in local (WITA) time, like orders.check_in and
 // villa_blocks (migrations/0104). Ranges are [from, to): to = check-out.
@@ -93,7 +94,7 @@ export default function VillaCalendarPage() {
     setSaving(true);
     const { error } = await supabase.from('villa_blocks').insert({ merchant_id: villaId, date_from: sel.from, date_to: sel.to, note: note.trim() || null });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error)); return; }
     toast.success('Tanggal ditutup untuk tamu');
     setSel(null);
     load();
@@ -101,7 +102,7 @@ export default function VillaCalendarPage() {
 
   const deleteBlock = async () => {
     const { data, error } = await supabase.from('villa_blocks').delete().eq('id', removeBlock.id).select('id');
-    if (error || !data?.length) { toast.error(error?.message || 'Gagal membuka tanggal'); return; }
+    if (error || !data?.length) { toast.error(friendlyError(error) || 'Gagal membuka tanggal'); return; }
     toast.success('Tanggal dibuka lagi');
     setRemoveBlock(null);
     load();

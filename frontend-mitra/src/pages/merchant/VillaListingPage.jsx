@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabase';
 import { toast } from 'react-hot-toast';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { listingState } from './villaShared';
+import { friendlyError } from '../../utils/friendlyError';
 
 /**
  * "Properti Saya": every villa this host runs (migration 0097). New
@@ -30,7 +31,7 @@ export default function VillaListingPage() {
       toast.success(m.is_open === false ? `${m.name} kembali menerima pemesanan` : `${m.name} dijeda`);
       reload();
     } catch (err) {
-      toast.error('Gagal mengubah: ' + err.message);
+      toast.error('Gagal mengubah: ' + friendlyError(err));
     } finally {
       setBusy(null);
     }

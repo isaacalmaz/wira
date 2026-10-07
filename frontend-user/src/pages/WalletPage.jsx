@@ -47,6 +47,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import { localizeTransaction } from '../utils/localizeDbText';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function WalletPage() {
   const { t } = useTranslation();
@@ -118,7 +119,7 @@ export default function WalletPage() {
       }
       await loadPendingTopUps();
     } catch (err) {
-      toast.error(t('wallet.cancel_failed', { message: err.message }));
+      toast.error(t('wallet.cancel_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }
@@ -184,7 +185,7 @@ export default function WalletPage() {
       setViewingPendingId(null);
       setTopUpStep(2);
     } catch (err) {
-      toast.error(t('wallet.topup_prepare_failed', { message: err.message }));
+      toast.error(t('wallet.topup_prepare_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }
@@ -238,7 +239,7 @@ export default function WalletPage() {
       setTopUpStep(1);
       await loadPendingTopUps();
     } catch (err) {
-      toast.error(t('wallet.topup_create_failed', { message: err.message }));
+      toast.error(t('wallet.topup_create_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }
@@ -313,7 +314,7 @@ export default function WalletPage() {
       });
 
     } catch (err) {
-      toast.error(t('wallet.midtrans_start_failed', { message: err.message }));
+      toast.error(t('wallet.midtrans_start_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }
@@ -345,7 +346,7 @@ export default function WalletPage() {
       setTransferAmount('');
       setTransferNote('');
     } catch (err) {
-      toast.error(t('wallet.transfer_failed', { message: err.message }));
+      toast.error(t('wallet.transfer_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }

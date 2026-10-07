@@ -20,6 +20,7 @@ import {
   loadCommissionRates,
   orderErrorMessage,
 } from '../../services/orderService';
+import { friendlyError } from '../../utils/friendlyError';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
  * but food/villa/service's is a plain string, and a driver's incoming-order
@@ -134,7 +135,21 @@ const DriverHomePage = () => {
   // see its doc comment) rather than which URL root they're mounted under.
   const driverPrefs = { vehicle_type: user?.vehicle_type, job_type_preferences: user?.job_type_preferences };
   const [isSavingJobType, setIsSavingJobType] = useState(null); // which job type is mid-save, if any
-  const [isOnline, setIsOnline] = useState(true);
+  // The online switch survives visiting other tabs (Pesanan, Pendapatan):
+  // it used to reset and silently drop the driver offline on every switch.
+  const [isOnline, setIsOnlineState] = useState(() => {
+    try { return localStorage.getItem('wira_driver_online') !== '0'; } catch { return true; }
+  });
+  const setIsOnline = (v) => {
+    setIsOnlineState(v);
+    try { localStorage.setItem('wira_driver_online', v ? '1' : '0'); } catch { /* private mode */ }
+  };
+  // Orders this driver declined this session are never offered again.
+  const declinedRef = useRef(new Set());
+  const declineIncoming = () => {
+    if (incomingOrder?.id) declinedRef.current.add(incomingOrder.id);
+    setIncomingOrder(null);
+  };
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [activeOrder, setActiveOrder] = useState(null);
   // Read by the realtime/polling effect below without being one of its deps:
@@ -234,7 +249,7 @@ const DriverHomePage = () => {
       if (activeOrderRef.current) return; // Jangan cari jika sedang sibuk
       try {
         const pending = await fetchPendingOrders(supabase, 'driver', null, driverPosRef.current, driverPrefs);
-        const latest = pending[0];
+        const latest = pending.find((o) => !declinedRef.current.has(o.id));
 
         if (latest) {
           setIncomingOrder(prev => {
@@ -262,7 +277,7 @@ const DriverHomePage = () => {
     const unsubscribe = subscribeToDriverOrders(
       supabase,
       (order) => {
-        if (!activeOrderRef.current) {
+        if (!activeOrderRef.current && !declinedRef.current.has(order.id)) {
           setIncomingOrder(order);
           toast.success('Pesanan Baru Masuk!');
         }
@@ -353,14 +368,6 @@ const DriverHomePage = () => {
     setDriverOffline(supabase, user.id).catch((err) => console.warn('setDriverOffline failed:', err.message));
   }, [isOnline, user]);
 
-  useEffect(() => {
-    return () => {
-      if (user) {
-        setDriverOffline(supabase, user.id).catch(() => {});
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // vehicle_type must be set before a driver can go online - job-type
   // eligibility (which orders they even see) depends on it, and there's no
@@ -405,7 +412,7 @@ const DriverHomePage = () => {
       if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
       await refreshProfile();
     } catch (err) {
-      toast.error(`Gagal memperbarui preferensi: ${err.message}`);
+      toast.error(`Gagal memperbarui preferensi: ${friendlyError(err)}`);
     } finally {
       setIsSavingJobType(null);
     }
@@ -500,7 +507,7 @@ const DriverHomePage = () => {
       toast.success('Pesanan dibatalkan, dicarikan driver lain untuk penumpang.');
       setActiveOrder(null);
     } catch (err) {
-      toast.error(err.message || 'Gagal membatalkan pesanan');
+      toast.error(friendlyError(err) || 'Gagal membatalkan pesanan');
     } finally {
       setIsCancellingOrder(false);
     }
@@ -689,13 +696,18 @@ const DriverHomePage = () => {
                 <Badge tone="brand" dot className="mt-0.5">{getDisplayStatus(activeOrder.status)}</Badge>
               </div>
 
-              <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-card px-4 py-3">
-                <span className="text-[13px] font-semibold text-ink-muted">Total Tagihan</span>
-                <Money value={activeOrder.total_price} className="text-[20px] font-medium text-ink" />
-              </div>
-
-              {cashFoodSplit(activeOrder) && activeOrder.status !== OrderStatus.IN_TRIP && (
-                <CashFoodNote split={cashFoodSplit(activeOrder)} />
+              {cashFoodSplit(activeOrder) ? (
+                <CashFoodNote split={cashFoodSplit(activeOrder)} compact={activeOrder.status === OrderStatus.IN_TRIP} />
+              ) : activeOrder.payment_method === 'cash' ? (
+                <div className="flex items-center justify-between gap-3 rounded-control border border-pay-line bg-pay-soft px-4 py-3">
+                  <span className="text-[13px] font-semibold text-ink">Tunai · tagih ke pelanggan</span>
+                  <Money value={activeOrder.total_price} className="text-[20px] font-medium text-ink" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3 rounded-control border border-success-line bg-success-soft px-4 py-3">
+                  <span className="text-[13px] font-semibold text-ink">Lunas via WiraPay · jangan ditagih</span>
+                  <Money value={activeOrder.total_price} className="text-[18px] font-medium text-ink" />
+                </div>
               )}
 
               {legTarget ? (
@@ -804,7 +816,7 @@ const DriverHomePage = () => {
         title="Pesanan Baru Masuk"
         footer={
           <>
-            <Button variant="secondary" size="lg" onClick={() => setIncomingOrder(null)}>Tolak</Button>
+            <Button variant="secondary" size="lg" onClick={declineIncoming}>Tolak</Button>
             <Button variant="primary" size="lg" onClick={handleAcceptOrder}>Terima</Button>
           </>
         }

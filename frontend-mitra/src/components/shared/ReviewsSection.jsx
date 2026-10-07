@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { MessageSquareReply, Star } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Badge, Button, Card, EmptyState, Field, Sheet, Textarea } from '../ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 // Same codes as the customer app (migrations/0091 review_tag_list).
 export const TAG_LABEL = {
@@ -55,7 +56,7 @@ export default function ReviewsSection({ userId }) {
       setReply('');
       load();
     } catch (err) {
-      toast.error(err.message || 'Gagal mengirim balasan');
+      toast.error(friendlyError(err) || 'Gagal mengirim balasan');
     } finally {
       setSaving(false);
     }

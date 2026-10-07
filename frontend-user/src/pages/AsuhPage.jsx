@@ -11,6 +11,7 @@ import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
 import { witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
+import { friendlyError } from '../utils/friendlyError';
 
 // WiraAsuh (migrations/0107): one in-house nanny; a request waits for the
 // nanny's approval, the price is computed by create_babysit_booking.
@@ -103,7 +104,7 @@ export default function AsuhPage() {
       toast.success(t('asuh.sent'));
       navigate(`/active-order/${data}`);
     } catch (err) {
-      toast.error(err.message || t('asuh.failed'));
+      toast.error(friendlyError(err) || t('asuh.failed'));
     } finally {
       setSubmitting(false);
     }

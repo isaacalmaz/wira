@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import DeleteAccountSheet from '../../components/account/DeleteAccountSheet';
+import { friendlyError } from '../../utils/friendlyError';
 
 // ---- display-only helpers ----
 const uploadBtnCls = 'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-control border border-line-strong bg-card px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60';
@@ -103,7 +104,7 @@ const SettingsPage = () => {
       // DriverHomePage.jsx's quick-toggle widget uses).
       await refreshProfile();
     } catch (err) {
-      toast.error(`Gagal menyimpan: ${err.message}`);
+      toast.error(`Gagal menyimpan: ${friendlyError(err)}`);
     } finally {
       setIsSavingDriverPrefs(false);
     }
@@ -142,7 +143,7 @@ const SettingsPage = () => {
       setAvatarUrl(url);
       toast.success('Foto profil berhasil diperbarui');
     } catch (err) {
-      toast.error('Gagal mengunggah foto: ' + err.message);
+      toast.error('Gagal mengunggah foto: ' + friendlyError(err));
     } finally {
       setIsUploadingAvatar(false);
       e.target.value = null;
@@ -161,7 +162,7 @@ const SettingsPage = () => {
       setMerchant((prev) => ({ ...prev, image: url }));
       toast.success('Logo usaha berhasil diperbarui');
     } catch (err) {
-      toast.error('Gagal mengunggah logo: ' + err.message);
+      toast.error('Gagal mengunggah logo: ' + friendlyError(err));
     } finally {
       setIsUploadingLogo(false);
       e.target.value = null;

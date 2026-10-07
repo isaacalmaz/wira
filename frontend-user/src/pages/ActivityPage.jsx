@@ -70,20 +70,17 @@ export default function ActivityPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [reviewingOrder, setReviewingOrder] = useState(null);
 
-  const tabs = [
-    'Semua',
-    'WiraRide',
-    'WiraFood',
-    'WiraSend',
-    'WiraVilla',
-    'WiraService',
-    'WiraPool',
-    'WiraPulsa',
-  ];
+  // Only the services this customer actually ordered, in catalogue order.
+  const ORDER = ['WiraRide', 'WiraFood', 'WiraSend', 'WiraVilla', 'WiraService', 'WiraPool', 'WiraAsuh'];
+  const used = new Set(orders.map((o) => o.service));
+  const tabs = ['Semua', ...ORDER.filter((s) => used.has(s))];
 
   const filtered = tab === 'Semua' ? orders : orders.filter((a) => a.service === tab);
 
+  // Same icons as the Home service grid (config/services.js).
   const getServiceIcon = (service) => {
+    const Icon = SERVICES.find((s) => s.name_id === service)?.icon;
+    if (Icon) return <Icon size={20} />;
     switch (service) {
       case 'WiraRide':
         return <Bike size={20} />;

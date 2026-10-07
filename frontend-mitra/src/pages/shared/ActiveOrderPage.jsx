@@ -12,6 +12,7 @@ import { getDisplayStatus } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
+import { friendlyError } from '../../utils/friendlyError';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -310,7 +311,7 @@ export default function ActiveOrderPage() {
 
     if (isBabysit) {
       const { error } = await supabase.rpc('babysit_set_status', { p_order_id: order.id, p_status: info.next });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(friendlyError(error)); return; }
       toast.success(`Status: ${getDisplayStatus(info.next, order.service_type)}`);
       fetchOrder();
       return;
@@ -354,7 +355,7 @@ export default function ActiveOrderPage() {
        }
     } catch(err) {
        setPinError(err.message);
-       toast.error(err.message);
+       toast.error(friendlyError(err));
     }
     setIsVerifying(false);
   };
@@ -533,7 +534,7 @@ export default function ActiveOrderPage() {
           const reason = window.prompt('Alasan membatalkan sesi ini (dikirim ke orang tua):');
           if (reason === null) return;
           const { error } = await supabase.rpc('babysit_cancel', { p_order_id: order.id, p_reason: reason });
-          if (error) toast.error(error.message); else { toast.success('Sesi dibatalkan'); fetchOrder(); }
+          if (error) toast.error(friendlyError(error)); else { toast.success('Sesi dibatalkan'); fetchOrder(); }
         }}>
           Batalkan Sesi
         </Button>
@@ -616,7 +617,7 @@ export default function ActiveOrderPage() {
                   toast.success('Pekerjaan dilepaskan');
                   navigate('/technician/orders', { replace: true });
                 } catch (err) {
-                  toast.error(err.message || 'Gagal melepaskan pekerjaan');
+                  toast.error(friendlyError(err) || 'Gagal melepaskan pekerjaan');
                 } finally {
                   setReleasing(false);
                 }

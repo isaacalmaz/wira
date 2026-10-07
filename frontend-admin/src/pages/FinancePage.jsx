@@ -16,6 +16,13 @@ import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segm
 // src/config/commission.js) so DashboardPage.jsx and this file can never
 // drift apart again - left as a literal here for now to keep this fix
 // minimal and avoid touching DashboardPage.jsx in this pass.
+// Same words the customer and partner apps use for these states.
+const TOPUP_STATUS = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak', cancelled: 'Dibatalkan' };
+const PAYOUT_STATUS = { pending: 'Menunggu', approved: 'Sudah ditransfer', rejected: 'Ditolak', cancelled: 'Dibatalkan' };
+const TX_TYPE = {
+  topup: 'Top-up', payment: 'Pembayaran', refund: 'Refund', payout: 'Pencairan', tip: 'Tip',
+  correction_in: 'Koreksi (+)', correction_out: 'Koreksi (−)', compensation: 'Kompensasi', transfer: 'Transfer',
+};
 const PLATFORM_COMMISSION_RATE = 0.20;
 
 const FinancePage = () => {
@@ -241,8 +248,8 @@ const FinancePage = () => {
         value={activeTab}
         onChange={setActiveTab}
         options={[
-          { value: 'requests', label: 'Permintaan (Top-Up & Pencairan)' },
-          { value: 'transactions', label: 'Semua Transaksi (Buku Besar)' },
+          { value: 'requests', label: 'Permintaan' },
+          { value: 'transactions', label: 'Buku Besar' },
         ]}
       />
 
@@ -260,7 +267,7 @@ const FinancePage = () => {
             {loading ? loadingBlock : topups.length === 0 ? (
               <EmptyState icon={<Clock size={24} />} title="Belum ada permintaan top-up." />
             ) : (
-              <Table>
+              <Table titleCol={1}>
                 <thead>
                   <tr>
                     <th>Waktu</th>
@@ -297,7 +304,7 @@ const FinancePage = () => {
                         })()}
                       </td>
                       <td>
-                        <Badge tone={statusTone(t.status)} dot className="capitalize">{t.status}</Badge>
+                        <Badge tone={statusTone(t.status)} dot>{TOPUP_STATUS[t.status] || t.status}</Badge>
                       </td>
                       <td className="text-right">
                         {t.status === 'pending' && (
@@ -338,7 +345,7 @@ const FinancePage = () => {
             {loading ? loadingBlock : payouts.length === 0 ? (
               <EmptyState icon={<Landmark size={24} />} title="Belum ada permintaan pencairan." />
             ) : (
-              <Table>
+              <Table titleCol={1}>
                 <thead>
                   <tr>
                     <th>Waktu</th>
@@ -367,7 +374,7 @@ const FinancePage = () => {
                         </div>
                       </td>
                       <td>
-                        <Badge tone={statusTone(p.status)} dot className="capitalize">{p.status}</Badge>
+                        <Badge tone={statusTone(p.status)} dot>{PAYOUT_STATUS[p.status] || p.status}</Badge>
                       </td>
                       <td className="text-right">
                         {p.status === 'pending' && (
@@ -412,7 +419,7 @@ const FinancePage = () => {
           {loading ? loadingBlock : transactions.length === 0 ? (
             <EmptyState icon={<List size={24} />} title="Belum ada transaksi tercatat." />
           ) : (
-            <Table>
+            <Table titleCol={1}>
               <thead>
                 <tr>
                   <th>Waktu</th>
@@ -431,7 +438,7 @@ const FinancePage = () => {
                       <td>{timeCell(tx.created_at)}</td>
                       <td>{userCell(tx.users)}</td>
                       <td>
-                        <Badge tone="neutral" className="font-mono">{tx.type}</Badge>
+                        <Badge tone="neutral">{TX_TYPE[tx.type] || tx.type}</Badge>
                       </td>
                       <td className="text-right">
                         <Money

@@ -13,6 +13,7 @@ import {
 import { dayKey } from '../../utils/earnings';
 import VisitJobCard from '../../components/shared/VisitJobCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
+import { friendlyError } from '../../utils/friendlyError';
 
 /** Rupiah that can be negative (Tunai orders net the commission out of the
  * saldo), rounded the same way formatSignedRupiah does. */
@@ -97,7 +98,7 @@ const TechHomePage = () => {
       setProfile((p) => ({ ...p, is_accepting: value }));
       toast.success(value ? 'Anda akan menerima notifikasi pekerjaan baru' : 'Notifikasi pekerjaan baru dimatikan');
     } catch (err) {
-      toast.error(err.message || 'Gagal mengubah status');
+      toast.error(friendlyError(err) || 'Gagal mengubah status');
     } finally {
       setSavingSwitch(false);
     }
@@ -110,7 +111,7 @@ const TechHomePage = () => {
       toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
       navigate(`/technician/active-order/${job.id}`);
     } catch (err) {
-      toast.error(err.message || 'Gagal mengambil paket');
+      toast.error(friendlyError(err) || 'Gagal mengambil paket');
       load();
     } finally {
       setTakingId(null);
@@ -125,7 +126,7 @@ const TechHomePage = () => {
       toast.success('Pekerjaan diambil. Datang sesuai jadwal ya!');
       navigate(`/technician/active-order/${job.id}`);
     } catch (err) {
-      toast.error(err.message || 'Gagal mengambil pekerjaan');
+      toast.error(friendlyError(err) || 'Gagal mengambil pekerjaan');
       load();
     } finally {
       setTakingId(null);

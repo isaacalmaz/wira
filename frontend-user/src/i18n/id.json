@@ -168,6 +168,7 @@
     }
   },
   "restaurant": {
+    "new_badge": "Baru",
     "not_found_title": "Restoran Tidak Ditemukan",
     "not_found_desc": "Restoran ini mungkin sudah tutup atau jaringan Anda sedang bermasalah. Coba muat ulang halaman ini.",
     "back_to_food": "Kembali ke WiraFood",

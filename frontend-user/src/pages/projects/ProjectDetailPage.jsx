@@ -10,6 +10,7 @@ import { Badge, Button, Card, EmptyState, Field, Money, Notice, Sheet, Spinner, 
 import { avatarSrc } from '../../utils/avatar';
 import ProjectChat from './ProjectChat';
 import { PROJECT_STATUS_TONE, STAGE_STATUS_TONE, formatDate } from './projectShared';
+import { friendlyError } from '../../utils/friendlyError';
 
 function TechHeader({ q, t }) {
   const src = avatarSrc(q.avatar_url);
@@ -80,7 +81,7 @@ export default function ProjectDetailPage() {
       await load();
       return true;
     } catch (err) {
-      toast.error(err.message || t('projects.action_failed'));
+      toast.error(friendlyError(err) || t('projects.action_failed'));
       return false;
     } finally {
       setBusy(false);

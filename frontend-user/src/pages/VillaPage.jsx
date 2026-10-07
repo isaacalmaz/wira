@@ -16,6 +16,7 @@ import {
   EmptyState,
   cx,
 } from '../components/ui';
+import SafeImg from '../components/ui/SafeImg';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { toast } from 'react-hot-toast';
@@ -25,6 +26,7 @@ import StayCalendar, { nightsBetween } from '../components/villa/StayCalendar';
 import { useTranslation } from '../i18n';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -189,7 +191,7 @@ export default function VillaPage() {
   const [checkOut, setCheckOut] = useState(null);
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
   const [guests, setGuests] = useState(2);
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay');
+  const [paymentMethod, setPaymentMethod] = useState('QRIS');
   const [loading, setLoading] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
@@ -322,7 +324,7 @@ export default function VillaPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next booking
       if (paymentMethod !== 'QRIS') toast.success(t('villa.success'));
     } catch (err) {
-      toast.error(t('villa.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('villa.failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }
@@ -374,7 +376,7 @@ export default function VillaPage() {
               className="flex flex-col overflow-hidden"
             >
               <div className="aspect-[16/10] bg-sunken">
-                <img
+                <SafeImg icon={Home}
                   src={villa.image}
                   alt={villa.name}
                   className="h-full w-full object-cover"
@@ -448,7 +450,7 @@ export default function VillaPage() {
             <div className="overflow-hidden rounded-card border border-line bg-card">
               <div className="flex snap-x snap-mandatory overflow-x-auto" aria-label={t('villa.photo_count', { count: selectedVilla.photos.length })}>
                 {selectedVilla.photos.map((src, i) => (
-                  <img
+                  <SafeImg icon={Home}
                     key={src}
                     src={src}
                     alt={`${selectedVilla.name} ${i + 1}`}
@@ -482,7 +484,7 @@ export default function VillaPage() {
                       onClick={() => openVilla(v)}
                       className="flex w-44 shrink-0 flex-col overflow-hidden rounded-control border border-line bg-card text-left transition-colors hover:border-line-strong"
                     >
-                      <img src={v.image} alt="" loading="lazy" className="h-20 w-full bg-sunken object-cover" />
+                      <SafeImg icon={Home} src={v.image} alt="" loading="lazy" className="h-20 w-full bg-sunken object-cover" />
                       <span className="truncate px-2.5 pt-1.5 text-[12.5px] font-semibold text-ink">{v.name}</span>
                       <Money value={v.pricePerNight} className="px-2.5 pb-2 text-[12px] text-ink-muted" />
                     </button>

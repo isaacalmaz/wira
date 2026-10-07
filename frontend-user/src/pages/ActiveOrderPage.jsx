@@ -17,6 +17,7 @@ import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
 import { useTranslation } from '../i18n';
 import { localizeOrderTitle, localizePaymentMethod } from '../utils/localizeDbText';
+import { friendlyError } from '../utils/friendlyError';
 
 // ---- display-only helpers ----
 // Badge tone per DESIGN.md: searching/pending = warning, active = brand,
@@ -123,7 +124,7 @@ export default function ActiveOrderPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error(t('order.load_failed', { message: err.message || err.toString() }));
+      toast.error(t('order.load_failed', { message: friendlyError(err) || err.toString() }));
       navigate('/');
     } finally {
       setLoading(false);
@@ -258,7 +259,7 @@ export default function ActiveOrderPage() {
       toast.success(t('order.cancel_success'));
     } catch (err) {
       console.error(err);
-      toast.error(t('order.cancel_failed', { message: err.message }));
+      toast.error(t('order.cancel_failed', { message: friendlyError(err) }));
     } finally {
       setIsCancelling(false);
     }

@@ -50,7 +50,7 @@ export default function StaleOrdersPanel({ onOpen, refreshKey }) {
         </div>
         <Badge tone="warning">{rows.length}</Badge>
       </div>
-      <Table className="rounded-none border-0">
+      <Table titleCol={3} className="rounded-none border-0">
         <thead>
           <tr>
             <th>ID</th>

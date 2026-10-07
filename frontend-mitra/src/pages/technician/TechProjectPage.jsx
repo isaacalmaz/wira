@@ -8,6 +8,7 @@ import { uploadImageToBucket } from '../../utils/imageUpload';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../../components/ui';
 import useSkills from '../../hooks/useSkills';
 import { loadCommissionRates, commissionRate } from '../../services/orderService';
+import { friendlyError } from '../../utils/friendlyError';
 
 const PLANS = {
   '30-40-30': [{ label: 'DP', percent: 30 }, { label: 'Pengerjaan', percent: 40 }, { label: 'Pelunasan', percent: 30 }],
@@ -154,7 +155,7 @@ export default function TechProjectPage() {
       setForm(null);
       load();
     } catch (err) {
-      toast.error(err.message || 'Penawaran belum terkirim');
+      toast.error(friendlyError(err) || 'Penawaran belum terkirim');
     } finally {
       setSaving(false);
     }
@@ -162,7 +163,7 @@ export default function TechProjectPage() {
 
   const withdraw = async () => {
     const { error } = await supabase.rpc('withdraw_project_quote', { p_quote_id: quote.id });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error)); return; }
     toast.success('Penawaran ditarik');
     load();
   };
@@ -180,7 +181,7 @@ export default function TechProjectPage() {
       setPhotos([]);
       load();
     } catch (err) {
-      toast.error(err.message || 'Laporan belum terkirim');
+      toast.error(friendlyError(err) || 'Laporan belum terkirim');
     } finally {
       setSaving(false);
     }

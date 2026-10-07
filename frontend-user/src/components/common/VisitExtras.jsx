@@ -4,6 +4,7 @@ import { ClipboardList, ReceiptText } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from '../../i18n';
 import { Badge, Button, Card, Money, cx } from '../ui';
+import { friendlyError } from '../../utils/friendlyError';
 
 /**
  * Technician visit details on the customer's order page (migrations/0090):
@@ -42,7 +43,7 @@ export default function VisitExtras({ order }) {
       toast.success(approve ? t('visit.adjust_approved') : t('visit.adjust_rejected'));
       load();
     } catch (err) {
-      toast.error(err.message || t('visit.adjust_failed'));
+      toast.error(friendlyError(err) || t('visit.adjust_failed'));
     } finally {
       setBusy(null);
     }

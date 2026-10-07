@@ -5,6 +5,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import qrisImg from '../../assets/qris-wira.jpeg';
+import { friendlyError } from '../../utils/friendlyError';
 
 const STATUS_LABEL = {
   pending: { text: 'Menunggu diproses admin', icon: Clock, tone: 'warning' },
@@ -114,7 +115,7 @@ export default function PayoutPanel() {
       setAccountName('');
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Gagal mengajukan pencairan');
+      toast.error(friendlyError(err) || 'Gagal mengajukan pencairan');
     } finally {
       setSubmitting(false);
     }
@@ -127,7 +128,7 @@ export default function PayoutPanel() {
       toast.success('Permintaan dibatalkan, saldo dikembalikan');
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Gagal membatalkan permintaan');
+      toast.error(friendlyError(err) || 'Gagal membatalkan permintaan');
     }
   };
 
@@ -182,7 +183,7 @@ export default function PayoutPanel() {
       setProofPreview(null);
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Gagal mengirim setoran');
+      toast.error(friendlyError(err) || 'Gagal mengirim setoran');
     } finally {
       setDepositing(false);
     }
@@ -362,13 +363,9 @@ export default function PayoutPanel() {
         )}
       >
         <form id="deposit-form" onSubmit={handleDeposit} className="flex flex-col gap-4">
-          <div className="flex flex-col items-center gap-2 rounded-control border border-line bg-white p-3">
-            <img src={qrisImg} alt="QRIS Wira" className="w-full max-w-[260px] rounded-[8px]" />
-            <a href={qrisImg} download="qris-wira.jpeg" className="text-[13px] font-semibold text-brand-ink underline">Simpan gambar QRIS</a>
-          </div>
-          <Notice tone="info">
-            <span className="whitespace-pre-line">{settings.info || 'Scan QRIS Wira di atas, lalu lampirkan bukti pembayarannya.'}</span>
-          </Notice>
+          <p data-autofocus tabIndex={-1} className="text-[13px] leading-relaxed text-ink-muted outline-none">
+            Bayar komisi lewat QRIS atau transfer, lalu kirim fotonya di sini.
+          </p>
           <Field
             label={balance < 0 ? <>Nominal (komisi Anda <Money value={Math.ceil(-balance)} className="font-medium" />)</> : 'Nominal deposit'}
             htmlFor="deposit-amount"
@@ -385,6 +382,41 @@ export default function PayoutPanel() {
               required
             />
           </Field>
+          <Notice tone="info">
+            <span className="whitespace-pre-line">{settings.info || 'Scan QRIS Wira, lalu lampirkan bukti pembayarannya.'}</span>
+          </Notice>
+          {/BCA\s+(\d{6,})/i.test(settings.info || '') && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const no = (settings.info.match(/BCA\s+(\d{6,})/i) || [])[1];
+                navigator.clipboard?.writeText(no).then(() => toast.success('Nomor rekening disalin'), () => toast.error('Salin manual: ' + no));
+              }}
+            >
+              Salin nomor rekening BCA
+            </Button>
+          )}
+          <details className="rounded-control border border-line bg-card">
+            <summary className="flex min-h-11 cursor-pointer items-center px-4 text-[13.5px] font-semibold text-ink">Tampilkan QRIS Wira</summary>
+            <div className="flex flex-col items-center gap-3 border-t border-line bg-[#ffffff] p-3">
+              <img src={qrisImg} alt="QRIS Wira" className="w-full max-w-[260px] rounded-[8px]" />
+            </div>
+            <div className="border-t border-line p-3">
+              {/* In the Android app a link to another site opens the phone's
+                  browser, where the image can be saved and then scanned from
+                  the gallery in m-banking/e-wallet apps. */}
+              <a
+                href="https://wira.one/qris-wira.jpeg"
+                target="_blank"
+                rel="noreferrer"
+                download="qris-wira.jpeg"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-line-strong px-4 text-[13.5px] font-semibold text-ink hover:bg-sunken"
+              >
+                Buka gambar QRIS untuk disimpan
+              </a>
+            </div>
+          </details>
           <Field label="Foto bukti transfer" htmlFor="deposit-proof">
             <label
               htmlFor="deposit-proof"

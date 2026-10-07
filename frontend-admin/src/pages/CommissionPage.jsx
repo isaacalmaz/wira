@@ -135,7 +135,7 @@ export default function CommissionPage() {
         {history.length === 0 ? (
           <EmptyState icon={<History size={22} />} title="Belum ada perubahan" description="Setiap perubahan persentase tercatat di sini." />
         ) : (
-          <Table>
+          <Table titleCol={1}>
             <thead>
               <tr>
                 <th>Waktu</th>

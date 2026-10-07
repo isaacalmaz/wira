@@ -11,6 +11,7 @@ import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
 import API_BASE_URL from '../../config/api';
 import useMyMerchants from '../../hooks/useMyMerchants';
+import { friendlyError } from '../../utils/friendlyError';
 
 // Status badge tone (DESIGN.md §5): waiting = warning, in progress = brand,
 // done = success, cancelled = danger. Display only.
@@ -82,7 +83,7 @@ const MerchantOrdersPage = () => {
     setRejectBusy(true);
     const { error } = await supabase.rpc('merchant_reject_order', { p_order_id: rejecting.id, p_reason: rejectReason.trim() || null });
     setRejectBusy(false);
-    if (error) { toast.error(orderErrorMessage(error, error.message || 'Gagal menolak pesanan')); return; }
+    if (error) { toast.error(orderErrorMessage(error, friendlyError(error) || 'Gagal menolak pesanan')); return; }
     toast.success('Pesanan ditolak. Pelanggan sudah diberi tahu.');
     setRejecting(null);
     setRejectReason('');
@@ -176,7 +177,7 @@ const MerchantOrdersPage = () => {
       }
       fetchOrders();
     } catch (err) {
-      toast.error(orderErrorMessage(err, err.message || 'Gagal memperbarui status pesanan'));
+      toast.error(orderErrorMessage(err, friendlyError(err) || 'Gagal memperbarui status pesanan'));
     }
   };
 

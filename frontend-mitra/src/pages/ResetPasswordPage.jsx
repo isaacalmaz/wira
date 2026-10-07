@@ -41,13 +41,13 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-slate-50 px-4 py-10">
-      <Card padding="none" className="w-full max-w-[400px] overflow-hidden shadow-lg border-0">
-        <div className="h-1.5 bg-primary" />
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-ground px-4 py-10">
+      <Card padding="none" className="w-full max-w-[400px] overflow-hidden border-0">
+        <div className="h-2.5 tenun-band" />
         <div className="p-6 sm:p-7 flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-2xl font-bold text-slate-900">Buat Password Baru</h1>
-            <p className="text-sm text-slate-500">Silakan masukkan password baru Anda.</p>
+            <h1 className="text-2xl font-bold text-ink">Buat Password Baru</h1>
+            <p className="text-sm text-ink-muted">Silakan masukkan password baru Anda.</p>
           </div>
           <form onSubmit={handleUpdate} className="flex flex-col gap-4">
             <Field label="Password Baru" htmlFor="new-password">

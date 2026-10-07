@@ -10,6 +10,7 @@ import {
 } from '../../services/technicianService';
 import VisitJobCard from '../../components/shared/VisitJobCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
+import { friendlyError } from '../../utils/friendlyError';
 
 const byVisitTime = (a, b) => (visitInfo(a).when?.getTime() ?? Infinity) - (visitInfo(b).when?.getTime() ?? Infinity);
 
@@ -59,7 +60,7 @@ const TechOrdersPage = () => {
       toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
       navigate(`/technician/active-order/${job.id}`);
     } catch (err) {
-      toast.error(err.message || 'Gagal mengambil paket');
+      toast.error(friendlyError(err) || 'Gagal mengambil paket');
       load();
     } finally {
       setTakingId(null);
@@ -73,7 +74,7 @@ const TechOrdersPage = () => {
       toast.success('Pekerjaan diambil. Datang sesuai jadwal ya!');
       navigate(`/technician/active-order/${job.id}`);
     } catch (err) {
-      toast.error(err.message || 'Gagal mengambil pekerjaan');
+      toast.error(friendlyError(err) || 'Gagal mengambil pekerjaan');
       load();
     } finally {
       setTakingId(null);

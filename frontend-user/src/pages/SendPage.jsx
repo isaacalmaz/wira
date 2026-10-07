@@ -14,6 +14,7 @@ import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function SendPage() {
   const { addOrder } = useOrders();
 
   const [selectedPackage, setSelectedPackage] = useState('kecil');
-  const [paymentMethod, setPaymentMethod] = useState('WiraPay');
+  const [paymentMethod, setPaymentMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx's
@@ -240,7 +241,7 @@ export default function SendPage() {
       handleRemovePromo(); // don't let a used promo silently discount the next Send order
       toast.success(t('send.searching_courier'));
     } catch (err) {
-      toast.error(t('send.failed', { message: err.userMessage || err.message }), { id: 'order-create-error' });
+      toast.error(t('send.failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
     } finally {
       setLoading(false);
     }
@@ -481,10 +482,7 @@ export default function SendPage() {
           </section>
 
           {/* Booking panel: pinned above the bottom nav so the CTA is always reachable */}
-          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex flex-col gap-3 rounded-t-sheet bg-ground px-4 pt-2 pb-4 shadow-sheet md:bottom-4 md:mx-0 md:rounded-sheet md:px-5 [@media(max-height:760px)]:static [@media(max-height:760px)]:mx-0 [@media(max-height:760px)]:rounded-sheet">
-            <div className="flex justify-center" aria-hidden="true">
-              <span className="h-1 w-10 rounded-full bg-line-strong" />
-            </div>
+          <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-4">
 
             {insufficientBalance && (
               <Notice tone="danger">{t('send.insufficient_balance')}</Notice>

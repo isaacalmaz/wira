@@ -6,6 +6,7 @@ import { Badge, Button, Card, EmptyState, Money, SectionHeader, Spinner } from '
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { getDisplayStatus } from '../../constants/orderStatus';
+import { friendlyError } from '../../utils/friendlyError';
 
 // WiraAsuh nanny (migrations/0107): approve or decline requests, see the
 // sessions coming up.
@@ -56,7 +57,7 @@ export default function NannyHomePage() {
     setBusyId(r.id);
     const { error } = await supabase.rpc('babysit_respond', { p_order_id: r.id, p_accept: accept, p_reason: reason });
     setBusyId(null);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error)); return; }
     toast.success(accept ? 'Pesanan disetujui. Pelanggan sudah dikabari.' : 'Pesanan ditolak.');
     load();
   };
