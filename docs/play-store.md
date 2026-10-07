@@ -51,8 +51,8 @@ Google's reviewers must sign in. Create two dedicated accounts — never a real 
 
 ## Play Console answers (App content)
 **Privacy policy:** https://wira.one/privacy · **Data deletion URL:** https://wira.one/hapus-akun
-**Ads:** No ads. **Target audience:** 18 and over only. **News app:** No. **Government app:** No.
-**Health:** None. **Financial features:** WiraPay balance (top-up by QRIS, pay for services) — tick
+**Ads:** No ads. **Target audience:** Wira → 18 and over. Wira Mitra → 18 and over (also tick 16–17 only if you accept 17-year-old partners, as the privacy policy allows). **News app:** No. **Government app:** No.
+**Health:** None (WiraAsuh allergy notes are declared under Data safety, not as a health app). **Financial features:** WiraPay balance (top-up by QRIS, pay for services) — tick
 "Digital wallet / mobile payments" only while WiraPay exists; untick if it is removed.
 **Content rating (IARC):** category "All other app types"; no violence, sexuality, language, drugs,
 gambling; *Users can interact / exchange messages:* Yes (chat with partner); *Shares user location
@@ -71,6 +71,8 @@ placed do not count as sharing) · Encrypted in transit: Yes · Users can reques
 | Photos | Yes | Optional (profile, chat, review) | App functionality |
 | App activity: other user-generated content (reviews) | Yes | Optional | App functionality |
 | Device or other IDs (push token) | Yes | Required | App functionality (notifications) |
+| Personal info: other info (WiraAsuh: child's nickname and age) | Yes | Optional (only when booking WiraAsuh) | App functionality |
+| Health and fitness: health info (WiraAsuh notes: allergies, medication) | Yes | Optional | App functionality |
 
 ### Data safety — Wira Mitra (com.wira.mitra)
 Same as Wira, plus:

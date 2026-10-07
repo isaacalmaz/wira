@@ -10,7 +10,7 @@ const CONTACT_EMAIL = 'wiraapp123@gmail.com';
 const CONTENT = {
   id: {
     title: 'Kebijakan Privasi',
-    updated: 'Berlaku sejak 7 Oktober 2026',
+    updated: 'Diperbarui 7 Oktober 2026',
     intro:
       'Kebijakan ini menjelaskan data apa yang dikumpulkan oleh aplikasi Wira (pelanggan) dan Wira Mitra (pengemudi, merchant, pemilik villa, dan teknisi), untuk apa data itu dipakai, dan pilihan yang Anda miliki.',
     sections: [
@@ -20,6 +20,7 @@ const CONTENT = {
         'Data pesanan: layanan yang dipesan, alamat, waktu, harga, metode pembayaran, ulasan, dan percakapan chat dengan mitra atau pelanggan.',
         'Data pendaftaran mitra: foto KTP, swafoto, SIM/STNK, data kendaraan, data usaha atau villa, dan nomor rekening/e-wallet untuk pencairan.',
         'Foto yang Anda unggah: foto menu, villa, lampiran chat, dan bukti pembayaran. Kamera dan galeri hanya diakses saat Anda memilih untuk mengunggah.',
+        'WiraAsuh (pengasuhan anak): nama panggilan dan usia anak, serta catatan yang Anda isi untuk pengasuh, termasuk alergi, obat, dan jadwal anak. Data ini diisi oleh orang tua, hanya dilihat oleh pengasuh yang ditugaskan dan admin Wira, dan hanya dipakai untuk menjalankan sesi pengasuhan tersebut.',
         'Data perangkat: token notifikasi, versi aplikasi, dan catatan error untuk perbaikan aplikasi.',
       ]],
       ['Untuk apa data dipakai', [
@@ -45,7 +46,7 @@ const CONTENT = {
         `Menghapus akun beserta datanya kapan saja dari menu Profil/Pengaturan di aplikasi atau di wira.one/hapus-akun. Salinan data bisa diminta lewat email ke ${CONTACT_EMAIL} dari email atau nomor yang terdaftar, kami proses dalam 14 hari kerja.`,
       ]],
       ['Anak-anak', [
-        'Wira tidak ditujukan untuk anak di bawah 13 tahun. Mitra wajib berusia minimal 17 tahun dan memiliki KTP.',
+        'Akun Wira hanya untuk pengguna berusia 18 tahun ke atas, dan anak tidak membuat akun sendiri. Data anak di WiraAsuh hanya diberikan oleh orang tua atau walinya. Mitra wajib berusia minimal 17 tahun dan memiliki KTP.',
       ]],
       ['Perubahan kebijakan', [
         'Jika kebijakan ini berubah, tanggal di atas akan diperbarui dan perubahan penting akan diumumkan di aplikasi.',
@@ -66,6 +67,7 @@ const CONTENT = {
         'Order data: services ordered, addresses, times, prices, payment method, reviews and chat messages with partners or customers.',
         'Partner registration data: ID card photo, selfie, driving licence/vehicle registration, vehicle details, business or villa details, and bank/e-wallet details for payouts.',
         'Photos you upload: menu, villa, chat attachments and payment receipts. The camera and gallery are only accessed when you choose to upload.',
+        'WiraAsuh (childcare): your child\u2019s nickname and age, and the notes you write for the nanny, including allergies, medication and routines. A parent enters this; only the assigned nanny and Wira admins can see it, and it is used only to run that babysitting session.',
         'Device data: notification token, app version and error logs used to fix problems.',
       ]],
       ['How we use data', [
@@ -91,7 +93,7 @@ const CONTENT = {
         `Delete your account and its data at any time from Profile/Settings in the app or at wira.one/hapus-akun. Request a copy of your data by emailing ${CONTACT_EMAIL} from your registered email or number; we handle requests within 14 working days.`,
       ]],
       ['Children', [
-        'Wira is not intended for children under 13. Partners must be at least 17 and hold an Indonesian ID card.',
+        'Wira accounts are for people aged 18 and over; children never create an account. Children\u2019s details in WiraAsuh are provided only by a parent or guardian. Partners must be at least 17 and hold an Indonesian ID card.',
       ]],
       ['Changes', [
         'If this policy changes, the date above will be updated and important changes will be announced in the app.',
