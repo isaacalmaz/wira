@@ -37,6 +37,34 @@ function tryParseJson(value) {
 // bisa konfirmasi manual kapan saja (lihat rasional GPS-assisted-confirm).
 const ARRIVAL_RADIUS_METERS = 150;
 
+// 0109: on a cash food order the driver pays the restaurant the menu price at
+// pickup and collects the order total from the customer. Null otherwise.
+const cashFoodSplit = (order) => {
+  if (!order || order.payment_method !== 'cash' || !['food', 'WiraFood'].includes(order.service_type) || !order.merchant_id) return null;
+  const menu = Math.max(Number(order.total_price || 0) - Number(order.delivery_fee || 0), 0) + Number(order.promo_discount || 0);
+  return { menu, total: Number(order.total_price || 0), promo: Number(order.promo_discount || 0) };
+};
+
+const CashFoodNote = ({ split, compact = false }) => (
+  <div className="flex flex-col gap-1.5 rounded-control border border-pay-line bg-pay-soft px-3.5 py-3 text-[13px] text-ink">
+    <div className="flex items-center justify-between gap-3">
+      <span className="font-semibold">Bayar tunai ke restoran</span>
+      <Money value={split.menu} className="font-medium" />
+    </div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="font-semibold">Tagih ke pelanggan</span>
+      <Money value={split.total} className="font-medium" />
+    </div>
+    {!compact && (
+      <p className="text-[12px] leading-relaxed text-ink-muted">
+        {split.promo > 0
+          ? 'Ada promo Wira: selisihnya ditambahkan ke saldo Anda setelah pesanan selesai.'
+          : 'Siapkan uang tunai untuk membayar restoran saat mengambil makanan.'}
+      </p>
+    )}
+  </div>
+);
+
 // ---- Presentational helpers (Tenun Laut) ----
 
 /** A rupiah figure that can be negative (Tunai orders net the commission out
@@ -651,6 +679,10 @@ const DriverHomePage = () => {
                 <Money value={activeOrder.total_price} className="text-[20px] font-medium text-ink" />
               </div>
 
+              {cashFoodSplit(activeOrder) && activeOrder.status !== OrderStatus.IN_TRIP && (
+                <CashFoodNote split={cashFoodSplit(activeOrder)} />
+              )}
+
               {legTarget ? (
                 hasArrived ? (
                   <div className="flex items-center gap-2.5 rounded-control border border-success-line bg-success-soft px-3.5 py-3 text-[13px] font-semibold text-success-ink">
@@ -786,6 +818,8 @@ const DriverHomePage = () => {
                 <p className="break-words text-sm leading-relaxed text-ink">{incomingOrder.details}</p>
               )
             )}
+
+            {cashFoodSplit(incomingOrder) && <CashFoodNote split={cashFoodSplit(incomingOrder)} compact />}
 
             <p className="text-xs text-ink-muted">Ketuk 'Terima' untuk melihat peta lengkap</p>
           </div>
