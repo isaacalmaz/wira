@@ -4,6 +4,7 @@ import { Badge, Button, Card, Field, IconTile, Input, Money, Notice, Select, She
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import qrisImg from '../../assets/qris-wira.jpeg';
 
 const STATUS_LABEL = {
   pending: { text: 'Menunggu diproses admin', icon: Clock, tone: 'warning' },
@@ -361,8 +362,12 @@ export default function PayoutPanel() {
         )}
       >
         <form id="deposit-form" onSubmit={handleDeposit} className="flex flex-col gap-4">
+          <div className="flex flex-col items-center gap-2 rounded-control border border-line bg-white p-3">
+            <img src={qrisImg} alt="QRIS Wira" className="w-full max-w-[260px] rounded-[8px]" />
+            <a href={qrisImg} download="qris-wira.jpeg" className="text-[13px] font-semibold text-brand-ink underline">Simpan gambar QRIS</a>
+          </div>
           <Notice tone="info">
-            <span className="whitespace-pre-line">{settings.info || 'Hubungi admin Wira untuk nomor rekening atau QRIS setoran komisi.'}</span>
+            <span className="whitespace-pre-line">{settings.info || 'Scan QRIS Wira di atas, lalu lampirkan bukti pembayarannya.'}</span>
           </Notice>
           <Field
             label={balance < 0 ? <>Nominal (komisi Anda <Money value={Math.ceil(-balance)} className="font-medium" />)</> : 'Nominal deposit'}
