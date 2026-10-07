@@ -407,7 +407,7 @@ export default function WalletPage() {
             <Wallet size={22} className="mt-0.5 shrink-0 text-emas-400" aria-hidden="true" />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               variant="on-brand"
               className="px-2"
@@ -422,15 +422,6 @@ export default function WalletPage() {
             </Button>
             <Button variant="on-brand-outline" className="px-2" onClick={() => setModalType('transfer')}>
               {t('wallet.transfer')}
-            </Button>
-            <Button
-              variant="on-brand-outline"
-              className="px-2 opacity-60"
-              // Dimatikan sementara: pembayaran ini dulu memotong saldo tanpa
-              // meneruskannya ke merchant mana pun (tidak ada penerima).
-              onClick={() => toast(t('wallet.merchant_coming_soon'), { icon: <Building2 size={18} /> })}
-            >
-              {t('wallet.pay_merchant')}
             </Button>
           </div>
         </div>
