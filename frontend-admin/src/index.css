@@ -198,6 +198,11 @@
     .data-table tbody td[data-label=""]::before,
     .data-table tbody td[colspan]::before { content: none; }
     .data-table tbody td[colspan] { @apply block text-center; }
+    /* Recent browsers apply justify-self to block layout too: keep the
+       title and full-width cells left/stretched. */
+    .data-table:not([data-titled]) tbody td:first-child > *,
+    .data-table tbody td.td-title > *,
+    .data-table tbody td[colspan] > * { justify-self: auto; }
     .data-table tbody td.td-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
     .data-table tbody td .justify-end { flex-wrap: wrap; }
     .data-table tbody td .truncate { white-space: normal; }
