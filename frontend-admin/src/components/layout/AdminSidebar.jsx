@@ -68,7 +68,7 @@ const GROUPS = [
 const initialsOf = (name = '') =>
   name.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'A';
 
-const AdminSidebar = ({ isCollapsed }) => {
+const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -158,10 +158,22 @@ const AdminSidebar = ({ isCollapsed }) => {
   const userName = user?.name || 'Administrator';
 
   return (
+    <>
+    {/* Phones/tablets: the sidebar is a drawer over a dimmed page. */}
+    {mobileOpen && (
+      <button
+        type="button"
+        aria-label="Tutup menu"
+        onClick={onClose}
+        className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[1px] lg:hidden"
+      />
+    )}
     <aside
       className={cx(
-        'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-line bg-card transition-[width] duration-300',
-        isCollapsed ? 'w-20' : 'w-64',
+        'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col border-r border-line bg-card transition-[width,transform] duration-300',
+        isCollapsed ? 'lg:w-20' : 'lg:w-64',
+        'w-[min(18rem,85vw)] lg:translate-x-0',
+        mobileOpen ? 'translate-x-0 shadow-pop' : '-translate-x-full',
       )}
     >
       {/* Logo lockup */}
@@ -241,6 +253,7 @@ const AdminSidebar = ({ isCollapsed }) => {
         )}
       </div>
     </aside>
+    </>
   );
 };
 

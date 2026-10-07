@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import {
   Bell, Sun, Moon, LogOut, Check, ExternalLink, Clock, ChevronRight,
   PanelLeftClose, PanelLeftOpen, Car, Package, Store, Home, Wrench,
+  Menu, LayoutDashboard, ShoppingBag, Wallet, MessageSquare,
 } from 'lucide-react';
 import { Badge, IconTile, cx } from '../ui';
 import { supabase } from '../../config/supabase';
@@ -16,6 +17,8 @@ const NOTIF_ICONS = { driver: Car, courier: Package, merchant: Store, villa: Hom
 
 const AdminLayout = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Below lg (1024px) the sidebar is a drawer, closed after every navigation.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
   const { user, logout } = useAuth();
@@ -102,6 +105,19 @@ const AdminLayout = () => {
     return subscribeToApplications('realtime-admin-notifs', fetchInitialNotifs);
   }, []);
 
+  useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
+
+  // Phone bottom bar: the pages admins open most, filtered by role.
+  const bottomNav = useMemo(() => {
+    const wanted = [
+      { path: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
+      { path: '/orders', label: 'Pesanan', icon: ShoppingBag },
+      { path: '/finance', label: 'Keuangan', icon: Wallet },
+      { path: '/support', label: 'Bantuan', icon: MessageSquare },
+    ];
+    return wanted.filter((w) => MENU_ITEMS.find((m) => m.path === w.path)?.roles.includes(user?.role));
+  }, [user?.role]);
+
   const pageLabel = useMemo(() => {
     const path = location.pathname.replace(/^\/admin/, '');
     if (path.startsWith('/partners')) return 'Profil mitra';
@@ -117,23 +133,36 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-ground text-ink transition-colors duration-200">
       {/* Sidebar */}
-      <AdminSidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <AdminSidebar
+        isCollapsed={isSidebarCollapsed && !mobileNavOpen}
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+      />
 
       {/* Main Content Area */}
-      <div className={`min-w-0 transition-[padding] duration-300 ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
+      <div className={`min-w-0 transition-[padding] duration-300 ${isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
 
         {/* Top Header */}
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-line bg-ground/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className={`${iconBtn} -ml-2 lg:hidden`}
+              aria-label="Buka menu"
+            >
+              <Menu size={21} />
+            </button>
+            <button
+              type="button"
               onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
-              className={`${iconBtn} -ml-2`}
+              className={`${iconBtn} -ml-2 hidden lg:inline-flex`}
               aria-label={isSidebarCollapsed ? 'Buka sidebar' : 'Ciutkan sidebar'}
               title={isSidebarCollapsed ? 'Buka sidebar' : 'Ciutkan sidebar'}
             >
               {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
             </button>
+            <span className="truncate text-[15px] font-bold text-ink sm:hidden">{pageLabel}</span>
             <div className="hidden min-w-0 items-center gap-2 text-[13.5px] sm:flex">
               <span className="font-medium text-ink-muted">Wira Admin Portal</span>
               <ChevronRight size={14} className="shrink-0 text-ink-muted/70" aria-hidden="true" />
@@ -180,7 +209,7 @@ const AdminLayout = () => {
 
               {/* Dropdown Panel */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-card border border-line bg-card shadow-pop sm:w-96">
+                <div className="fixed inset-x-3 top-16 mt-1 overflow-hidden rounded-card border border-line bg-card shadow-pop sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96">
                   <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
                     <h3 className="flex items-center gap-2 text-[14px] font-bold text-ink">
                       Notifikasi <Badge tone={unreadCount > 0 ? 'brand' : 'neutral'}><span className="font-mono">{unreadCount}</span> Baru</Badge>
@@ -284,9 +313,38 @@ const AdminLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="mx-auto w-full min-w-0 max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full min-w-0 max-w-7xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-8 lg:pb-16 lg:pt-6">
           <Outlet />
         </main>
+
+        {/* Phone bottom navigation */}
+        <nav
+          aria-label="Navigasi utama"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+        >
+          {bottomNav.map(({ path, label, icon: Icon }) => {
+            const active = location.pathname.startsWith(path);
+            return (
+              <Link
+                key={path}
+                to={path}
+                aria-current={active ? 'page' : undefined}
+                className={cx('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', active ? 'text-brand-ink' : 'text-ink-muted')}
+              >
+                <Icon size={20} aria-hidden="true" />
+                {label}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-ink-muted"
+          >
+            <Menu size={20} aria-hidden="true" />
+            Menu
+          </button>
+        </nav>
       </div>
     </div>
   );

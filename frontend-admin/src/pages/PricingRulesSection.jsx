@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
-import { Button, Card, Field, Input, Sheet, cx } from '../components/ui';
+import { Button, Card, Field, Input, Sheet, Table, cx } from '../components/ui';
 
 // Presentational, per-service_type editable table for public.pricing_rules.
 // All Supabase calls (fetch/update/insert/delete) and the RLS-trap check
@@ -85,8 +85,7 @@ const PricingRulesSection = ({
         </Button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="data-table">
+      <Table className="rounded-none border-0">
           <thead>
             <tr>
               <th>Kode</th>
@@ -166,8 +165,7 @@ const PricingRulesSection = ({
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+      </Table>
 
       <Sheet
         open={showNewForm}
