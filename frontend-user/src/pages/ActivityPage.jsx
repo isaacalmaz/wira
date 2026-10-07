@@ -1,6 +1,7 @@
 import ReviewModal from "../components/common/ReviewModal";
 import { canReview } from "../utils/review";
 import { useState } from 'react';
+import SERVICES from '../config/services';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Card, EmptyState, IconTile, Money, PageHeader, Segmented, Sheet } from '../components/ui';
 import { useOrders } from '../context/OrderContext';
