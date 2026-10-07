@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/panduan", "destination": "/panduan.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

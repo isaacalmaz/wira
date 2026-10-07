@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Wira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root {
+  --ground: #F6F4EF;
+  --card: #FFFFFF;
+  --ink: #12262C;
+  --muted: #5B6B70;
+  --line: #E3DFD6;
+  --brand: #0B4F5E;
+  --brand-soft: #E4EFF0;
+  --brand-ink: #0B4F5E;
+  --gold: #B7862A;
+  --gold-soft: #F6EEDC;
+  --gold-ink: #7A5714;
+  --warn-soft: #FFF4E0;
+  --warn-ink: #8A5A00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0D1619; --card: #142226; --ink: #E7EEEF; --muted: #9AABAF; --line: #24363B;
+    --brand: #4FB3C4; --brand-soft: #16343A; --brand-ink: #8FD3DE;
+    --gold: #D9A946; --gold-soft: #2E2716; --gold-ink: #E9C77F;
+    --warn-soft: #2E2410; --warn-ink: #F0C46B;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0D1619; --card: #142226; --ink: #E7EEEF; --muted: #9AABAF; --line: #24363B;
+  --brand: #4FB3C4; --brand-soft: #16343A; --brand-ink: #8FD3DE;
+  --gold: #D9A946; --gold-soft: #2E2716; --gold-ink: #E9C77F;
+  --warn-soft: #2E2410; --warn-ink: #F0C46B;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15.5px/1.6 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding-inline: 16px;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.mark { display: flex; align-items: baseline; gap: 6px; }
+.mark b { font-size: 26px; font-weight: 800; letter-spacing: -0.04em; color: var(--brand-ink); }
+.mark span { font-size: 15px; color: var(--muted); font-weight: 500; }
+h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.tabs { display: flex; gap: 6px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; position: sticky; top: 8px; z-index: 5; }
+.tabs button {
+  flex: 1; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--muted);
+  font: 600 14.5px "Plus Jakarta Sans", system-ui, sans-serif; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--brand-soft); color: var(--brand-ink); }
+.tabs button[data-tab="mitra"][aria-selected="true"] { background: var(--gold-soft); color: var(--gold-ink); }
+.tabs button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.panel { display: flex; flex-direction: column; gap: 14px; }
+.panel[hidden] { display: none; }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+summary {
+  list-style: none; cursor: pointer; padding: 15px 18px; display: flex; align-items: center; gap: 12px;
+  font-weight: 700; font-size: 16px;
+}
+summary::-webkit-details-marker { display: none; }
+summary .tag { font: 500 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-left: auto; white-space: nowrap; }
+summary::after { content: "+"; font-weight: 500; font-size: 20px; color: var(--muted); width: 18px; text-align: center; }
+details[open] summary::after { content: "–"; }
+.body { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.body p { margin: 0; }
+ol, ul { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+li::marker { color: var(--muted); }
+.note { border-radius: 12px; padding: 11px 14px; font-size: 14px; background: var(--brand-soft); color: var(--ink); }
+.note.warn { background: var(--warn-soft); }
+.note.gold { background: var(--gold-soft); }
+.note b { color: inherit; }
+.pin { font-family: "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.25em; font-weight: 500; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: "IBM Plex Mono", ui-monospace, monospace; text-align: right; white-space: nowrap; }
+.example { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13.5px; line-height: 1.7; }
+footer { color: var(--muted); font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
+a { color: var(--brand-ink); }
+@media (prefers-reduced-motion: no-preference) { details { transition: border-color .2s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"><b>wira</b><span>panduan</span></div>
+    <h1>Cara memakai Wira dan Wira Mitra</h1>
+    <p class="lede">Panduan singkat untuk pelanggan, penguji aplikasi, dan mitra di Lombok. Ketuk judul untuk membuka langkah-langkahnya.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Pilih panduan">
+    <button id="tab-pelanggan" role="tab" data-tab="pelanggan" aria-selected="true" aria-controls="panel-pelanggan">Pelanggan &amp; Penguji</button>
+    <button id="tab-mitra" role="tab" data-tab="mitra" aria-selected="false" aria-controls="panel-mitra">Mitra</button>
+  </div>
+
+  <!-- ============ PELANGGAN ============ -->
+  <section class="panel" id="panel-pelanggan" role="tabpanel" aria-labelledby="tab-pelanggan">
+
+    <details open>
+      <summary>Untuk penguji: ikut uji coba 14 hari <span class="tag">Penting</span></summary>
+      <div class="body">
+        <ol>
+          <li>Kirim alamat <b>Gmail</b> yang dipakai di HP Android Anda ke tim Wira.</li>
+          <li>Buka link uji coba yang dikirim, lalu ketuk <b>Jadi penguji</b>.</li>
+          <li>Pasang <b>Wira</b> dari Play Store lewat link itu.</li>
+          <li><b>Jangan di-uninstall selama 14 hari</b> dan buka sesekali.</li>
+        </ol>
+        <p class="note">Menemukan error atau punya saran? Kirim lewat <b>Profil → Pusat Bantuan</b> di aplikasi, atau WhatsApp tim Wira. Sertakan screenshot kalau bisa.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Daftar dan masuk</summary>
+      <div class="body">
+        <ol>
+          <li>Buka aplikasi Wira, pilih <b>Daftar</b>, isi nama, nomor HP, email, dan kata sandi.</li>
+          <li>Masuk dengan email dan kata sandi tadi.</li>
+          <li>Izinkan <b>lokasi</b> dan <b>notifikasi</b> supaya titik jemput terisi otomatis dan Anda dikabari saat mitra menerima pesanan.</li>
+        </ol>
+        <p class="note">Akun Wira untuk usia 18 tahun ke atas.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Pesan Ride (ojek dan mobil)</summary>
+      <div class="body">
+        <ol>
+          <li>Pilih <b>Ride</b>, isi titik jemput dan tujuan. Bisa juga ketuk <b>Gunakan Lokasi Saya</b> atau geser pin di peta.</li>
+          <li>Pilih motor atau mobil, lalu pilih <b>Tunai</b>.</li>
+          <li>Ketuk <b>Pesan Sekarang</b>. Tunggu driver menerima.</li>
+          <li>Saat bertemu driver, <b>tunjukkan PIN 4 angka</b> yang tampil di layar. Perjalanan baru bisa dimulai setelah driver memasukkan PIN ini.</li>
+          <li>Bayar tunai sesuai harga di aplikasi saat sampai, lalu beri ulasan.</li>
+        </ol>
+        <p class="note warn">Pencarian alamat kadang butuh sampai 20 detik. Kalau lama, geser pin di peta saja.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Kirim paket (Send)</summary>
+      <div class="body">
+        <ol>
+          <li>Isi nama dan nomor HP pengirim, alamat jemput, lalu data dan alamat penerima.</li>
+          <li>Pilih ukuran paket. Harga mengikuti ukuran (dan jarak, bila berlaku).</li>
+          <li>Pilih <b>Tunai</b> dan ketuk <b>Pesan Kurir Sekarang</b>.</li>
+          <li>Saat kurir menjemput, <b>berikan PIN</b> dari layar Anda.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Pesan makanan (Food)</summary>
+      <div class="body">
+        <ol>
+          <li>Pilih restoran, tambahkan menu, lalu ketuk <b>Lanjut Bayar</b>.</li>
+          <li>Periksa alamat antar dan ongkos kirim, pilih <b>Tunai</b>.</li>
+          <li>Restoran menerima dan menyiapkan pesanan, lalu kurir mengambilnya.</li>
+          <li>Bayar <b>total</b> (harga menu + ongkir) ke kurir saat makanan sampai.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Panggil teknisi dan servis kolam</summary>
+      <div class="body">
+        <ol>
+          <li>Pilih <b>Service</b> (AC, listrik, pipa, tukang) atau <b>Pool</b>.</li>
+          <li>Pilih pekerjaan, tanggal (paling jauh <b>7 hari ke depan</b>), jam, dan alamat.</li>
+          <li>Saat teknisi tiba, <b>berikan PIN</b>. Pekerjaan dimulai setelah PIN dimasukkan.</li>
+          <li>Bahan atau suku cadang tambahan selalu minta persetujuan Anda dulu di aplikasi.</li>
+          <li>Bayar tunai ke teknisi setelah selesai.</li>
+        </ol>
+        <p class="note">Pekerjaan besar seperti renovasi atau terazzo? Pakai <b>Ajukan Proyek</b> untuk menerima penawaran harga.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Pengasuh anak (WiraAsuh)</summary>
+      <div class="body">
+        <ol>
+          <li>Pilih <b>Asuh</b>, tanggal (paling jauh 7 hari ke depan), jam mulai, dan durasi.</li>
+          <li>Isi nama panggilan dan usia anak, alamat, nomor darurat, dan catatan (alergi, obat, jadwal tidur).</li>
+          <li>Kirim permintaan. Tim Wira mengecek jadwal dan mengabari Anda lewat notifikasi.</li>
+          <li>Saat pengasuh datang, <b>berikan PIN</b> untuk memulai sesi.</li>
+          <li>Bayar tunai ke pengasuh setelah sesi selesai.</li>
+        </ol>
+        <p class="note">Gratis dibatalkan sampai 2 jam sebelum mulai.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Sewa villa</summary>
+      <div class="body">
+        <ol>
+          <li>Pilih villa, tanggal check-in dan check-out.</li>
+          <li>Bayar dengan <b>QRIS</b> sesuai nominal yang tampil, termasuk 3 angka kode unik di belakang.</li>
+          <li>Admin Wira mengecek pembayaran, lalu pemilik villa mengonfirmasi. Selesaikan pembayaran dalam batas waktu yang tertulis.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Isi saldo WiraPay</summary>
+      <div class="body">
+        <ol>
+          <li>Buka <b>Dompet → Isi Saldo</b>, masukkan nominal.</li>
+          <li>Scan QRIS Wira dan bayar <b>persis</b> sesuai nominal, termasuk kode unik.</li>
+          <li>Ketuk <b>Saya sudah bayar</b>. Saldo masuk setelah admin mengecek mutasi.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Bantuan dan hapus akun</summary>
+      <div class="body">
+        <ul>
+          <li>Keluhan pesanan: <b>Profil → Pusat Bantuan &amp; Komplain</b>.</li>
+          <li>Hapus akun: <b>Profil → Hapus Akun</b>, atau lewat <a href="https://wira.one/hapus-akun">wira.one/hapus-akun</a>.</li>
+          <li>Kebijakan privasi: <a href="https://wira.one/privacy">wira.one/privacy</a>.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ MITRA ============ -->
+  <section class="panel" id="panel-mitra" role="tabpanel" aria-labelledby="tab-mitra" hidden>
+
+    <details open>
+      <summary>Daftar jadi mitra <span class="tag">Mulai di sini</span></summary>
+      <div class="body">
+        <ol>
+          <li>Pasang <b>Wira Mitra</b>, pilih <b>Daftar</b>, lalu pilih jenis kemitraan: driver, restoran, villa, atau teknisi.</li>
+          <li>Unggah KTP, swafoto, dan dokumen kendaraan atau usaha.</li>
+          <li>Centang pernyataan <b>usia 18 tahun ke atas</b>, lalu kirim.</li>
+          <li>Tunggu verifikasi tim Wira. Anda dikabari setelah disetujui.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Driver: Ride dan Send</summary>
+      <div class="body">
+        <ol>
+          <li>Nyalakan tombol <b>Online</b> di beranda.</li>
+          <li>Saat ada <b>Pesanan Baru Masuk</b>, periksa jarak dan tarif, lalu ketuk <b>Terima</b>.</li>
+          <li>Sampai di titik jemput, ketuk <b>Konfirmasi Sampai di Jemputan</b>.</li>
+          <li>Ketuk <b>Mulai Perjalanan</b> dan <b>masukkan PIN</b> dari penumpang atau pengirim.</li>
+          <li>Sampai tujuan, terima uang tunai, lalu ketuk <b>Selesaikan Perjalanan</b>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Driver: antar makanan tunai</summary>
+      <div class="body">
+        <p>Kurir yang membayar restoran, lalu menagih pelanggan.</p>
+        <ol>
+          <li>Tawaran pesanan menampilkan <b>Bayar tunai ke restoran</b> dan <b>Tagih ke pelanggan</b>. Pastikan Anda membawa uang sebesar harga menu.</li>
+          <li>Di restoran, bayar harga menu dan ambil makanan.</li>
+          <li>Ketuk <b>Mulai Perjalanan</b> dan masukkan <b>PIN dari restoran</b>.</li>
+          <li>Di pelanggan, tagih <b>total</b> (menu + ongkir), lalu selesaikan pesanan.</li>
+        </ol>
+        <div class="note gold example">Contoh: menu Rp50.000, ongkir Rp17.000<br>Bayar ke restoran: Rp50.000<br>Tagih ke pelanggan: Rp67.000<br>Pendapatan Anda: ongkir, dikurangi komisi</div>
+        <p class="note">Ada promo Wira di pesanan? Selisihnya ditambahkan ke saldo Anda setelah pesanan selesai.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Restoran</summary>
+      <div class="body">
+        <ol>
+          <li>Atur menu di <b>Menu → Tambah Menu Baru</b>: nama, harga, foto, kategori.</li>
+          <li>Pesanan masuk di <b>Pesanan</b>. Ketuk <b>Terima</b>, atau <b>Tolak</b> bila tidak bisa (pesanan tunai).</li>
+          <li>Ketuk <b>Mulai Siapkan</b>, lalu <b>Siap Diambil</b>.</li>
+          <li>Saat kurir datang, terima pembayaran harga menu dan <b>berikan PIN</b> yang tampil di kartu pesanan.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Teknisi</summary>
+      <div class="body">
+        <ol>
+          <li>Pekerjaan sesuai keahlian Anda muncul di <b>Pekerjaan Tersedia</b>. Ketuk <b>Ambil Pekerjaan</b>.</li>
+          <li>Di hari kunjungan, ketuk <b>Berangkat ke Lokasi</b>.</li>
+          <li>Setibanya di lokasi, ketuk <b>Mulai Bekerja</b> dan masukkan <b>PIN pelanggan</b>. Bisa dimulai paling cepat 2 jam sebelum jadwal.</li>
+          <li>Butuh bahan atau suku cadang? Ajukan <b>Biaya tambahan</b> dan tunggu persetujuan pelanggan.</li>
+          <li>Setelah selesai, ketuk <b>Pekerjaan Selesai</b> dan terima pembayaran tunai.</li>
+        </ol>
+        <p class="note">Keahlian diatur oleh admin. Ingin menambah keahlian? Hubungi tim Wira lewat menu Bantuan.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Pengasuh (WiraAsuh)</summary>
+      <div class="body">
+        <ol>
+          <li>Permintaan baru muncul di beranda. Ketuk <b>Setujui</b> bila jadwal cocok.</li>
+          <li>Di hari sesi, ketuk <b>Berangkat ke Lokasi</b>, lalu <b>Mulai Sesi</b> dengan <b>PIN orang tua</b>.</li>
+          <li>Baca catatan anak (alergi, obat, jadwal) sebelum mulai.</li>
+          <li>Setelah selesai, ketuk <b>Selesaikan Sesi</b> dan terima pembayaran tunai.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Komisi dan setor komisi <span class="tag">Wajib dibaca</span></summary>
+      <div class="body">
+        <p>Pelanggan membayar tunai langsung ke Anda. Komisi Wira dicatat di menu <b>Pendapatan</b> sebagai saldo minus, lalu Anda setorkan.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Layanan</th><th style="text-align:right">Komisi Wira</th></tr></thead>
+            <tbody>
+              <tr><td>Ride, Send, Food, Service, Pool</td><td class="num">20%</td></tr>
+              <tr><td>Proyek renovasi</td><td class="num">10%</td></tr>
+              <tr><td>Villa</td><td class="num">5%</td></tr>
+              <tr><td>WiraAsuh</td><td class="num">5%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ol>
+          <li>Buka <b>Pendapatan → Setor Komisi</b>. Nominal terisi otomatis sebesar utang Anda.</li>
+          <li>Bayar lewat <b>QRIS Wira</b> yang tampil, atau transfer ke rekening yang tertulis.</li>
+          <li>Lampirkan foto bukti transfer, lalu kirim. Saldo bertambah setelah admin mengecek.</li>
+        </ol>
+        <p class="note warn"><b>Batas utang:</b> utang komisi Rp200.000 atau lebih selama lebih dari 7 hari membuat Anda tidak bisa menerima pesanan baru sampai menyetor. Pengingat tagihan dikirim setiap 3 hari.</p>
+        <p class="note">Boleh setor lebih dulu sebagai deposit. Komisi pesanan berikutnya dipotong dari deposit itu.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Mencairkan saldo</summary>
+      <div class="body">
+        <ol>
+          <li>Bila saldo di <b>Pendapatan</b> plus (misalnya dari pesanan WiraPay atau promo), ketuk <b>Tarik Saldo</b>.</li>
+          <li>Isi nominal, rekening atau e-wallet, dan nama pemilik.</li>
+          <li>Admin mentransfer dan menandai pencairan selesai.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Bantuan</summary>
+      <div class="body">
+        <ul>
+          <li>Kendala akun, pesanan, atau saldo: <b>Profil → Pusat Bantuan &amp; Komplain</b>.</li>
+          <li>Ganti nama atau nomor HP: <b>Profil → Pengaturan Akun</b>.</li>
+          <li>Hapus akun: <b>Pengaturan → Hapus Akun</b>. Lunasi komisi dan cairkan saldo dulu.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    <span>Wira · Lombok · <a href="https://wira.one">wira.one</a></span>
+    <span>Pertanyaan: <a href="mailto:wiraapp123@gmail.com">wiraapp123@gmail.com</a></span>
+  </footer>
+</div>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('[role="tab"]');
+  function show(name) {
+    tabs.forEach(function (t) {
+      var on = t.dataset.tab === name;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      document.getElementById('panel-' + t.dataset.tab).hidden = !on;
+    });
+    try { history.replaceState(null, '', '#' + name); } catch (e) {}
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.tab); }); });
+  if (location.hash === '#mitra') show('mitra');
+})();
+</script>
+</body>
+</html>
