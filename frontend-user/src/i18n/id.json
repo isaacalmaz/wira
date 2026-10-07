@@ -66,7 +66,11 @@
     "unavailable": "Sinyal lokasi belum tertangkap. Nyalakan GPS di ponsel atau Wi-Fi di komputer, lalu coba lagi.",
     "timeout": "Pencarian lokasi terlalu lama. Pindah ke area terbuka, lalu coba lagi.",
     "failed": "Lokasi Anda belum bisa ditemukan. Ketik alamatnya atau geser pin di peta.",
-    "search_placeholder": "Cari alamat (cth. Jl. Pejanggik, Mataram)"
+    "search_placeholder": "Cari alamat (cth. Jl. Pejanggik, Mataram)",
+    "no_results": "Tempat tidak ditemukan. Coba kata lain, atau geser pin di peta.",
+    "kind_saved": "Tersimpan",
+    "kind_merchant": "Resto",
+    "kind_villa": "Villa"
   },
   "promo": {
     "placeholder": "Kode promo (opsional)",
