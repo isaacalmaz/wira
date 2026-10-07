@@ -172,12 +172,14 @@ const SettingsPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Send the phone only when it changed (migrations/0114 lets partners
+      // change it; a name-only edit never depends on that).
+      const patch = { name: formData.name.trim() };
+      const phone = (formData.phone || '').trim();
+      if (phone && phone !== (user.phone || '')) patch.phone = phone;
       const { error, data } = await supabase
         .from('users')
-        .update({
-          name: formData.name,
-          phone: formData.phone
-        })
+        .update(patch)
         .eq('id', user.id)
         .select();
 
@@ -185,7 +187,12 @@ const SettingsPage = () => {
       if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
       toast.success('Profil berhasil diperbarui!');
     } catch (error) {
-      toast.error(`Gagal menyimpan: ${error.message}`);
+      const msg = String(error.message || '');
+      toast.error(/users_phone|duplicate key/i.test(msg)
+        ? 'Nomor telepon ini sudah dipakai akun lain.'
+        : /permission denied/i.test(msg)
+          ? 'Nomor telepon belum bisa diubah. Hubungi admin Wira lewat menu Bantuan.'
+          : `Gagal menyimpan: ${msg}`);
     } finally {
       setLoading(false);
     }
