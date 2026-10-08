@@ -4,11 +4,12 @@ import toast from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { CORE_ADMIN_ROLES } from '../../config/roles';
-import { orderStatusLabel } from '../../config/orderStatus';
+import { orderStatusLabel, orderStatusTone } from '../../config/orderStatus';
 import { Badge, Button, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../ui';
+import { SERVICE_LABEL } from '../../config/services';
+import { formatDateTime } from '../../utils/datetime';
 
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', babysit: 'WiraAsuh', pulsa: 'WiraPulsa' };
-const PAY_LABEL = { wallet: 'WiraPay', qris: 'QRIS', cash: 'Tunai', transfer: 'Transfer' };
+const PAY_LABEL = { wallet: 'WiraPay', qris: 'QRIS', cash: 'Tunai' };
 const PAY_STATUS = { paid: 'Lunas', unpaid: 'Belum dibayar', refunded: 'Dikembalikan' };
 const FINAL = ['completed', 'cancelled', 'expired'];
 const EVENT_LABEL = {
@@ -16,8 +17,7 @@ const EVENT_LABEL = {
   compensate: 'Kompensasi', note: 'Catatan',
 };
 
-const statusTone = (s) => (s === 'completed' ? 'success' : s === 'cancelled' || s === 'expired' ? 'danger' : s === 'pending' ? 'warning' : 'brand');
-const when = (ts) => (ts ? new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+const when = (ts) => (ts ? formatDateTime(ts) : '—');
 const waLink = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
   return digits ? `https://wa.me/${digits.startsWith('0') ? `62${digits.slice(1)}` : digits}` : null;
@@ -226,7 +226,7 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
       ) : (
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={statusTone(order.status)} dot>{orderStatusLabel(order.status)}</Badge>
+            <Badge tone={orderStatusTone(order.status)} dot>{orderStatusLabel(order.status, order.service_type)}</Badge>
             <Badge tone="neutral">{PAY_LABEL[order.payment_method] || order.payment_method} · {PAY_STATUS[order.payment_status] || order.payment_status}</Badge>
             <button
               type="button"

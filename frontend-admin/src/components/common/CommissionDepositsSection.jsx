@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Coins, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, SectionHeader, Sheet, Spinner, Table, Textarea } from '../ui';
+import { formatDateTime } from '../../utils/datetime';
 
 const STATUS = {
   pending: { label: 'Menunggu', tone: 'warning' },
@@ -127,7 +128,7 @@ export default function CommissionDepositsSection() {
               const bal = Number(r.users?.payable_balance) || 0;
               return (
                 <tr key={r.id}>
-                  <td><span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{new Date(r.created_at).toLocaleString('id-ID')}</span></td>
+                  <td><span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{formatDateTime(r.created_at)}</span></td>
                   <td>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-semibold text-ink">{r.users?.name || 'Mitra'}</span>

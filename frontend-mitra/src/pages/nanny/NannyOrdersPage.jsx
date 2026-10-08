@@ -5,6 +5,7 @@ import { Badge, Card, EmptyState, Money, PageHeader, Spinner } from '../../compo
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { getDisplayStatus } from '../../constants/orderStatus';
+import { formatDateTime } from '../../utils/datetime';
 
 const TONE = { completed: 'success', cancelled: 'danger', working: 'success' };
 
@@ -36,7 +37,7 @@ export default function NannyOrdersPage() {
                 <Link to={`/nanny/active-order/${o.id}`} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-sunken">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="text-[14px] font-semibold text-ink">
-                      {new Date(o.scheduled_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} · {o.metadata?.hours || '-'} jam
+                      {formatDateTime(o.scheduled_at)} · {o.metadata?.hours || '-'} jam
                     </span>
                     <Badge tone={TONE[o.status] || 'brand'} dot className="self-start">{getDisplayStatus(o.status, o.service_type || 'babysit')}</Badge>
                   </div>

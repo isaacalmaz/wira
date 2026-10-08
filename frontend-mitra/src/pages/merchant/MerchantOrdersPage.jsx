@@ -5,28 +5,15 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, Spinner, Select, Sheet, Field, Textarea } from '../../components/ui';
 import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { updateOrderStatus, orderErrorMessage } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
 import API_BASE_URL from '../../config/api';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { friendlyError } from '../../utils/friendlyError';
+import { formatDateTime } from '../../utils/datetime';
 
-// "8 Okt, 23.22" - day, short month and time, no seconds.
-const formatOrderTime = (iso) => {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
-};
-
-// Status badge tone (DESIGN.md §5): waiting = warning, in progress = brand,
-// done = success, cancelled = danger. Display only.
-const statusTone = (status) => {
-  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
-  if (status === OrderStatus.COMPLETED) return 'success';
-  if (status === OrderStatus.CANCELLED) return 'danger';
-  return 'brand';
-};
 const statusLabel = (status, serviceType) => getDisplayStatus(status, serviceType);
 
 // Villa stays: the server lets the host complete only from check-out
@@ -232,7 +219,7 @@ const MerchantOrdersPage = () => {
                 <h3 className="break-words text-[15px] font-bold leading-snug text-ink">{names[order.user_id] || 'Pelanggan'}</h3>
                 <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-muted">
                   <Clock size={12} aria-hidden="true" />
-                  <span>{formatOrderTime(order.created_at)}</span>
+                  <span>{formatDateTime(order.created_at)}</span>
                   <span aria-hidden="true">•</span>
                   <span className="font-mono">#{order.id.slice(0, 6).toUpperCase()}</span>
                 </p>

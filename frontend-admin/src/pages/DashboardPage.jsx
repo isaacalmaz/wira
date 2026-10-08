@@ -11,11 +11,12 @@ import {
 } from '../components/ui';
 import { useTheme } from '../context/ThemeContext';
 import AttentionBoard from '../components/common/AttentionBoard';
-import { orderStatusLabel } from '../config/orderStatus';
+import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
+import { SERVICE_LABEL } from '../config/services';
+import { formatDateTime } from '../utils/datetime';
 
 // Calendar day in the browser's timezone (WITA for the Lombok team), not UTC:
 // toISOString() made each "day" run from 08:00 to 08:00 local time.
-const SERVICE_LABELS = { ride: 'WiraRide', food: 'WiraFood', send: 'WiraSend', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa' };
 
 const localDayKey = (value) => {
   const d = new Date(value);
@@ -26,14 +27,6 @@ const localDayKey = (value) => {
 // tokens (index.css) for each theme: line = hairline, muted = axis text.
 const CHART_LIGHT = { grid: '#E4E1DA', axis: '#6B6862', money: '#A8791F', bars: ['#0B4F5E', '#3FA3B5'], card: '#FFFFFF', ink: '#21201D' };
 const CHART_NIGHT = { grid: '#22363C', axis: '#9AA7AA', money: '#D9A845', bars: ['#16788C', '#3FA3B5'], card: '#142328', ink: '#ECEAE5' };
-
-const ORDER_STATUS_TONE = (status) => {
-  const s = String(status || '').toLowerCase();
-  if (s === 'completed') return 'success';
-  if (s === 'cancelled' || s === 'canceled' || s === 'rejected') return 'danger';
-  if (s === 'pending' || s === 'searching') return 'warning';
-  return 'brand';
-};
 
 // Platform commission on every completed order — 20%, mitras (merchant+driver
 // combined, or driver alone for non-food services) keep the other 80%. This
@@ -121,7 +114,7 @@ const DashboardPage = () => {
           })));
           setServiceData(
             Object.entries(agg.by_service || {})
-              .map(([type, n]) => ({ name: SERVICE_LABELS[type] || type, Pesanan: Number(n) || 0 }))
+              .map(([type, n]) => ({ name: SERVICE_LABEL[type] || type, Pesanan: Number(n) || 0 }))
               .sort((a, b) => b.Pesanan - a.Pesanan),
           );
           return;
@@ -359,16 +352,16 @@ const DashboardPage = () => {
                   <td className="whitespace-nowrap">
                     <span className="font-mono text-[12.5px] text-ink">{o.id.slice(0, 8)}</span>
                     <span className="block font-mono text-[11.5px] text-ink-muted">
-                      {o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                      {o.created_at ? formatDateTime(o.created_at) : '-'}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{o.service_type}</td>
+                  <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{SERVICE_LABEL[o.service_type] || o.service_type}</td>
                   <td className="max-w-[220px]">
                     <span className="block truncate font-semibold">{o.user?.name || 'Anonim'}</span>
                     <span className="block truncate text-xs text-ink-muted">{o.driver?.name || '-'}</span>
                   </td>
                   <td className="text-right"><Money value={o.total_price || 0} /></td>
-                  <td><Badge tone={ORDER_STATUS_TONE(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
+                  <td><Badge tone={orderStatusTone(o.status)} dot>{orderStatusLabel(o.status, o.service_type)}</Badge></td>
                 </tr>
               ))}
             </tbody>

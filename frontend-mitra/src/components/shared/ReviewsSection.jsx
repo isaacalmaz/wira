@@ -4,6 +4,7 @@ import { MessageSquareReply, Star } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Badge, Button, Card, EmptyState, Field, Sheet, Textarea } from '../ui';
 import { friendlyError } from '../../utils/friendlyError';
+import { formatDate } from '../../utils/datetime';
 
 // Same codes as the customer app (migrations/0091 review_tag_list).
 export const TAG_LABEL = {
@@ -96,7 +97,7 @@ export default function ReviewsSection({ userId }) {
                 <Stars value={r.rating} />
                 <span className="text-[13px] font-semibold text-ink">{r.reviewer_name}</span>
                 <span className="text-[12px] text-ink-muted">
-                  {new Date(r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDate(r.created_at)}
                 </span>
               </div>
               {r.order_title && <span className="text-[12px] text-ink-muted">{r.order_title}</span>}

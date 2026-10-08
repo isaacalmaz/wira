@@ -172,8 +172,8 @@ const AdminLayout = () => {
               type="button"
               onClick={toggleTheme}
               className={iconBtn}
-              title="Toggle Dark Mode"
-              aria-label="Toggle Dark Mode"
+              title="Ganti tema terang/gelap"
+              aria-label="Ganti tema terang/gelap"
             >
               {isDarkMode ? <Sun size={19} /> : <Moon size={19} />}
             </button>

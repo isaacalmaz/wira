@@ -4,6 +4,7 @@ import { History, RefreshCw, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Badge, Button, Card, EmptyState, Input, PageHeader, Select, Spinner } from '../components/ui';
+import { formatDateTime } from '../utils/datetime';
 
 // Readable names for admin_audit_log.action (migrations/0101, 0102).
 const ACTIONS = {
@@ -40,7 +41,7 @@ const label = (a) => {
   const m = a.match(/^(pricing_rules|vehicles|promos|feature_flags)_(insert|update|delete)$/);
   return m ? `${TABLE_LABEL[m[1]]} ${OP_LABEL[m[2]]}` : a;
 };
-const when = (ts) => new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const when = (ts) => formatDateTime(ts);
 const fmt = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
 // One-line summary of the extra data each action carries.

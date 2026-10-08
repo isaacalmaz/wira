@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { driverEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
 import { EARNINGS_COLUMNS } from '../../utils/earnings';
+import { formatDate } from '../../utils/datetime';
 
 // One driver portal: every order assigned to this driver regardless of
 // service type (driverEarnedAmount computes the ride/send/food share).
@@ -61,7 +62,7 @@ const DriverEarningsPage = () => {
                 <ListRow
                   className="px-4 py-3"
                   title={tx.description || 'Tip dari Pelanggan'}
-                  subtitle={new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  subtitle={formatDate(tx.created_at)}
                   trailing={<Money value={tx.amount} sign="plus" tone="in" className="text-[14px] font-medium" />}
                 />
               </li>

@@ -17,7 +17,8 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: 'min-h-9 px-3 py-1.5 text-[13px] gap-1.5 rounded-[10px]',
+  // 36px tall, but the invisible ::after strip makes the touch target 44px.
+  sm: "relative min-h-9 px-3 py-1.5 text-[13px] gap-1.5 rounded-[10px] after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
   md: 'min-h-11 px-4 py-2.5 text-sm gap-2 rounded-control',
   lg: 'min-h-[52px] px-5 py-3 text-[15px] gap-2 rounded-[14px]',
 };

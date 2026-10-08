@@ -3,6 +3,8 @@ import { Star, EyeOff, Eye, MessageSquareReply } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Badge, Button, Card, EmptyState, Field, PageHeader, Segmented, Sheet, Spinner, Textarea } from '../components/ui';
+import { SERVICE_LABEL } from '../config/services';
+import { formatDate } from '../utils/datetime';
 
 const TAG_LABEL = {
   tepat_waktu: 'Tepat waktu', rapi: 'Rapi & bersih', ramah: 'Ramah', harga_sesuai: 'Harga sesuai',
@@ -10,7 +12,6 @@ const TAG_LABEL = {
   minta_biaya_tambahan: 'Minta biaya tambahan', tidak_tuntas: 'Tidak tuntas', kurang_sopan: 'Kurang sopan',
 };
 const NEGATIVE = new Set(['terlambat', 'kurang_rapi', 'minta_biaya_tambahan', 'tidak_tuntas', 'kurang_sopan']);
-const SERVICE_LABEL = { ride: 'Ride', send: 'Send', food: 'Food', service: 'Service', pool: 'Pool', villa: 'Villa' };
 
 const Stars = ({ value }) => (
   <span className="inline-flex gap-0.5" aria-label={`${value} dari 5 bintang`}>
@@ -112,7 +113,7 @@ export default function ReviewsPage() {
                     {r.order?.service_type && <Badge>{SERVICE_LABEL[r.order.service_type] || r.order.service_type}</Badge>}
                     {r.is_hidden && <Badge tone="danger">Disembunyikan</Badge>}
                     <span className="ml-auto font-mono text-[12px] text-ink-muted">
-                      {new Date(r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatDate(r.created_at)}
                     </span>
                   </div>
                   {r.order?.title && <span className="text-[12.5px] text-ink-muted">{r.order.title}</span>}

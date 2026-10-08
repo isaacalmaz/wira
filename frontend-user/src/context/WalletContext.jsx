@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import { friendlyError } from '../utils/friendlyError';
+import { formatDateTime } from '../utils/formatDate';
 
 const WalletContext = createContext();
 
@@ -38,7 +39,7 @@ export const WalletProvider = ({ children }) => {
           desc: tx.description,
           // Raw ledger fields for display-time localization (utils/localizeDbText).
           rawType: tx.type,
-          date: new Date(tx.created_at).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID'),
+          date: formatDateTime(tx.created_at, lang === 'en' ? 'en-GB' : 'id-ID'),
           amount: tx.amount,
         })));
       }

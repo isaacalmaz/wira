@@ -3,8 +3,8 @@ import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { orderStatusLabel } from '../../config/orderStatus';
 import { Badge, Button, Card, Money, Table } from '../ui';
+import { SERVICE_LABEL } from '../../config/services';
 
-const SERVICE_LABEL = { ride: 'Ride', send: 'Send', food: 'Food', service: 'Service', pool: 'Pool', villa: 'Villa' };
 
 // "45 mnt", "5 jam", "3 hari" since the order's status last changed.
 const sinceLabel = (ts) => {

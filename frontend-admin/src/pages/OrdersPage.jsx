@@ -3,11 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { ShoppingBag, Search } from 'lucide-react';
 import { Badge, Card, EmptyState, Input, Money, PageHeader, Select, Spinner, Table } from '../components/ui';
-import { orderStatusLabel } from '../config/orderStatus';
+import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
 import StaleOrdersPanel from '../components/common/StaleOrdersPanel';
 import OrderDetailSheet from '../components/common/OrderDetailSheet';
+import { SERVICE_LABEL } from '../config/services';
+import { formatDateTime } from '../utils/datetime';
 
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa' };
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -69,14 +70,6 @@ const OrdersPage = () => {
     () => Array.from(new Set(orders.map(o => o.service_type).filter(Boolean))).sort(),
     [orders]
   );
-
-  const statusTone = (status) => {
-    const st = String(status || '').toLowerCase();
-    if (st === 'completed') return 'success';
-    if (st === 'pending') return 'warning';
-    if (st === 'cancelled' || st === 'canceled') return 'danger';
-    return 'brand';
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,13 +160,13 @@ const OrdersPage = () => {
               >
                 <td className="whitespace-nowrap font-mono text-[12.5px]">
                   {o.id.slice(0,8)}
-                  <span className="block text-[11.5px] text-ink-muted">{new Date(o.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="block text-[11.5px] text-ink-muted">{formatDateTime(o.created_at)}</span>
                 </td>
                 <td className="whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{SERVICE_LABEL[o.service_type] || o.service_type}</td>
                 <td className="font-semibold">{o.user?.name || 'Anonim'}</td>
                 <td className={o.driver?.name ? '' : 'text-ink-muted'}>{o.driver?.name || '-'}</td>
                 <td className="text-right"><Money value={o.total_price || 0} /></td>
-                <td><Badge tone={statusTone(o.status)} dot>{orderStatusLabel(o.status)}</Badge></td>
+                <td><Badge tone={orderStatusTone(o.status)} dot>{orderStatusLabel(o.status, o.service_type)}</Badge></td>
               </tr>
             ))}
           </tbody>

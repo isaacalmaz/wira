@@ -272,7 +272,7 @@ const PromosPage = () => {
                   </td>
                   <td className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" leftIcon={<Edit size={15} />} onClick={() => handleOpenEdit(p)} title="Edit">
+                      <Button size="sm" variant="ghost" leftIcon={<Edit size={15} />} onClick={() => handleOpenEdit(p)} title="Ubah">
                         Edit
                       </Button>
                       <Button size="sm" variant="danger-soft" leftIcon={<Trash2 size={15} />} onClick={() => { setSelectedPromo(p); setIsDeleteOpen(true); }} title="Hapus">

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { MessageSquare, Plus, Clock, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, SectionHeader, Sheet, Spinner, Textarea } from '../../components/ui';
+import { formatDateTime } from '../../utils/datetime';
 
 export default function SupportPage() {
   const { user } = useAuth();
@@ -120,7 +121,7 @@ export default function SupportPage() {
                   {ticket.description}
                 </p>
                 <div className="flex items-center gap-1.5 font-mono text-[11.5px] text-ink-muted">
-                  <Clock size={12} aria-hidden="true" /> {new Date(ticket.created_at).toLocaleString('id-ID')}
+                  <Clock size={12} aria-hidden="true" /> {formatDateTime(ticket.created_at)}
                 </div>
 
                 {ticket.admin_response && (

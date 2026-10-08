@@ -194,11 +194,11 @@ export default function VillaEditPage() {
               {i === 0 && <span className="absolute left-1.5 top-1.5"><Badge tone="brand">Sampul</Badge></span>}
               <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5">
                 {i !== 0 && (
-                  <button type="button" onClick={() => makeCover(i)} aria-label={`Jadikan foto ${i + 1} sampul`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-ink">
+                  <button type="button" onClick={() => makeCover(i)} aria-label={`Jadikan foto ${i + 1} sampul`} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-ink">
                     <Star size={15} />
                   </button>
                 )}
-                <button type="button" onClick={() => removePhoto(i)} aria-label={`Hapus foto ${i + 1}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-danger-ink">
+                <button type="button" onClick={() => removePhoto(i)} aria-label={`Hapus foto ${i + 1}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-danger-ink">
                   <Trash2 size={15} />
                 </button>
               </div>

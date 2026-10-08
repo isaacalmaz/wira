@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button, Field, IconTile, Input, Select, Sheet, Table, Textarea } from '../ui';
+import { formatDateTime } from '../../utils/datetime';
 
 // What each staff role may do; enforced in the database (admin_can,
 // migrations/0102), not only by hiding menus.
@@ -15,7 +16,7 @@ export const STAFF_ROLES = [
 ];
 const ROLE_LABEL = { admin: 'Admin (lama)', superadmin: 'Superadmin' };
 const isSuper = (role) => role === 'Superadmin' || role === 'superadmin';
-const when = (ts) => (ts ? new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Belum pernah');
+const when = (ts) => (ts ? formatDateTime(ts) : 'Belum pernah');
 
 /**
  * Real staff accounts (admin_list_staff / admin_set_staff_role, 0102).

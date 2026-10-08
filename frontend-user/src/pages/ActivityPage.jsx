@@ -15,7 +15,6 @@ import {
   Home,
   Wrench,
   Waves,
-  Smartphone,
   Clock,
   Receipt,
   Star,
@@ -95,8 +94,6 @@ export default function ActivityPage() {
         return <Wrench size={20} />;
       case 'WiraPool':
         return <Waves size={20} />;
-      case 'WiraPulsa':
-        return <Smartphone size={20} />;
       default:
         return <Receipt size={20} />;
     }

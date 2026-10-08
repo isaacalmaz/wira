@@ -4,7 +4,7 @@
 // =========================================
 
 import {
-  Car, UtensilsCrossed, Package, Wallet, Smartphone,
+  Car, UtensilsCrossed, Package, Wallet,
   Home, Wrench, Waves, Baby
 } from 'lucide-react';
 
@@ -57,18 +57,6 @@ const SERVICES = [
     icon: Wallet,
     path: '/wallet',
     color: '#10B981',       // Emerald
-    enabled: true,
-  },
-  {
-    id: 'wira_pulsa',
-    key: 'wira_pulsa',
-    name_id: 'WiraPulsa',
-    name_en: 'WiraPulsa',
-    description_id: 'Beli pulsa & token listrik',
-    description_en: 'Buy credits & electricity tokens',
-    icon: Smartphone,
-    path: '/pulsa',
-    color: '#6366F1',       // Indigo
     enabled: true,
   },
   {

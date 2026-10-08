@@ -28,7 +28,6 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const ActiveOrderPage = lazy(() => import('./pages/ActiveOrderPage'));
 const SendPage = lazy(() => import('./pages/SendPage'));
-const PulsaPage = lazy(() => import('./pages/PulsaPage'));
 const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
@@ -85,7 +84,7 @@ export default function Root() {
                             <Route path="/activity" element={<ActivityPage />} />
                             <Route path="/active-order/:id" element={<ActiveOrderPage />} />
                             <Route path="/send" element={<SendPage />} />
-                            <Route path="/pulsa" element={<PulsaPage />} />
+                            <Route path="/pulsa" element={<Navigate to="/" replace />} />
                             <Route path="/villa" element={<VillaPage />} />
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />

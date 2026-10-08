@@ -79,12 +79,12 @@ export default function StayCalendar({ villaId, checkIn, checkOut, onChange }) {
     <div className="flex flex-col gap-2 rounded-card border border-line bg-card p-3" aria-busy={loading}>
       <div className="flex items-center justify-between">
         <button type="button" disabled={atStart} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-          aria-label={t('villa.cal_prev')} className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-sunken disabled:opacity-30">
+          aria-label={t('villa.cal_prev')} className="flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-sunken disabled:opacity-30">
           <ChevronLeft size={18} />
         </button>
         <p className="text-[14px] font-semibold capitalize text-ink">{monthLabel}</p>
         <button type="button" disabled={atEnd} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-          aria-label={t('villa.cal_next')} className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-sunken disabled:opacity-30">
+          aria-label={t('villa.cal_next')} className="flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-sunken disabled:opacity-30">
           <ChevronRight size={18} />
         </button>
       </div>

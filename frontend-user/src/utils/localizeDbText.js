@@ -57,31 +57,6 @@ const POOL_SIZE_KEYS = {
   'Besar (> 50 m²)': 'pool.size_large',
 };
 
-// Product labels the earlier Pulsa checkout wrote into payment descriptions
-// ("{tab} {label} ({target})"). Matched case-insensitively.
-const PULSA_LABEL_KEYS = {
-  'pulsa 10.000': 'pulsa.products.P10',
-  'pulsa 20.000': 'pulsa.products.P20',
-  'pulsa 50.000': 'pulsa.products.P50',
-  'pulsa 50.000 (populer)': 'pulsa.products.P50',
-  'pulsa 100.000': 'pulsa.products.P100',
-  'pulsa 150.000': 'pulsa.products.P150',
-  'pulsa 200.000': 'pulsa.products.P200',
-  '5gb / 30 hari': 'pulsa.products.D1',
-  '15gb unlimited / 30 hari': 'pulsa.products.D2',
-  '35gb jumbo / 30 hari': 'pulsa.products.D3',
-  '60gb bebas kuota / 30 hari': 'pulsa.products.D4',
-  'token listrik 20.000': 'pulsa.products.PLN20',
-  'token listrik 50.000': 'pulsa.products.PLN50',
-  'token listrik 100.000': 'pulsa.products.PLN100',
-  'token listrik 200.000': 'pulsa.products.PLN200',
-  'token listrik 500.000': 'pulsa.products.PLN500',
-  'token listrik 1.000.000': 'pulsa.products.PLN1000',
-  'tagihan air pdam giri menang': 'pulsa.products.PDAM1',
-  'iuran bpjs kelas 3 (2 jiwa)': 'pulsa.products.BPJS1',
-  'iuran bpjs kelas 2 (1 jiwa)': 'pulsa.products.BPJS2',
-};
-
 const lookup = (table, value, t) => {
   const key = table[typeof value === 'string' ? value.trim() : value];
   return key ? t(key) : value;
@@ -91,7 +66,7 @@ const lookup = (table, value, t) => {
 
 const SERVICE_BRAND = {
   ride: 'WiraRide', food: 'WiraFood', send: 'WiraSend', villa: 'WiraVilla',
-  service: 'WiraService', pool: 'WiraPool', pulsa: 'WiraPulsa',
+  service: 'WiraService', pool: 'WiraPool', babysit: 'WiraAsuh',
 };
 
 /**
@@ -229,15 +204,6 @@ function localizePaymentDescription(desc, t) {
         ? lookup(POOL_NAME_KEYS, name, t)
         : name; // restaurant name: data
     return { title: t('ledger.payment_brand', { service: brand, item: label }), detail: null };
-  }
-
-  // Earlier Pulsa checkout: `${tab} ${label} (${target})`
-  m = desc.match(/^(Pulsa|Data|PLN|PDAM|BPJS) (.+) \(([^()]+)\)$/s);
-  if (m) {
-    const productKey = PULSA_LABEL_KEYS[m[2].trim().toLowerCase()];
-    // The product list tags one item "(populer)"; that badge has no place on a receipt.
-    const product = productKey ? t(productKey).replace(/\s*\((populer|popular)\)$/i, '') : m[2];
-    return { title: t('ledger.payment_pulsa', { product, target: m[3] }), detail: null };
   }
 
   // SQL default (0023/0070)

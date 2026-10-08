@@ -1,16 +1,9 @@
 import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronRight, ClipboardList, Repeat } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, cx } from '../ui';
-import { getDisplayStatus } from '../../constants/orderStatus';
+import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, visitInfo } from '../../services/technicianService';
 
-const PAYMENT_LABEL = { cash: 'Tunai', wallet: 'WiraPay', qris: 'QRIS', transfer: 'Transfer' };
-
-const statusTone = (status) => {
-  if (status === 'completed') return 'success';
-  if (status === 'cancelled') return 'danger';
-  if (status === 'working') return 'brand';
-  return 'warning';
-};
+const PAYMENT_LABEL = { cash: 'Tunai', wallet: 'WiraPay', qris: 'QRIS' };
 
 /**
  * One technician visit: an open job (with "Ambil" action) or one of the

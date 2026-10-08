@@ -9,6 +9,7 @@ import { Badge, Button, Card, EmptyState, Field, Input, Money, Notice, Sheet, Sp
 import useSkills from '../../hooks/useSkills';
 import { loadCommissionRates, commissionRate } from '../../services/orderService';
 import { friendlyError } from '../../utils/friendlyError';
+import { formatDate, formatDateTime } from '../../utils/datetime';
 
 const PLANS = {
   '30-40-30': [{ label: 'DP', percent: 30 }, { label: 'Pengerjaan', percent: 40 }, { label: 'Pelunasan', percent: 30 }],
@@ -21,7 +22,7 @@ const STAGE = {
   refunded: ['neutral', 'Dikembalikan ke pelanggan'], disputed: ['danger', 'Keberatan, ditinjau Wira'],
 };
 const QUOTE_STATUS = { submitted: ['warning', 'Terkirim'], accepted: ['success', 'Dipilih'], rejected: ['neutral', 'Tidak dipilih'], withdrawn: ['neutral', 'Ditarik'], expired: ['neutral', 'Kedaluwarsa'] };
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
+const fmtDate = (d) => (d ? formatDate(d) : '–');
 const amountsOf = (total, plan) => {
   let used = 0;
   return plan.map((m, i) => {
@@ -65,7 +66,7 @@ function Chat({ projectId, userId }) {
           return (
             <div key={m.id} className={cx('flex flex-col gap-0.5', mine ? 'items-end' : 'items-start')}>
               <span className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card px-3.5 py-2 text-sm', mine ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>{m.body}</span>
-              <span className="px-1 font-mono text-[10.5px] text-ink-muted">{new Date(m.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="px-1 font-mono text-[10.5px] text-ink-muted">{formatDateTime(m.created_at)}</span>
             </div>
           );
         })}

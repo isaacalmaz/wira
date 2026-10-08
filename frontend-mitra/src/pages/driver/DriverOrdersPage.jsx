@@ -6,24 +6,17 @@ import StatusUpdater from '../../components/shared/StatusUpdater';
 import OrderPinSheet from '../../components/shared/OrderPinSheet';
 import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { friendlyError } from '../../utils/friendlyError';
+import { serviceLabel } from '../../constants/services';
+import { formatDateTime } from '../../utils/datetime';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
 const SERVICE_ICON = { ride: Car, send: Package, food: Utensils };
 const serviceIcon = (order) => SERVICE_ICON[order?.service_type] || (order?.merchant_id ? Utensils : Package);
-
-// Order status -> Badge tone (DESIGN.md: pending = warning, active = brand,
-// done = success, cancelled = danger).
-const statusTone = (status) => {
-  if (status === OrderStatus.COMPLETED) return 'success';
-  if (status === OrderStatus.CANCELLED) return 'danger';
-  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
-  return 'brand';
-};
 
 /** Per-order earning: can be negative for a Tunai order (commission owed). */
 const EarnedMoney = ({ value, className = '' }) => {
@@ -112,8 +105,8 @@ const DriverOrdersPage = () => {
           <div className="flex items-center gap-3 border-b border-line p-4">
             <IconTile tone="brand" size="sm"><ActiveIcon size={18} /></IconTile>
             <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-              <span className="text-[14px] font-semibold capitalize text-ink">{activeOrder.service_type}</span>
-              <Badge tone={statusTone(activeOrder.status)} dot>{getDisplayStatus(activeOrder.status)}</Badge>
+              <span className="text-[14px] font-semibold text-ink">{serviceLabel(activeOrder.service_type)}</span>
+              <Badge tone={statusTone(activeOrder.status)} dot>{getDisplayStatus(activeOrder.status, activeOrder.service_type)}</Badge>
             </div>
             <Money value={activeOrder.total_price || 0} className="shrink-0 text-[18px] font-medium text-ink" />
           </div>
@@ -160,17 +153,17 @@ const DriverOrdersPage = () => {
                     <IconTile tone="neutral" size="sm"><Icon size={18} /></IconTile>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-[14px] font-semibold leading-snug text-ink">
-                        <span className="capitalize">{order.service_type}</span>
+                        <span>{serviceLabel(order.service_type)}</span>
                         {customerNames[order.user_id] && <span className="font-normal text-ink-muted"> · {customerNames[order.user_id]}</span>}
                       </span>
-                      <span className="font-mono text-[12px] text-ink-muted">{new Date(order.created_at).toLocaleDateString('id-ID')} {new Date(order.created_at).toLocaleTimeString('id-ID')}</span>
+                      <span className="font-mono text-[12px] text-ink-muted">{formatDateTime(order.created_at)}</span>
                       {order.payment_method === 'cash' && (
                         <span className="text-[11.5px] leading-snug text-ink-muted">Tunai: komisi dipotong dari saldo</span>
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <EarnedMoney value={driverEarnedAmount(order)} className="text-[14px] font-medium" />
-                      <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status)}</Badge>
+                      <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status, order.service_type)}</Badge>
                     </div>
                   </li>
                 );

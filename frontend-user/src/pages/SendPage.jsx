@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Ticket, X } from 'lucide-react';
+import { FileText, Package, Briefcase, Luggage, Wallet, Banknote } from 'lucide-react';
 import { Button, Card, Field, Input, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -15,6 +15,7 @@ import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
+import PromoField from '../components/common/PromoField';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -404,49 +405,16 @@ export default function SendPage() {
             </div>
           </section>
 
-          {/* Kode Promo */}
-          <div className="flex flex-col gap-1.5">
-            {activePromo ? (
-              <div className="flex items-center gap-3 rounded-control border border-success-line bg-success-soft py-1.5 pl-3.5 pr-1.5">
-                <Ticket size={17} className="shrink-0 text-success" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-success-ink">
-                  {t('promo.applied', { code: activePromo.code })}
-                </span>
-                <button
-                  type="button"
-                  className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[12.5px] font-semibold text-ink-muted transition-colors hover:bg-card hover:text-danger-ink"
-                  onClick={handleRemovePromo}
-                >
-                  <X size={14} aria-hidden="true" /> {t('common.remove')}
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  aria-label={t('promo.placeholder')}
-                  placeholder={t('promo.placeholder')}
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  invalid={!!promoError}
-                  className="min-w-0 flex-1 font-mono text-[14px] uppercase placeholder:font-sans placeholder:normal-case"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="shrink-0"
-                  onClick={handleCheckPromo}
-                  disabled={checkingPromo || !promoCode.trim()}
-                  isLoading={checkingPromo}
-                >
-                  {checkingPromo ? t('promo.checking') : t('promo.apply')}
-                </Button>
-              </div>
-            )}
-            {promoError && (
-              <p className="text-xs text-danger-ink">{promoError}</p>
-            )}
-          </div>
+          <PromoField
+            id="send-promo"
+            activePromo={activePromo}
+            promoCode={promoCode}
+            setPromoCode={setPromoCode}
+            onApply={handleCheckPromo}
+            onRemove={handleRemovePromo}
+            checking={checkingPromo}
+            error={promoError}
+          />
 
           {/* Metode Pembayaran */}
           <section className="flex flex-col gap-2">

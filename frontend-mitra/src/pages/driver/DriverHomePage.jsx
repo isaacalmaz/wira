@@ -5,6 +5,7 @@ import { Button, Badge, Sheet, Money, IconTile, Stat, cx } from '../../component
 import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
 import OrderPinSheet from '../../components/shared/OrderPinSheet';
+import { serviceLabel } from '../../constants/services';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
@@ -839,7 +840,7 @@ const DriverHomePage = () => {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-card px-4 py-3.5">
               <Badge tone="brand" className="capitalize">
-                {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : incomingOrder.service_type}
+                {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : serviceLabel(incomingOrder.service_type)}
               </Badge>
               <div className="flex flex-col items-end gap-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pendapatan Anda</span>

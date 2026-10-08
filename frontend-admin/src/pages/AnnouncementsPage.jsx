@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Badge, Button, Card, EmptyState, Field, Input, Notice, PageHeader, Segmented, Select, Sheet, Textarea } from '../components/ui';
 import WhatsAppPage from './WhatsAppPage';
+import { formatDateTime } from '../utils/datetime';
 
 const SEGMENTS = [
   { value: 'customers', label: 'Semua pelanggan' },
@@ -16,7 +17,7 @@ const SEGMENTS = [
   { value: 'everyone', label: 'Semua pelanggan dan mitra' },
 ];
 const segLabel = (v) => SEGMENTS.find((s) => s.value === v)?.label || v;
-const when = (ts) => new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const when = (ts) => formatDateTime(ts);
 
 /**
  * One message to a whole group (admin_send_announcement, migrations/0103):

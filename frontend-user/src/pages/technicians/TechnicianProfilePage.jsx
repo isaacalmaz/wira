@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n';
 import { Badge, Button, Card, EmptyState, Sheet, Spinner } from '../../components/ui';
 import { NEGATIVE_TAGS } from '../../utils/review';
 import { Avatar, BOOKABLE, RatingLine, TrustBadges } from './shared';
+import { formatDate } from '../../utils/formatDate';
 
 const LANGUAGE_KEY = { id: 'partners.lang_id', sasak: 'partners.lang_sasak', en: 'partners.lang_en' };
 
@@ -163,7 +164,7 @@ export default function TechnicianProfilePage() {
                     <Stars value={r.rating} />
                     <span className="text-[13px] font-semibold text-ink">{r.reviewer_name}</span>
                     <span className="text-[12px] text-ink-muted">
-                      {new Date(r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatDate(r.created_at)}
                     </span>
                   </span>
                   {r.tags?.length > 0 && (

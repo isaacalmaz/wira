@@ -3,17 +3,8 @@ import { Card, Badge, EmptyState, PageHeader, SectionHeader, Spinner, cx } from 
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar, CalendarX, ChevronLeft, ChevronRight } from 'lucide-react';
-import { OrderStatus, getDisplayStatus } from '../../constants/orderStatus';
+import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, visitInfo } from '../../services/technicianService';
-
-// Order status -> Badge tone (DESIGN.md: pending = warning, active = brand,
-// done = success, cancelled = danger).
-const statusTone = (status) => {
-  if (status === OrderStatus.COMPLETED) return 'success';
-  if (status === OrderStatus.CANCELLED) return 'danger';
-  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
-  return 'brand';
-};
 
 // Matches TechOrdersPage.jsx/TechHomePage.jsx's real filter list - previously
 // this page only queried service_type 'service', silently excluding 'pool'

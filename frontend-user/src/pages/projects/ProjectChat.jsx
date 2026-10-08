@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useTranslation } from '../../i18n';
 import { cx } from '../../components/ui';
+import { formatDateTime } from '../../utils/formatDate';
 
 /**
  * One customer-technician thread on a project (migrations/0093). Contact
@@ -61,7 +62,7 @@ export default function ProjectChat({ projectId, technicianId, userId }) {
                 {m.body}
               </span>
               <span className="px-1 font-mono text-[10.5px] text-ink-muted">
-                {new Date(m.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                {formatDateTime(m.created_at)}
               </span>
             </div>
           );

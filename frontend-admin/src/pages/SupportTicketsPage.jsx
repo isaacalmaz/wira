@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { MessageCircle, CheckCircle2, LifeBuoy } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, Field, PageHeader, Segmented, Sheet, Spinner, Table, Textarea } from '../components/ui';
 import { toast } from 'react-hot-toast';
+import { formatDateTime } from '../utils/datetime';
 
 export default function SupportTicketsPage() {
   const [tickets, setTickets] = useState([]);
@@ -138,7 +139,7 @@ export default function SupportTicketsPage() {
             {tickets.map(t => (
               <tr key={t.id}>
                 <td className="whitespace-nowrap font-mono text-[12px] text-ink-muted">
-                  {new Date(t.created_at).toLocaleString('id-ID')}
+                  {formatDateTime(t.created_at)}
                 </td>
                 <td className="whitespace-nowrap">
                   <div className="font-semibold text-ink">{t.users?.name || 'User'}</div>

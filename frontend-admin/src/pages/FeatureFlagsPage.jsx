@@ -24,7 +24,6 @@ const INITIAL_FEATURES = [
   { id: 'wira_food', name: 'WiraFood (Pesan Antar Makanan)', status: true, regions: ['Kota Mataram', 'Senggigi'] },
   { id: 'wira_send', name: 'WiraSend (Pengiriman Paket & Dokumen)', status: true, regions: ['Semua Wilayah'] },
   { id: 'wira_pay', name: 'WiraPay (Dompet Digital & Saldo)', status: true, regions: ['Semua Wilayah'] },
-  { id: 'wira_pulsa', name: 'WiraPulsa (Pulsa & Token Listrik)', status: true, regions: ['Semua Wilayah'] },
   { id: 'wira_villa', name: 'WiraVilla (Sewa Villa & Penginapan)', status: true, regions: ['Senggigi', 'Lombok Tengah'] },
   { id: 'wira_service', name: 'WiraService (Jasa Servis & Tukang)', status: true, regions: ['Kota Mataram'] },
   { id: 'wira_pool', name: 'WiraPool (Perawatan Kolam Renang)', status: false, regions: [] },
@@ -168,7 +167,7 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
       id,
       name: newZone.name,
       status_text: newZone.status_text || 'Zona Baru',
-      services: { ride: false, food: false, send: false, villa: false, service: false, pay: false, pulsa: false, pool: false },
+      services: { ride: false, food: false, send: false, villa: false, service: false, pay: false, pool: false },
       is_active: true
     };
     

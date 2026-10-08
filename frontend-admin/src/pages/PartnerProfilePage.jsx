@@ -5,13 +5,14 @@ import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import { CORE_ADMIN_ROLES } from '../config/roles';
-import { orderStatusLabel } from '../config/orderStatus';
+import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
 import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table } from '../components/ui';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { setUserBlocked, setPartnerAccess, setMerchantActive, KIND_LABEL } from '../services/partnerAdminService';
+import { SERVICE_LABEL } from '../config/services';
+import { formatDateTime } from '../utils/datetime';
 
 const KIND_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench, nanny: Baby };
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', villa: 'WiraVilla', service: 'WiraService', pool: 'WiraPool' };
 const AUDIT_LABEL = {
   application_approved: 'Pendaftaran disetujui', application_rejected: 'Pendaftaran ditolak',
   user_suspended: 'Akun ditangguhkan', user_reactivated: 'Akun diaktifkan lagi',
@@ -21,7 +22,7 @@ const AUDIT_LABEL = {
 const LISTING = {
   approved: ['success', 'Tayang'], pending: ['warning', 'Menunggu'], rejected: ['danger', 'Ditolak'], suspended: ['danger', 'Dinonaktifkan'],
 };
-const when = (ts) => (ts ? new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+const when = (ts) => (ts ? formatDateTime(ts) : '—');
 const waLink = (phone) => {
   const d = String(phone || '').replace(/\D/g, '');
   return d ? `https://wa.me/${d.startsWith('0') ? `62${d.slice(1)}` : d}` : null;
@@ -218,7 +219,7 @@ export default function PartnerProfilePage() {
                     <span className="font-mono text-[11.5px] text-ink-muted">{when(o.created_at)}</span>
                   </td>
                   <td className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{SERVICE_LABEL[o.service_type] || o.service_type}</td>
-                  <td><Badge tone={o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'danger' : 'brand'} dot>{orderStatusLabel(o.status)}</Badge></td>
+                  <td><Badge tone={orderStatusTone(o.status)} dot>{orderStatusLabel(o.status, o.service_type)}</Badge></td>
                   <td className="text-right"><Money value={o.total_price || 0} /></td>
                 </tr>
               ))}

@@ -3,6 +3,7 @@ import { Percent, Save, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Sheet, Spinner, Table, Textarea } from '../components/ui';
+import { formatDateTime } from '../utils/datetime';
 
 const pct = (rate) => `${(Math.round(Number(rate) * 10000) / 100).toLocaleString('id-ID')}%`;
 const toInput = (rate) => String(Math.round(Number(rate) * 10000) / 100);
@@ -149,7 +150,7 @@ export default function CommissionPage() {
             <tbody>
               {history.map((h) => (
                 <tr key={h.id}>
-                  <td className="whitespace-nowrap font-mono text-[12.5px]">{new Date(h.changed_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                  <td className="whitespace-nowrap font-mono text-[12.5px]">{formatDateTime(h.changed_at)}</td>
                   <td className="whitespace-nowrap">{labelOf(h.service_type)}</td>
                   <td className="text-right font-mono">{h.old_rate != null ? pct(h.old_rate) : '—'}</td>
                   <td className="text-right font-mono font-medium">{pct(h.new_rate)}</td>

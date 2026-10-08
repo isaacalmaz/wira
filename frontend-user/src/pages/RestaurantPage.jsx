@@ -11,8 +11,6 @@ import {
   Badge,
   Money,
   IconTile,
-  Field,
-  Input,
   Notice,
   PageHeader,
   SectionHeader,
@@ -44,6 +42,7 @@ import { withAddressNote } from '../utils/addressNote';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
+import PromoField from '../components/common/PromoField';
 
 // Placeholder used to drop a <Money> into a translated sentence, so an
 // amount inside "Pesan Sekarang • {{price}}" still renders in mono.
@@ -585,39 +584,16 @@ export default function RestaurantPage() {
 
             {/* Input Promo */}
             <div className="border-t border-line pt-4">
-              {activePromo ? (
-                <Notice
-                  tone="success"
-                  action={
-                    <Button variant="ghost" size="sm" onClick={handleRemovePromo} className="-my-1.5">
-                      {t('common.remove')}
-                    </Button>
-                  }
-                >
-                  {t('promo.applied', { code: activePromo.code })}
-                </Notice>
-              ) : (
-                <Field label={t('promo.placeholder')} htmlFor="food-promo" error={promoError || undefined}>
-                  <div className="flex gap-2">
-                    <Input
-                      id="food-promo"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      invalid={!!promoError}
-                      autoCapitalize="characters"
-                      className="min-w-0 flex-1 font-mono uppercase"
-                    />
-                    <Button
-                      variant="secondary"
-                      onClick={handleCheckPromo}
-                      disabled={checkingPromo || !promoCode.trim()}
-                      className="shrink-0"
-                    >
-                      {checkingPromo ? t('promo.checking') : t('promo.apply')}
-                    </Button>
-                  </div>
-                </Field>
-              )}
+              <PromoField
+                id="food-promo"
+                activePromo={activePromo}
+                promoCode={promoCode}
+                setPromoCode={setPromoCode}
+                onApply={handleCheckPromo}
+                onRemove={handleRemovePromo}
+                checking={checkingPromo}
+                error={promoError}
+              />
             </div>
 
             {/* Hitung Rincian */}

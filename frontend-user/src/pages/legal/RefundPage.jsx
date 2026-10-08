@@ -22,6 +22,10 @@ export default function RefundPage() {
               <li>{t('refund.s2_item_1')}</li>
               <li>{t('refund.s2_item_2')}</li>
               <li>{t('refund.s2_item_3')}</li>
+              <li>{t('refund.s2_item_4')}</li>
+              <li>{t('refund.s2_item_5')}</li>
+              <li>{t('refund.s2_item_6')}</li>
+              <li>{t('refund.s2_item_7')}</li>
             </ul>
           </section>
 

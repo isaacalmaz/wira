@@ -22,24 +22,34 @@ export const OrderStatus = {
 
 const DISPLAY_LABEL_ID = {
   [OrderStatus.AWAITING_PAYMENT]: 'Menunggu Pembayaran',
-  [OrderStatus.PENDING]: 'Sedang Mencari',
+  [OrderStatus.PENDING]: 'Mencari Mitra',
   [OrderStatus.ACCEPTED]: 'Dikonfirmasi',
   [OrderStatus.PREPARING]: 'Sedang Disiapkan',
   [OrderStatus.READY]: 'Siap Diambil',
-  [OrderStatus.PICKING_UP]: 'Sedang Dijemput',
-  [OrderStatus.IN_TRIP]: 'Sedang Berjalan',
-  [OrderStatus.ON_THE_WAY]: 'Teknisi Menuju Lokasi',
+  [OrderStatus.PICKING_UP]: 'Menjemput',
+  [OrderStatus.IN_TRIP]: 'Dalam Perjalanan',
+  [OrderStatus.ON_THE_WAY]: 'Menuju Lokasi',
   [OrderStatus.WORKING]: 'Sedang Dikerjakan',
   [OrderStatus.COMPLETED]: 'Selesai',
   [OrderStatus.CANCELLED]: 'Dibatalkan',
 };
 
+// Same per-service wording as the customer app and admin panel.
+const SERVICE_STATUS_LABEL = {
+  babysit: { [OrderStatus.PENDING]: 'Menunggu Persetujuan', [OrderStatus.ON_THE_WAY]: 'Pengasuh Menuju Lokasi', [OrderStatus.WORKING]: 'Sesi Berlangsung' },
+  food: { [OrderStatus.PENDING]: 'Menunggu Restoran' },
+  villa: { [OrderStatus.PENDING]: 'Menunggu Konfirmasi' },
+};
+
 /** Indonesian display label for a raw DB status value. Falls back to the raw value if unknown. */
 export function getDisplayStatus(rawStatus, serviceType) {
-  if (serviceType === 'babysit') {
-    if (rawStatus === OrderStatus.ON_THE_WAY) return 'Pengasuh Menuju Lokasi';
-    if (rawStatus === OrderStatus.WORKING) return 'Sesi Berlangsung';
-    if (rawStatus === OrderStatus.PENDING) return 'Menunggu Persetujuan';
-  }
-  return DISPLAY_LABEL_ID[rawStatus] || rawStatus;
+  return SERVICE_STATUS_LABEL[serviceType]?.[rawStatus] || DISPLAY_LABEL_ID[rawStatus] || rawStatus;
+}
+
+// waiting = warning, in progress = brand, done = success, stopped = danger.
+export function statusTone(status) {
+  if (status === OrderStatus.PENDING || status === OrderStatus.AWAITING_PAYMENT) return 'warning';
+  if (status === OrderStatus.COMPLETED) return 'success';
+  if (status === OrderStatus.CANCELLED || status === 'expired') return 'danger';
+  return 'brand';
 }

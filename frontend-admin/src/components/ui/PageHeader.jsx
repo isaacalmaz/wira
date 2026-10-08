@@ -16,7 +16,7 @@ export default function PageHeader({ title, subtitle, back, backLabel = 'Kembali
           type="button"
           onClick={goBack}
           aria-label={backLabel}
-          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink hover:bg-sunken"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink hover:bg-sunken"
         >
           <ChevronLeft size={20} />
         </button>

@@ -3,9 +3,10 @@ import { Smartphone, Upload, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Badge, Button, Card, Field, Input, Notice, PageHeader, Select, Table, Textarea } from '../components/ui';
+import { formatDateTime } from '../utils/datetime';
 
 const APPS = { user: 'Wira (pelanggan)', mitra: 'Wira Mitra', admin: 'Wira Admin' };
-const when = (ts) => new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const when = (ts) => formatDateTime(ts);
 
 /**
  * Publishing a new Android APK (app_releases + bucket "apk", migrations/0105).

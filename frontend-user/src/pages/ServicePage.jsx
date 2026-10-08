@@ -32,6 +32,7 @@ import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, wit
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
+import PromoField from '../components/common/PromoField';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -88,52 +89,6 @@ function SummaryRow({ label, children, strong = false, className = '' }) {
       <dt className={strong ? 'font-semibold text-ink' : 'text-ink-muted'}>{label}</dt>
       <dd className="text-right text-ink">{children}</dd>
     </div>
-  );
-}
-
-function PromoField({ t, id, activePromo, promoCode, setPromoCode, onApply, onRemove, checking, error }) {
-  if (activePromo) {
-    return (
-      <Notice
-        tone="success"
-        action={
-          <Button variant="ghost" size="sm" onClick={onRemove} className="-my-1.5">
-            {t('common.remove')}
-          </Button>
-        }
-      >
-        {t('promo.applied', { code: activePromo.code })}
-      </Notice>
-    );
-  }
-  return (
-    <Field label={t('promo.placeholder')} htmlFor={id} error={error || undefined}>
-      <div className="flex gap-2">
-        <Input
-          id={id}
-          value={promoCode}
-          onChange={(e) => setPromoCode(e.target.value)}
-          onKeyDown={(e) => {
-            // Inside the booking <form>: Enter must apply the code, not place the order.
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (!checking && promoCode.trim()) onApply();
-            }
-          }}
-          invalid={!!error}
-          autoCapitalize="characters"
-          className="min-w-0 flex-1 font-mono uppercase"
-        />
-        <Button
-          variant="secondary"
-          onClick={onApply}
-          disabled={checking || !promoCode.trim()}
-          className="shrink-0"
-        >
-          {checking ? t('promo.checking') : t('promo.apply')}
-        </Button>
-      </div>
-    </Field>
   );
 }
 

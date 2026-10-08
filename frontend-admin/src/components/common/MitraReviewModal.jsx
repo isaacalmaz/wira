@@ -4,6 +4,7 @@ import {
   FileText, ZoomIn, ShieldCheck
 } from 'lucide-react';
 import { Badge, Button, EmptyState, Notice, Sheet, Textarea } from '../ui';
+import { formatDateTime } from '../../utils/datetime';
 
 // One labelled value in the review panels.
 const Item = ({ label, children }) => (
@@ -76,7 +77,7 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
       description={(
         <>
           ID Pendaftar: <span className="font-mono text-ink">{mitra.id}</span> · Terdaftar:{' '}
-          <span className="font-mono">{mitra.created_at ? new Date(mitra.created_at).toLocaleString('id-ID') : 'Baru saja'}</span>
+          <span className="font-mono">{mitra.created_at ? formatDateTime(mitra.created_at) : 'Baru saja'}</span>
         </>
       )}
       footer={rejectMode ? (

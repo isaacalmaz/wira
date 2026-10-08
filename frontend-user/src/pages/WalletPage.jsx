@@ -158,13 +158,9 @@ export default function WalletPage() {
     }
   };
 
-  // Restored to the pre-Midtrans QRIS-manual flow (2026-09-19) - Midtrans's
-  // merchant account isn't approved yet, so the automatic charge path below
-  // (handleMidtransCharge) can't actually process a real payment right now.
-  // This generates a unique 3-digit-suffix amount (getAvailableUniqueCode/
+  // QRIS top-up: generates a unique 3-digit-suffix amount (getAvailableUniqueCode/
   // calculateUniqueTopUpAmount) and moves to step 2 (static QRIS + manual
-  // admin verification via topup_requests), exactly as it worked before
-  // Midtrans was wired in.
+  // admin verification via topup_requests).
   const handleProceedToPayment = async () => {
     if (loading) return;
     if (!user) {
@@ -204,8 +200,7 @@ export default function WalletPage() {
 
   // The manual QRIS confirmation button ("Saya Sudah Transfer") calls this -
   // creates a pending topup_requests row for an admin to manually verify
-  // and approve/reject (FinancePage.jsx), exactly as it worked before
-  // Midtrans. Does NOT touch wallet_balance itself - only
+  // and approve/reject (FinancePage.jsx). Does NOT touch wallet_balance itself - only
   // approve_topup_request (migrations/0015/0022) does that, after a human
   // admin confirms the transfer actually arrived.
   const handleTopUpConfirm = async () => {
@@ -240,81 +235,6 @@ export default function WalletPage() {
       await loadPendingTopUps();
     } catch (err) {
       toast.error(t('wallet.topup_create_failed', { message: friendlyError(err) }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Kept intact, deliberately NOT wired to any button right now - Midtrans's
-  // merchant account isn't approved yet. Re-wire handleProceedToPayment (or
-  // add a second payment-method option) to call this once it is, instead of
-  // deleting this working integration.
-  const handleMidtransCharge = async () => {
-    if (loading) return;
-
-    if (!user) {
-      toast.error(t('wallet.login_to_topup'));
-      return;
-    }
-    setLoading(true);
-    try {
-      // Panggil backend API kita (asumsikan backend berjalan di URL/Port yang sesuai, untuk dev bisa localhost:5000)
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-      // /api/midtrans/charge now requires a valid Supabase session (it
-      // derives the authenticated user server-side instead of trusting a
-      // client-supplied user_id) - attach the access token the same way the
-      // backend's auth middleware expects it everywhere else.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error(t('auth.session_expired'));
-      }
-
-      const response = await fetch(`${apiUrl}/api/midtrans/charge`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          amount: baseAmount,
-          customer_name: user.name || 'Wira User',
-          customer_email: user.email || 'user@wira.com',
-          customer_phone: user.phone || '08123456789'
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || t('wallet.midtrans_gateway_failed'));
-
-      // Tampilkan popup Snap Midtrans
-      window.snap.pay(data.token, {
-        onSuccess: function(result){
-          toast.success(t('wallet.midtrans_success'));
-          setModalType(null);
-          setTopUpStep(1);
-          loadPendingTopUps();
-        },
-        onPending: function(result){
-          toast.success(t('wallet.midtrans_pending'));
-          setModalType(null);
-          setTopUpStep(1);
-          loadPendingTopUps();
-        },
-        onError: function(result){
-          toast.error(t('wallet.midtrans_error'));
-          setModalType(null);
-          setTopUpStep(1);
-        },
-        onClose: function(){
-          toast.error(t('wallet.midtrans_closed'));
-          setModalType(null);
-          setTopUpStep(1);
-        }
-      });
-
-    } catch (err) {
-      toast.error(t('wallet.midtrans_start_failed', { message: friendlyError(err) }));
     } finally {
       setLoading(false);
     }

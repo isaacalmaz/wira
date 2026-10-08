@@ -4,4 +4,4 @@ export const PROJECT_AREAS = ['Mataram', 'Lombok Barat', 'Senggigi', 'Lombok Uta
 export const PROJECT_STATUS_TONE = { open: 'warning', awarded: 'brand', completed: 'success', cancelled: 'danger', expired: 'neutral' };
 export const STAGE_STATUS_TONE = { pending: 'neutral', funded: 'brand', submitted: 'warning', released: 'success', refunded: 'neutral', disputed: 'danger' };
 
-export const formatDate = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
+export { formatDate } from '../../utils/formatDate';

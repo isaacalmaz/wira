@@ -11,6 +11,7 @@ import {
 } from '../services/ecosystemService';
 import { getStatusKey } from '../constants/orderStatus';
 import { useTranslation } from '../i18n';
+import { formatDateTime } from '../utils/formatDate';
 
 const OrderContext = createContext();
 
@@ -31,7 +32,6 @@ export const OrderProvider = ({ children }) => {
     else if (o.service_type === 'service') uiService = 'WiraService';
     else if (o.service_type === 'pool') uiService = 'WiraPool';
     else if (o.service_type === 'babysit') uiService = 'WiraAsuh';
-    else if (o.service_type === 'pulsa') uiService = 'WiraPulsa';
 
     return {
       ...o,
@@ -40,7 +40,7 @@ export const OrderProvider = ({ children }) => {
       // Kept null when the DB has no title; the screen renders a translated
       // fallback so the label follows the customer's chosen language.
       title: o.title || null,
-      date: new Date(o.created_at || Date.now()).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID'),
+      date: formatDateTime(o.created_at || Date.now(), lang === 'en' ? 'en-GB' : 'id-ID'),
       statusKey: getStatusKey(o.status, o.service_type),
       price: o.total_price || 0,
 

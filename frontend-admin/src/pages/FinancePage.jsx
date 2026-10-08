@@ -6,6 +6,7 @@ import PaymentModeCard from '../components/common/PaymentModeCard';
 import CommissionDepositsSection from '../components/common/CommissionDepositsSection';
 import CommissionDebtsSection from '../components/common/CommissionDebtsSection';
 import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Sheet, Spinner, Stat, Table } from '../components/ui';
+import { formatDateTime } from '../utils/datetime';
 
 // Platform commission on every completed order - 20%, matching
 // DashboardPage.jsx's PLATFORM_COMMISSION_RATE (which itself must match
@@ -228,13 +229,13 @@ const FinancePage = () => {
 
   const userCell = (u) => (
     <div className="flex flex-col gap-0.5">
-      <span className="font-semibold text-ink">{u?.name || 'Unknown'}</span>
+      <span className="font-semibold text-ink">{u?.name || 'Tanpa nama'}</span>
       <span className="font-mono text-[12px] text-ink-muted">{u?.phone || '-'}</span>
     </div>
   );
 
   const timeCell = (iso) => (
-    <span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+    <span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{formatDateTime(iso)}</span>
   );
 
   const topupTable = (rows) => (
@@ -516,7 +517,7 @@ const FinancePage = () => {
         {confirmAction && (
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-control border border-line bg-card px-4 py-3 text-[13px]">
             <dt className="text-ink-muted">{confirmAction.kind.endsWith('Payout') ? 'Mitra' : 'Pengguna'}</dt>
-            <dd className="text-right font-semibold text-ink">{confirmAction.row.users?.name || 'Unknown'}</dd>
+            <dd className="text-right font-semibold text-ink">{confirmAction.row.users?.name || 'Tanpa nama'}</dd>
             <dt className="text-ink-muted">Nominal</dt>
             <dd className="text-right"><Money value={confirmAction.row.amount} className="font-semibold text-ink" /></dd>
             {confirmAction.kind.endsWith('Payout') && (

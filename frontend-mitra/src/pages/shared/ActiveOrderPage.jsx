@@ -8,11 +8,12 @@ import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
 import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
-import { getDisplayStatus } from '../../constants/orderStatus';
+import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
+import { SERVICE_LABEL } from '../../constants/services';
 
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -31,15 +32,6 @@ function deg2rad(deg) {
   return deg * (Math.PI/180)
 }
 
-// ---- display-only helpers ----
-// Badge tone per DESIGN.md: pending = warning, active = brand,
-// completed = success, cancelled = danger.
-const statusTone = (status) => {
-  if (status === 'pending' || status === 'awaiting_payment') return 'warning';
-  if (status === 'completed') return 'success';
-  if (status === 'cancelled') return 'danger';
-  return 'brand';
-};
 // Children, notes and emergency number of a WiraAsuh session.
 const BabysitDetails = ({ order }) => {
   const m = order.metadata || {};
@@ -68,7 +60,6 @@ const BabysitDetails = ({ order }) => {
 };
 
 const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, villa: Building2, babysit: Baby };
-const SERVICE_LABEL = { ride: 'WiraRide', send: 'WiraSend', food: 'WiraFood', service: 'WiraService', pool: 'WiraPool', villa: 'WiraVilla', babysit: 'WiraAsuh' };
 
 export default function ActiveOrderPage() {
   const { id } = useParams();
