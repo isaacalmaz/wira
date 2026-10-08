@@ -1,7 +1,5 @@
-import { Capacitor } from '@capacitor/core';
-
-// Withdrawals and the WiraPay/tips balance are only offered on the web
-// (mitra.wira.one). Google Play only lets organisation developer accounts
-// publish apps with wallet features, so the Android app keeps earnings and
-// "Setor Komisi" (paying Wira its commission) but not "Tarik Saldo".
-export const WALLET_ENABLED = !Capacitor.isNativePlatform();
+// WiraPay withdrawals and the tips balance are switched off on every
+// platform; partners keep their earnings view and "Setor Komisi" (paying Wira
+// its commission). Google Play only lets organisation developer accounts
+// publish wallet features. Flip to true to bring "Tarik Saldo" back.
+export const WALLET_ENABLED = false;
