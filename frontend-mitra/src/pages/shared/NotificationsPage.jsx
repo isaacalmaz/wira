@@ -5,6 +5,11 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, EmptyState, PageHeader, Spinner, cx } from '../../components/ui';
 import { resolvePartnerLink } from '../../utils/links';
+import { localizeDbDates } from '../../utils/datetime';
+
+// "Portal nanny" (raw portal key from the database) -> "Portal Pengasuh".
+const PORTAL_NAME = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi', nanny: 'Pengasuh' };
+const partnerNotificationText = (text) => localizeDbDates(text).replace(/\bPortal (driver|merchant|villa|technician|nanny)\b/g, (_, k) => `Portal ${PORTAL_NAME[k]}`);
 
 const when = (ts) => {
   const d = new Date(ts);
@@ -72,7 +77,7 @@ export default function NotificationsPage() {
                   <span className={cx('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.is_read ? 'bg-transparent' : 'bg-brand')} aria-hidden="true" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-[14px] font-semibold text-ink">{n.title}</span>
-                    {n.description && <span className="text-[13px] leading-relaxed text-ink-muted">{n.description}</span>}
+                    {n.description && <span className="text-[13px] leading-relaxed text-ink-muted">{partnerNotificationText(n.description)}</span>}
                     <span className="text-[11.5px] text-ink-muted">{when(n.created_at)}</span>
                   </span>
                   <ChevronRight size={16} className="mt-1 shrink-0 text-ink-muted" aria-hidden="true" />

@@ -4,19 +4,17 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button, Spinner } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import OrderPinSheet from '../../components/shared/OrderPinSheet';
-import { User, Package, RefreshCw, History, Car, Utensils } from 'lucide-react';
+import { User, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { updateOrderStatus, driverEarnedAmount, loadCommissionRates } from '../../services/orderService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { friendlyError } from '../../utils/friendlyError';
-import { serviceLabel } from '../../constants/services';
+import { serviceIcon, serviceLabel } from '../../constants/services';
 import { formatDateTime } from '../../utils/datetime';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
-const SERVICE_ICON = { ride: Car, send: Package, food: Utensils };
-const serviceIcon = (order) => SERVICE_ICON[order?.service_type] || (order?.merchant_id ? Utensils : Package);
 
 /** Per-order earning: can be negative for a Tunai order (commission owed). */
 const EarnedMoney = ({ value, className = '' }) => {

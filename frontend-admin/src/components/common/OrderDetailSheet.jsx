@@ -11,6 +11,16 @@ import { formatDateTime, prettySchedule } from '../../utils/datetime';
 
 const PAY_LABEL = { wallet: 'WiraPay', qris: 'QRIS', cash: 'Tunai' };
 const PAY_STATUS = { paid: 'Lunas', unpaid: 'Belum dibayar', refunded: 'Dikembalikan' };
+// Cash goes straight from customer to partner, so the order's payment_status
+// stays "unpaid"; say what actually happened instead.
+const payStatusLabel = (order) => {
+  if (order.payment_method === 'cash' && order.payment_status !== 'refunded') {
+    if (order.status === 'completed') return 'Dibayar tunai ke mitra';
+    if (order.status === 'cancelled') return 'Tidak ada pembayaran';
+    return 'Dibayar tunai saat selesai';
+  }
+  return PAY_STATUS[order.payment_status] || order.payment_status;
+};
 const FINAL = ['completed', 'cancelled', 'expired'];
 const EVENT_LABEL = {
   cancel: 'Dibatalkan admin', complete: 'Diselesaikan admin', reassign: 'Mitra diganti admin',
@@ -227,7 +237,7 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={orderStatusTone(order.status)} dot>{orderStatusLabel(order.status, order.service_type)}</Badge>
-            <Badge tone="neutral">{PAY_LABEL[order.payment_method] || order.payment_method} · {PAY_STATUS[order.payment_status] || order.payment_status}</Badge>
+            <Badge tone="neutral">{PAY_LABEL[order.payment_method] || order.payment_method} · {payStatusLabel(order)}</Badge>
             <button
               type="button"
               onClick={() => { navigator.clipboard?.writeText(order.id); toast.success('ID pesanan disalin'); }}
@@ -318,7 +328,7 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
                     <span className={cx('absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full', e.kind === 'status' ? 'bg-line-strong' : e.kind === 'cancel' ? 'bg-danger' : 'bg-brand')} />
                     <p className="text-[13.5px] text-ink">
                       {e.kind === 'status'
-                        ? <>{e.from_status ? `${orderStatusLabel(e.from_status)} → ` : 'Dibuat: '}<span className="font-semibold">{orderStatusLabel(e.to_status)}</span></>
+                        ? <>{e.from_status ? `${orderStatusLabel(e.from_status, order.service_type)} → ` : 'Dibuat: '}<span className="font-semibold">{orderStatusLabel(e.to_status, order.service_type)}</span></>
                         : <span className="font-semibold">{EVENT_LABEL[e.kind] || e.kind}</span>}
                       {e.amount ? <> · <Money value={e.amount} /></> : null}
                     </p>

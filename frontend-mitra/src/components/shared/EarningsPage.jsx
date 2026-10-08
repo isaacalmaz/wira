@@ -6,6 +6,7 @@ import PayoutPanel from './PayoutPanel';
 import { supabase } from '../../config/supabase';
 import { loadCommissionRates } from '../../services/orderService';
 import { summarizeEarnings } from '../../utils/earnings';
+import { formatDate } from '../../utils/datetime';
 
 // Recharts needs raw colours: Laut 500 bars; axis text and grid lines are
 // themed through the token classes on the wrapper instead.
@@ -95,7 +96,7 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
                     <ListRow
                       className="px-4 py-3"
                       title={d.day}
-                      subtitle={<span className="font-mono">{d.dateStr}</span>}
+                      subtitle={<span className="font-mono">{formatDate(d.start)}</span>}
                       trailing={<SignedMoney value={d.amount} className="text-[14px] font-medium text-ink" />}
                     />
                   </li>

@@ -7,7 +7,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../i18n';
 import { friendlyError } from '../utils/friendlyError';
-import { formatDateTime } from '../utils/formatDate';
+import { formatDateTime, localizeDbDates } from '../utils/formatDate';
 
 export default function NotificationsPage() {
   const { notifications: notifs, setNotifications } = useNotification();
@@ -83,7 +83,7 @@ export default function NotificationsPage() {
                   <h3 className={cx('min-w-0 flex-1 break-words text-[14px] leading-snug', n.is_read ? 'font-semibold text-ink-muted' : 'font-bold text-ink')}>{n.title}</h3>
                   {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" aria-hidden="true" />}
                 </div>
-                <p className="break-words text-[13px] leading-relaxed text-ink-muted">{n.description}</p>
+                <p className="break-words text-[13px] leading-relaxed text-ink-muted">{localizeDbDates(n.description)}</p>
                 <p className="font-mono text-[11.5px] text-ink-muted">{formatDateTime(n.created_at, lang === 'en' ? 'en-GB' : 'id-ID')}</p>
               </div>
             </div>

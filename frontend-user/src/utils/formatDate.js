@@ -50,3 +50,11 @@ export const prettySchedule = (text, locale = 'id-ID') => String(text ?? '').rep
     ? `${formatScheduleDay(day, locale)} ${locale.startsWith('en') ? 'at' : 'pukul'} ${formatClock(time, locale)}`
     : formatScheduleDay(day, locale)),
 );
+
+// Notification text written by the database uses Postgres' English month
+// abbreviations ("10 Oct, 09:00"); show it the Indonesian way ("10 Okt, 09.00").
+const ID_MONTH = { Jan: 'Jan', Feb: 'Feb', Mar: 'Mar', Apr: 'Apr', May: 'Mei', Jun: 'Jun', Jul: 'Jul', Aug: 'Agu', Sep: 'Sep', Oct: 'Okt', Nov: 'Nov', Dec: 'Des' };
+export const localizeDbDates = (text) => String(text ?? '').replace(
+  /\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:, (\d{2}):(\d{2}))?/g,
+  (_, d, mon, hh, mm) => `${Number(d)} ${ID_MONTH[mon]}${hh ? `, ${hh}.${mm}` : ''}`,
+);
