@@ -273,13 +273,13 @@ const MerchantHomePage = () => {
             ) : merchants.length === 0 ? (
               <p className="text-[13px] text-ink-muted">Belum terhubung ke restoran atau villa. Hubungi admin Wira lewat menu Bantuan.</p>
             ) : (
-              <p className="text-[13px] text-ink-muted">{isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'}</p>
+              <p className="text-[13px] text-ink-muted">{allSuspended ? 'Dinonaktifkan admin' : isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'}</p>
             )}
           </div>
         </div>
         {!activeOrder && merchants.length > 0 && (
           <div className="flex items-center gap-3 border-t border-line bg-sunken/50 py-1.5 pl-4 pr-2">
-            <Badge tone={isOpen ? 'success' : 'neutral'} dot>{isOpen ? 'Buka' : 'Tutup'}</Badge>
+            <Badge tone={allSuspended ? 'danger' : isOpen ? 'success' : 'neutral'} dot>{allSuspended ? 'Nonaktif' : isOpen ? 'Buka' : 'Tutup'}</Badge>
             <span className="flex-1" />
             <Switch checked={isOpen && !allSuspended} onChange={handleToggleOpen} disabled={savingOpen || allSuspended} label={isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'} />
           </div>
