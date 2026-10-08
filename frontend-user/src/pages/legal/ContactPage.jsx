@@ -13,11 +13,11 @@ export default function ContactPage() {
       <Card padding="none" className="divide-y divide-line overflow-hidden">
         <ListRow
           as="a"
-          href="mailto:wiraapp123@gmail.com"
+          href="mailto:halo@wira.one"
           className={rowCls}
           leading={<IconTile tone="brand"><Mail size={19} aria-hidden="true" /></IconTile>}
           title={t('contact.email_label')}
-          subtitle={<span className="font-medium text-brand-ink">wiraapp123@gmail.com</span>}
+          subtitle={<span className="font-medium text-brand-ink">halo@wira.one</span>}
           chevron
         />
         <ListRow

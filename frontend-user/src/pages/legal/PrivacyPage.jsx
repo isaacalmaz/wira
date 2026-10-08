@@ -5,7 +5,7 @@ import { Card } from '../../components/ui';
 
 // Public page (no login) — its URL is the privacy policy link for the
 // Google Play listings of both Wira and Wira Mitra.
-const CONTACT_EMAIL = 'wiraapp123@gmail.com';
+const CONTACT_EMAIL = 'halo@wira.one';
 
 const CONTENT = {
   id: {
