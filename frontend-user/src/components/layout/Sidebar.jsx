@@ -3,6 +3,7 @@ import { Home, Activity, Wallet, User, Settings, LogOut } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import WiraMark from '../brand/WiraMark';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -17,7 +18,7 @@ export default function Sidebar() {
 
   const navItems = [
     { to: '/', icon: Home, label: 'nav.home' },
-    { to: '/wallet', icon: Wallet, label: 'nav.wallet' },
+    ...(WALLET_ENABLED ? [{ to: '/wallet', icon: Wallet, label: 'nav.wallet' }] : []),
     { to: '/activity', icon: Activity, label: 'nav.activity' },
   ];
   const linkCls = (active) => `flex items-center gap-3 rounded-control px-3 py-2.5 text-[14px] transition-colors ${active ? 'bg-brand-soft text-brand-ink font-bold' : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink'}`;

@@ -1,6 +1,7 @@
 import { Home, Activity, Wallet, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../../i18n';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 export default function BottomNav() {
   const location = useLocation();
@@ -9,13 +10,13 @@ export default function BottomNav() {
   const tabs = [
     { path: '/', icon: Home, label: 'nav.home' },
     { path: '/activity', icon: Activity, label: 'nav.activity' },
-    { path: '/wallet', icon: Wallet, label: 'nav.wallet' },
+    ...(WALLET_ENABLED ? [{ path: '/wallet', icon: Wallet, label: 'nav.wallet' }] : []),
     { path: '/profile', icon: User, label: 'nav.profile' },
   ];
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-line pb-safe">
-      <div className="grid grid-cols-4 px-2 pt-1.5 pb-1.5">
+      <div className={`grid ${tabs.length === 4 ? 'grid-cols-4' : 'grid-cols-3'} px-2 pt-1.5 pb-1.5`}>
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = tab.path === '/' ? location.pathname === '/' : location.pathname.startsWith(tab.path);

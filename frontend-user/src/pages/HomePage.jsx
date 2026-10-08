@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
 import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
+import { WALLET_ENABLED } from '../config/wallet';
 
 // Order status -> Badge tone (DESIGN.md §5): searching/pending = warning,
 // active = brand, completed = success, cancelled = danger.
@@ -109,7 +110,7 @@ export default function HomePage() {
   // switched off are not shown at all, in the grid or in "Arrange".
   const orderIndex = (id) => (serviceOrder.indexOf(id) !== -1 ? serviceOrder.indexOf(id) : 999);
   const orderedServices = activeServices.slice().sort((a, b) => orderIndex(a.id) - orderIndex(b.id));
-  const availableServices = orderedServices.filter((s) => s.enabled);
+  const availableServices = orderedServices.filter((s) => s.enabled && (WALLET_ENABLED || s.id !== 'wira_pay'));
   const moveService = (id, neighborId) => {
     const order = orderedServices.map((s) => s.id);
     const i = order.indexOf(id);
@@ -138,31 +139,33 @@ export default function HomePage() {
         <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words">{displayName}</h1>
       </div>
 
-      {/* Kartu Dompet WiraPay */}
-      <section className="overflow-hidden rounded-card bg-laut-700 text-white" aria-label={t('home.wallet_balance')}>
-        <div className="h-2.5 tenun-band" aria-hidden="true" />
-        <div className="flex flex-col gap-4 px-[18px] pb-[18px] pt-4">
-          <div className="flex items-start gap-3">
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-laut-300">
-                {t('home.wallet_balance')}
-              </span>
-              <Money value={balance} className="text-[28px] font-medium leading-tight tracking-[-0.02em] text-white" />
+      {/* Kartu Dompet WiraPay (web only, config/wallet) */}
+      {WALLET_ENABLED && (
+        <section className="overflow-hidden rounded-card bg-laut-700 text-white" aria-label={t('home.wallet_balance')}>
+          <div className="h-2.5 tenun-band" aria-hidden="true" />
+          <div className="flex flex-col gap-4 px-[18px] pb-[18px] pt-4">
+            <div className="flex items-start gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-laut-300">
+                  {t('home.wallet_balance')}
+                </span>
+                <Money value={balance} className="text-[28px] font-medium leading-tight tracking-[-0.02em] text-white" />
+              </div>
+              <Wallet size={22} className="mt-0.5 shrink-0 text-emas-400" aria-hidden="true" />
             </div>
-            <Wallet size={22} className="mt-0.5 shrink-0 text-emas-400" aria-hidden="true" />
+            <div className="flex gap-2">
+              <Link to="/wallet" className={cx(walletAction, 'bg-white text-laut-700 hover:bg-laut-50')}>
+                <Plus size={17} className="shrink-0" aria-hidden="true" />
+                <span className="min-w-0">{t('home.top_up')}</span>
+              </Link>
+              <Link to="/wallet" className={cx(walletAction, 'border border-white/30 text-white hover:bg-white/10')}>
+                <ArrowUpRight size={17} className="shrink-0" aria-hidden="true" />
+                <span className="min-w-0">{t('home.transfer')}</span>
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Link to="/wallet" className={cx(walletAction, 'bg-white text-laut-700 hover:bg-laut-50')}>
-              <Plus size={17} className="shrink-0" aria-hidden="true" />
-              <span className="min-w-0">{t('home.top_up')}</span>
-            </Link>
-            <Link to="/wallet" className={cx(walletAction, 'border border-white/30 text-white hover:bg-white/10')}>
-              <ArrowUpRight size={17} className="shrink-0" aria-hidden="true" />
-              <span className="min-w-0">{t('home.transfer')}</span>
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Layanan + Atur Menu */}
       <section>

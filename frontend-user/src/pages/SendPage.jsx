@@ -16,6 +16,7 @@ import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
+import { WALLET_ENABLED } from '../config/wallet';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -422,20 +423,22 @@ export default function SendPage() {
               <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('common.payment_method')}</h2>
               <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.payment_hint')}</p>
             </div>
-            <div role="radiogroup" aria-label={t('common.payment_method')} className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={paymentMethod === 'WiraPay'}
-                onClick={() => setPaymentMethod('WiraPay')}
-                className={cx(optionCls(paymentMethod === 'WiraPay'), 'min-h-[60px]')}
-              >
-                <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-[13px] font-semibold text-ink">WiraPay</span>
-                  <Money value={balance} tone="muted" className="text-xs" />
-                </span>
-              </button>
+            <div role="radiogroup" aria-label={t('common.payment_method')} className={cx('grid gap-2', WALLET_ENABLED ? 'grid-cols-2' : 'grid-cols-1')}>
+              {WALLET_ENABLED && (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentMethod === 'WiraPay'}
+                  onClick={() => setPaymentMethod('WiraPay')}
+                  className={cx(optionCls(paymentMethod === 'WiraPay'), 'min-h-[60px]')}
+                >
+                  <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-[13px] font-semibold text-ink">WiraPay</span>
+                    <Money value={balance} tone="muted" className="text-xs" />
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 role="radio"

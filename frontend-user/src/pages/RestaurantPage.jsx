@@ -43,6 +43,7 @@ import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
+import { WALLET_ENABLED } from '../config/wallet';
 
 // Placeholder used to drop a <Money> into a translated sentence, so an
 // amount inside "Pesan Sekarang • {{price}}" still renders in mono.
@@ -624,13 +625,15 @@ export default function RestaurantPage() {
           <Card className="flex flex-col gap-3">
             <SectionHeader title={t('restaurant.choose_payment')} className="mb-0" />
             <div role="radiogroup" aria-label={t('restaurant.choose_payment')} className="flex flex-col gap-2.5">
-              <ChoiceCard
-                selected={paymentMethod === 'WiraPay'}
-                onClick={() => setPaymentMethod('WiraPay')}
-                leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
-                title="WiraPay"
-                subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
-              />
+              {WALLET_ENABLED && (
+                <ChoiceCard
+                  selected={paymentMethod === 'WiraPay'}
+                  onClick={() => setPaymentMethod('WiraPay')}
+                  leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
+                  title="WiraPay"
+                  subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
+                />
+              )}
               <ChoiceCard
                 selected={paymentMethod === 'Tunai'}
                 onClick={() => setPaymentMethod('Tunai')}

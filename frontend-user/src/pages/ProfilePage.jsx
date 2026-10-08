@@ -8,6 +8,7 @@ import DeleteAccountSheet from '../components/account/DeleteAccountSheet';
 import { User, Languages, MessageSquare, LogOut, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
+import { WALLET_ENABLED } from '../config/wallet';
 
 export default function ProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -91,13 +92,15 @@ export default function ProfilePage() {
             chevron
             onClick={() => navigate('/profile/addresses')}
           />
-          <ListRow
-            className={rowCls}
-            leading={lead(ClipboardList)}
-            title={t('profile.my_projects')}
-            chevron
-            onClick={() => navigate('/projects')}
-          />
+          {WALLET_ENABLED && (
+            <ListRow
+              className={rowCls}
+              leading={lead(ClipboardList)}
+              title={t('profile.my_projects')}
+              chevron
+              onClick={() => navigate('/projects')}
+            />
+          )}
         </Card>
 
         <Card padding="none" className="divide-y divide-line overflow-hidden">

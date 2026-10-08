@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { driverEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
 import { EARNINGS_COLUMNS } from '../../utils/earnings';
 import { formatDate } from '../../utils/datetime';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 // One driver portal: every order assigned to this driver regardless of
 // service type (driverEarnedAmount computes the ride/send/food share).
@@ -47,29 +48,32 @@ const DriverEarningsPage = () => {
       cash={(o) => cashCommissionDeduction(o, 'driver')}
       deps={[user?.id]}
     >
-      <Card padding="none">
-        <div className="flex items-center gap-3 p-4">
-          <IconTile tone="pay" size="sm"><Gift size={18} /></IconTile>
-          <h2 className="min-w-0 flex-1 text-[15px] font-bold tracking-tight text-ink">Saldo WiraPay & Tip</h2>
-          <Money value={walletBalance} tone="pay" className="text-[16px] font-medium" />
-        </div>
-        {recentTips.length === 0 ? (
-          <p className="border-t border-line px-4 py-4 text-sm text-ink-muted">Belum ada tip dari pelanggan.</p>
-        ) : (
-          <ul className="divide-y divide-line border-t border-line">
-            {recentTips.map((tx) => (
-              <li key={tx.id}>
-                <ListRow
-                  className="px-4 py-3"
-                  title={tx.description || 'Tip dari Pelanggan'}
-                  subtitle={formatDate(tx.created_at)}
-                  trailing={<Money value={tx.amount} sign="plus" tone="in" className="text-[14px] font-medium" />}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      {/* Tips arrive as WiraPay balance, so web only (config/wallet). */}
+      {WALLET_ENABLED && (
+        <Card padding="none">
+          <div className="flex items-center gap-3 p-4">
+            <IconTile tone="pay" size="sm"><Gift size={18} /></IconTile>
+            <h2 className="min-w-0 flex-1 text-[15px] font-bold tracking-tight text-ink">Saldo WiraPay & Tip</h2>
+            <Money value={walletBalance} tone="pay" className="text-[16px] font-medium" />
+          </div>
+          {recentTips.length === 0 ? (
+            <p className="border-t border-line px-4 py-4 text-sm text-ink-muted">Belum ada tip dari pelanggan.</p>
+          ) : (
+            <ul className="divide-y divide-line border-t border-line">
+              {recentTips.map((tx) => (
+                <li key={tx.id}>
+                  <ListRow
+                    className="px-4 py-3"
+                    title={tx.description || 'Tip dari Pelanggan'}
+                    subtitle={formatDate(tx.created_at)}
+                    trailing={<Money value={tx.amount} sign="plus" tone="in" className="text-[14px] font-medium" />}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
     </EarningsPage>
   );
 };

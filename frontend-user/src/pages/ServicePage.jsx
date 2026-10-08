@@ -33,6 +33,7 @@ import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
+import { WALLET_ENABLED } from '../config/wallet';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -368,18 +369,21 @@ export default function ServicePage() {
         })}
       </div>
 
-      {/* Big jobs: quotes instead of a fixed price (migrations/0093) */}
-      <Card className="flex flex-col gap-3 border-brand-line bg-brand-soft/40 sm:flex-row sm:items-center">
-        <IconTile tone="brand"><ClipboardList size={20} /></IconTile>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="text-[14px] font-bold text-ink">{t('service.project_title')}</p>
-          <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('service.project_desc')}</p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Button variant="secondary" onClick={() => navigate('/projects')}>{t('service.project_mine')}</Button>
-          <Button onClick={() => navigate('/projects/new')}>{t('service.project_cta')}</Button>
-        </div>
-      </Card>
+      {/* Big jobs: quotes instead of a fixed price (migrations/0093). Paid
+          from WiraPay escrow, so web only (config/wallet). */}
+      {WALLET_ENABLED && (
+        <Card className="flex flex-col gap-3 border-brand-line bg-brand-soft/40 sm:flex-row sm:items-center">
+          <IconTile tone="brand"><ClipboardList size={20} /></IconTile>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-[14px] font-bold text-ink">{t('service.project_title')}</p>
+            <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('service.project_desc')}</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={() => navigate('/projects')}>{t('service.project_mine')}</Button>
+            <Button onClick={() => navigate('/projects/new')}>{t('service.project_cta')}</Button>
+          </div>
+        </Card>
+      )}
 
       {/* Teknisi aktif */}
       {technicians.length > 0 && (
@@ -582,13 +586,15 @@ export default function ServicePage() {
           <div className="flex flex-col gap-2">
             <GroupLabel>{t('common.payment_method')}</GroupLabel>
             <div role="radiogroup" aria-label={t('common.payment_method')} className="flex flex-col gap-2.5">
-              <ChoiceCard
-                selected={paymentMethod === 'WiraPay'}
-                onClick={() => setPaymentMethod('WiraPay')}
-                leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
-                title="WiraPay"
-                subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
-              />
+              {WALLET_ENABLED && (
+                <ChoiceCard
+                  selected={paymentMethod === 'WiraPay'}
+                  onClick={() => setPaymentMethod('WiraPay')}
+                  leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
+                  title="WiraPay"
+                  subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
+                />
+              )}
               <ChoiceCard
                 selected={paymentMethod === 'Tunai'}
                 onClick={() => setPaymentMethod('Tunai')}

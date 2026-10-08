@@ -27,6 +27,7 @@ import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
+import { WALLET_ENABLED } from '../config/wallet';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -479,13 +480,15 @@ export default function VillaPage() {
             <div className="flex flex-col gap-2">
               <GroupLabel>{t('common.payment_method')}</GroupLabel>
               <div role="radiogroup" aria-label={t('common.payment_method')} className="flex flex-col gap-2.5">
-                <ChoiceCard
-                  selected={paymentMethod === 'WiraPay'}
-                  onClick={() => setPaymentMethod('WiraPay')}
-                  leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
-                  title="WiraPay"
-                  subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
-                />
+                {WALLET_ENABLED && (
+                  <ChoiceCard
+                    selected={paymentMethod === 'WiraPay'}
+                    onClick={() => setPaymentMethod('WiraPay')}
+                    leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
+                    title="WiraPay"
+                    subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
+                  />
+                )}
                 <ChoiceCard
                   selected={paymentMethod === 'QRIS'}
                   onClick={() => setPaymentMethod('QRIS')}

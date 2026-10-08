@@ -7,6 +7,7 @@ import { useTranslation } from '../../i18n';
 import { uploadImageToBucket } from '../../utils/imageUpload';
 import { NEGATIVE_TAGS, POSITIVE_TAGS } from '../../utils/review';
 import { friendlyError } from '../../utils/friendlyError';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 const MAX_PHOTOS = 3;
 
@@ -213,8 +214,8 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
           </div>
         </div>
 
-        {/* Tipping (Only if driver exists) */}
-        {order.driver_id && (
+        {/* Tipping (Only if driver exists). Tips come out of WiraPay, so web only. */}
+        {WALLET_ENABLED && order.driver_id && (
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-ink">{t('review.tip_label')}</span>
             <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import qrisImg from '../../assets/qris-wira.jpeg';
 import { friendlyError } from '../../utils/friendlyError';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 const STATUS_LABEL = {
   pending: { text: 'Menunggu diproses admin', icon: Clock, tone: 'warning' },
@@ -198,7 +199,7 @@ export default function PayoutPanel() {
       <div className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Saldo Bisa Dicairkan</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{WALLET_ENABLED ? 'Saldo Bisa Dicairkan' : 'Saldo Anda di Wira'}</p>
             <Money
               value={maxAmount}
               sign={balance < 0 ? 'minus' : undefined}
@@ -218,16 +219,21 @@ export default function PayoutPanel() {
           </Notice>
         )}
         {balance === 0 && (
-          <p className="text-[13px] text-ink-muted">Belum ada saldo yang bisa dicairkan.</p>
+          <p className="text-[13px] text-ink-muted">{WALLET_ENABLED ? 'Belum ada saldo yang bisa dicairkan.' : 'Tidak ada komisi yang perlu disetor.'}</p>
+        )}
+        {!WALLET_ENABLED && balance > 0 && (
+          <p className="text-[13px] leading-relaxed text-ink-muted">Saldo positif dibayarkan Wira ke rekening Anda. Hubungi admin lewat Pusat Bantuan untuk jadwal pembayarannya.</p>
         )}
 
         <div className="flex flex-col gap-2.5 sm:flex-row">
           <Button variant={balance < 0 ? 'primary' : 'secondary'} size="lg" block onClick={openDeposit}>
             Setor Komisi
           </Button>
-          <Button variant={balance < 0 ? 'secondary' : 'primary'} size="lg" block onClick={() => setModalOpen(true)} disabled={balance <= 0}>
-            Tarik Saldo
-          </Button>
+          {WALLET_ENABLED && (
+            <Button variant={balance < 0 ? 'secondary' : 'primary'} size="lg" block onClick={() => setModalOpen(true)} disabled={balance <= 0}>
+              Tarik Saldo
+            </Button>
+          )}
         </div>
       </div>
 
@@ -254,7 +260,7 @@ export default function PayoutPanel() {
         </div>
       )}
 
-      {requests.length > 0 && (
+      {WALLET_ENABLED && requests.length > 0 && (
         <div className="border-t border-line">
           <p className="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted sm:px-5">Riwayat Pencairan</p>
           <ul className="flex flex-col">

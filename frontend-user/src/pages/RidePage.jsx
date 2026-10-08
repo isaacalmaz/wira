@@ -27,6 +27,7 @@ import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
+import { WALLET_ENABLED } from '../config/wallet';
 
 export default function RidePage() {
   const navigate = useNavigate();
@@ -569,23 +570,25 @@ export default function RidePage() {
               {/* Metode Pembayaran */}
               <div className="flex flex-col gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{t('common.payment_method')}</span>
-                <div role="radiogroup" aria-label={t('common.payment_method')} className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={paymentMethod === 'WiraPay'}
-                    onClick={() => setPaymentMethod('WiraPay')}
-                    className={cx(
-                      'flex min-h-[60px] min-w-0 items-center gap-2.5 rounded-control bg-card text-left transition-colors',
-                      paymentMethod === 'WiraPay' ? 'border-2 border-brand px-[11px] py-[9px]' : 'border border-line px-3 py-2.5 hover:border-line-strong',
-                    )}
-                  >
-                    <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-[13px] font-semibold text-ink">WiraPay</span>
-                      <Money value={balance} tone="muted" className="text-xs" />
-                    </span>
-                  </button>
+                <div role="radiogroup" aria-label={t('common.payment_method')} className={cx('grid gap-2', WALLET_ENABLED ? 'grid-cols-2' : 'grid-cols-1')}>
+                  {WALLET_ENABLED && (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={paymentMethod === 'WiraPay'}
+                      onClick={() => setPaymentMethod('WiraPay')}
+                      className={cx(
+                        'flex min-h-[60px] min-w-0 items-center gap-2.5 rounded-control bg-card text-left transition-colors',
+                        paymentMethod === 'WiraPay' ? 'border-2 border-brand px-[11px] py-[9px]' : 'border border-line px-3 py-2.5 hover:border-line-strong',
+                      )}
+                    >
+                      <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-[13px] font-semibold text-ink">WiraPay</span>
+                        <Money value={balance} tone="muted" className="text-xs" />
+                      </span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     role="radio"

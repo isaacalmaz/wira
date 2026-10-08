@@ -9,6 +9,7 @@ import { WalletProvider } from './context/WalletContext';
 import { OrderProvider } from './context/OrderContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { Suspense, lazy } from 'react';
+import { WALLET_ENABLED } from './config/wallet';
 
 const Layout = lazy(() => import('./components/layout/Layout'));
 const DownloadPage = lazy(() => import('./pages/DownloadPage'));
@@ -74,7 +75,7 @@ export default function Root() {
                           <Route element={<Layout />}>
                             <Route path="/" element={<HomePage />} />
                             <Route path="/ride" element={<RidePage />} />
-                            <Route path="/wallet" element={<WalletPage />} />
+                            <Route path="/wallet" element={WALLET_ENABLED ? <WalletPage /> : <Navigate to="/" replace />} />
                             <Route path="/food" element={<FoodPage />} />
                             <Route path="/restaurant/:id" element={<RestaurantPage />} />
                             <Route path="/profile" element={<ProfilePage />} />
@@ -91,9 +92,9 @@ export default function Root() {
                             <Route path="/asuh" element={<AsuhPage />} />
                             <Route path="/technicians" element={<TechnicianDirectoryPage />} />
                             <Route path="/technicians/:id" element={<TechnicianProfilePage />} />
-                            <Route path="/projects" element={<MyProjectsPage />} />
-                            <Route path="/projects/new" element={<NewProjectPage />} />
-                            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                            <Route path="/projects" element={WALLET_ENABLED ? <MyProjectsPage /> : <Navigate to="/" replace />} />
+                            <Route path="/projects/new" element={WALLET_ENABLED ? <NewProjectPage /> : <Navigate to="/" replace />} />
+                            <Route path="/projects/:id" element={WALLET_ENABLED ? <ProjectDetailPage /> : <Navigate to="/" replace />} />
                             
                             {/* Legal & Bantuan */}
                             <Route path="/support" element={<SupportPage />} />
