@@ -1,3 +1,5 @@
+import { prettySchedule } from './datetime';
+
 export const parseOrderDetails = (detailsStr) => {
   if (!detailsStr) return '';
   try {
@@ -7,9 +9,9 @@ export const parseOrderDetails = (detailsStr) => {
     } else if (parsed.pickup && parsed.dropoff) {
       return `${parsed.pickup.name || 'Lokasi Jemput'} ➔ ${parsed.dropoff.name || 'Tujuan'}`;
     }
-    return detailsStr; 
+    return prettySchedule(detailsStr);
   } catch (e) {
-    return detailsStr;
+    return prettySchedule(detailsStr);
   }
 };
 

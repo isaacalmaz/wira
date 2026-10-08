@@ -7,7 +7,7 @@ import { CORE_ADMIN_ROLES } from '../../config/roles';
 import { orderStatusLabel, orderStatusTone } from '../../config/orderStatus';
 import { Badge, Button, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../ui';
 import { SERVICE_LABEL } from '../../config/services';
-import { formatDateTime } from '../../utils/datetime';
+import { formatDateTime, prettySchedule } from '../../utils/datetime';
 
 const PAY_LABEL = { wallet: 'WiraPay', qris: 'QRIS', cash: 'Tunai' };
 const PAY_STATUS = { paid: 'Lunas', unpaid: 'Belum dibayar', refunded: 'Dikembalikan' };
@@ -269,7 +269,7 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
                 ))}
               </ul>
             ) : order.details ? (
-              <p className="whitespace-pre-line text-[13.5px] text-ink">{String(order.details)}</p>
+              <p className="whitespace-pre-line text-[13.5px] text-ink">{prettySchedule(String(order.details))}</p>
             ) : null}
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
               {order.scheduled_at && (<><dt className="text-ink-muted">Jadwal</dt><dd className="text-ink">{when(order.scheduled_at)} WITA</dd></>)}

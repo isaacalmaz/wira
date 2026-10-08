@@ -64,7 +64,7 @@ function ReceiptRow({ label, children, strong = false }) {
 
 export default function ActivityPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { orders, refreshOrders } = useOrders();
   const [tab, setTab] = useState('Semua');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -139,7 +139,7 @@ export default function ActivityPage() {
                       </span>
                       {act.details && (
                         <span className="line-clamp-1 text-[12px] text-ink-muted">
-                          {localizeOrderDetails(act, t)}
+                          {localizeOrderDetails(act, t, lang)}
                         </span>
                       )}
                     </span>
@@ -210,7 +210,7 @@ export default function ActivityPage() {
               <ReceiptRow label={t('activity.order_label')}>{localizeOrderTitle(selectedOrder, t)}</ReceiptRow>
               {selectedOrder.details && (
                 <ReceiptRow label={t('activity.detail_label')}>
-                  <span className="font-medium">{localizeOrderDetails(selectedOrder, t)}</span>
+                  <span className="font-medium">{localizeOrderDetails(selectedOrder, t, lang)}</span>
                 </ReceiptRow>
               )}
               <ReceiptRow label={t('activity.time_label')}>

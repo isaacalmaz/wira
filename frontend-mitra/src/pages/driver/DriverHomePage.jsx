@@ -6,6 +6,7 @@ import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
 import OrderPinSheet from '../../components/shared/OrderPinSheet';
 import { serviceLabel } from '../../constants/services';
+import { prettySchedule } from '../../utils/datetime';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { useAuth } from '../../context/AuthContext';
@@ -756,7 +757,7 @@ const DriverHomePage = () => {
                     <p className="font-semibold text-ink">
                       {activeOrder.status === OrderStatus.PICKING_UP ? `Ambil di: ${activeOrder.title || 'Restoran'}` : 'Menuju alamat pelanggan'}
                     </p>
-                    <p className="break-words leading-relaxed text-ink-muted">{activeOrder.details}</p>
+                    <p className="break-words leading-relaxed text-ink-muted">{prettySchedule(activeOrder.details)}</p>
                   </div>
                 </div>
               ) : null}
@@ -861,7 +862,7 @@ const DriverHomePage = () => {
                   )}
                 </div>
               ) : (
-                <p className="break-words text-sm leading-relaxed text-ink">{incomingOrder.details}</p>
+                <p className="break-words text-sm leading-relaxed text-ink">{prettySchedule(incomingOrder.details)}</p>
               )
             )}
 

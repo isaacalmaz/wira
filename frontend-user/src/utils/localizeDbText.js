@@ -24,6 +24,8 @@
 //                       settlement (0083)
 // =========================================
 
+import { formatClock, formatScheduleDay, prettySchedule } from './formatDate';
+
 // ---------- lookup tables: Indonesian value written -> dictionary key ----------
 
 // ServicePage `categories[].name`
@@ -99,7 +101,8 @@ export function localizeOrderTitle(order, t) {
  * Customer-facing one-line details for an order. Ride orders store JSON
  * with pickup/dropoff; every other service stores one of the templates below.
  */
-export function localizeOrderDetails(order, t) {
+export function localizeOrderDetails(order, t, lang = 'id') {
+  const loc = lang === 'en' ? 'en-GB' : 'id-ID';
   // Landmark notes ride inside the address text as "(Patokan: …)" (utils/addressNote).
   const raw = typeof order?.details === 'string'
     ? order.details.split('(Patokan: ').join(`(${t('address_note.landmark')}: `)
@@ -129,7 +132,7 @@ export function localizeOrderDetails(order, t) {
   // VillaPage: `Kode: ${code} • ${nights} Malam (${checkIn}) • ${guests} Tamu`
   m = raw.match(/^Kode: (\S+) • (\d+) Malam \(([^)]*)\) • (\d+) Tamu$/);
   if (m) {
-    return t('order_text.villa_detail', { code: m[1], nights: m[2], date: m[3], guests: m[4] });
+    return t('order_text.villa_detail', { code: m[1], nights: m[2], date: prettySchedule(m[3], loc), guests: m[4] });
   }
 
   // ServicePage: `[Teknisi: ${name} • ]Jadwal: ${date} pukul ${time} • Lokasi: ${address}`
@@ -138,8 +141,8 @@ export function localizeOrderDetails(order, t) {
   m = raw.match(/^(?:Teknisi: (.+?) • )?Jadwal: (\S+) pukul (\S+) • Lokasi: (.+?)(?: • Keluhan: (.+))?$/s);
   if (m) {
     const base = m[1]
-      ? t('order_text.service_detail', { tech: m[1], date: m[2], time: m[3], address: m[4] })
-      : t('order_text.service_detail_auto', { date: m[2], time: m[3], address: m[4] });
+      ? t('order_text.service_detail', { tech: m[1], date: formatScheduleDay(m[2], loc), time: formatClock(m[3], loc), address: m[4] })
+      : t('order_text.service_detail_auto', { date: formatScheduleDay(m[2], loc), time: formatClock(m[3], loc), address: m[4] });
     return m[5] ? `${base} • ${t('order_text.service_complaint', { text: m[5] })}` : base;
   }
 
@@ -147,7 +150,7 @@ export function localizeOrderDetails(order, t) {
   m = raw.match(/^Ukuran: (.+?) • Lokasi: (.+) • Kunjungan: (\S+)(?: pukul (\S+))?$/s);
   if (m) {
     return t('order_text.pool_detail', {
-      size: lookup(POOL_SIZE_KEYS, m[1], t), address: m[2], date: m[4] ? `${m[3]} ${m[4]}` : m[3],
+      size: lookup(POOL_SIZE_KEYS, m[1], t), address: m[2], date: prettySchedule(m[4] ? `${m[3]} pukul ${m[4]}` : m[3], loc),
     });
   }
 
@@ -157,7 +160,8 @@ export function localizeOrderDetails(order, t) {
     return t('order_text.food_detail', { items: m[1], address: m[2] });
   }
 
-  return raw;
+  // Anything else (e.g. WiraAsuh's "Jadwal: 2026-10-10 pukul 08:00 WITA • …").
+  return prettySchedule(raw, loc);
 }
 
 // ---------- transactions ----------
