@@ -49,3 +49,4 @@ apk/
 
 # Firebase Android configs (kept on the build machine, not in git)
 frontend-*/android/app/google-services.json
+release-aab/
