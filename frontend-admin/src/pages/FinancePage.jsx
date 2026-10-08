@@ -17,6 +17,29 @@ import { Badge, Button, Card, EmptyState, Money, PageHeader, SectionHeader, Segm
 // drift apart again - left as a literal here for now to keep this fix
 // minimal and avoid touching DashboardPage.jsx in this pass.
 // Same words the customer and partner apps use for these states.
+// Requests that need a decision come first; everything already handled is
+// tucked into a collapsible history so the queue stays short on a phone.
+const QueueWithHistory = ({ rows, render }) => {
+  const pending = rows.filter((r) => r.status === 'pending');
+  const history = rows.filter((r) => r.status !== 'pending');
+  return (
+    <div className="flex flex-col gap-3">
+      {pending.length > 0 ? render(pending) : (
+        <p className="rounded-card border border-dashed border-line px-4 py-3 text-[13px] text-ink-muted">Tidak ada yang menunggu.</p>
+      )}
+      {history.length > 0 && (
+        <details className="group">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-ink-muted hover:text-ink">
+            <span className="transition-transform group-open:rotate-90" aria-hidden="true">›</span>
+            Riwayat ({history.length})
+          </summary>
+          <div className="mt-2">{render(history)}</div>
+        </details>
+      )}
+    </div>
+  );
+};
+
 const TOPUP_STATUS = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak', cancelled: 'Dibatalkan' };
 const PAYOUT_STATUS = { pending: 'Menunggu', approved: 'Sudah ditransfer', rejected: 'Ditolak', cancelled: 'Dibatalkan' };
 const TX_TYPE = {
@@ -211,7 +234,139 @@ const FinancePage = () => {
   );
 
   const timeCell = (iso) => (
-    <span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{new Date(iso).toLocaleString('id-ID')}</span>
+    <span className="whitespace-nowrap font-mono text-[12.5px] text-ink-muted">{new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+  );
+
+  const topupTable = (rows) => (
+    <Table titleCol={1}>
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Pengguna</th>
+          <th className="text-right">Nominal</th>
+          <th>Status</th>
+          <th className="text-right">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(t => (
+          <tr key={t.id}>
+            <td>{timeCell(t.created_at)}</td>
+            <td>{userCell(t.users)}</td>
+            <td className="text-right">
+              {(() => {
+                const amt = Number(t.amount);
+                const str = amt.toLocaleString('id-ID');
+                const code = amt % 1000;
+                if (code > 0 && str.length >= 3) {
+                  return (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="whitespace-nowrap font-mono font-medium text-ink">
+                        Rp {str.slice(0, -3)}
+                        <span className="rounded-[5px] border border-pay-line bg-pay-soft px-1 text-pay-ink">{str.slice(-3)}</span>
+                      </span>
+                      <span className="text-[11.5px] font-semibold text-pay-ink">
+                        Kode Unik: <span className="font-mono">+{code}</span>
+                      </span>
+                    </div>
+                  );
+                }
+                return <Money value={amt} className="font-medium text-ink" />;
+              })()}
+            </td>
+            <td>
+              <Badge tone={statusTone(t.status)} dot>{TOPUP_STATUS[t.status] || t.status}</Badge>
+            </td>
+            <td className="text-right">
+              {t.status === 'pending' && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leftIcon={<CheckCircle size={15} />}
+                    onClick={() => setConfirmAction({ kind: 'approveTopup', row: t })}
+                    disabled={actionLoading}
+                  >
+                    Setujui
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    leftIcon={<XCircle size={15} />}
+                    onClick={() => setConfirmAction({ kind: 'rejectTopup', row: t })}
+                    disabled={actionLoading}
+                  >
+                    Tolak
+                  </Button>
+                </div>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+
+  const payoutTable = (rows) => (
+    <Table titleCol={1}>
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Mitra</th>
+          <th className="text-right">Nominal</th>
+          <th>Tujuan Transfer</th>
+          <th>Status</th>
+          <th className="text-right">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(p => (
+          <tr key={p.id}>
+            <td>{timeCell(p.created_at)}</td>
+            <td>{userCell(p.users)}</td>
+            <td className="text-right">
+              <Money value={p.amount} className="font-medium text-ink" />
+            </td>
+            <td>
+              <div className="flex flex-col gap-0.5">
+                <span className="font-mono font-medium text-ink">{p.payout_destination}</span>
+                <span className="text-[12px] text-ink-muted">
+                  {p.payout_method === 'ewallet' ? 'E-Wallet' : 'Transfer Bank'}
+                  {p.payout_account_name ? ` • a.n. ${p.payout_account_name}` : ''}
+                </span>
+              </div>
+            </td>
+            <td>
+              <Badge tone={statusTone(p.status)} dot>{PAYOUT_STATUS[p.status] || p.status}</Badge>
+            </td>
+            <td className="text-right">
+              {p.status === 'pending' && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leftIcon={<CheckCircle size={15} />}
+                    onClick={() => setConfirmAction({ kind: 'approvePayout', row: p })}
+                    disabled={actionLoading}
+                  >
+                    Tandai Sudah Ditransfer
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    leftIcon={<XCircle size={15} />}
+                    onClick={() => setConfirmAction({ kind: 'rejectPayout', row: p })}
+                    disabled={actionLoading}
+                  >
+                    Tolak
+                  </Button>
+                </div>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
   );
 
   return (
@@ -255,8 +410,6 @@ const FinancePage = () => {
 
       {activeTab === 'requests' && (
         <div className="flex flex-col gap-6">
-          <CommissionDebtsSection />
-
           <CommissionDepositsSection />
 
           <section>
@@ -267,73 +420,7 @@ const FinancePage = () => {
             {loading ? loadingBlock : topups.length === 0 ? (
               <EmptyState icon={<Clock size={24} />} title="Belum ada permintaan top-up." />
             ) : (
-              <Table titleCol={1}>
-                <thead>
-                  <tr>
-                    <th>Waktu</th>
-                    <th>Pengguna</th>
-                    <th className="text-right">Nominal</th>
-                    <th>Status</th>
-                    <th className="text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topups.map(t => (
-                    <tr key={t.id}>
-                      <td>{timeCell(t.created_at)}</td>
-                      <td>{userCell(t.users)}</td>
-                      <td className="text-right">
-                        {(() => {
-                          const amt = Number(t.amount);
-                          const str = amt.toLocaleString('id-ID');
-                          const code = amt % 1000;
-                          if (code > 0 && str.length >= 3) {
-                            return (
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="whitespace-nowrap font-mono font-medium text-ink">
-                                  Rp {str.slice(0, -3)}
-                                  <span className="rounded-[5px] border border-pay-line bg-pay-soft px-1 text-pay-ink">{str.slice(-3)}</span>
-                                </span>
-                                <span className="text-[11.5px] font-semibold text-pay-ink">
-                                  Kode Unik: <span className="font-mono">+{code}</span>
-                                </span>
-                              </div>
-                            );
-                          }
-                          return <Money value={amt} className="font-medium text-ink" />;
-                        })()}
-                      </td>
-                      <td>
-                        <Badge tone={statusTone(t.status)} dot>{TOPUP_STATUS[t.status] || t.status}</Badge>
-                      </td>
-                      <td className="text-right">
-                        {t.status === 'pending' && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              leftIcon={<CheckCircle size={15} />}
-                              onClick={() => setConfirmAction({ kind: 'approveTopup', row: t })}
-                              disabled={actionLoading}
-                            >
-                              Setujui
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger-soft"
-                              leftIcon={<XCircle size={15} />}
-                              onClick={() => setConfirmAction({ kind: 'rejectTopup', row: t })}
-                              disabled={actionLoading}
-                            >
-                              Tolak
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <QueueWithHistory rows={topups} render={topupTable} />
             )}
           </section>
 
@@ -345,67 +432,11 @@ const FinancePage = () => {
             {loading ? loadingBlock : payouts.length === 0 ? (
               <EmptyState icon={<Landmark size={24} />} title="Belum ada permintaan pencairan." />
             ) : (
-              <Table titleCol={1}>
-                <thead>
-                  <tr>
-                    <th>Waktu</th>
-                    <th>Mitra</th>
-                    <th className="text-right">Nominal</th>
-                    <th>Tujuan Transfer</th>
-                    <th>Status</th>
-                    <th className="text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payouts.map(p => (
-                    <tr key={p.id}>
-                      <td>{timeCell(p.created_at)}</td>
-                      <td>{userCell(p.users)}</td>
-                      <td className="text-right">
-                        <Money value={p.amount} className="font-medium text-ink" />
-                      </td>
-                      <td>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono font-medium text-ink">{p.payout_destination}</span>
-                          <span className="text-[12px] text-ink-muted">
-                            {p.payout_method === 'ewallet' ? 'E-Wallet' : 'Transfer Bank'}
-                            {p.payout_account_name ? ` • a.n. ${p.payout_account_name}` : ''}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <Badge tone={statusTone(p.status)} dot>{PAYOUT_STATUS[p.status] || p.status}</Badge>
-                      </td>
-                      <td className="text-right">
-                        {p.status === 'pending' && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              leftIcon={<CheckCircle size={15} />}
-                              onClick={() => setConfirmAction({ kind: 'approvePayout', row: p })}
-                              disabled={actionLoading}
-                            >
-                              Tandai Sudah Ditransfer
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger-soft"
-                              leftIcon={<XCircle size={15} />}
-                              onClick={() => setConfirmAction({ kind: 'rejectPayout', row: p })}
-                              disabled={actionLoading}
-                            >
-                              Tolak
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <QueueWithHistory rows={payouts} render={payoutTable} />
             )}
           </section>
+
+          <CommissionDebtsSection />
         </div>
       )}
 

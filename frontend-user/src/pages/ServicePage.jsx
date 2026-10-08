@@ -498,14 +498,9 @@ export default function ServicePage() {
         title={t('service.booking_title', { service: t(`service.categories.${selectedService?.id}`) })}
         description={selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line')}
         footer={
-          <>
-            <Button variant="secondary" size="lg" onClick={() => setIsModalOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" form="service-booking-form" size="lg" disabled={loading || !serviceTime} isLoading={loading}>
-              {loading ? t('common.processing') : t('service.submit')}
-            </Button>
-          </>
+          <Button type="submit" form="service-booking-form" size="lg" block disabled={loading || !serviceTime} isLoading={loading}>
+            {loading ? t('common.processing') : t('service.submit')}
+          </Button>
         }
       >
         <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">

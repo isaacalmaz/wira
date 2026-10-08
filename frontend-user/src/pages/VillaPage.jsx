@@ -435,14 +435,9 @@ export default function VillaPage() {
         title={selectedVilla ? t('villa.reserve_title', { name: selectedVilla.name }) : undefined}
         description={selectedVilla ? t('villa.location_line', { area: selectedVilla.area }) : undefined}
         footer={
-          <>
-            <Button variant="secondary" size="lg" onClick={() => setSelectedVilla(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" form="villa-booking-form" size="lg" disabled={loading || !nights} isLoading={loading}>
-              {loading ? t('common.processing') : t('villa.submit')}
-            </Button>
-          </>
+          <Button type="submit" form="villa-booking-form" size="lg" block disabled={loading || !nights} isLoading={loading}>
+            {loading ? t('common.processing') : t('villa.submit')}
+          </Button>
         }
       >
         {selectedVilla && (

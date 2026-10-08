@@ -77,6 +77,7 @@ export default function RidePage() {
   const [isSearching, setIsSearching] = useState(false);
 
   const [routeInfo, setRouteInfo] = useState(null);
+  const [routeFailed, setRouteFailed] = useState(false);
 
   const handleLocateMe = (idx = 0) => {
     if (!navigator.geolocation) {
@@ -129,8 +130,10 @@ export default function RidePage() {
     if (mapState.markers.length === 2 && pickup && dropoff && step === 'input') {
       const getRoute = async () => {
         setIsSearching(true);
+        setRouteFailed(false);
         const { fetchRoute } = await import('../utils/osmHelpers');
         const routeData = await fetchRoute(mapState.markers[0], mapState.markers[1]);
+        setRouteFailed(!routeData);
         if (routeData) {
           setMapState(prev => ({ ...prev, route: routeData.coordinates, zoom: 14 }));
           setRouteInfo({
@@ -459,7 +462,13 @@ export default function RidePage() {
                   <span className="whitespace-nowrap font-mono text-[15px] font-medium text-ink">{distanceKm} km</span>
                 </div>
               ) : (
-                <p className="text-[13px] leading-relaxed text-ink-muted">{t('common.map_pin_hint')}</p>
+                // Says why "Lanjut" is still disabled.
+                <p className="text-[13px] leading-relaxed text-ink-muted">
+                  {!pickup || !dropoff ? t('ride.hint_fill')
+                    : mapState.markers.length < 2 ? t('ride.hint_pick')
+                    : routeFailed ? t('ride.hint_no_route')
+                    : t('common.map_pin_hint')}
+                </p>
               )}
             </div>
             <div className="shrink-0 px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pb-5">

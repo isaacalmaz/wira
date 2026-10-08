@@ -31,7 +31,6 @@ import {
   Plus,
   ShoppingBag,
   MapPin,
-  ArrowLeft,
   ArrowRight,
   Store,
   LocateFixed,
@@ -375,6 +374,8 @@ export default function RestaurantPage() {
     <div className="mx-auto flex max-w-2xl flex-col gap-5 pb-28">
       <PageHeader
         back="/food"
+        /* Checkout is a step of this page: back returns to the menu. */
+        onBack={step === 'checkout' ? () => setStep('menu') : undefined}
         backLabel={t('common.back')}
         eyebrow={rest.category}
         title={rest.name}
@@ -479,10 +480,7 @@ export default function RestaurantPage() {
                             variant="secondary"
                             disabled={isClosed}
                             leftIcon={<Plus size={16} />}
-                            onClick={() => {
-                              addItem({ ...item, qty: 1 });
-                              toast.success(t('restaurant.added_to_cart', { name: item.name }));
-                            }}
+                            onClick={() => addItem({ ...item, qty: 1 })}
                           >
                             {t('restaurant.add')}
                           </Button>
@@ -672,16 +670,6 @@ export default function RestaurantPage() {
 
           <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
             <div className="mx-auto flex max-w-2xl items-stretch gap-2.5 rounded-card border border-line bg-card p-2.5 shadow-pop">
-              <Button
-                variant="secondary"
-                size="lg"
-                aria-label={t('common.back')}
-                title={t('common.back')}
-                className="shrink-0 px-4"
-                onClick={() => setStep('menu')}
-              >
-                <ArrowLeft size={18} aria-hidden="true" />
-              </Button>
               <Button
                 size="lg"
                 className="flex-1"

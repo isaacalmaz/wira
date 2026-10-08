@@ -13,6 +13,12 @@ import API_BASE_URL from '../../config/api';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { friendlyError } from '../../utils/friendlyError';
 
+// "8 Okt, 23.22" - day, short month and time, no seconds.
+const formatOrderTime = (iso) => {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+};
+
 // Status badge tone (DESIGN.md §5): waiting = warning, in progress = brand,
 // done = success, cancelled = danger. Display only.
 const statusTone = (status) => {
@@ -223,12 +229,12 @@ const MerchantOrdersPage = () => {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <span><Badge tone={statusTone(order.status)} dot>{statusLabel(order.status, order.service_type)}</Badge></span>
-                <h3 className="font-mono text-[13px] font-medium text-ink">{order.id.slice(0,12)}</h3>
+                <h3 className="break-words text-[15px] font-bold leading-snug text-ink">{names[order.user_id] || 'Pelanggan'}</h3>
                 <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-muted">
                   <Clock size={12} aria-hidden="true" />
-                  <span className="font-mono">{new Date(order.created_at).toLocaleTimeString('id-ID')}</span>
+                  <span>{formatOrderTime(order.created_at)}</span>
                   <span aria-hidden="true">•</span>
-                  <span>{names[order.user_id] || 'Pelanggan'}</span>
+                  <span className="font-mono">#{order.id.slice(0, 6).toUpperCase()}</span>
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-0.5">

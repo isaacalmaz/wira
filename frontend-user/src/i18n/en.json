@@ -135,8 +135,8 @@
     "greeting_night": "Good evening"
   },
   "ride": {
-    "pickup_placeholder": "Your pickup point (e.g. Ampenan or Home)",
-    "dropoff_placeholder": "Where to? (e.g. Epicentrum Mall or Senggigi)",
+    "pickup_placeholder": "Pickup point",
+    "dropoff_placeholder": "Where to?",
     "distance": "Trip Distance",
     "calculating": "Working out your route...",
     "continue": "Next: Choose a Ride",
@@ -154,7 +154,10 @@
     "insufficient_balance": "Your WiraPay balance is short. Pay cash instead, or top up first.",
     "no_driver_nearby": "No drivers are online nearby right now, but we'll keep looking for your ride.",
     "searching_driver": "Looking for drivers near you...",
-    "book_failed": "We couldn't book that ride: {{message}}"
+    "book_failed": "We couldn't book that ride: {{message}}",
+    "hint_fill": "Enter a pickup and a destination.",
+    "hint_pick": "Pick an address from the suggestions, or drag the pin on the map.",
+    "hint_no_route": "No route found. Try moving the pin to the nearest road."
   },
   "food": {
     "search_placeholder": "Search restaurants or dishes",
@@ -208,10 +211,10 @@
     "receiver_section": "Drop-off (Recipient)",
     "sender_name": "Sender's name",
     "sender_phone": "Sender's mobile number",
-    "sender_address": "Full pickup address (e.g. Jl. Pejanggik No. 12, Mataram)",
+    "sender_address": "Parcel pickup address",
     "receiver_name": "Recipient's name",
     "receiver_phone": "Recipient's mobile number",
-    "receiver_address": "Full destination address (e.g. Puri Meninting, Senggigi)",
+    "receiver_address": "Parcel destination address",
     "item_note": "What's inside, or a note for the courier (e.g. layer cake, certificates)",
     "package_section": "Choose a Parcel Size",
     "packages": {
@@ -1081,6 +1084,7 @@
     "err_time": "Pick a start time at least 2 hours from now.",
     "err_under3": "At most 2 children under 3 per babysitter.",
     "err_phone": "Enter a working emergency number.",
-    "err_agree": "Tick the WiraAsuh terms first."
+    "err_agree": "Tick the WiraAsuh terms first.",
+    "title": "Babysitter"
   }
 }

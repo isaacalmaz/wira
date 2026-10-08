@@ -4,11 +4,12 @@ import { cx } from './cx';
 
 /**
  * Title block at the top of a page. `back` shows a back button
- * (true = history back, or a path string). `actions` sits on the right.
+ * (true = history back, or a path string); `onBack` overrides where it goes,
+ * e.g. an in-page step. `actions` sits on the right.
  */
-export default function PageHeader({ title, subtitle, back, backLabel = 'Kembali', actions, eyebrow, className = '' }) {
+export default function PageHeader({ title, subtitle, back, onBack, backLabel = 'Kembali', actions, eyebrow, className = '' }) {
   const navigate = useNavigate();
-  const goBack = () => (typeof back === 'string' ? navigate(back) : navigate(-1));
+  const goBack = () => (onBack ? onBack() : typeof back === 'string' ? navigate(back) : navigate(-1));
   return (
     <div className={cx('flex items-start gap-3 mb-5', className)}>
       {back && (

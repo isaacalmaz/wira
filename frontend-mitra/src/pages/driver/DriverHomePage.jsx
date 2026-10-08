@@ -18,6 +18,7 @@ import {
   subscribeToDriverOrders, sendDriverLocation, setDriverOffline, distanceMeters,
   driverEarnedAmount,
   loadCommissionRates,
+  driverOfferAmount,
   orderErrorMessage,
 } from '../../services/orderService';
 import { friendlyError } from '../../utils/friendlyError';
@@ -159,7 +160,7 @@ const DriverHomePage = () => {
   useEffect(() => { activeOrderRef.current = activeOrder; }, [activeOrder]);
 
   const [isChatOpen, setIsChatOpen] = useState(false); // Jika sedang menjalankan order
-  const [customerName, setCustomerName] = useState('Penumpang');
+  const [customerName, setCustomerName] = useState('Pelanggan');
   
   // Real stats state
   const [todayEarnings, setTodayEarnings] = useState(0);
@@ -221,16 +222,16 @@ const DriverHomePage = () => {
     fetchDriverStats();
   }, [user, activeOrder]);
 
-  // Ambil nama asli penumpang untuk order aktif (sebelumnya selalu "Penumpang" generik di chat)
+  // Ambil nama asli pelanggan untuk order aktif (sebelumnya selalu "Penumpang" generik di chat)
   useEffect(() => {
     if (!activeOrder?.user_id) {
-      setCustomerName('Penumpang');
+      setCustomerName('Pelanggan');
       return;
     }
     let cancelled = false;
     fetchCounterpartyProfiles(supabase, [activeOrder.user_id])
       .then((profiles) => {
-        if (!cancelled) setCustomerName(profiles[activeOrder.user_id]?.name || 'Penumpang');
+        if (!cancelled) setCustomerName(profiles[activeOrder.user_id]?.name || 'Pelanggan');
       });
     return () => { cancelled = true; };
   }, [activeOrder?.user_id]);
@@ -443,10 +444,21 @@ const DriverHomePage = () => {
   // Sebelumnya UI ini langsung lompat ACCEPTED -> COMPLETED dengan satu tombol
   // "Selesai", padahal PICKING_UP/IN_TRIP sudah ada di state machine tapi
   // tidak pernah benar-benar dipakai di layar driver.
-  const STAGE_FLOW = {
-    [OrderStatus.ACCEPTED]: { next: OrderStatus.PICKING_UP, label: 'Konfirmasi Sampai di Jemputan', icon: MapPin },
-    [OrderStatus.PICKING_UP]: { next: OrderStatus.IN_TRIP, label: 'Mulai Perjalanan', icon: Navigation2 },
-    [OrderStatus.IN_TRIP]: { next: OrderStatus.COMPLETED, label: 'Selesaikan Perjalanan', icon: PackageCheck },
+  // Labels follow the service: a courier picks up a parcel or a meal, not a
+  // passenger. The step that needs the PIN says so.
+  const stageFlow = (order) => {
+    const food = !!order?.merchant_id;
+    const send = order?.service_type === 'send';
+    return {
+      [OrderStatus.ACCEPTED]: { next: OrderStatus.PICKING_UP, icon: MapPin,
+        label: food ? 'Saya Sudah di Restoran' : send ? 'Saya Sudah di Lokasi Pengirim' : 'Saya Sudah di Lokasi Jemput',
+        done: food ? 'Sampai di restoran' : send ? 'Sampai di lokasi pengirim' : 'Sampai di lokasi jemputan' },
+      [OrderStatus.PICKING_UP]: { next: OrderStatus.IN_TRIP, icon: Navigation2,
+        label: food ? 'Makanan Sudah Diambil (PIN)' : send ? 'Paket Sudah Diambil (PIN)' : 'Mulai Perjalanan (PIN)' },
+      [OrderStatus.IN_TRIP]: { next: OrderStatus.COMPLETED, icon: PackageCheck,
+        label: food ? 'Makanan Sudah Diantar' : send ? 'Paket Sudah Diantar' : 'Selesaikan Perjalanan',
+        done: food ? 'Makanan sudah diantar!' : send ? 'Paket sudah diantar!' : 'Perjalanan diselesaikan!' },
+    };
   };
 
   // 0113: starting the trip needs the PIN (customer's for ride/send, the
@@ -455,7 +467,7 @@ const DriverHomePage = () => {
 
   const handleAdvanceStage = async () => {
     if (!activeOrder) return;
-    const step = STAGE_FLOW[activeOrder.status];
+    const step = stageFlow(activeOrder)[activeOrder.status];
     if (!step) return;
     if (step.next === OrderStatus.IN_TRIP) {
       setPinOpen(true);
@@ -464,11 +476,11 @@ const DriverHomePage = () => {
     try {
       const updated = await updateOrderStatus(supabase, activeOrder.id, step.next, user.id, 'driver');
       if (step.next === OrderStatus.COMPLETED) {
-        toast.success('Perjalanan diselesaikan!');
+        toast.success(step.done);
         setActiveOrder(null);
       } else {
         setActiveOrder(updated);
-        toast.success(step.next === OrderStatus.PICKING_UP ? 'Sampai di lokasi jemputan' : 'Perjalanan dimulai');
+        toast.success(step.done || 'Status diperbarui');
       }
     } catch (err) {
       toast.error('Gagal memperbarui status pesanan');
@@ -495,8 +507,10 @@ const DriverHomePage = () => {
   // actually cancelled, just re-matching). RidePage.jsx's realtime handler
   // picks up that status change on the customer's side and shows them a
   // "searching for a new driver" state instead of a dead order.
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const handleCancelOrder = async () => {
     if (!activeOrder || isCancellingOrder) return;
+    setConfirmCancel(false);
     setIsCancellingOrder(true);
     try {
       const { error } = await supabase.rpc('wallet_refund_matched_ride', {
@@ -504,7 +518,7 @@ const DriverHomePage = () => {
         p_description: 'Dibatalkan oleh Driver',
       });
       if (error) throw error;
-      toast.success('Pesanan dibatalkan, dicarikan driver lain untuk penumpang.');
+      toast.success('Pesanan dibatalkan. Wira mencarikan driver lain untuk pelanggan.');
       setActiveOrder(null);
     } catch (err) {
       toast.error(friendlyError(err) || 'Gagal membatalkan pesanan');
@@ -563,7 +577,7 @@ const DriverHomePage = () => {
     ? distanceMeters(driverPos.lat, driverPos.lng, legTarget.lat, legTarget.lng)
     : null;
   const hasArrived = legDistance != null && legDistance <= ARRIVAL_RADIUS_METERS;
-  const currentStep = activeOrder ? STAGE_FLOW[activeOrder.status] : null;
+  const currentStep = activeOrder ? stageFlow(activeOrder)[activeOrder.status] : null;
 
   const StepIcon = currentStep?.icon;
   // Incoming-order prompt: parsed route + straight-line trip distance
@@ -796,7 +810,7 @@ const DriverHomePage = () => {
                   block
                   disabled={isCancellingOrder}
                   className="text-danger-ink hover:bg-danger-soft"
-                  onClick={handleCancelOrder}
+                  onClick={() => setConfirmCancel(true)}
                 >
                   {isCancellingOrder ? 'Membatalkan...' : 'Batalkan Pesanan'}
                 </Button>
@@ -827,7 +841,11 @@ const DriverHomePage = () => {
               <Badge tone="brand" className="capitalize">
                 {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : incomingOrder.service_type}
               </Badge>
-              <Money value={incomingOrder.total_price} className="text-[24px] font-medium leading-none tracking-tight text-ink" />
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pendapatan Anda</span>
+                <Money value={driverOfferAmount(incomingOrder)} className="text-[24px] font-medium leading-none tracking-tight text-ink" />
+                <span className="text-[11.5px] text-ink-muted">Pelanggan bayar <Money value={incomingOrder.total_price} className="text-[11.5px]" />{incomingOrder.payment_method === 'cash' ? ' · tunai' : ''}</span>
+              </div>
             </div>
 
             {incomingOrder.details && (
@@ -851,6 +869,23 @@ const DriverHomePage = () => {
             <p className="text-xs text-ink-muted">Ketuk 'Terima' untuk melihat peta lengkap</p>
           </div>
         )}
+      </Sheet>
+
+      <Sheet
+        open={confirmCancel && !!activeOrder}
+        onClose={() => setConfirmCancel(false)}
+        size="sm"
+        title="Batalkan pesanan ini?"
+        footer={
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setConfirmCancel(false)}>Kembali</Button>
+            <Button variant="danger" size="lg" disabled={isCancellingOrder} onClick={handleCancelOrder}>Ya, Batalkan</Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-ink-muted">
+          Pesanan dilepas dan Wira mencarikan driver lain.
+        </p>
       </Sheet>
 
       <OrderPinSheet

@@ -505,6 +505,12 @@ const isCashFoodWithCourier = (order) => isCashOrder(order) && order.service_typ
 const promoDiscount = (order) => Math.max(Number(order.promo_discount) || 0, 0);
 const menuSubtotal = (order) => Math.max((order.total_price || 0) - (order.delivery_fee || 0), 0) + promoDiscount(order);
 
+// What the job pays the driver before any cash changes hands: the headline
+// on an incoming offer (not the customer's price).
+export function driverOfferAmount(order) {
+  return Math.round(driverShare(order));
+}
+
 export function driverEarnedAmount(order) {
   if (isCashFoodWithCourier(order)) return promoDiscount(order) - Math.round((order.delivery_fee || 0) * orderRate(order));
   return driverShare(order) - cashCollected(order, 'driver');

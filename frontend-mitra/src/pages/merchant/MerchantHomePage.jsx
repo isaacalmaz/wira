@@ -49,14 +49,15 @@ const OrderItems = ({ details, fallback }) => {
 const noop = () => {};
 
 // Store open/closed switch: 44px tap target, state also shown by a Badge.
-const Switch = ({ checked, onChange, label }) => (
+const Switch = ({ checked, onChange, label, disabled = false }) => (
   <button
     type="button"
     role="switch"
     aria-checked={checked}
     aria-label={label}
+    disabled={disabled}
     onClick={() => onChange(!checked)}
-    className="inline-flex h-11 w-16 shrink-0 items-center justify-center rounded-full"
+    className="inline-flex h-11 w-16 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
   >
     <span className={cx('relative h-8 w-14 rounded-full transition-colors duration-200', checked ? 'bg-success' : 'bg-line-strong')}>
       <span className={cx('absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-[0_1px_2px_rgba(6,47,60,0.25)] transition-transform duration-200', checked ? 'translate-x-6' : 'translate-x-0')} />
@@ -81,13 +82,43 @@ const MerchantHomePage = () => {
 
   // Every property this owner runs on this portal (several villas, or one
   // restaurant): stats, incoming orders and the realtime feed cover all.
-  const { merchants, ids: merchantIds, kind } = useMyMerchants();
+  const { merchants, ids: merchantIds, kind, reload: reloadMerchants } = useMyMerchants();
   const idsKey = merchantIds.join(',');
   const merchantId = merchantIds.length ? merchantIds : null;
   const propertyName = (order) => merchants.find((m) => m.id === order?.merchant_id)?.name;
   const liveCount = merchants.filter((m) => !m.listing_status || m.listing_status === 'approved').length;
   // Deactivated by an admin (migrations/0101): hidden from customers.
   const suspended = merchants.filter((m) => m.listing_status === 'suspended');
+  const allSuspended = merchants.length > 0 && suspended.length === merchants.length;
+
+  // Open/closed is stored on merchants.is_open (0117): customers only see and
+  // can order from open places. Start from what the server says.
+  const openKey = merchants.map((m) => `${m.id}:${m.is_open !== false}`).join(',');
+  useEffect(() => {
+    if (merchants.length) setIsOpen(merchants.some((m) => m.is_open !== false));
+  // openKey captures every merchant's is_open.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey]);
+
+  const [savingOpen, setSavingOpen] = useState(false);
+  const handleToggleOpen = async (next) => {
+    if (savingOpen) return;
+    setSavingOpen(true);
+    setIsOpen(next);
+    try {
+      for (const m of merchants) {
+        const { error } = await supabase.rpc('set_my_merchant_open', { p_merchant_id: m.id, p_open: next });
+        if (error) throw error;
+      }
+      toast.success(next ? 'Toko dibuka. Pelanggan bisa memesan.' : 'Toko ditutup. Pelanggan tidak bisa memesan.');
+    } catch (err) {
+      setIsOpen(!next);
+      toast.error(friendlyError(err) || 'Status toko gagal disimpan. Coba lagi.');
+    } finally {
+      setSavingOpen(false);
+      reloadMerchants();
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -250,7 +281,7 @@ const MerchantHomePage = () => {
           <div className="flex items-center gap-3 border-t border-line bg-sunken/50 py-1.5 pl-4 pr-2">
             <Badge tone={isOpen ? 'success' : 'neutral'} dot>{isOpen ? 'Buka' : 'Tutup'}</Badge>
             <span className="flex-1" />
-            <Switch checked={isOpen} onChange={setIsOpen} label={isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'} />
+            <Switch checked={isOpen && !allSuspended} onChange={handleToggleOpen} disabled={savingOpen || allSuspended} label={isOpen ? 'Menerima pesanan' : 'Tidak menerima pesanan'} />
           </div>
         )}
       </Card>

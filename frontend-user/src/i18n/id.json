@@ -135,8 +135,8 @@
     "greeting_night": "Selamat malam"
   },
   "ride": {
-    "pickup_placeholder": "Titik jemput Anda (cth. Ampenan atau Rumah)",
-    "dropoff_placeholder": "Mau ke mana? (cth. Epicentrum Mall atau Senggigi)",
+    "pickup_placeholder": "Titik jemput",
+    "dropoff_placeholder": "Mau ke mana?",
     "distance": "Jarak Tempuh",
     "calculating": "Menghitung rute...",
     "continue": "Lanjut Pilih Kendaraan",
@@ -154,7 +154,10 @@
     "insufficient_balance": "Saldo WiraPay belum cukup. Pilih pembayaran tunai atau isi saldo dulu.",
     "no_driver_nearby": "Belum ada driver yang online di sekitar Anda, tapi pesanan Anda tetap kami carikan.",
     "searching_driver": "Mencari driver di sekitar Anda...",
-    "book_failed": "Pesanan belum bisa dibuat: {{message}}"
+    "book_failed": "Pesanan belum bisa dibuat: {{message}}",
+    "hint_fill": "Isi lokasi jemput dan tujuan.",
+    "hint_pick": "Pilih alamat dari daftar saran, atau geser pin di peta.",
+    "hint_no_route": "Rute tidak ditemukan. Coba geser pin ke jalan terdekat."
   },
   "food": {
     "search_placeholder": "Cari restoran atau menu favorit Anda",
@@ -208,10 +211,10 @@
     "receiver_section": "Titik Pengantaran (Penerima)",
     "sender_name": "Nama pengirim",
     "sender_phone": "Nomor HP pengirim",
-    "sender_address": "Alamat lengkap penjemputan (cth. Jl. Pejanggik No. 12, Mataram)",
+    "sender_address": "Alamat jemput paket",
     "receiver_name": "Nama penerima",
     "receiver_phone": "Nomor HP penerima",
-    "receiver_address": "Alamat lengkap tujuan (cth. Komplek Puri Meninting, Senggigi)",
+    "receiver_address": "Alamat tujuan paket",
     "item_note": "Isi paket atau catatan untuk kurir (cth. Kue lapis, dokumen sertifikat)",
     "package_section": "Pilih Ukuran Paket",
     "packages": {
@@ -1081,6 +1084,7 @@
     "err_time": "Pilih jam mulai paling cepat 2 jam dari sekarang.",
     "err_under3": "Maksimal 2 anak di bawah 3 tahun untuk satu pengasuh.",
     "err_phone": "Isi nomor darurat yang aktif.",
-    "err_agree": "Centang persetujuan syarat WiraAsuh dulu."
+    "err_agree": "Centang persetujuan syarat WiraAsuh dulu.",
+    "title": "Pengasuh Anak"
   }
 }

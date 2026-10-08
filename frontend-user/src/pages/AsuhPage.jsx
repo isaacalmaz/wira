@@ -115,7 +115,7 @@ export default function AsuhPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-16">
-      <PageHeader back="/" backLabel={t('common.back')} eyebrow="Wira" title="Asuh" subtitle={t('asuh.subtitle')} className="mb-0" />
+      <PageHeader back="/" backLabel={t('common.back')} eyebrow="WiraAsuh" title={t('asuh.title')} subtitle={t('asuh.subtitle')} className="mb-0" />
 
       <Card className="flex items-start gap-3">
         <IconTile tone="brand"><Baby size={20} /></IconTile>

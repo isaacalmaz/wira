@@ -462,14 +462,9 @@ export default function PoolPage() {
         title={t('pool.booking_title', { service: serviceLabel(selectedService) })}
         description={isPackage ? t('pool.package_subtitle') : t('pool.booking_subtitle')}
         footer={
-          <>
-            <Button variant="secondary" size="lg" onClick={() => setIsModalOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" form="pool-booking-form" size="lg" disabled={loading || !visitTime} isLoading={loading}>
-              {loading ? t('common.processing') : t('pool.submit')}
-            </Button>
-          </>
+          <Button type="submit" form="pool-booking-form" size="lg" block disabled={loading || !visitTime} isLoading={loading}>
+            {loading ? t('common.processing') : t('pool.submit')}
+          </Button>
         }
       >
         <form id="pool-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
