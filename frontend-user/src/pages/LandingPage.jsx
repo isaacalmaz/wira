@@ -102,13 +102,16 @@ export default function LandingPage() {
                     <p className="mt-1 text-[13px] font-semibold">{t('phone_driver')}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 px-3.5">
-                  {SERVICES.map(({ icon: Icon, name }) => (
-                    <div key={name} className="flex flex-col items-center gap-1 text-[10.5px] font-semibold">
-                      <span className="grid aspect-[1.15] w-full place-items-center rounded-[13px] border border-laut-200 bg-laut-100 text-laut-700">
-                        <Icon size={19} />
+                <div className="grid grid-cols-2 gap-2 px-3.5">
+                  {SERVICES.slice(0, 4).map(({ icon: Icon, name }, i) => (
+                    <div
+                      key={name}
+                      className={`relative flex flex-col gap-1 overflow-hidden rounded-[14px] p-2.5 ${i === 0 ? 'min-h-[92px] bg-laut-700 text-[#F7F6F3]' : i === 1 ? 'min-h-[92px] bg-emas-400 text-[#1E1A10]' : 'border border-[#E4E1DA] bg-white'}`}
+                    >
+                      <span className={`grid h-9 w-9 place-items-center rounded-[11px] ${i === 0 ? 'bg-white/15' : i === 1 ? 'bg-black/10' : 'bg-laut-100 text-laut-700'}`}>
+                        <Icon size={i < 2 ? 21 : 18} />
                       </span>
-                      {name.replace('Wira', '')}
+                      <span className={`text-[13px] font-extrabold ${i < 2 ? 'mt-auto' : ''}`}>{name.replace('Wira', '')}</span>
                     </div>
                   ))}
                 </div>

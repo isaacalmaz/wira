@@ -27,7 +27,7 @@ const discountLabel = (promo) => {
  * Hidden entirely when there is nothing to show.
  * `services`: the services currently enabled on the home grid.
  */
-export default function PromoCarousel({ services }) {
+export default function PromoCarousel({ services, excludeId }) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [promos, setPromos] = useState([]);
@@ -54,6 +54,7 @@ export default function PromoCarousel({ services }) {
 
   const enabledKeys = new Set((services || SERVICES).filter((s) => s.enabled !== false).map((s) => s.key));
   const visible = promos.filter((p) => {
+    if (excludeId && p.id === excludeId) return false;
     if (p.usage_limit != null && Number(p.usage || 0) >= Number(p.usage_limit)) return false;
     const svc = serviceOf(p);
     return !p.service_type || (svc && enabledKeys.has(svc.key));

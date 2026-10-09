@@ -1,5 +1,7 @@
 import { useTranslation } from '../i18n';
 import PromoCarousel from '../components/home/PromoCarousel';
+import SpotlightCard, { promoService } from '../components/home/SpotlightCard';
+import { todayLombok } from '../utils/promoDates';
 import { isNative } from '../native/nativeShell';
 import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
@@ -8,6 +10,7 @@ import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package 
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
 import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
@@ -35,6 +38,7 @@ export default function HomePage() {
   const { balance } = useWallet();
   const { orders } = useOrders();
   const { user } = useAuth();
+  const { notifications = [] } = useNotification() || {};
   const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
   const [serviceOrder, setServiceOrder] = useState(() => {
@@ -58,6 +62,24 @@ export default function HomePage() {
     return [];
   });
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [promos, setPromos] = useState([]);
+
+  // Active promos: the spotlight card and the "Promo" tag on service cards.
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('promos')
+      .select('id, title, code, service_type, usage, usage_limit')
+      .eq('status', 'Active')
+      .or(`validUntil.is.null,validUntil.gte.${todayLombok()}`)
+      .order('created_at', { ascending: false })
+      .limit(8)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setPromos((data || []).filter((p) => p.usage_limit == null || Number(p.usage || 0) < Number(p.usage_limit)));
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const updateServices = (flags) => {
@@ -111,6 +133,13 @@ export default function HomePage() {
   const orderIndex = (id) => (serviceOrder.indexOf(id) !== -1 ? serviceOrder.indexOf(id) : 999);
   const orderedServices = activeServices.slice().sort((a, b) => orderIndex(a.id) - orderIndex(b.id));
   const availableServices = orderedServices.filter((s) => s.enabled && (WALLET_ENABLED || s.id !== 'wira_pay'));
+  const shownServices = availableServices.filter((s) => !hiddenServices.includes(s.id));
+  const promoKeys = new Set(promos.map((p) => promoService(p)?.key).filter(Boolean));
+  // The promo the spotlight is showing (when nothing ranks above it), so the
+  // carousel below does not repeat it.
+  const spotBusy = orders.some((o) => o.rawStatus && !['completed', 'cancelled', 'canceled', 'expired', 'rejected'].includes(String(o.rawStatus).toLowerCase()))
+    || notifications.some((n) => !n.is_read && n.created_at && Date.now() - new Date(n.created_at).getTime() < 3 * 24 * 3600 * 1000);
+  const spotPromoId = !spotBusy && promos.find((p) => !p.service_type || shownServices.some((sv) => sv.key === promoService(p)?.key))?.id;
   const moveService = (id, neighborId) => {
     const order = orderedServices.map((s) => s.id);
     const i = order.indexOf(id);
@@ -167,52 +196,65 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Layanan + Atur Menu */}
+      {/* Most useful thing right now: running order, notice, promo, order again or a tip */}
+      <SpotlightCard orders={orders} services={shownServices} promos={promos} />
+
+      {/* Layanan: the focal point. The customer's first two are the big cards. */}
       <section>
         <SectionHeader
-          title={t('home.services')}
+          title={t('home.services_title')}
           action={(
             <button
               type="button"
               onClick={() => setIsMenuModalOpen(true)}
               aria-label={t('home.arrange_menu')}
               title={t('home.arrange_menu')}
-              className="-my-2 -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-control hover:bg-brand-soft"
+              className="-my-2 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2.5 text-[13px] font-semibold text-brand-ink hover:bg-brand-soft"
             >
-              <Settings2 size={18} aria-hidden="true" />
+              <Settings2 size={16} aria-hidden="true" />
+              {t('home.arrange_short')}
             </button>
           )}
         />
 
-        {/* Grid Layanan Utama */}
-        <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 sm:gap-x-4">
-          {availableServices
-          .filter(s => !hiddenServices.includes(s.id))
-          .map((service) => {
-            const IconComponent = service.icon;
-            const isPay = service.id === 'wira_pay';
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+          {shownServices.map((service, index) => {
+            const Icon = service.icon || Package;
+            const hero = index < 2;
+            const wide = !hero && index === shownServices.length - 1 && (shownServices.length - 2) % 2 === 1;
+            const hasPromo = promoKeys.has(service.key);
             return (
               <Link
                 key={service.id}
                 to={service.path}
-                className="group flex min-w-0 flex-col items-center gap-1.5"
+                className={cx(
+                  'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
+                  hero
+                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
+                    : cx('border border-line bg-card hover:border-brand', wide ? 'items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3'),
+                )}
               >
+                {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
+                {hasPromo && (
+                  <span className={cx('absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold', hero ? (index === 0 ? 'bg-white/20 text-[#F7F6F3]' : 'bg-black/10 text-[#1E1A10]') : 'bg-emas-100 text-emas-700')}>
+                    {t('home.promo_tag')}
+                  </span>
+                )}
                 <span
                   className={cx(
-                    'flex h-14 w-full items-center justify-center rounded-tile border transition-colors sm:h-16',
-                    isPay
-                      ? 'border-pay-line bg-pay-soft text-pay-ink group-hover:border-pay'
-                      : 'border-brand-line bg-brand-soft text-brand-ink group-hover:border-brand',
+                    'grid shrink-0 place-items-center',
+                    hero
+                      ? cx('h-14 w-14 rounded-2xl', index === 0 ? 'bg-white/15' : 'bg-black/10')
+                      : 'h-12 w-12 rounded-[14px] bg-brand-soft text-brand-ink',
                   )}
                 >
-                  {IconComponent ? (
-                    <IconComponent size={22} aria-hidden="true" />
-                  ) : (
-                    <span className="text-lg font-bold">{service.name_id.charAt(4)}</span>
-                  )}
+                  <Icon size={hero ? 32 : 26} aria-hidden="true" />
                 </span>
-                <span className="w-full text-center text-[11.5px] font-semibold leading-tight text-ink break-words">
-                  {serviceLabel(service)}
+                <span className={cx('flex min-w-0 flex-col', hero && 'mt-auto')}>
+                  <span className={cx('break-words font-extrabold tracking-[-0.01em]', hero ? 'text-[19px]' : 'text-[15px] text-ink')}>{serviceLabel(service)}</span>
+                  <span className={cx('break-words text-[12px] leading-snug', hero ? (index === 0 ? 'text-[#F7F6F3]/80' : 'text-[#1E1A10]/75') : 'text-ink-muted')}>
+                    {t(`home.svc_short_${service.key.replace('wira_', '')}`)}
+                  </span>
                 </span>
               </Link>
             );
@@ -220,7 +262,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PromoCarousel services={availableServices} />
+      <PromoCarousel services={availableServices} excludeId={spotPromoId} />
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
