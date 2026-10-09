@@ -1087,6 +1087,23 @@
     "footer_privacy": "Kebijakan privasi",
     "footer_terms": "Syarat & ketentuan",
     "footer_refund": "Pengembalian dana",
-    "footer_delete": "Hapus akun"
+    "footer_delete": "Hapus akun",
+    "cta_download": "Unduh aplikasi",
+    "dl_title": "Unduh aplikasi Wira",
+    "dl_subtitle": "Pilih cara yang paling cocok untuk Anda.",
+    "dl_android_badge": "Uji coba tertutup",
+    "dl_android_desc": "Aplikasi Android masih dalam uji coba. Tinggalkan Gmail Anda, kami kirim link untuk memasangnya.",
+    "dl_email_label": "Gmail Anda",
+    "dl_email_hint": "Pakai Gmail yang sama dengan akun Play Store di HP Anda.",
+    "dl_email_invalid": "Tulis alamat email yang benar, misalnya nama@gmail.com.",
+    "dl_send_failed": "Belum terkirim. Periksa koneksi, lalu coba lagi.",
+    "dl_submit": "Kirim",
+    "dl_done_title": "Terima kasih!",
+    "dl_done": "Email Anda sudah kami terima. Kami kirim link pemasangan ke email itu setelah Anda terdaftar.",
+    "dl_ios_badge": "Segera hadir",
+    "dl_ios_desc": "Aplikasi untuk iPhone sedang disiapkan. Sementara itu, pakai Wira langsung di browser.",
+    "dl_web_title": "Pakai di browser",
+    "dl_web_desc": "Semua layanan bisa dipesan dari browser HP atau laptop, tanpa memasang apa pun.",
+    "dl_web_cta": "Buka Wira di browser"
   }
 }

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { Badge, Button, Card, Field, Input, Notice, PageHeader, Select, Table, Textarea } from '../components/ui';
 import { formatDateTime } from '../utils/datetime';
+import TesterSignupsSection from '../components/common/TesterSignupsSection';
 
 const APPS = { user: 'Wira (pelanggan)', mitra: 'Wira Mitra', admin: 'Wira Admin' };
 const when = (ts) => formatDateTime(ts);
@@ -134,6 +135,8 @@ export default function AppReleasesPage() {
           </tbody>
         </Table>
       </section>
+
+      <TesterSignupsSection />
     </div>
   );
 }

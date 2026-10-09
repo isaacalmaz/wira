@@ -1087,6 +1087,23 @@
     "footer_privacy": "Privacy policy",
     "footer_terms": "Terms & conditions",
     "footer_refund": "Refunds",
-    "footer_delete": "Delete account"
+    "footer_delete": "Delete account",
+    "cta_download": "Download the app",
+    "dl_title": "Get the Wira app",
+    "dl_subtitle": "Pick what works best for you.",
+    "dl_android_badge": "Closed testing",
+    "dl_android_desc": "The Android app is still in testing. Leave your Gmail and we'll send you a link to install it.",
+    "dl_email_label": "Your Gmail",
+    "dl_email_hint": "Use the same Gmail as the Play Store account on your phone.",
+    "dl_email_invalid": "Enter a valid email address, for example name@gmail.com.",
+    "dl_send_failed": "Not sent yet. Check your connection and try again.",
+    "dl_submit": "Send",
+    "dl_done_title": "Thank you!",
+    "dl_done": "We've got your email. We'll send the install link there once you're added.",
+    "dl_ios_badge": "Coming soon",
+    "dl_ios_desc": "The iPhone app is on its way. In the meantime, use Wira right in your browser.",
+    "dl_web_title": "Use it in your browser",
+    "dl_web_desc": "Order every service from your phone or laptop browser, nothing to install.",
+    "dl_web_cta": "Open Wira in the browser"
   }
 }

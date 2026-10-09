@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Car, UtensilsCrossed, Package, Home, Wrench, Waves, Baby, KeyRound, ReceiptText, LifeBuoy } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import DownloadSheet from '../components/landing/DownloadSheet';
 
 // Front page for visitors who are not signed in (Layout shows it at "/" on
 // the web; the Android app goes straight to /login). Texts live under
@@ -45,6 +47,7 @@ const eyebrow = 'text-[12px] font-bold uppercase tracking-[0.12em] text-emas-600
 export default function LandingPage() {
   const { t: tr, lang, toggleLang } = useTranslation();
   const t = (k) => tr(`landing.${k}`);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   return (
     <div className="min-h-[100dvh] bg-ground text-ink">
       {/* Header + hero share the sea-dark ground */}
@@ -76,6 +79,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <Link to="/login" className={goldBtn}>{t('cta_order')}</Link>
+              <button type="button" onClick={() => setDownloadOpen(true)} className={`${ghostBtn} min-h-12 px-6 text-[15px]`}>{t('cta_download')}</button>
             </div>
           </div>
 
@@ -203,6 +207,8 @@ export default function LandingPage() {
           </nav>
         </div>
       </footer>
+
+      <DownloadSheet open={downloadOpen} onClose={() => setDownloadOpen(false)} />
     </div>
   );
 }
