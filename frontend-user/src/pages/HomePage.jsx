@@ -1,6 +1,7 @@
 import { useTranslation } from '../i18n';
 import PromoCarousel from '../components/home/PromoCarousel';
 import SpotlightCard, { promoService } from '../components/home/SpotlightCard';
+import DownloadSheet from '../components/landing/DownloadSheet';
 import { todayLombok } from '../utils/promoDates';
 import { isNative } from '../native/nativeShell';
 import { localizeOrderTitle } from '../utils/localizeDbText';
@@ -63,6 +64,7 @@ export default function HomePage() {
   });
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [promos, setPromos] = useState([]);
+  const [downloadOpen, setDownloadOpen] = useState(false);
 
   // Active promos: the spotlight card and the "Promo" tag on service cards.
   useEffect(() => {
@@ -231,7 +233,7 @@ export default function HomePage() {
                   'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
                     ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
-                    : cx('border border-line bg-card hover:border-brand', wide ? 'items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3'),
+                    : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3'),
                 )}
               >
                 {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
@@ -267,14 +269,14 @@ export default function HomePage() {
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
       {/* Banner Download */}
-      {!isNative() && <section className="mb-4 md:hidden">
-        <Link to="/install" className="flex w-full items-center justify-between rounded-xl bg-brand-soft px-4 py-3 text-brand-ink transition-colors hover:bg-brand-soft/80 border border-brand-line">
-          <div className="flex flex-col">
+      {!isNative() && <section className="md:hidden">
+        <button type="button" onClick={() => setDownloadOpen(true)} className="flex w-full items-center justify-between gap-3 rounded-card border border-brand-line bg-brand-soft px-4 py-3 text-left text-brand-ink transition-colors hover:bg-brand-soft/80">
+          <span className="flex min-w-0 flex-col">
             <span className="text-[13.5px] font-bold">{t('download.banner_title')}</span>
             <span className="text-[12px] opacity-90">{t('download.banner_sub')}</span>
-          </div>
-          <span className="rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
-        </Link>
+          </span>
+          <span className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
+        </button>
       </section>}
 
       {recentOrders.length > 0 && (
@@ -381,6 +383,8 @@ export default function HomePage() {
               })}
         </Card>
       </Sheet>
+
+      <DownloadSheet open={downloadOpen} onClose={() => setDownloadOpen(false)} />
     </div>
   );
 }

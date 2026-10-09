@@ -983,9 +983,9 @@
     "step3": "Tap Install. If an older version is installed, your data and account stay as they are.",
     "step4": "Open the app and sign in.",
     "note": "Only download from wira.one. Wira never sends APK files over WhatsApp or private messages.",
-    "banner_title": "The Wira app is available",
-    "banner_sub": "Download it for the best experience",
-    "banner_cta": "Download",
+    "banner_title": "The Android app is in testing",
+    "banner_sub": "Sign up with your Gmail to try it",
+    "banner_cta": "Sign up",
     "login_hint": "Apps for customers and partners are also available",
     "login_cta": "Download the app"
   },
