@@ -1,6 +1,6 @@
 import { useTranslation } from '../i18n';
 import PromoCarousel from '../components/home/PromoCarousel';
-import SpotlightCard, { promoService } from '../components/home/SpotlightCard';
+import SpotlightCard, { promoService, spotlightPromo } from '../components/home/SpotlightCard';
 import DownloadSheet from '../components/landing/DownloadSheet';
 import { todayLombok } from '../utils/promoDates';
 import { isNative } from '../native/nativeShell';
@@ -11,7 +11,6 @@ import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package 
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
-import { useNotification } from '../context/NotificationContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
 import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
@@ -39,7 +38,6 @@ export default function HomePage() {
   const { balance } = useWallet();
   const { orders } = useOrders();
   const { user } = useAuth();
-  const { notifications = [] } = useNotification() || {};
   const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
   const [serviceOrder, setServiceOrder] = useState(() => {
@@ -137,11 +135,8 @@ export default function HomePage() {
   const availableServices = orderedServices.filter((s) => s.enabled && (WALLET_ENABLED || s.id !== 'wira_pay'));
   const shownServices = availableServices.filter((s) => !hiddenServices.includes(s.id));
   const promoKeys = new Set(promos.map((p) => promoService(p)?.key).filter(Boolean));
-  // The promo the spotlight is showing (when nothing ranks above it), so the
-  // carousel below does not repeat it.
-  const spotBusy = orders.some((o) => o.rawStatus && !['completed', 'cancelled', 'canceled', 'expired', 'rejected'].includes(String(o.rawStatus).toLowerCase()))
-    || notifications.some((n) => !n.is_read && n.created_at && Date.now() - new Date(n.created_at).getTime() < 3 * 24 * 3600 * 1000);
-  const spotPromoId = !spotBusy && promos.find((p) => !p.service_type || shownServices.some((sv) => sv.key === promoService(p)?.key))?.id;
+  // The promo shown in the spotlight; the carousel below skips it.
+  const spotPromoId = spotlightPromo(promos, shownServices)?.id;
   const moveService = (id, neighborId) => {
     const order = orderedServices.map((s) => s.id);
     const i = order.indexOf(id);

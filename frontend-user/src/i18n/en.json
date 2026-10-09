@@ -145,7 +145,6 @@
     "svc_short_asuh": "Babysitter at your home or villa",
     "svc_short_pay": "Digital wallet",
     "spot_running": "{{service}} · in progress",
-    "spot_running_more": "+{{count}} more",
     "spot_track": "Track",
     "spot_info": "Wira update",
     "spot_open": "View",
@@ -163,7 +162,9 @@
     "spot_tip_villa": "Holiday in Lombok? Check which villas are free.",
     "spot_tip_service": "AC not cooling? Book a technician.",
     "spot_tip_pool": "Cloudy pool? Book a cleaning.",
-    "spot_tip_asuh": "Need a babysitter? Book one on {{service}}."
+    "spot_tip_asuh": "Need a babysitter? Book one on {{service}}.",
+    "spot_carousel": "Highlights for you",
+    "spot_slide": "{{n}} of {{total}}"
   },
   "ride": {
     "pickup_placeholder": "Pickup point",

@@ -145,7 +145,6 @@
     "svc_short_asuh": "Pengasuh anak ke rumah atau villa",
     "svc_short_pay": "Dompet digital",
     "spot_running": "{{service}} · sedang berjalan",
-    "spot_running_more": "+{{count}} pesanan lain",
     "spot_track": "Lacak",
     "spot_info": "Info Wira",
     "spot_open": "Lihat",
@@ -163,7 +162,9 @@
     "spot_tip_villa": "Liburan di Lombok? Cek villa yang masih kosong.",
     "spot_tip_service": "AC kurang dingin? Jadwalkan teknisi.",
     "spot_tip_pool": "Kolam keruh? Jadwalkan perawatan.",
-    "spot_tip_asuh": "Butuh pengasuh anak? Pesan di {{service}}."
+    "spot_tip_asuh": "Butuh pengasuh anak? Pesan di {{service}}.",
+    "spot_carousel": "Sorotan untuk Anda",
+    "spot_slide": "{{n}} dari {{total}}"
   },
   "ride": {
     "pickup_placeholder": "Titik jemput",
