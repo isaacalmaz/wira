@@ -37,7 +37,15 @@ async function liveUpdate(origin, build) {
   const { bundles } = await CapacitorUpdater.list();
   const ready = (bundles || []).find((b) => b.version === m.version && b.status !== 'error');
   const bundle = ready || await CapacitorUpdater.download({ url: `${origin}${m.url}`, version: m.version });
+  // next() alone only applies on a cold start; also switch as soon as the
+  // app goes to the background, so the new screens are there on return.
   await CapacitorUpdater.next({ id: bundle.id });
+  const { App } = await import('@capacitor/app');
+  const sub = await App.addListener('appStateChange', async ({ isActive }) => {
+    if (isActive) return;
+    sub.remove();
+    try { await CapacitorUpdater.set({ id: bundle.id }); } catch { /* applies on next cold start */ }
+  });
 }
 
 function showPrompt({ release, color, appName }) {
