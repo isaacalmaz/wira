@@ -1,11 +1,19 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
+import { lazy, Suspense } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
 import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 import Spinner from '../ui/Spinner';
+
+const LandingPage = lazy(() => import('../../pages/LandingPage'));
+
+// Pages anyone may read without signing in (linked from the landing page,
+// the Play Store listing and emails).
+const PUBLIC_PATHS = ['/terms', '/refund', '/contact'];
 
 export default function Layout() {
   const location = useLocation();
@@ -23,6 +31,21 @@ export default function Layout() {
   }
 
   if (!isAuthenticated) {
+    // Web visitors get the front page; the Android app goes straight to sign-in.
+    if (location.pathname === '/' && !Capacitor.isNativePlatform()) {
+      return (
+        <Suspense fallback={<div className="h-screen bg-laut-900" />}>
+          <LandingPage />
+        </Suspense>
+      );
+    }
+    if (PUBLIC_PATHS.includes(location.pathname)) {
+      return (
+        <main className="mx-auto min-h-[100dvh] max-w-2xl bg-ground px-4 py-6 pt-safe">
+          <Outlet />
+        </main>
+      );
+    }
     return <Navigate to="/login" replace />;
   }
 

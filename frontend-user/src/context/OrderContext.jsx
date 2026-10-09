@@ -3,7 +3,6 @@ import { supabase } from '../config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import {
-  getStoredOrders,
   updateOrderStatusEcosystem,
   subscribeEcosystemEvent,
   broadcastEcosystemEvent,
@@ -89,12 +88,9 @@ export const OrderProvider = ({ children }) => {
         }
       }
 
-      // 2. Load from ecosystem store HANYA untuk guest (belum login)
+      // Guests (the landing page, sign-in) have no orders to show.
       if (!user && !abortController.signal.aborted) {
-        const local = await getStoredOrders();
-        if (!abortController.signal.aborted) {
-          setOrders(local.map(mapDbOrderToUi));
-        }
+        setOrders([]);
       }
     };
 
