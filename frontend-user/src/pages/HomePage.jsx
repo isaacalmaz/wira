@@ -15,6 +15,7 @@ import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
 import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
 import { WALLET_ENABLED } from '../config/wallet';
+import useMyProfile from '../hooks/useMyProfile';
 
 // Order status -> Badge tone (DESIGN.md §5): searching/pending = warning,
 // active = brand, completed = success, cancelled = danger.
@@ -38,6 +39,7 @@ export default function HomePage() {
   const { balance } = useWallet();
   const { orders } = useOrders();
   const { user } = useAuth();
+  const profile = useMyProfile();
   const [activeServices, setActiveServices] = useState(SERVICES);
   const [globalFlags, setGlobalFlags] = useState([]);
   const [serviceOrder, setServiceOrder] = useState(() => {
@@ -152,7 +154,7 @@ export default function HomePage() {
   };
   const hour = new Date().getHours();
   const greetingKey = hour < 11 ? 'home.greeting_morning' : hour < 15 ? 'home.greeting_afternoon' : hour < 18 ? 'home.greeting_evening' : 'home.greeting_night';
-  const displayName = user?.user_metadata?.name || user?.name || t('nav.guest_name');
+  const displayName = profile?.name || user?.user_metadata?.name || t('nav.guest_name');
   const serviceLabel = (service) => (lang === 'id'
     ? service.name_id.replace('Wira', '')
     : service.name_en.replace('Wira', ''));

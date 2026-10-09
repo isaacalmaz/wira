@@ -92,6 +92,8 @@ export default function EditProfilePage() {
 
       if (updateError) throw updateError;
       if (!updatedRows || updatedRows.length === 0) throw new Error(t('edit_profile.denied'));
+      // Keep the sign-up metadata in step, so no screen shows an old name.
+      await supabase.auth.updateUser({ data: { name: profile.name } }).catch(() => {});
 
       toast.success(t('edit_profile.success'));
       navigate('/profile');
