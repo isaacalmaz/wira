@@ -31,12 +31,12 @@ async function liveUpdate(origin, build) {
   try { await CapacitorUpdater.notifyAppReady(); } catch { /* first launch */ }
   const res = await CapacitorHttp.get({ url: `${origin}/live/manifest.json?t=${Date.now()}` });
   const m = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-  if (!m?.version || !m?.url || build < (m.minNativeBuild || 1)) return;
+  if (!m?.version || !m?.url || !m?.checksum || build < (m.minNativeBuild || 1)) return;
   const current = await CapacitorUpdater.current();
   if (current?.bundle?.version === m.version) return;
   const { bundles } = await CapacitorUpdater.list();
   const ready = (bundles || []).find((b) => b.version === m.version && b.status !== 'error');
-  const bundle = ready || await CapacitorUpdater.download({ url: `${origin}${m.url}`, version: m.version });
+  const bundle = ready || await CapacitorUpdater.download({ url: `${origin}${m.url}`, version: m.version, checksum: m.checksum });
   // next() alone only applies on a cold start; also switch as soon as the
   // app goes to the background, so the new screens are there on return.
   await CapacitorUpdater.next({ id: bundle.id });

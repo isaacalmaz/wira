@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 
 const root = new URL('..', import.meta.url).pathname;
 const dist = join(root, 'dist');
@@ -76,5 +77,7 @@ mkdirSync(out, { recursive: true });
 writeFileSync(join(out, `${version}.zip`), zip);
 writeFileSync(join(out, 'manifest.json'), JSON.stringify({
   version, url: `/live/${version}.zip`, minNativeBuild, files: files.length, bytes: zip.length, builtAt: new Date().toISOString(),
+  // @capgo/capacitor-updater 6.x refuses a download without the zip's SHA-256.
+  checksum: createHash('sha256').update(zip).digest('hex'),
 }, null, 2));
 console.log(`live bundle ${version}: ${files.length} files, ${(zip.length / 1048576).toFixed(1)} MB`);
