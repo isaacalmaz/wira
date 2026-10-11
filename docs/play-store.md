@@ -11,7 +11,8 @@ Apps on Play: **Wira** (`com.wira.user`) and **Wira Mitra** (`com.wira.mitra`). 
 
 ## Build an AAB
 ```bash
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+# frontend-mitra needs JDK 21 (newer JDKs fail: "Unsupported class file major version 70")
+export JAVA_HOME="$HOME/Library/Java/JavaVirtualMachines/jbr-21.0.11/Contents/Home"
 cd frontend-user && npm run build && npx cap sync android && (cd android && ./gradlew bundleRelease)
 # output: frontend-user/android/app/build/outputs/bundle/release/app-release.aab
 ```
@@ -52,8 +53,9 @@ Google's reviewers must sign in. Create two dedicated accounts — never a real 
 ## Play Console answers (App content)
 **Privacy policy:** https://wira.one/privacy · **Data deletion URL:** https://wira.one/hapus-akun
 **Ads:** No ads. **Target audience:** Wira → 18 and over. Wira Mitra → 18 and over (partners confirm 18+ when registering). **News app:** No. **Government app:** No.
-**Health:** None (WiraAsuh allergy notes are declared under Data safety, not as a health app). **Financial features:** WiraPay balance (top-up by QRIS, pay for services) — tick
-"Digital wallet / mobile payments" only while WiraPay exists; untick if it is removed.
+**Health:** None (WiraAsuh allergy notes are declared under Data safety, not as a health app). **Financial features:** None (since 2026-10-08). WiraPay is switched off because wallet features
+need an organisation developer account; the first review was rejected for it. Keep "None" unless
+WiraPay comes back on an organisation account.
 **Content rating (IARC):** category "All other app types"; no violence, sexuality, language, drugs,
 gambling; *Users can interact / exchange messages:* Yes (chat with partner); *Shares user location
 with other users:* Yes (during an order); *Digital purchases:* No.

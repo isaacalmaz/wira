@@ -4,6 +4,11 @@
 **Terakhir diperbarui**: 2026-09-26 (migration sampai 0085 + job CI `db-tests`; versi besar sebelumnya 2026-09-20 — baca ulang dari awal, jangan cuma diff mental dari versi lama).
 **Repo**: `github.com/isaacalmaz/wira` (public), branch `main`.
 
+> **Catatan 2026-10-11:** baca `AGENTS.md` dulu ("Working notes"). Sebagian isi dokumen ini sudah
+> basi, terutama: WiraPay **dimatikan** sejak 2026-10-08 (pelanggan bayar langsung ke mitra, tunai
+> atau QRIS per order), komisi sekarang diatur admin per layanan (0099), dan migration sudah sampai
+> 0118. Kalau bertentangan, `AGENTS.md` yang benar.
+
 ---
 
 ## 0. Cara pakai dokumen ini (baca dulu sebelum bagian lain)
