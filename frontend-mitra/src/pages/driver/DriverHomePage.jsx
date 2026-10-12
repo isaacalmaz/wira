@@ -18,7 +18,7 @@ import { isNative } from '../../native/nativeShell';
 import {
   fetchPendingOrders, acceptOrder, claimDeliveryOrder, updateOrderStatus,
   subscribeToDriverOrders, sendDriverLocation, setDriverOffline, distanceMeters,
-  driverEarnedAmount,
+  driverIncome,
   loadCommissionRates,
   driverOfferAmount,
   orderErrorMessage,
@@ -212,7 +212,7 @@ const DriverHomePage = () => {
 
         // Real driver share per migrations/0028's payout trigger, counted on
         // the Lombok day each order was completed (utils/earnings).
-        const { today, week } = summarizeEarnings(completed, { amount: driverEarnedAmount });
+        const { today, week } = summarizeEarnings(completed, { amount: driverIncome });
         setTodayEarnings(today);
         setWeekEarnings(week);
 

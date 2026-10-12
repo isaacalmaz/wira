@@ -7,7 +7,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantEarnedAmount, loadCommissionRates, orderErrorMessage } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantIncome, loadCommissionRates, orderErrorMessage } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
 import { EARNINGS_COLUMNS, startOfTodayISO } from '../../utils/earnings';
 import useMyMerchants from '../../hooks/useMyMerchants';
@@ -136,8 +136,8 @@ const MerchantHomePage = () => {
         // raw total_price (which for food also includes the delivery fee
         // the driver earns, and for either order type includes the 20%
         // platform commission the merchant never sees) - see
-        // merchantEarnedAmount's doc comment in orderService.js.
-        const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + merchantEarnedAmount(d), 0);
+        // merchantIncome's doc comment in orderService.js.
+        const earnings = data.filter(d => d.status === 'completed').reduce((sum, d) => sum + merchantIncome(d), 0);
         setTodayEarnings(earnings);
       }
     };
@@ -231,11 +231,11 @@ const MerchantHomePage = () => {
         setActiveOrder(null);
         toast.success('Reservasi Selesai!');
         setTodayOrders(prev => prev + 1);
-        // Villa's delivery_fee is always 0, so merchantEarnedAmount here is
+        // Villa's delivery_fee is always 0, so merchantIncome here is
         // total_price minus the villa commission (admin-set, migrations/0099),
         // or minus the whole price plus that share for a Tunai booking the
         // merchant collected in cash (migrations/0075).
-        setTodayEarnings(prev => prev + merchantEarnedAmount(activeOrder));
+        setTodayEarnings(prev => prev + merchantIncome(activeOrder));
       } else {
         // Food: this button means "I've finished preparing it," NOT "hand
         // it to a driver" - a driver hasn't picked it up yet. Route through

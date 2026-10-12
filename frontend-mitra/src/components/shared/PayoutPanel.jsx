@@ -52,7 +52,8 @@ export default function PayoutPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [deposits, setDeposits] = useState([]);
   const [debtSince, setDebtSince] = useState(null);
-  const [settings, setSettings] = useState({ info: '', limit: 200000, grace: 7 });
+  const [settings, setSettings] = useState({ info: '' });
+  const [policy, setPolicy] = useState({ limit: 200000, grace: 7, blocked: false });
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositNote, setDepositNote] = useState('');
@@ -62,24 +63,23 @@ export default function PayoutPanel() {
 
   const refresh = useCallback(async () => {
     if (!user) return;
-    const [{ data: userRow }, { data: reqRows }, { data: depRows }, { data: settingRows }] = await Promise.all([
-      supabase.from('users').select('payable_balance, commission_debt_since').eq('id', user.id).single(),
+    const [{ data: statusRows }, { data: reqRows }, { data: depRows }, { data: settingRows }] = await Promise.all([
+      // Balance, debt start and the limit for this account's kind of partner (migrations/0119).
+      supabase.rpc('my_commission_status'),
       supabase.from('payout_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('commission_deposits').select('id, amount, status, reject_reason, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
-      supabase.from('app_settings').select('key, value').in('key', ['commission_payment_info', 'commission_debt_limit', 'commission_debt_grace_days']),
+      supabase.from('app_settings').select('key, value').in('key', ['commission_payment_info']),
     ]);
-    if (userRow) {
-      setBalance(Number(userRow.payable_balance) || 0);
-      setDebtSince(userRow.commission_debt_since || null);
+    const st = Array.isArray(statusRows) ? statusRows[0] : statusRows;
+    if (st) {
+      setBalance(Number(st.balance) || 0);
+      setDebtSince(st.debt_since || null);
+      setPolicy({ limit: Number(st.debt_limit) || 200000, grace: Number(st.grace_days) || 0, blocked: !!st.blocked });
     }
     if (reqRows) setRequests(reqRows);
     if (depRows) setDeposits(depRows);
     if (settingRows) {
-      setSettings({
-        info: settingValue(settingRows, 'commission_payment_info', ''),
-        limit: Number(settingValue(settingRows, 'commission_debt_limit', 200000)),
-        grace: Number(settingValue(settingRows, 'commission_debt_grace_days', 7)),
-      });
+      setSettings({ info: settingValue(settingRows, 'commission_payment_info', '') });
     }
   }, [user]);
 
@@ -191,15 +191,61 @@ export default function PayoutPanel() {
   };
 
   const maxAmount = Math.floor(balance);
-  const debtDays = debtSince ? Math.floor((Date.now() - new Date(debtSince).getTime()) / 86400000) : 0;
-  const blocked = balance <= -settings.limit && debtDays > settings.grace;
+  const blocked = policy.blocked;
+  // Commission card (no wallet): what is owed, how close to the limit, and
+  // the day new orders would stop if nothing is paid.
+  const owed = Math.max(-balance, 0);
+  const pct = owed > 0 ? Math.min(100, Math.round((owed / policy.limit) * 100)) : 0;
+  const dueDate = debtSince ? new Date(new Date(debtSince).getTime() + (policy.grace + 1) * 86400000) : null;
+  const dueLabel = dueDate ? dueDate.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' }) : null;
+  const tone = blocked ? 'danger' : owed >= policy.limit * 0.7 ? 'warning' : 'success';
+  const sinceLabel = debtSince ? new Date(debtSince).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' }) : null;
 
   return (
-    <Card padding="none" className="overflow-hidden">
+    <Card padding="none" className={`overflow-hidden ${!WALLET_ENABLED && tone === 'warning' ? 'border-warning-line' : ''} ${!WALLET_ENABLED && tone === 'danger' ? 'border-danger-line' : ''}`}>
+      {!WALLET_ENABLED ? (
+        <div className="flex flex-col gap-3.5 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">{balance > 0 ? 'Deposit Komisi' : 'Komisi untuk Wira'}</h2>
+              <p className="text-[12.5px] leading-snug text-ink-muted">
+                {balance > 0
+                  ? 'Setoran Anda yang lebih, dipakai untuk komisi order berikutnya.'
+                  : owed > 0
+                    ? `Dari order tunai yang uangnya sudah Anda pegang${sinceLabel ? ` · belum disetor sejak ${sinceLabel}` : ''}`
+                    : 'Dari order tunai yang uangnya Anda terima langsung.'}
+              </p>
+            </div>
+            <Money value={Math.round(balance > 0 ? balance : owed)} className="shrink-0 whitespace-nowrap text-[20px] font-medium text-ink" />
+          </div>
+
+          {owed > 0 && (
+            <div className="h-1.5 overflow-hidden rounded-full bg-sunken" role="meter" aria-valuemin={0} aria-valuemax={policy.limit} aria-valuenow={owed} aria-label="Komisi terhadap batas">
+              <div className={`h-full rounded-full ${tone === 'danger' ? 'bg-danger' : tone === 'warning' ? 'bg-pay' : 'bg-success'}`} style={{ width: `${pct}%` }} />
+            </div>
+          )}
+
+          <Notice tone={tone}>
+            {blocked ? (
+              <>Order baru terkunci: komisi belum disetor lebih dari {policy.grace} hari. Setor sekarang; order terbuka lagi setelah admin mengecek transfer Anda.</>
+            ) : owed === 0 ? (
+              <>Tidak ada komisi yang perlu disetor.</>
+            ) : tone === 'warning' ? (
+              <>Setor{dueLabel ? <> sebelum <b>{dueLabel}</b></> : ' segera'} supaya tetap bisa menerima order baru (batas <Money value={policy.limit} className="font-medium" /> · {policy.grace} hari).</>
+            ) : (
+              <>Aman. Setor kapan saja; order baru tetap masuk sampai komisi <Money value={policy.limit} className="font-medium" /> lebih dari {policy.grace} hari.</>
+            )}
+          </Notice>
+
+          <Button variant={tone === 'success' ? 'secondary' : 'primary'} size="lg" block onClick={openDeposit}>
+            Setor Komisi
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">{WALLET_ENABLED ? 'Saldo Bisa Dicairkan' : 'Saldo Anda di Wira'}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Saldo Bisa Dicairkan</p>
             <Money
               value={maxAmount}
               sign={balance < 0 ? 'minus' : undefined}
@@ -212,9 +258,9 @@ export default function PayoutPanel() {
         {balance < 0 && (
           <Notice tone="danger">
             {blocked ? (
-              <>Anda belum bisa menerima pesanan baru: komisi belum disetor lebih dari {settings.grace} hari. Setor sekarang, pesanan terbuka lagi setelah admin mengecek transfer Anda.</>
+              <>Anda belum bisa menerima pesanan baru: komisi belum disetor lebih dari {policy.grace} hari. Setor sekarang, pesanan terbuka lagi setelah admin mengecek transfer Anda.</>
             ) : (
-              <>Ini komisi Wira dari pesanan tunai, yang uangnya sudah Anda terima langsung. Setor lewat tombol di bawah. Kalau utang mencapai <Money value={settings.limit} className="font-medium" /> lebih dari {settings.grace} hari, Anda tidak bisa menerima pesanan baru.</>
+              <>Ini komisi Wira dari pesanan tunai, yang uangnya sudah Anda terima langsung. Setor lewat tombol di bawah. Kalau utang mencapai <Money value={policy.limit} className="font-medium" /> lebih dari {policy.grace} hari, Anda tidak bisa menerima pesanan baru.</>
             )}
           </Notice>
         )}
@@ -236,6 +282,7 @@ export default function PayoutPanel() {
           )}
         </div>
       </div>
+      )}
 
       {deposits.length > 0 && (
         <div className="border-t border-line">

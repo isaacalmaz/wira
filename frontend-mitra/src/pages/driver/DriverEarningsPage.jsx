@@ -4,13 +4,13 @@ import { Card, Money, IconTile, ListRow } from '../../components/ui';
 import EarningsPage from '../../components/shared/EarningsPage';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { driverEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { driverIncome, orderCommission } from '../../services/orderService';
 import { EARNINGS_COLUMNS } from '../../utils/earnings';
 import { formatDate } from '../../utils/datetime';
 import { WALLET_ENABLED } from '../../config/wallet';
 
 // One driver portal: every order assigned to this driver regardless of
-// service type (driverEarnedAmount computes the ride/send/food share).
+// service type (driverIncome computes the ride/send/food share).
 const DriverEarningsPage = () => {
   const { user } = useAuth();
 
@@ -44,8 +44,8 @@ const DriverEarningsPage = () => {
     <EarningsPage
       title="Pendapatan"
       fetchOrders={fetchOrders}
-      amount={driverEarnedAmount}
-      cash={(o) => cashCommissionDeduction(o, 'driver')}
+      amount={driverIncome}
+      commission={(o) => orderCommission(o, 'driver')}
       deps={[user?.id]}
     >
       {/* Tips arrive as WiraPay balance, so web only (config/wallet). */}

@@ -1,7 +1,7 @@
 import EarningsPage from '../../components/shared/EarningsPage';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { technicianEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { technicianIncome, orderCommission } from '../../services/orderService';
 import { EARNINGS_COLUMNS } from '../../utils/earnings';
 
 // Same share rule as a technician visit: total minus the stamped commission.
@@ -18,8 +18,8 @@ export default function NannyEarningsPage() {
     <EarningsPage
       title="Pendapatan"
       fetchOrders={fetchOrders}
-      amount={technicianEarnedAmount}
-      cash={(o) => cashCommissionDeduction(o, 'driver')}
+      amount={technicianIncome}
+      commission={(o) => orderCommission(o, 'driver')}
       deps={[user?.id]}
     />
   );

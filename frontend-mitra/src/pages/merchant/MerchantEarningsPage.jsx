@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, SectionHeader, Money } from '../../components/ui';
 import EarningsPage from '../../components/shared/EarningsPage';
 import { supabase } from '../../config/supabase';
-import { merchantEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { merchantIncome, orderCommission } from '../../services/orderService';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { EARNINGS_COLUMNS, completedAt } from '../../utils/earnings';
 
@@ -26,7 +26,7 @@ const MerchantEarningsPage = () => {
     const totals = {};
     orders.forEach((o) => {
       if (completedAt(o).getTime() >= monthAgo) {
-        totals[o.merchant_id] = (totals[o.merchant_id] || 0) + merchantEarnedAmount(o);
+        totals[o.merchant_id] = (totals[o.merchant_id] || 0) + merchantIncome(o);
       }
     });
     setByProperty(totals);
@@ -36,8 +36,8 @@ const MerchantEarningsPage = () => {
     <EarningsPage
       title={kind === 'villa' ? 'Pendapatan Villa' : 'Pendapatan Resto'}
       fetchOrders={fetchOrders}
-      amount={merchantEarnedAmount}
-      cash={(o) => cashCommissionDeduction(o, 'merchant')}
+      amount={merchantIncome}
+      commission={(o) => orderCommission(o, 'merchant')}
       onOrders={onOrders}
       deps={[idsKey]}
     >

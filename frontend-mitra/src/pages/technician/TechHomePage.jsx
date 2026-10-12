@@ -5,7 +5,7 @@ import { Calendar, BellRing, Wallet, Inbox, ChevronRight } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { technicianEarnedAmount, loadCommissionRates } from '../../services/orderService';
+import { technicianIncome, loadCommissionRates } from '../../services/orderService';
 import {
   ACTIVE_VISIT_STATUSES, fetchMyJobs, fetchMyTechnicianProfile, fetchOpenJobs, setAccepting,
   subscribeToVisitChanges, takeJob, visitInfo, takePackage, groupOpenJobs,
@@ -140,7 +140,7 @@ const TechHomePage = () => {
   let weekEarnings = 0;
   myJobs.filter((o) => o.status === 'completed').forEach((o) => {
     const done = new Date(o.status_changed_at || o.created_at);
-    const amount = technicianEarnedAmount(o);
+    const amount = technicianIncome(o);
     if (dayKey(done) === today) todayEarnings += amount;
     if (done.getTime() >= weekAgo) weekEarnings += amount;
   });

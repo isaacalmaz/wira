@@ -511,6 +511,29 @@ export function driverOfferAmount(order) {
   return Math.round(driverShare(order));
 }
 
+// What an order earns the partner (their share after Wira's commission),
+// whoever holds the cash. Always >= 0; the Pendapatan page leads with this.
+// Cash-food couriers earn the delivery fee share (the menu money they
+// collect is the restaurant's; the promo Wira funds is a refund, not income).
+export function driverIncome(order) {
+  return Math.round(driverShare(order));
+}
+
+export function merchantIncome(order) {
+  return Math.round(merchantShare(order));
+}
+
+export const technicianIncome = driverIncome;
+
+// Wira's commission on the partner's part of one order.
+export function orderCommission(order, role) {
+  const rate = orderRate(order);
+  if (role === 'merchant') return Math.round(Math.max(grossPrice(order) - (order.delivery_fee || 0), 0) * rate);
+  if (order.merchant_id) return Math.round((order.delivery_fee || 0) * rate);
+  const material = Math.min(Math.max(Number(order.material_amount) || 0, 0), order.total_price || 0);
+  return Math.round((grossPrice(order) - material) * rate);
+}
+
 export function driverEarnedAmount(order) {
   if (isCashFoodWithCourier(order)) return promoDiscount(order) - Math.round((order.delivery_fee || 0) * orderRate(order));
   return driverShare(order) - cashCollected(order, 'driver');

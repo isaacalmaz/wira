@@ -35,25 +35,28 @@ export default function CommissionDepositsSection() {
   }, [approving]);
   const [reason, setReason] = useState('');
   const [info, setInfo] = useState('');
-  const [limit, setLimit] = useState('200000');
-  const [grace, setGrace] = useState('7');
+  // Debt limit per kind of partner (migrations/0119).
+  const [limits, setLimits] = useState([]);
+  const [savedLimits, setSavedLimits] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(async () => {
-    const [{ data, error }, { data: settings }] = await Promise.all([
+    const [{ data, error }, { data: settings }, { data: limitRows }] = await Promise.all([
       supabase
         .from('commission_deposits')
         .select('id, amount, proof_path, note, status, reject_reason, created_at, users!commission_deposits_user_id_fkey(name, phone, payable_balance)')
         .order('created_at', { ascending: false })
         .limit(50),
-      supabase.from('app_settings').select('key, value').in('key', ['commission_payment_info', 'commission_debt_limit', 'commission_debt_grace_days']),
+      supabase.from('app_settings').select('key, value').in('key', ['commission_payment_info']),
+      supabase.from('commission_debt_limits').select('kind, label, debt_limit, grace_days').order('sort_order'),
     ]);
     if (error) toast.error(`Gagal memuat setoran komisi: ${error.message}`);
     setRows(data || []);
     const get = (k) => settings?.find((r) => r.key === k)?.value;
     if (get('commission_payment_info') != null) setInfo(String(get('commission_payment_info')));
-    if (get('commission_debt_limit') != null) setLimit(String(get('commission_debt_limit')));
-    if (get('commission_debt_grace_days') != null) setGrace(String(get('commission_debt_grace_days')));
+    const rowsL = (limitRows || []).map((r) => ({ ...r, debt_limit: String(r.debt_limit), grace_days: String(r.grace_days) }));
+    setLimits(rowsL);
+    setSavedLimits(rowsL);
     setLoading(false);
   }, []);
 
@@ -79,16 +82,18 @@ export default function CommissionDepositsSection() {
   const saveSettings = async (e) => {
     e.preventDefault();
     setBusy(true);
-    const writes = [
-      ['commission_payment_info', info.trim()],
-      ['commission_debt_limit', Number(limit)],
-      ['commission_debt_grace_days', Number(grace)],
-    ];
-    for (const [key, value] of writes) {
-      const { error } = await supabase.rpc('admin_set_app_setting', { p_key: key, p_value: value });
-      if (error) { setBusy(false); toast.error(error.message); return; }
+    const { error: infoErr } = await supabase.rpc('admin_set_app_setting', { p_key: 'commission_payment_info', p_value: info.trim() });
+    if (infoErr) { setBusy(false); toast.error(infoErr.message); return; }
+    for (const row of limits) {
+      const before = savedLimits.find((r) => r.kind === row.kind);
+      if (before && before.debt_limit === row.debt_limit && before.grace_days === row.grace_days) continue;
+      const { error } = await supabase.rpc('admin_set_commission_debt_limit', {
+        p_kind: row.kind, p_debt_limit: Number(row.debt_limit), p_grace_days: Number(row.grace_days),
+      });
+      if (error) { setBusy(false); toast.error(`${row.label}: ${error.message}`); return; }
     }
     setBusy(false);
+    setSavedLimits(limits);
     setSettingsOpen(false);
     toast.success('Pengaturan setoran komisi disimpan');
   };
@@ -248,14 +253,37 @@ export default function CommissionDepositsSection() {
               required
             />
           </Field>
-          <Field label="Batas utang komisi (Rp)" htmlFor="commission-limit">
-            <Input id="commission-limit" type="number" inputMode="numeric" min="10000" value={limit} onChange={(e) => setLimit(e.target.value)} className="font-mono" required />
-          </Field>
-          <Field label="Masa tenggang (hari)" htmlFor="commission-grace">
-            <Input id="commission-grace" type="number" inputMode="numeric" min="0" max="60" value={grace} onChange={(e) => setGrace(e.target.value)} className="font-mono" required />
-          </Field>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-[13px] font-semibold text-ink">Batas utang komisi per jenis mitra</legend>
+            <div className="grid grid-cols-[minmax(0,1fr)_8.5rem_4.5rem] items-center gap-x-2 gap-y-2">
+              <span className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-muted">Mitra</span>
+              <span className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-muted">Batas (Rp)</span>
+              <span className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-muted">Hari</span>
+              {limits.map((row) => (
+                <div key={row.kind} className="contents">
+                  <label htmlFor={`limit-${row.kind}`} className="text-[13.5px] font-medium text-ink">{row.label}</label>
+                  <Input
+                    id={`limit-${row.kind}`}
+                    type="number" inputMode="numeric" min="10000" max="10000000" step="1000" required
+                    aria-label={`Batas utang ${row.label}`}
+                    value={row.debt_limit}
+                    onChange={(e) => setLimits((list) => list.map((r) => (r.kind === row.kind ? { ...r, debt_limit: e.target.value } : r)))}
+                    className="font-mono"
+                  />
+                  <Input
+                    id={`grace-${row.kind}`}
+                    type="number" inputMode="numeric" min="0" max="60" required
+                    aria-label={`Masa tenggang ${row.label} (hari)`}
+                    value={row.grace_days}
+                    onChange={(e) => setLimits((list) => list.map((r) => (r.kind === row.kind ? { ...r, grace_days: e.target.value } : r)))}
+                    className="font-mono"
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
           <p className="text-[12.5px] leading-relaxed text-ink-muted">
-            Mitra yang utang komisinya mencapai batas ini lebih lama dari masa tenggang tidak bisa menerima pesanan baru sampai menyetor. Penugasan dari admin tetap bisa.
+            Mitra yang utang komisinya mencapai batas lebih lama dari masa tenggang tidak bisa menerima pesanan baru sampai menyetor. Akun dengan beberapa peran (misalnya driver yang juga punya villa) memakai batas yang paling longgar. Penugasan dari admin tetap bisa.
           </p>
         </form>
       </Sheet>

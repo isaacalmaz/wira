@@ -21,12 +21,14 @@ const rupiah = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
  */
 export default function CommissionDebtsSection() {
   const [rows, setRows] = useState(null);
-  const [limit, setLimit] = useState(200000);
-  const [grace, setGrace] = useState(7);
+  // Global fallback + per-kind limits (migrations/0119); an account with
+  // several kinds gets the most lenient one, like commission_debt_policy.
+  const [fallback, setFallback] = useState({ limit: 200000, grace: 7 });
+  const [kindLimits, setKindLimits] = useState([]);
 
   useEffect(() => {
     (async () => {
-      const [{ data, error }, { data: settings }] = await Promise.all([
+      const [{ data, error }, { data: settings }, { data: limitRows }] = await Promise.all([
         supabase
           .from('users')
           .select('id, name, phone, payable_balance, commission_debt_since, commission_billed_at, mitra_access')
@@ -34,11 +36,15 @@ export default function CommissionDebtsSection() {
           .order('payable_balance', { ascending: true })
           .limit(200),
         supabase.from('app_settings').select('key, value').in('key', ['commission_debt_limit', 'commission_debt_grace_days']),
+        supabase.from('commission_debt_limits').select('kind, debt_limit, grace_days'),
       ]);
       if (error) toast.error(`Gagal memuat utang komisi: ${error.message}`);
       const get = (k) => settings?.find((r) => r.key === k)?.value;
-      if (Number(get('commission_debt_limit')) > 0) setLimit(Number(get('commission_debt_limit')));
-      if (get('commission_debt_grace_days') != null) setGrace(Number(get('commission_debt_grace_days')));
+      setFallback({
+        limit: Number(get('commission_debt_limit')) > 0 ? Number(get('commission_debt_limit')) : 200000,
+        grace: get('commission_debt_grace_days') != null ? Number(get('commission_debt_grace_days')) : 7,
+      });
+      setKindLimits(limitRows || []);
       setRows(data || []);
     })();
   }, []);
@@ -47,7 +53,10 @@ export default function CommissionDebtsSection() {
   const list = (rows || []).map((u) => {
     const debt = -Number(u.payable_balance || 0);
     const days = u.commission_debt_since ? Math.floor((now - new Date(u.commission_debt_since).getTime()) / 86400000) : 0;
-    return { ...u, debt, days, blocked: debt >= limit && days > grace };
+    const own = kindLimits.filter((l) => Array.isArray(u.mitra_access) && u.mitra_access.includes(l.kind));
+    const limit = own.length ? Math.max(...own.map((l) => l.debt_limit)) : fallback.limit;
+    const grace = own.length ? Math.max(...own.map((l) => l.grace_days)) : fallback.grace;
+    return { ...u, debt, days, limit, grace, blocked: debt >= limit && days > grace };
   });
   const total = list.reduce((s, u) => s + u.debt, 0);
   const blockedCount = list.filter((u) => u.blocked).length;
@@ -98,7 +107,7 @@ export default function CommissionDebtsSection() {
                   <td>
                     {u.blocked
                       ? <Badge tone="danger" dot>Terblokir</Badge>
-                      : u.debt >= limit
+                      : u.debt >= u.limit
                         ? <Badge tone="warning" dot>Lewat batas</Badge>
                         : <Badge tone="neutral">Normal</Badge>}
                   </td>

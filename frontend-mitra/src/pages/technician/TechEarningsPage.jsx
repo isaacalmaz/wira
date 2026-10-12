@@ -4,7 +4,7 @@ import { Stat } from '../../components/ui';
 import EarningsPage, { SignedMoney } from '../../components/shared/EarningsPage';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { technicianEarnedAmount, cashCommissionDeduction } from '../../services/orderService';
+import { technicianIncome, orderCommission } from '../../services/orderService';
 import { EARNINGS_COLUMNS } from '../../utils/earnings';
 
 // Same list TechOrdersPage/TechHomePage use: service and pool jobs.
@@ -44,8 +44,8 @@ const TechEarningsPage = () => {
     <EarningsPage
       title="Pendapatan Teknisi"
       fetchOrders={fetchOrders}
-      amount={technicianEarnedAmount}
-      cash={(o) => cashCommissionDeduction(o, 'driver')}
+      amount={technicianIncome}
+      commission={(o) => orderCommission(o, 'driver')}
       deps={[user?.id]}
     >
       {projectIncome.total > 0 && (

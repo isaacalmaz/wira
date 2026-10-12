@@ -7,7 +7,7 @@ import OrderPinSheet from '../../components/shared/OrderPinSheet';
 import { User, Package, RefreshCw, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
-import { updateOrderStatus, driverEarnedAmount, loadCommissionRates } from '../../services/orderService';
+import { updateOrderStatus, driverIncome, loadCommissionRates } from '../../services/orderService';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { friendlyError } from '../../utils/friendlyError';
 import { serviceIcon, serviceLabel } from '../../constants/services';
@@ -160,7 +160,7 @@ const DriverOrdersPage = () => {
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <EarnedMoney value={driverEarnedAmount(order)} className="text-[14px] font-medium" />
+                      <EarnedMoney value={driverIncome(order)} className="text-[14px] font-medium" />
                       <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status, order.service_type)}</Badge>
                     </div>
                   </li>

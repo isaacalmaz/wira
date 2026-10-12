@@ -24,32 +24,34 @@ export const EARNINGS_COLUMNS =
 
 /**
  * Today, the last 7 days (today included) and one bar per day.
- * `amount(order)` is the partner's share; `cash(order)` what a Tunai order
- * took back out of the saldo (both from services/orderService.js).
+ * `amount(order)` is what the order earned the partner; `commission(order)`
+ * Wira's cut of it (both from services/orderService.js). Each day also
+ * carries its order count and commission for the breakdown rows.
  */
-export function summarizeEarnings(orders, { amount, cash = () => 0 }, now = new Date()) {
+export function summarizeEarnings(orders, { amount, commission = () => 0 }, now = new Date()) {
   const todayStart = new Date(startOfTodayISO(now)).getTime();
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const start = todayStart - i * DAY_MS;
     const d = new Date(start + 12 * 3600000);
-    days.push({ start, dateStr: dayKey(d), day: DAY_NAMES[new Date(start + WITA_OFFSET_MS).getUTCDay()], amount: 0 });
+    days.push({ start, dateStr: dayKey(d), day: DAY_NAMES[new Date(start + WITA_OFFSET_MS).getUTCDay()], amount: 0, commission: 0, count: 0 });
   }
   const weekStart = days[0].start;
 
   let today = 0;
+  let todayCount = 0;
   let week = 0;
-  let cashTotal = 0;
+  let weekCount = 0;
   for (const o of orders || []) {
     if (o.status && o.status !== 'completed') continue;
     const t = completedAt(o).getTime();
     if (t < weekStart) continue;
     const value = amount(o);
     week += value;
-    cashTotal += cash(o);
-    if (t >= todayStart) today += value;
+    weekCount += 1;
+    if (t >= todayStart) { today += value; todayCount += 1; }
     const slot = days.find((d) => t >= d.start && t < d.start + DAY_MS);
-    if (slot) slot.amount += value;
+    if (slot) { slot.amount += value; slot.commission += commission(o); slot.count += 1; }
   }
-  return { today, week, cash: cashTotal, days };
+  return { today, todayCount, week, weekCount, days };
 }

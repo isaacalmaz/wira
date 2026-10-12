@@ -29,11 +29,11 @@ const SignedMoney = ({ value, className = '' }) => {
 /**
  * The Pendapatan page shared by driver, merchant/villa and technician.
  * - fetchOrders(): completed orders for this partner (select EARNINGS_COLUMNS)
- * - amount / cash: the role's share and Tunai deduction per order
+ * - amount / commission: what an order earned the partner, and Wira's cut
  * - children: role-specific cards shown between the chart and the payout panel
  * - onOrders(orders): optional, for pages that derive more from the same rows
  */
-export default function EarningsPage({ title, fetchOrders, amount, cash, deps = [], onOrders, children }) {
+export default function EarningsPage({ title, fetchOrders, amount, commission, deps = [], onOrders, children }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(false);
 
@@ -45,7 +45,7 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
         const orders = await fetchOrders();
         if (cancelled || !orders) return;
         onOrders?.(orders);
-        setSummary(summarizeEarnings(orders, { amount, cash }));
+        setSummary(summarizeEarnings(orders, { amount, commission }));
         setError(false);
       } catch (e) {
         console.error('Earnings load failed:', e);
@@ -56,7 +56,7 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  const activeDays = summary ? summary.days.filter((d) => d.amount !== 0).slice().reverse() : [];
+  const activeDays = summary ? summary.days.filter((d) => d.count > 0).slice().reverse() : [];
 
   return (
     <div className="flex flex-col gap-6 pb-20">
@@ -68,7 +68,9 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
         </Card>
       ) : (
         <>
-          <EarningsCard today={summary.today} week={summary.week} cashDeduction={summary.cash} />
+          <EarningsCard today={summary.today} todayCount={summary.todayCount} week={summary.week} weekCount={summary.weekCount} />
+
+          <PayoutPanel />
 
           <Card padding="none">
             <h2 className="px-4 pb-2 pt-4 text-[15px] font-bold tracking-tight text-ink">7 Hari Terakhir</h2>
@@ -96,8 +98,15 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
                     <ListRow
                       className="px-4 py-3"
                       title={d.day}
-                      subtitle={<span className="font-mono">{formatDate(d.start)}</span>}
-                      trailing={<SignedMoney value={d.amount} className="text-[14px] font-medium text-ink" />}
+                      subtitle={(
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-mono">{formatDate(d.start)}</span>
+                          <span className="text-[12px]">
+                            {d.count} order · komisi <Money value={Math.round(d.commission)} className="text-[12px]" />
+                          </span>
+                        </span>
+                      )}
+                      trailing={<Money value={Math.round(d.amount)} className="whitespace-nowrap text-[14px] font-medium text-ink" />}
                     />
                   </li>
                 ))}
@@ -108,8 +117,6 @@ export default function EarningsPage({ title, fetchOrders, amount, cash, deps = 
       )}
 
       {children}
-
-      <PayoutPanel />
     </div>
   );
 }
