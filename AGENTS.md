@@ -24,13 +24,24 @@ write in. They decide product questions. You do the engineering.
 
 - **Never type passwords or secrets anywhere.** The owner signs in themselves. To test a logged-in
   flow, mint a session without a password (see `WIRA_HANDOFF.md` §2.1).
-- **You cannot run SQL on production.** Write the migration file, give it to the owner, and they
-  run it in the Supabase SQL Editor. Don't write to production data yourself, even through a
-  script with a service key; hand the owner the SQL instead.
-- **Order of work for anything with a migration:** write migration → owner runs it → you verify it
-  live (read-only checks, or a `DO` block that ends in `RAISE EXCEPTION` so it rolls back) → only
-  then commit and push the frontend that depends on it. If a migration must run *after* the
-  frontend deploys, say so in its header and in `migrations/README.md`.
+- **Production SQL goes through the Supabase MCP connector** (`.mcp.json`; the owner signs in to
+  Supabase through claude.ai Settings → Connectors, no password ever in chat). The owner granted
+  write access on 2026-10-13, under these rules:
+  1. Every schema change is still a file first (`migrations/01xx_….sql`, a row in
+     `migrations/README.md`), tested locally (PGlite or `db-tests/`), so history stays in git.
+  2. **Before anything that changes the database** (a migration, an UPDATE/INSERT/DELETE on real
+     data, a function or policy change) tell the owner in one or two sentences what it does and wait
+     for an explicit "jalankan"/"ya". Approval covers that one change only.
+  3. **Never** drop tables, delete or rewrite data in bulk, change money (wallet, payable_balance,
+     commission, payouts, deposits) by hand, or disable RLS, without the owner's explicit approval
+     for that specific action.
+  4. Read-only queries and verification (`SELECT`, or a `DO` block that ends in `RAISE EXCEPTION`
+     so it rolls back) may run without asking.
+  5. Apply migrations with the connector's `apply_migration` (named like the file), verify live,
+     then commit and push the frontend that depends on it. If a migration must run *after* the
+     frontend deploys, say so in its header and in `migrations/README.md`.
+  Without the connector (e.g. it isn't signed in), fall back to the old flow: give the owner the
+  migration file to run in the Supabase SQL Editor, and don't write to production with a service key.
 - **Never force-push. Never rewrite pushed history.** Stage only the files you changed (other tools
   may have left untracked files, e.g. `skills-lock.json`; leave them alone).
 - **Batch commits.** Vercel is on the Hobby plan: 100 deployments/day, and every push to `main`
