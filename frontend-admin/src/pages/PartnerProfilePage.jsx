@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone, Mail, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby } from 'lucide-react';
+import { Phone, Mail, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,7 @@ import { CORE_ADMIN_ROLES } from '../config/roles';
 import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
 import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table } from '../components/ui';
 import ReasonSheet from '../components/common/ReasonSheet';
+import DeleteAccountSheet from '../components/common/DeleteAccountSheet';
 import { setUserBlocked, setPartnerAccess, setMerchantActive, KIND_LABEL } from '../services/partnerAdminService';
 import { SERVICE_LABEL } from '../config/services';
 import { formatDateTime } from '../utils/datetime';
@@ -39,6 +40,8 @@ export default function PartnerProfilePage() {
   const navigate = useNavigate();
   const { user: me } = useAuth();
   const core = CORE_ADMIN_ROLES.includes(me?.role);
+  const canDelete = ['Superadmin', 'superadmin'].includes(me?.role);
+  const [deleting, setDeleting] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(null); // { title, description, label, tone, run }
@@ -94,7 +97,8 @@ export default function PartnerProfilePage() {
         title={u.name || 'Tanpa nama'}
         subtitle={`Bergabung ${when(u.created_at)}`}
         actions={core && (
-          blocked ? (
+          <div className="flex flex-wrap gap-2">
+          {blocked ? (
             <Button leftIcon={<CheckCircle2 size={16} />} onClick={() => act({
               title: `Aktifkan lagi ${u.name}?`, description: 'Mitra bisa masuk dan menerima pesanan lagi.', label: 'Aktifkan',
               done: 'Akun aktif kembali', run: (r) => setUserBlocked(u.id, false, r),
@@ -105,7 +109,11 @@ export default function PartnerProfilePage() {
               description: `Mitra tidak bisa masuk ke Wira Mitra dan tidak ditawari pesanan baru.${s.active > 0 ? ` Ada ${s.active} pesanan berjalan: selesaikan atau alihkan dulu dari halaman Orders.` : ''}`,
               done: 'Akun ditangguhkan', run: (r) => setUserBlocked(u.id, true, r),
             })}>Tangguhkan</Button>
-          )
+          )}
+          {canDelete && (
+            <Button variant="ghost" className="text-danger-ink" leftIcon={<Trash2 size={16} />} onClick={() => setDeleting(true)}>Hapus akun</Button>
+          )}
+          </div>
         )}
       />
 
@@ -303,6 +311,13 @@ export default function PartnerProfilePage() {
           <p className="flex items-center gap-1.5 text-[13px] text-ink-muted"><History size={14} /> Belum ada keputusan admin yang tercatat (tercatat sejak Oktober 2026).</p>
         )}
       </section>
+
+      <DeleteAccountSheet
+        account={{ id: u.id, name: u.name }}
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        onDeleted={(mode) => (mode === 'permanent' ? navigate('/users', { replace: true }) : load())}
+      />
 
       <ReasonSheet
         open={!!confirm}

@@ -12,7 +12,7 @@ export default function useMyProfile() {
   useEffect(() => {
     if (!user?.id) { setProfile(null); return undefined; }
     let cancelled = false;
-    supabase.from('users').select('name, phone, avatar_url').eq('id', user.id).maybeSingle()
+    supabase.from('users').select('name, phone, avatar_url, status').eq('id', user.id).maybeSingle()
       .then(({ data }) => { if (!cancelled) setProfile(data || null); });
     return () => { cancelled = true; };
   }, [user?.id]);

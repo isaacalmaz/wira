@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet, Baby } from 'lucide-react';
+import { Search, Ban, CheckCircle, Car, Store, Wrench, Wallet, Baby, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import ReasonSheet from '../components/common/ReasonSheet';
@@ -8,6 +8,8 @@ import { setUserBlocked, setPartnerAccess } from '../services/partnerAdminServic
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CORE_ADMIN_ROLES, FINANCE_ADMIN_ROLES } from '../config/roles';
+import { WALLET_ENABLED } from '../config/wallet';
+import DeleteAccountSheet from '../components/common/DeleteAccountSheet';
 import { Badge, Button, Card, Field, Input, Money, PageHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // 'courier' is no longer a separate mitra_access role - Driver now covers
@@ -23,7 +25,10 @@ const UsersPage = () => {
   // What this role may do here (enforced again in the database, 0102):
   // finance roles correct balances, core admins suspend and change access.
   const { user: me } = useAuth();
-  const canCorrect = FINANCE_ADMIN_ROLES.includes(me?.role);
+  const canCorrect = WALLET_ENABLED && FINANCE_ADMIN_ROLES.includes(me?.role);
+  // Deleting accounts (migrations/0121) is Superadmin only.
+  const canDelete = ['Superadmin', 'superadmin'].includes(me?.role);
+  const [deleting, setDeleting] = useState(null);
   const canModerate = CORE_ADMIN_ROLES.includes(me?.role);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,7 +185,7 @@ const UsersPage = () => {
               <th>Nama</th>
               <th>Email</th>
               <th>Telepon</th>
-              <th className="text-right">Saldo</th>
+              {WALLET_ENABLED && <th className="text-right">Saldo</th>}
               <th>Status</th>
               <th>Akses Mitra</th>
               <th className="text-right">Aksi</th>
@@ -212,9 +217,9 @@ const UsersPage = () => {
                 </td>
                 <td className="text-ink-muted">{u.email}</td>
                 <td className="whitespace-nowrap font-mono text-[12.5px]">{u.phone}</td>
-                <td className="text-right"><Money value={u.wallet_balance || 0} /></td>
+                {WALLET_ENABLED && <td className="text-right"><Money value={u.wallet_balance || 0} /></td>}
                 <td>
-                  <Badge tone={isActive ? 'success' : 'danger'} dot>{u.status || 'Aktif'}</Badge>
+                  <Badge tone={isActive ? 'success' : u.status === 'Dihapus' ? 'neutral' : 'danger'} dot>{u.status || 'Aktif'}</Badge>
                 </td>
                 <td>
                   <div className="flex flex-wrap justify-end gap-1.5 md:justify-start">
@@ -253,7 +258,7 @@ const UsersPage = () => {
                     >
                       Koreksi Saldo
                     </Button>}
-                    {canModerate && <Button
+                    {canModerate && u.status !== 'Dihapus' && <Button
                       size="sm"
                       variant={isActive ? 'danger-soft' : 'secondary'}
                       onClick={() => setPendingAction({ kind: 'status', user: u, isActive })}
@@ -262,6 +267,17 @@ const UsersPage = () => {
                       className="whitespace-nowrap"
                     >
                       {isActive ? 'Tangguhkan' : 'Aktifkan'}
+                    </Button>}
+                    {canDelete && !['admin', 'Superadmin', 'superadmin', 'Admin Ops', 'Admin Keuangan', 'CS'].includes(u.role) && <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setDeleting(u)}
+                      title="Hapus akun"
+                      aria-label={`Hapus akun ${u.name || ''}`}
+                      leftIcon={<Trash2 size={15} />}
+                      className="whitespace-nowrap text-danger-ink"
+                    >
+                      Hapus
                     </Button>}
                   </div>
                 </td>
@@ -321,6 +337,13 @@ const UsersPage = () => {
           </Field>
         </form>
       </Sheet>
+
+      <DeleteAccountSheet
+        account={deleting}
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onDeleted={() => fetchUsers()}
+      />
 
       {/* Blokir / aktifkan akun dan ubah akses mitra: selalu lewat konfirmasi */}
       <ReasonSheet

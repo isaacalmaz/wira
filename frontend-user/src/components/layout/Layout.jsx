@@ -8,6 +8,7 @@ import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 import Spinner from '../ui/Spinner';
+import useMyProfile from '../../hooks/useMyProfile';
 
 const LandingPage = lazy(() => import('../../pages/LandingPage'));
 
@@ -21,6 +22,7 @@ export default function Layout() {
   const { isAuthenticated, loading } = useAuth();
   const online = useOnlineStatus();
   const { t } = useTranslation();
+  const profile = useMyProfile();
 
   if (loading) {
     return (
@@ -63,6 +65,12 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {!isFullScreenPage && <TopBar />}
+        {/* Suspended by an admin (migrations/0121 refuses new orders): say so up front. */}
+        {profile?.status === 'Diblokir' && (
+          <div role="alert" className="border-b border-danger-line bg-danger-soft px-4 py-2.5 text-center text-[13px] font-medium text-danger-ink">
+            {t('common.suspended_banner')}
+          </div>
+        )}
         <main className={`flex-1 overflow-y-auto ${isFullScreenPage ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : 'px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-6 md:pb-10'}`}>
           <div className={isFullScreenPage ? 'h-full w-full' : 'max-w-3xl mx-auto'}>
             <Outlet />
