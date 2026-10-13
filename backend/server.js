@@ -32,6 +32,10 @@ app.use(helmet()); // Mengamankan header HTTP
 // would turn every such request into a 500 via the global error handler.
 const DEV_PORTS = [3000, 3001, 5173];
 const ALLOWED_ORIGINS = new Set([
+  // The custom domains the apps actually live on (www.wira.one redirects to wira.one).
+  'https://wira.one',
+  'https://mitra.wira.one',
+  'https://admin.wira.one',
   'https://wira-pied.vercel.app',
   'https://wira-user-wira10.vercel.app',
   'https://wira-zlw9.vercel.app',

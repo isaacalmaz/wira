@@ -162,4 +162,37 @@ router.post('/order-alert', userFacingLimiter, async (req, res) => {
   }
 });
 
+// Admin > Pengaturan "Kirim notifikasi uji": a push to the caller's own
+// device, so a staff member can check FCM (e.g. after rotating the Firebase
+// key) without placing an order. Staff only, and only to themselves.
+const STAFF_ROLES = ['admin', 'Superadmin', 'superadmin', 'Admin Ops', 'CS', 'Admin Keuangan'];
+const admin = require('../utils/firebaseAdmin');
+
+router.post('/self-test', userFacingLimiter, async (req, res) => {
+  if (!STAFF_ROLES.includes(req.user.profile?.role)) {
+    return response.error(res, 'Khusus admin', 403);
+  }
+  const token = req.user.profile?.fcm_token;
+  if (!token) {
+    return response.error(res, 'Perangkat ini belum terdaftar untuk notifikasi. Buka aplikasi Wira Admin di HP lalu izinkan notifikasi.', 404);
+  }
+  try {
+    const id = await admin.messaging().send({
+      token,
+      notification: { title: 'Tes notifikasi Wira', body: 'Kalau ini muncul, kunci Firebase dan pengiriman notifikasi berjalan normal.' },
+      data: { type: 'self_test' },
+    });
+    console.log('self-test push sent', { user: req.user.id, id });
+    return response.success(res, { id }, 'Notifikasi uji terkirim');
+  } catch (err) {
+    // Say which side failed: credentials (key) vs this device's token.
+    const code = err?.errorInfo?.code || err?.code || 'unknown';
+    console.error('self-test push failed', { user: req.user.id, code, message: err?.message });
+    const keyProblem = /credential|auth|app\/no-app|invalid-argument.*credential/i.test(`${code} ${err?.message}`);
+    return response.error(res, keyProblem
+      ? `Kunci Firebase ditolak (${code}). Cek FIREBASE_PRIVATE_KEY di Vercel.`
+      : `Gagal mengirim ke perangkat ini (${code}). Buka aplikasi lalu coba lagi.`, 502);
+  }
+});
+
 module.exports = router;
