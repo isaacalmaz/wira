@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import SavedAddressPicker from '../components/common/SavedAddressPicker';
@@ -33,7 +33,11 @@ export default function RidePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
-  const { addOrder } = useOrders();
+  const { addOrder, orders } = useOrders();
+  const [searchParams] = useSearchParams();
+  // "Pesan lagi" from a finished ride (migrations/0124): same route, offered
+  // to the same driver first.
+  const [againDriverId, setAgainDriverId] = useState(null);
 
   const [step, setStep] = useState('input'); // input, vehicle - post-booking UI lives on ActiveOrderPage
   const [pickup, setPickup] = useState('');
@@ -124,6 +128,30 @@ export default function RidePage() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   };
+
+  // Prefill the route of the ride being repeated, once the order list loads.
+  const againId = searchParams.get('again');
+  useEffect(() => {
+    if (!againId || againDriverId !== null) return;
+    const prev = orders.find((o) => o.id === againId && o.service_type === 'ride');
+    if (!prev) return;
+    try {
+      const d = JSON.parse(prev.details || '{}');
+      const from = d.pickup, to = d.dropoff;
+      if (from?.lat != null && to?.lat != null) {
+        setPickup(String(from.name || '').split(' (')[0]);
+        setDropoff(String(to.name || ''));
+        setMapState((m) => ({
+          ...m,
+          center: { lat: from.lat, lng: from.lng },
+          markers: [{ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng }],
+        }));
+      }
+    } catch {
+      // Older rides kept plain text details: keep the driver choice only.
+    }
+    setAgainDriverId(prev.driver_id || '');
+  }, [againId, orders, againDriverId]);
 
   // Otomatis mencari rute jika marker 0 dan 1 sudah ada (pickup & dropoff valid)
   useEffect(() => {
@@ -287,6 +315,7 @@ export default function RidePage() {
         // vehicles.type (e.g. 'motor'/'mobil'), not a UI label.
         rateCode: selectedVehicle?.id || null,
         distanceMeters: routeInfo?.distance ?? null,
+        ...(againDriverId ? { metadata: { preferred_partner_id: againDriverId } } : {}),
         promoCode: activePromo?.code || null,
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
@@ -490,6 +519,12 @@ export default function RidePage() {
         {step === 'vehicle' && (
           <>
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-2">
+              {againDriverId && (
+                <Notice tone="info">
+                  <span className="font-semibold">{t('ride.again_banner')}</span>
+                  <span className="block text-[12.5px]">{t('ride.again_hint')}</span>
+                </Notice>
+              )}
               {/* Route summary: dot - line - square */}
               <div className="flex items-start gap-3">
                 <div className="flex flex-col items-center gap-[3px] pt-[5px]" aria-hidden="true">

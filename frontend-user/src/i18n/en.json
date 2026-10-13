@@ -190,7 +190,9 @@
     "book_failed": "We couldn't book that ride: {{message}}",
     "hint_fill": "Enter a pickup and a destination.",
     "hint_pick": "Pick an address from the suggestions, or drag the pin on the map.",
-    "hint_no_route": "No route found. Try moving the pin to the nearest road."
+    "hint_no_route": "No route found. Try moving the pin to the nearest road.",
+    "again_banner": "Ride again with your previous driver",
+    "again_hint": "If that driver is online, the ride goes to them first for 1 minute, then to other drivers."
   },
   "food": {
     "search_placeholder": "Search restaurants or dishes",
@@ -325,7 +327,11 @@
       "AC": "Air-Con Service & Cleaning",
       "Listrik": "Electrical Work",
       "Plumbing": "Plumbing & Water Pumps",
-      "Tukang": "Builder & Handyman"
+      "Tukang": "Builder & Handyman",
+      "CCTV": "CCTV & Networking",
+      "Las": "Welding, Steel & Canopies",
+      "Waterproofing": "Leak Repair & Waterproofing",
+      "SumurBor": "Bore Wells & Pumps"
     },
     "booking_title": "Book {{service}}",
     "technician_line": "Technician: {{name}}",
@@ -364,7 +370,28 @@
     "project_title": "Bigger job? Get quotes",
     "project_desc": "Renovation, terrazzo, repainting a villa, several AC units: verified technicians send prices, you compare and pay in stages.",
     "project_cta": "Post a Project",
-    "project_mine": "My Projects"
+    "project_mine": "My Projects",
+    "custom_title": "Something else",
+    "custom_desc": "Not on the list? Describe what you need; the technician prices it on site.",
+    "custom_price_check": "Inspection visit {{fee}}",
+    "custom_price_free": "No extra charge now; priced on site",
+    "custom_desc_label": "Describe the job",
+    "custom_desc_hint": "At least 10 characters. No need to add your phone number; the technician contacts you in the app.",
+    "custom_desc_placeholder": "For example: replace the broken kitchen tap and move the drain pipe about 1 metre",
+    "custom_photos_label": "Photos (recommended)",
+    "custom_photos_hint": "Up to 3 photos. They help the technician bring the right tools and parts.",
+    "custom_photo_add": "Photo",
+    "custom_photo_remove": "Remove photo",
+    "custom_photo_failed": "The photos didn't upload. Try again, or book without photos.",
+    "custom_check_note": "{{fee}} is deducted from the total if you accept the technician's price. If you don't, you only pay the inspection visit.",
+    "custom_combined_note": "The technician prices the extra job on site. Work starts only after you approve it in the app.",
+    "custom_desc_required": "Describe the extra job (at least 10 characters).",
+    "custom_no_promo": "Promo codes don't apply to an order that is only \"Something else\".",
+    "trust_label": "What booking through Wira guarantees",
+    "trust_verified": "Verified technicians",
+    "trust_price": "Price approved in the app",
+    "big_job_note": "Over Rp 5 million or several days of work?",
+    "big_job_cta": "Contact Wira"
   },
   "pool": {
     "cash_desc": "Pay the technician when the job is done",
@@ -515,7 +542,10 @@
     "review_cta": "Leave a Review",
     "close_receipt": "Close",
     "route_pickup": "Pickup",
-    "route_dropoff": "Destination"
+    "route_dropoff": "Destination",
+    "order_again": "Order again",
+    "order_again_tech": "Book this technician again",
+    "order_again_driver": "Ride this route again"
   },
   "order": {
     "cancel_desc_villa_full": "At least 3 days before check-in: you get a full refund, transferred to your account by the Wira admin.",
@@ -840,7 +870,18 @@
     "adjust_failed": "Could not process this",
     "package_visit": "Monthly package: visit {{n}} of {{total}}",
     "booked_work": "Booked work",
-    "extra": "Extra"
+    "extra": "Extra",
+    "quote_title": "The technician sent a price",
+    "quote_work": "Price of the work",
+    "quote_check": "Inspection fee (already counted)",
+    "quote_rest": "Extra to pay",
+    "quote_approve": "Approve {{amount}}",
+    "quote_reject_check": "If you decline, the visit ends and you only pay the inspection fee of {{fee}}.",
+    "quote_reject_combined": "If you decline, the extra job is not done; the rest of the booking goes ahead.",
+    "quote_waiting": "The technician prices the extra job after seeing it on site. Work starts only after you approve it here.",
+    "quote_approved": "Price of the extra job",
+    "job_label": "The extra job you asked for",
+    "photos_label": "Job photos"
   },
   "partners": {
     "title": "Wira Technicians",

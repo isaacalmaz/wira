@@ -473,14 +473,16 @@ export default function ActiveOrderPage() {
           >
             <MessageCircle size={19} />
           </button>
-          <a
-            href={`tel:${order.driver.phone}`}
-            title={t('order.call_driver')}
-            aria-label={t('order.call_driver')}
-            className={cx(roundBtn, 'border-brand bg-brand text-white hover:bg-brand-hover')}
-          >
-            <Phone size={19} />
-          </a>
+          {order.driver.phone && (
+            <a
+              href={`tel:${order.driver.phone}`}
+              title={t('order.call_driver')}
+              aria-label={t('order.call_driver')}
+              className={cx(roundBtn, 'border-brand bg-brand text-white hover:bg-brand-hover')}
+            >
+              <Phone size={19} />
+            </a>
+          )}
         </Card>
       )}
 

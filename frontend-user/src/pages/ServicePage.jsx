@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star, ClipboardList } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, ImagePlus, X, ShieldCheck } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -34,6 +34,8 @@ import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
 import { WALLET_ENABLED } from '../config/wallet';
+import { useAuth } from '../context/AuthContext';
+import { uploadPrivateImage } from '../utils/imageUpload';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -80,6 +82,16 @@ function ChoiceCard({ selected, onClick, leading, title, subtitle, trailing }) {
   );
 }
 
+// Icons per category code; categories admins open later get the wrench.
+const CATEGORY_ICONS = {
+  AC: Snowflake, Listrik: Zap, Plumbing: Droplets, Tukang: Hammer,
+  CCTV: Cctv, Las: Flame, Waterproofing: Umbrella, SumurBor: ArrowDownToLine,
+};
+const LEGACY_TITLES = {
+  AC: 'Service AC & Cuci', Listrik: 'Instalasi Listrik', Plumbing: 'Pipa & Pompa Air', Tukang: 'Tukang Bangunan',
+};
+const MAX_JOB_PHOTOS = 3;
+
 function GroupLabel({ children }) {
   return <p className="text-[13px] font-semibold text-ink">{children}</p>;
 }
@@ -98,10 +110,17 @@ export default function ServicePage() {
   const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
+  const { user } = useAuth();
 
   const [technicians, setTechnicians] = useState([]);
+  // Bookable categories (migrations/0123): category rows of pricing_rules,
+  // named from service_skills.
+  const [categoryRows, setCategoryRows] = useState([]);
+  const [skillNames, setSkillNames] = useState({});
+  // "Pekerjaan lain": what the customer describes, and up to 3 photos.
+  const [jobDesc, setJobDesc] = useState('');
+  const [jobPhotos, setJobPhotos] = useState([]); // File[]
   const [techLoaded, setTechLoaded] = useState(false);
-  const [prices, setPrices] = useState({});
   // Price menu (migrations/0090): items per category, priced per unit.
   const [menu, setMenu] = useState([]);
   const [qty, setQty] = useState({}); // item code -> quantity in the open booking
@@ -125,11 +144,15 @@ export default function ServicePage() {
     supabase.from('pricing_rules').select('*').eq('service_type', 'service').eq('is_active', true)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
         setMenu(data.filter((r) => r.item_of).sort((a, b) => (a.sort_order ?? 100) - (b.sort_order ?? 100)));
+        setCategoryRows(data.filter((r) => !r.item_of && r.code !== 'CHECK_FEE')
+          .sort((a, b) => (a.sort_order ?? 100) - (b.sort_order ?? 100)));
         const fee = data.find((r) => r.code === 'CHECK_FEE');
         if (fee) setCheckFee(Number(fee.base_price));
       });
+    supabase.from('service_skills').select('code, name').then(({ data }) => {
+      if (!cancelled && data) setSkillNames(Object.fromEntries(data.map((r) => [r.code, r.name])));
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -152,19 +175,38 @@ export default function ServicePage() {
 
   // `id` matches pricing_rules.code and the technician skill code; `name`
   // stays Indonesian because it is stored as the order title that the
-  // technician reads in the partner app. What the customer sees comes from
-  // `service.categories.*` instead. `price` is only the fallback until
-  // pricing_rules loads.
-  const categories = [
-    { id: 'AC', icon: Snowflake, name: 'Service AC & Cuci', price: 75000 },
-    { id: 'Listrik', icon: Zap, name: 'Instalasi Listrik', price: 50000 },
-    { id: 'Plumbing', icon: Droplets, name: 'Pipa & Pompa Air', price: 60000 },
-    { id: 'Tukang', icon: Hammer, name: 'Tukang Bangunan', price: 100000 },
-  ].map((c) => ({ ...c, price: prices[c.id] ?? c.price }));
+  // technician reads in the partner app (the first four keep their old
+  // titles, which utils/localizeDbText translates). What the customer sees
+  // comes from `service.categories.*` when the app knows the category.
+  const categories = categoryRows.map((r) => ({
+    id: r.code,
+    icon: CATEGORY_ICONS[r.code] || Wrench,
+    name: LEGACY_TITLES[r.code] || skillNames[r.code] || r.name,
+    price: Number(r.base_price),
+  }));
+  // Translated name when the app knows the category, the admin's name otherwise.
+  const categoryLabel = (c) => {
+    if (!c) return '';
+    const key = `service.categories.${c.id}`;
+    const label = t(key);
+    return label === key ? c.name : label;
+  };
   const itemsFor = (cat) => menu.filter((m) => m.item_of === cat);
   const bookingItems = selectedService ? itemsFor(selectedService.id) : [];
   const chosenItems = bookingItems.filter((m) => (qty[m.code] || 0) > 0);
-  const itemsTotal = chosenItems.reduce((sum, m) => sum + Number(m.base_price) * qty[m.code], 0);
+  const menuItems = bookingItems.filter((m) => !m.is_custom);
+  const customItem = bookingItems.find((m) => m.is_custom) || null;
+  const customChosen = !!customItem && (qty[customItem.code] || 0) > 0;
+  const onlyCustom = customChosen && chosenItems.length === 1;
+  // The check fee when "Pekerjaan lain" is the whole order; free next to
+  // menu items (the technician is coming anyway). Same rule as the server.
+  const customPrice = onlyCustom ? checkFee : 0;
+  const itemsTotal = chosenItems.reduce(
+    (sum, m) => sum + (m.is_custom ? customPrice : Number(m.base_price) * qty[m.code]), 0);
+  const toggleCustom = () => {
+    if (!customItem) return;
+    setQty((q) => ({ ...q, [customItem.code]: customChosen ? 0 : 1 }));
+  };
   const changeQty = (item, delta) => setQty((q) => ({
     ...q,
     [item.code]: Math.max(0, Math.min(item.max_qty || 10, (q[item.code] || 0) + delta)),
@@ -175,9 +217,12 @@ export default function ServicePage() {
   const handleOpenBooking = (cat, tech = null) => {
     setSelectedService(cat);
     setSelectedTechId(tech?.id || '');
-    // Start with the first item of the category picked once.
+    // Start with the first item of the category picked once ("Pekerjaan
+    // lain" when the category has nothing else).
     const first = itemsFor(cat.id)[0];
     setQty(first ? { [first.code]: 1 } : {});
+    setJobDesc('');
+    setJobPhotos([]);
     const date = firstBookableDate();
     setServiceDate(date);
     setServiceTime(openSlots(date)[0] || VISIT_SLOTS[0]);
@@ -242,7 +287,7 @@ export default function ServicePage() {
   const calculateFinalPrice = () => {
     // Itemised once the menu has loaded (0090); category price before that.
     const basePrice = bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0);
-    if (!activePromo) return basePrice;
+    if (!activePromo || onlyCustom) return basePrice;
     if (activePromo.type === 'Percentage') {
       const discount = (basePrice * activePromo.discount) / 100;
       return Math.max(0, basePrice - discount);
@@ -259,6 +304,10 @@ export default function ServicePage() {
     }
     if (bookingItems.length > 0 && chosenItems.length === 0) {
       toast.error(t('service.pick_item'));
+      return;
+    }
+    if (customChosen && jobDesc.trim().length < 10) {
+      toast.error(t('service.custom_desc_required'));
       return;
     }
     if (!serviceTime || !openSlots(serviceDate).includes(serviceTime)) {
@@ -281,6 +330,19 @@ export default function ServicePage() {
         try { point = await fetchCoordinates(address); } catch (geoErr) { console.error('Geocode failed:', geoErr); }
       }
 
+      // Job photos go to the private bucket first; the order keeps the paths.
+      let photoPaths = [];
+      if (customChosen && jobPhotos.length > 0) {
+        try {
+          photoPaths = await Promise.all(jobPhotos.map((f) => uploadPrivateImage(supabase, 'order-photos', user.id, f)));
+        } catch (upErr) {
+          console.error('Job photo upload failed:', upErr);
+          toast.error(t('service.custom_photo_failed'));
+          setLoading(false);
+          return;
+        }
+      }
+
       const order = await addOrder({
         pickupLat: point?.lat ?? null,
         pickupLng: point?.lng ?? null,
@@ -292,13 +354,15 @@ export default function ServicePage() {
         title: selectedService.name,
         details: (selectedTech ? `Teknisi: ${selectedTech.name} • ` : '')
           + `Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
-          + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : ''),
+          + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : '')
+          + (customChosen ? ` • Pekerjaan lain: ${jobDesc.trim()}` : ''),
         // migrations/0089: the visit time and the chosen technician, who gets
         // the job to themselves for 10 minutes before it opens to everyone
         // with the same skill.
         metadata: {
           scheduled_at: witaInstant(serviceDate, serviceTime),
           ...(chosenItems.length > 0 ? { items: chosenItems.map((m) => ({ code: m.code, qty: qty[m.code] })) } : {}),
+          ...(customChosen ? { job: { description: jobDesc.trim(), photos: photoPaths } } : {}),
           ...(selectedTech ? { preferred_partner_id: selectedTech.id } : {}),
         },
         price: finalPrice,
@@ -307,7 +371,7 @@ export default function ServicePage() {
         // service_type='service' ('AC' | 'Listrik' | 'Plumbing' | 'Tukang'),
         // per the categories array above and migrations/0057's seed.
         rateCode: selectedService?.id || null,
-        promoCode: activePromo?.code || null,
+        promoCode: onlyCustom ? null : (activePromo?.code || null),
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
 
@@ -337,7 +401,7 @@ export default function ServicePage() {
 
       {/* Grid Kategori Jasa */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {categories.map((c) => {
+        {categories.filter((c) => !techLoaded || techsFor(c.id).length > 0).map((c) => {
           const Icon = c.icon;
           const count = techsFor(c.id).length;
           const unavailable = techLoaded && count === 0;
@@ -353,7 +417,7 @@ export default function ServicePage() {
               <IconTile tone={unavailable ? 'neutral' : 'brand'}><Icon size={20} /></IconTile>
               <span className="flex flex-col gap-0.5">
                 <span className="text-[14px] font-semibold leading-snug text-ink">
-                  {t(`service.categories.${c.id}`)}
+                  {categoryLabel(c)}
                 </span>
                 <span className="text-[12px] text-ink-muted">
                   {withMoney(t('service.starting_from', { price: SLOT }), c.price, { className: 'text-ink' })}
@@ -396,7 +460,7 @@ export default function ServicePage() {
             {technicians.map((tech) => {
               const firstCategory = categories.find((c) => (tech.skills || []).includes(c.id));
               const skillNames = categories.filter((c) => (tech.skills || []).includes(c.id))
-                .map((c) => t(`service.categories.${c.id}`));
+                .map((c) => categoryLabel(c));
               return (
                 <div key={tech.id} className="flex items-center gap-3 p-3.5">
                   <span
@@ -454,7 +518,7 @@ export default function ServicePage() {
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         closeLabel={t('common.close')}
-        title={t('service.booking_title', { service: t(`service.categories.${selectedService?.id}`) })}
+        title={t('service.booking_title', { service: categoryLabel(selectedService) })}
         description={selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line')}
         footer={
           <Button type="submit" form="service-booking-form" size="lg" block disabled={loading || !serviceTime} isLoading={loading}>
@@ -463,6 +527,10 @@ export default function ServicePage() {
         }
       >
         <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-1.5" aria-label={t('service.trust_label')}>
+            <Badge tone="success"><ShieldCheck size={12} aria-hidden="true" /> {t('service.trust_verified')}</Badge>
+            <Badge tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t('service.trust_price')}</Badge>
+          </div>
           {selectedService && techsFor(selectedService.id).length > 0 && (
             <Field label={t('service.tech_label')} htmlFor="service-tech" hint={selectedTech ? t('service.tech_hint_chosen') : t('service.tech_hint_auto')}>
               <Select id="service-tech" value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}>
@@ -477,8 +545,9 @@ export default function ServicePage() {
           {bookingItems.length > 0 && (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-[13px] font-semibold text-ink">{t('service.items_label')}</legend>
+              {menuItems.length > 0 && (
               <ul className="flex flex-col divide-y divide-line rounded-card border border-line bg-card">
-                {bookingItems.map((item) => {
+                {menuItems.map((item) => {
                   const n = qty[item.code] || 0;
                   return (
                     <li key={item.code} className="flex items-center gap-3 px-3.5 py-3">
@@ -515,6 +584,90 @@ export default function ServicePage() {
                   );
                 })}
               </ul>
+              )}
+              {customItem && (
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={customChosen}
+                  onClick={toggleCustom}
+                  className={cx(
+                    'flex w-full items-start gap-3 rounded-card text-left transition-colors',
+                    customChosen ? 'border-2 border-brand bg-brand-soft/50 px-[13px] py-[11px]' : 'border border-line bg-card px-3.5 py-3 hover:border-line-strong',
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cx('mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2', customChosen ? 'border-brand' : 'border-line-strong')}
+                  >
+                    {customChosen && <span className="h-2 w-2 rounded-full bg-brand" />}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-[14px] font-semibold text-ink">{t('service.custom_title')}</span>
+                    <span className="text-[12px] leading-snug text-ink-muted">{t('service.custom_desc')}</span>
+                    <span className="text-[12.5px] text-ink">
+                      {menuItems.some((m) => (qty[m.code] || 0) > 0)
+                        ? t('service.custom_price_free')
+                        : withMoney(t('service.custom_price_check', { fee: SLOT }), checkFee)}
+                    </span>
+                  </span>
+                </button>
+              )}
+              {customChosen && (
+                <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
+                  <Field label={t('service.custom_desc_label')} htmlFor="service-job-desc" required hint={t('service.custom_desc_hint')}>
+                    <Textarea
+                      id="service-job-desc"
+                      rows={3}
+                      maxLength={500}
+                      value={jobDesc}
+                      onChange={(e) => setJobDesc(e.target.value)}
+                      placeholder={t('service.custom_desc_placeholder')}
+                      required
+                    />
+                  </Field>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[13px] font-semibold text-ink">{t('service.custom_photos_label')}</span>
+                    <div className="flex flex-wrap gap-2">
+                      {jobPhotos.map((file, i) => (
+                        <span key={`${file.name}-${i}`} className="relative">
+                          <img src={URL.createObjectURL(file)} alt="" className="h-16 w-16 rounded-control border border-line object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setJobPhotos((list) => list.filter((_, j) => j !== i))}
+                            aria-label={t('service.custom_photo_remove')}
+                            className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-line bg-card text-ink shadow-sm"
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                      {jobPhotos.length < MAX_JOB_PHOTOS && (
+                        <label className="inline-flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-control border border-dashed border-line-strong text-[11px] text-ink-muted hover:bg-sunken">
+                          <ImagePlus size={18} aria-hidden="true" />
+                          {t('service.custom_photo_add')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setJobPhotos((list) => [...list, file].slice(0, MAX_JOB_PHOTOS));
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <span className="text-[12px] text-ink-muted">{t('service.custom_photos_hint')}</span>
+                  </div>
+                  <Notice tone="warning">
+                    {onlyCustom
+                      ? withMoney(t('service.custom_check_note', { fee: SLOT }), checkFee)
+                      : t('service.custom_combined_note')}
+                  </Notice>
+                </div>
+              )}
               <p className="text-[12px] leading-relaxed text-ink-muted">
                 {withMoney(t('service.extra_note', { fee: SLOT }), checkFee, { className: 'text-ink' })}
               </p>
@@ -608,7 +761,10 @@ export default function ServicePage() {
             )}
           </div>
 
-          {/* Kode Promo */}
+          {/* Kode Promo (not for an order that is only "Pekerjaan lain", 0123) */}
+          {onlyCustom ? (
+            <p className="text-[12px] text-ink-muted">{t('service.custom_no_promo')}</p>
+          ) : (
           <PromoField
             t={t}
             id="service-promo"
@@ -620,17 +776,24 @@ export default function ServicePage() {
             checking={checkingPromo}
             error={promoError}
           />
+          )}
 
           <dl className="flex flex-col rounded-card border border-line bg-card p-4 text-[13px]">
             <SummaryRow label={t('service.estimate_label')} strong className="text-[14px]">
               <span className="flex flex-col items-end">
-                {activePromo && (
+                {activePromo && !onlyCustom && (
                   <Money value={bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0)} tone="muted" className="text-[12px] line-through" />
                 )}
                 <Money value={calculateFinalPrice()} className="text-[17px] font-medium" />
               </span>
             </SummaryRow>
           </dl>
+          {customChosen && (
+            <p className="text-[12px] text-ink-muted">
+              {t('service.big_job_note')}{' '}
+              <Link to="/support" className="font-semibold text-brand-ink underline-offset-2 hover:underline">{t('service.big_job_cta')}</Link>
+            </p>
+          )}
         </form>
       </Sheet>
     </div>
