@@ -11,24 +11,51 @@
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
 
-// Parse the private key properly to handle newline characters from env vars
-let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-if (privateKey) {
-  privateKey = privateKey.replace(/\\n/g, '\n');
-}
+// FIREBASE_PRIVATE_KEY is pasted by hand into Vercel, and the 2026-10-13
+// key rotation failed with "Failed to parse private key". Accept every shape
+// a paste can take: the bare PEM, the JSON-escaped value with literal \n,
+// the value still wrapped in its JSON quotes, or the whole service-account
+// JSON file (then its client_email/project_id are used too).
+const readServiceAccount = () => {
+  let raw = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
+  let fromJson = {};
+  if (raw.startsWith('{')) {
+    try {
+      fromJson = JSON.parse(raw);
+      raw = fromJson.private_key || '';
+    } catch (err) {
+      console.error('FIREBASE_PRIVATE_KEY looks like JSON but does not parse:', err.message);
+    }
+  }
+  raw = raw.replace(/^"private_key"\s*:\s*/, '').replace(/,$/, '').trim();
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    raw = raw.slice(1, -1);
+  }
+  const privateKey = raw.replace(/\\n/g, '\n').replace(/\r/g, '');
+  return {
+    projectId: fromJson.project_id || process.env.FIREBASE_PROJECT_ID,
+    clientEmail: fromJson.client_email || (process.env.FIREBASE_CLIENT_EMAIL || '').trim(),
+    privateKey,
+  };
+};
 
 if (!getApps().length) {
   try {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: privateKey,
-      }),
+    const account = readServiceAccount();
+    initializeApp({ credential: cert(account) });
+    // Shape only, never the key itself: tells a bad paste from a bad key.
+    console.log('Firebase Admin initialized successfully', {
+      projectId: account.projectId,
+      clientEmail: account.clientEmail,
+      keyLines: account.privateKey.split('\n').length,
     });
-    console.log('Firebase Admin initialized successfully');
   } catch (error) {
-    console.error('Firebase Admin initialization error', error.stack);
+    const key = readServiceAccount().privateKey;
+    console.error('Firebase Admin initialization error', error.message, {
+      hasBegin: key.includes('-----BEGIN PRIVATE KEY-----'),
+      hasEnd: key.includes('-----END PRIVATE KEY-----'),
+      length: key.length,
+    });
   }
 }
 
