@@ -442,7 +442,17 @@
     "sub_stop": "Stop",
     "sub_resume": "Turn Back On",
     "sub_stopped": "Automatic renewal stopped",
-    "sub_resumed": "Automatic renewal is back on"
+    "sub_resumed": "Automatic renewal is back on",
+    "custom_title": "Other pool work",
+    "custom_badge": "NEW",
+    "custom_desc": "Pump replacement, leaks, loose tiles, pool lights. Describe what you need and the technician quotes on site.",
+    "custom_placeholder": "E.g. the pool pump is very loud and water does not reach the skimmer. Pool is about 8×4 m.",
+    "custom_no_promo": "Promo codes do not apply to other pool work. Pay the technician in cash.",
+    "again": "Book your last technician again",
+    "again_named": "Book {{name}} again",
+    "again_hint": "Last visit: {{service}}",
+    "again_notice": "Your last technician gets this order first. If they do not take it, another technician comes.",
+    "again_notice_named": "{{name}} gets this order first. If they do not take it, another technician comes."
   },
   "wallet": {
     "card_label": "WiraPay — Digital Wallet",
@@ -1179,5 +1189,30 @@
     "dl_web_title": "Use it in your browser",
     "dl_web_desc": "Order every service from your phone or laptop browser, nothing to install.",
     "dl_web_cta": "Open Wira in the browser"
+  },
+  "paycheck": {
+    "title": "How much did you pay the partner?",
+    "title_named": "How much did you pay {{name}}?",
+    "match": "The app total",
+    "different": "A different amount",
+    "different_hint": "enter amount",
+    "unpaid": "Not paid yet",
+    "amount_label": "Amount you paid (Rp)",
+    "amount_hint": "Total in the app: {{total}}",
+    "amount_required": "Enter the amount you paid",
+    "send": "Send answer",
+    "private": "Only Wira sees this answer. The partner is not told.",
+    "thanks": "Thank you, we have your answer."
+  },
+  "report": {
+    "title": "Visit report · {{date}}",
+    "before": "Before",
+    "after": "After",
+    "chlorine": "Chlorine",
+    "ideal": "ideal {{range}}",
+    "water": "Water",
+    "water_jernih": "Clear",
+    "water_keruh": "Cloudy",
+    "water_hijau": "Green"
   }
 }

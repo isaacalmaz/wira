@@ -45,6 +45,7 @@ const SERVICE_NAME_KEYS = {
 const POOL_NAME_KEYS = {
   'Pembersihan Rutin': 'pool.services.S1',
   'Treatment Air & Klorinasi': 'pool.services.S2',
+  'Pekerjaan kolam lain': 'pool.custom_title',
   'Servis Pompa & Filter Kolam': 'pool.services.S3',
   'Paket Langganan Kolam Bulanan': 'pool.monthly_name',
 };

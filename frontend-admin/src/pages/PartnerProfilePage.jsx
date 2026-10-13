@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { CORE_ADMIN_ROLES } from '../config/roles';
 import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
 import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table } from '../components/ui';
+import PartnerFlagsList from '../components/common/PartnerFlagsList';
 import ReasonSheet from '../components/common/ReasonSheet';
 import DeleteAccountSheet from '../components/common/DeleteAccountSheet';
 import { setUserBlocked, setPartnerAccess, setMerchantActive, KIND_LABEL } from '../services/partnerAdminService';
@@ -29,6 +30,17 @@ const waLink = (phone) => {
   const d = String(phone || '').replace(/\D/g, '');
   return d ? `https://wa.me/${d.startsWith('0') ? `62${d.slice(1)}` : d}` : null;
 };
+
+// Flags for this account (migrations/0125), shown only when there are some.
+function AccountFlags({ id }) {
+  const [count, setCount] = useState(0);
+  return (
+    <section className={count > 0 ? 'flex flex-col gap-3' : 'hidden'}>
+      <SectionHeader title="Penanda" className="mb-0" />
+      <PartnerFlagsList subjectId={id} compact onCount={setCount} />
+    </section>
+  );
+}
 
 /**
  * One partner: account, documents, places they run, work and money,
@@ -249,6 +261,8 @@ export default function PartnerProfilePage() {
           </div>
         </section>
       )}
+
+      <AccountFlags id={id} />
 
       <section className="flex flex-col gap-3">
         <SectionHeader title="Pesanan terbaru" className="mb-0" />

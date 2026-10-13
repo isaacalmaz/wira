@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Wallet, QrCode, Banknote } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Wallet, QrCode, Banknote, RotateCcw, ChevronRight } from 'lucide-react';
 import {
   Button,
   Card,
@@ -32,6 +32,10 @@ import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
 import { WALLET_ENABLED } from '../config/wallet';
+import { useAuth } from '../context/AuthContext';
+import { uploadPrivateImage } from '../utils/imageUpload';
+import { fetchCounterpartyProfiles } from '../services/profileService';
+import JobPhotoPicker from '../components/common/JobPhotoPicker';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -95,16 +99,24 @@ export default function PoolPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
-  const { addOrder, refreshOrders } = useOrders();
+  const { orders, addOrder, refreshOrders } = useOrders();
+  const { user } = useAuth();
 
   const [selectedService, setSelectedService] = useState(null);
   const isPackage = selectedService?.id === 'MONTHLY';
+  // "Pekerjaan kolam lain" (migrations/0125): priced on site, cash only.
+  const isCustom = !!selectedService?.isCustom;
+  const [jobDesc, setJobDesc] = useState('');
+  const [jobPhotos, setJobPhotos] = useState([]); // File[]
+  // "Pesan lagi": the technician of an earlier visit gets the order first.
+  const [preferredTech, setPreferredTech] = useState(null); // { id, name }
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // How many active pool technicians there are (migrations/0089), and the
   // prices admins set under Manajemen Harga (the server charges these).
   const [poolTechCount, setPoolTechCount] = useState(null);
   const [prices, setPrices] = useState({});
+  const [customRule, setCustomRule] = useState(null);
   useEffect(() => {
     let cancelled = false;
     supabase.rpc('list_service_technicians', { p_skill: 'Pool' }).then(({ data, error }) => {
@@ -112,9 +124,11 @@ export default function PoolPage() {
       if (error) console.error('list_service_technicians failed:', error);
       setPoolTechCount(Array.isArray(data) ? data.length : 0);
     });
-    supabase.from('pricing_rules').select('code, base_price').eq('service_type', 'pool').eq('is_active', true)
+    supabase.from('pricing_rules').select('*').eq('service_type', 'pool').eq('is_active', true)
       .then(({ data }) => {
-        if (!cancelled && data) setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+        if (cancelled || !data) return;
+        setPrices(Object.fromEntries(data.map((r) => [r.code, Number(r.base_price)])));
+        setCustomRule(data.find((r) => r.is_custom) || null);
       });
     return () => { cancelled = true; };
   }, []);
@@ -173,16 +187,25 @@ export default function PoolPage() {
     price: prices.MONTHLY ?? 500000,
   };
 
+  const customService = customRule
+    ? { id: customRule.code, name: customRule.name, price: Number(customRule.base_price), isCustom: true }
+    : null;
+
   // Label shown on screen for whichever service is being booked.
   const serviceLabel = (srv) =>
-    srv?.id === 'MONTHLY' ? t('pool.monthly_name') : t(`pool.services.${srv?.id}`);
+    srv?.id === 'MONTHLY' ? t('pool.monthly_name') : srv?.isCustom ? t('pool.custom_title') : t(`pool.services.${srv?.id}`);
 
-  const handleOpenBooking = (srv) => {
+  const handleOpenBooking = (srv, tech = null) => {
     if (noPoolTechs) {
       toast(t('pool.unavailable'));
       return;
     }
     setSelectedService(srv);
+    // A package spans four visits; it is not tied to one technician.
+    setPreferredTech(srv.id === 'MONTHLY' ? null : tech);
+    setJobDesc('');
+    setJobPhotos([]);
+    if (srv.isCustom) setPaymentMethod('Tunai');
     const date = firstBookableDate();
     setVisitDate(date);
     setVisitTime(openSlots(date)[0] || VISIT_SLOTS[0]);
@@ -220,6 +243,38 @@ export default function PoolPage() {
   // A code chosen with "Use now" on the home promos (utils/pendingPromo).
   usePendingPromo('pool', promoCode, setPromoCode, handleCheckPromo);
 
+  // The technician of the last finished care visit, for "Pesan lagi".
+  const lastVisit = (orders || []).find((o) => o.service_type === 'pool' && o.rawStatus === 'completed'
+    && o.driver_id && o.rate_code && o.rate_code !== customRule?.code);
+  const [lastTech, setLastTech] = useState(null); // { id, name, svc }
+  useEffect(() => {
+    if (!lastVisit) { setLastTech(null); return undefined; }
+    let cancelled = false;
+    fetchCounterpartyProfiles(supabase, [lastVisit.driver_id]).then((map) => {
+      if (cancelled) return;
+      setLastTech({
+        id: lastVisit.driver_id,
+        name: map[lastVisit.driver_id]?.name || null,
+        svc: lastVisit.rate_code === 'MONTHLY_VISIT' ? 'S1' : lastVisit.rate_code,
+        at: lastVisit.created_at,
+      });
+    });
+    return () => { cancelled = true; };
+  }, [lastVisit?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arriving from "Pesan lagi" on a receipt: /pool?tech=…&svc=…
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const techId = searchParams.get('tech');
+    const svc = services.find((x) => x.id === searchParams.get('svc'));
+    if (!techId || !svc || poolTechCount === null) return;
+    fetchCounterpartyProfiles(supabase, [techId]).then((map) => {
+      handleOpenBooking(svc, { id: techId, name: map[techId]?.name || null });
+    });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, poolTechCount]);
+
   const handleRemovePromo = () => {
     setActivePromo(null);
     setPromoCode('');
@@ -228,7 +283,7 @@ export default function PoolPage() {
 
   const calculateFinalPrice = () => {
     const basePrice = selectedService?.price || 0;
-    if (!activePromo) return basePrice;
+    if (!activePromo || isCustom) return basePrice;
     if (activePromo.type === 'Percentage') {
       const discount = (basePrice * activePromo.discount) / 100;
       return Math.max(0, basePrice - discount);
@@ -248,6 +303,11 @@ export default function PoolPage() {
       return;
     }
 
+    if (isCustom && jobDesc.trim().length < 10) {
+      toast.error(t('service.custom_desc_required'));
+      return;
+    }
+
     const finalPrice = calculateFinalPrice();
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error(isPackage ? t('pool.package_insufficient') : t('pool.insufficient_balance'));
@@ -263,7 +323,19 @@ export default function PoolPage() {
         try { point = await fetchCoordinates(address); } catch (geoErr) { console.error('Geocode failed:', geoErr); }
       }
 
-      const details = `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate} pukul ${visitTime}`;
+      let photoPaths = [];
+      if (isCustom && jobPhotos.length > 0) {
+        try {
+          photoPaths = await Promise.all(jobPhotos.map((f) => uploadPrivateImage(supabase, 'order-photos', user.id, f)));
+        } catch (upErr) {
+          console.error('Job photo upload failed:', upErr);
+          toast.error(t('service.custom_photo_failed'));
+          return;
+        }
+      }
+
+      const details = `Ukuran: ${poolSize} • Lokasi: ${withAddressNote(address, addressNote)} • Kunjungan: ${visitDate} pukul ${visitTime}`
+        + (isCustom ? ` • Pekerjaan: ${jobDesc.trim()}` : '');
 
       // Monthly package (migrations/0090): four weekly visits created and
       // paid with WiraPay in one transaction; each visit is its own order.
@@ -299,14 +371,18 @@ export default function PoolPage() {
         title: selectedService.name,
         details,
         // migrations/0089: the visit time technicians and dispatch go by.
-        metadata: { scheduled_at: witaInstant(visitDate, visitTime) },
+        metadata: {
+          scheduled_at: witaInstant(visitDate, visitTime),
+          ...(preferredTech ? { preferred_partner_id: preferredTech.id } : {}),
+          ...(isCustom ? { job: { description: jobDesc.trim(), photos: photoPaths } } : {}),
+        },
         price: finalPrice,
-        paymentMethod: paymentMethod,
+        paymentMethod: isCustom ? 'Tunai' : paymentMethod,
         // selectedService.id matches pricing_rules.code for
         // service_type='pool' ('S1' | 'S2' | 'S3' from `services`, or
         // 'MONTHLY' from `monthlyPackage`), per migrations/0057's seed.
         rateCode: selectedService?.id || null,
-        promoCode: activePromo?.code || null,
+        promoCode: isCustom ? null : (activePromo?.code || null),
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
 
@@ -344,6 +420,23 @@ export default function PoolPage() {
       />
 
       {noPoolTechs && <Notice tone="warning">{t('pool.unavailable')}</Notice>}
+
+      {lastTech && !noPoolTechs && (
+        <button
+          type="button"
+          onClick={() => handleOpenBooking(services.find((x) => x.id === lastTech.svc) || services[0], lastTech)}
+          className="flex w-full items-center gap-3 rounded-card border border-brand-line bg-brand-soft px-4 py-3 text-left transition-colors hover:brightness-[0.98]"
+        >
+          <RotateCcw size={18} className="shrink-0 text-brand-ink" aria-hidden="true" />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[14px] font-bold text-ink">
+              {lastTech.name ? t('pool.again_named', { name: lastTech.name }) : t('pool.again')}
+            </span>
+            <span className="text-[12px] text-ink-muted">{t('pool.again_hint', { service: t(`pool.services.${lastTech.svc}`) })}</span>
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-brand-ink" aria-hidden="true" />
+        </button>
+      )}
 
       {subs.map((sub) => (
         <Card key={sub.id} className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -407,6 +500,23 @@ export default function PoolPage() {
               </div>
             </Card>
           ))}
+          {customService && (
+            <Card className="flex flex-col gap-3 border-pay-line bg-pay-soft">
+              <div className="flex flex-col gap-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-[14px] font-semibold text-ink">{t('pool.custom_title')}</h3>
+                  <Badge tone="pay">{t('pool.custom_badge')}</Badge>
+                </span>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('pool.custom_desc')}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[13px] text-ink">{withMoney(t('service.custom_price_check', { fee: SLOT }), customService.price, { className: 'font-medium' })}</span>
+                <Button variant="secondary" onClick={() => handleOpenBooking(customService)}>
+                  {t('pool.order_now')}
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       </section>
 
@@ -452,6 +562,30 @@ export default function PoolPage() {
             </Field>
           </div>
 
+          {preferredTech && (
+            <Notice tone="info">
+              {preferredTech.name ? t('pool.again_notice_named', { name: preferredTech.name }) : t('pool.again_notice')}
+            </Notice>
+          )}
+
+          {isCustom && (
+            <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
+              <Field label={t('service.custom_desc_label')} htmlFor="pool-job-desc" required hint={t('service.custom_desc_hint')}>
+                <Textarea
+                  id="pool-job-desc"
+                  rows={3}
+                  maxLength={500}
+                  value={jobDesc}
+                  onChange={(e) => setJobDesc(e.target.value)}
+                  placeholder={t('pool.custom_placeholder')}
+                  required
+                />
+              </Field>
+              <JobPhotoPicker files={jobPhotos} onChange={setJobPhotos} />
+              <Notice tone="warning">{withMoney(t('service.custom_check_note', { fee: SLOT }), selectedService.price)}</Notice>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <GroupLabel>{t('pool.pool_size')}</GroupLabel>
             <div role="radiogroup" aria-label={t('pool.pool_size')} className="flex flex-col gap-2.5">
@@ -491,7 +625,7 @@ export default function PoolPage() {
           <div className="flex flex-col gap-2">
             <GroupLabel>{t('common.payment_method')}</GroupLabel>
             <div role="radiogroup" aria-label={t('common.payment_method')} className="flex flex-col gap-2.5">
-              {WALLET_ENABLED && (
+              {WALLET_ENABLED && !isCustom && (
                 <ChoiceCard
                   selected={paymentMethod === 'WiraPay'}
                   onClick={() => setPaymentMethod('WiraPay')}
@@ -507,7 +641,7 @@ export default function PoolPage() {
                 title={t('common.pay_cash')}
                 subtitle={isPackage ? t('pool.package_cash_desc') : t('pool.cash_desc')}
               />
-              {!isPackage && <ChoiceCard
+              {!isPackage && !isCustom && <ChoiceCard
                 selected={paymentMethod === 'QRIS'}
                 onClick={() => setPaymentMethod('QRIS')}
                 leading={<IconTile tone="neutral" size="sm"><QrCode size={18} /></IconTile>}
@@ -535,7 +669,8 @@ export default function PoolPage() {
           </div>
 
           {/* Kode Promo (not for the package: four orders, one price) */}
-          {!isPackage && <PromoField
+          {isCustom && <p className="text-[12px] text-ink-muted">{t('pool.custom_no_promo')}</p>}
+          {!isPackage && !isCustom && <PromoField
             t={t}
             id="pool-promo"
             activePromo={activePromo}

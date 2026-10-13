@@ -442,7 +442,17 @@
     "sub_stop": "Hentikan",
     "sub_resume": "Aktifkan Lagi",
     "sub_stopped": "Perpanjangan otomatis dihentikan",
-    "sub_resumed": "Perpanjangan otomatis aktif lagi"
+    "sub_resumed": "Perpanjangan otomatis aktif lagi",
+    "custom_title": "Pekerjaan kolam lain",
+    "custom_badge": "BARU",
+    "custom_desc": "Ganti pompa, bocor, keramik lepas, lampu kolam. Tulis kebutuhan Anda, teknisi memberi harga di lokasi.",
+    "custom_placeholder": "Contoh: pompa kolam bunyi keras dan air tidak mengalir ke skimmer. Kolam sekitar 8×4 m.",
+    "custom_no_promo": "Kode promo tidak berlaku untuk Pekerjaan kolam lain. Pembayaran tunai ke teknisi.",
+    "again": "Pesan lagi teknisi terakhir",
+    "again_named": "Pesan lagi {{name}}",
+    "again_hint": "Kunjungan terakhir: {{service}}",
+    "again_notice": "Pesanan ditawarkan dulu ke teknisi kunjungan terakhir Anda. Kalau dia tidak mengambil, teknisi lain yang datang.",
+    "again_notice_named": "Pesanan ditawarkan dulu ke {{name}}. Kalau dia tidak mengambil, teknisi lain yang datang."
   },
   "wallet": {
     "card_label": "WiraPay — Dompet Digital",
@@ -1179,5 +1189,30 @@
     "dl_web_title": "Pakai di browser",
     "dl_web_desc": "Semua layanan bisa dipesan dari browser HP atau laptop, tanpa memasang apa pun.",
     "dl_web_cta": "Buka Wira di browser"
+  },
+  "paycheck": {
+    "title": "Berapa yang Anda bayar ke mitra?",
+    "title_named": "Berapa yang Anda bayar ke {{name}}?",
+    "match": "Sesuai total",
+    "different": "Jumlahnya berbeda",
+    "different_hint": "isi nominal",
+    "unpaid": "Belum bayar",
+    "amount_label": "Jumlah yang Anda bayar (Rp)",
+    "amount_hint": "Total di aplikasi: {{total}}",
+    "amount_required": "Isi jumlah yang Anda bayar",
+    "send": "Kirim jawaban",
+    "private": "Hanya Wira yang melihat jawaban ini. Mitra tidak diberi tahu.",
+    "thanks": "Terima kasih, jawaban Anda sudah kami terima."
+  },
+  "report": {
+    "title": "Laporan kunjungan · {{date}}",
+    "before": "Sebelum",
+    "after": "Sesudah",
+    "chlorine": "Klorin",
+    "ideal": "ideal {{range}}",
+    "water": "Kondisi air",
+    "water_jernih": "Jernih",
+    "water_keruh": "Keruh",
+    "water_hijau": "Hijau"
   }
 }

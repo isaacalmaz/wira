@@ -70,7 +70,8 @@ export default function VisitExtras({ order }) {
   const awaitingQuote = !!job && !quoteApproved && !pending.some((a) => a.kind === 'quote')
     && ['accepted', 'on_the_way'].includes(order.status);
 
-  if (items.length === 0 && !visitNo && adjustments.length === 0) return null;
+  // A pool custom job has no menu items, only metadata.job.
+  if (items.length === 0 && !visitNo && adjustments.length === 0 && !job) return null;
 
   return (
     <>
@@ -142,7 +143,7 @@ export default function VisitExtras({ order }) {
         </Card>
       ))}
 
-      {(items.length > 0 || visitNo || decided.length > 0) && (
+      {(items.length > 0 || visitNo || decided.length > 0 || job) && (
         <Card className="flex flex-col gap-2.5">
           <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
             <ClipboardList size={16} className="text-ink-muted" aria-hidden="true" />
