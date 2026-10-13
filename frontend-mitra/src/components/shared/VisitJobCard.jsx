@@ -1,4 +1,4 @@
-import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronRight, ClipboardList, Repeat } from 'lucide-react';
+import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronRight, ClipboardList, Repeat, Hammer, Image as ImageIcon } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, cx } from '../ui';
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, visitInfo } from '../../services/technicianService';
@@ -18,6 +18,8 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, o
   // them in metadata (migrations/0090).
   const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.metadata?.items) ? order.metadata.items : []);
   const packageVisit = order.metadata?.package_visit;
+  // "Pekerjaan lain" (migrations/0123): customer's description, priced on site.
+  const job = order.job || order.metadata?.job || null;
 
   const body = (
     <div className="flex flex-col gap-3 p-4">
@@ -30,6 +32,7 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, o
               <Badge tone="pay"><Star size={11} aria-hidden="true" /> Dipilih pelanggan</Badge>
             )}
             {!open && <Badge tone={statusTone(order.status)} dot>{getDisplayStatus(order.status, order.service_type)}</Badge>}
+            {job && <Badge tone="pay"><Hammer size={11} aria-hidden="true" /> Harga di lokasi</Badge>}
             {order.package_id && (
               <Badge tone="brand"><Repeat size={11} aria-hidden="true" /> {packageVisit ? `Paket ${packageVisit}/4` : 'Paket bulanan'}</Badge>
             )}
@@ -39,6 +42,7 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, o
         <span className="flex shrink-0 flex-col items-end gap-0.5">
           <Money value={order.total_price || 0} className="text-[16px] font-medium text-ink" />
           <span className="text-[11.5px] text-ink-muted">{PAYMENT_LABEL[order.payment_method] || order.payment_method}</span>
+          {job && <span className="text-[11px] text-ink-muted">+ penawaran Anda</span>}
         </span>
       </div>
 
@@ -60,6 +64,20 @@ export default function VisitJobCard({ order, skillName, mode = 'own', onTake, o
             <dt className="sr-only">Pekerjaan</dt>
             <ClipboardList size={15} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
             <dd className="break-words text-ink">{items.map((it) => `${it.qty}× ${it.name}`).join(', ')}</dd>
+          </div>
+        )}
+        {job && (
+          <div className="flex items-start gap-2">
+            <dt className="sr-only">Pekerjaan lain</dt>
+            <Hammer size={15} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+            <dd className="line-clamp-3 break-words text-ink">
+              {job.description}
+              {Array.isArray(job.photos) && job.photos.length > 0 && (
+                <span className="ml-1.5 inline-flex items-center gap-1 text-[12px] text-ink-muted">
+                  <ImageIcon size={12} aria-hidden="true" /> {job.photos.length} foto
+                </span>
+              )}
+            </dd>
           </div>
         )}
         {(complaint || size) && (

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { ClipboardList, ReceiptText, SearchCheck, Lock } from 'lucide-react';
+import { ClipboardList, ReceiptText, SearchCheck, Lock, Tag, UserX, Hammer } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Badge, Button, Card, Field, Input, Money, Segmented, Sheet, Textarea, cx } from '../ui';
-import { cancelAdjustment, finishAsCheck, requestAdjustment } from '../../services/technicianService';
+import { cancelAdjustment, finishAsCheck, reportCustomerAbsent, requestAdjustment, submitVisitQuote } from '../../services/technicianService';
+import OrderPhotoThumbs from './OrderPhotoThumbs';
 import { friendlyError } from '../../utils/friendlyError';
 
 const ADJ_STATUS = {
@@ -18,7 +19,7 @@ const ADJ_STATUS = {
  * charges for materials or extra work (the customer approves in their app),
  * and finishing at the check fee when the customer declines after the check.
  */
-export default function VisitTools({ order, onFinished }) {
+export default function VisitTools({ order, onFinished, onQuoteState }) {
   const [adjustments, setAdjustments] = useState([]);
   const [askOpen, setAskOpen] = useState(false);
   const [kind, setKind] = useState('material');
@@ -29,6 +30,15 @@ export default function VisitTools({ order, onFinished }) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [finishing, setFinishing] = useState(false);
+  // "Pekerjaan lain" quote (migrations/0123)
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteTotal, setQuoteTotal] = useState('');
+  const [quoteDesc, setQuoteDesc] = useState('');
+  const [quoting, setQuoting] = useState(false);
+  // Customer not there (migrations/0123)
+  const [absentOpen, setAbsentOpen] = useState(false);
+  const [absentNote, setAbsentNote] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -53,6 +63,50 @@ export default function VisitTools({ order, onFinished }) {
   const canCheckFinish = ['accepted', 'on_the_way'].includes(order.status);
   const hasPending = adjustments.some((a) => a.status === 'pending');
   const paidOnline = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
+  const job = order.metadata?.job || null;
+  const jobBase = Number(job?.base || 0);
+  const quoteApproved = adjustments.some((a) => a.kind === 'quote' && a.status === 'approved');
+  const quotePending = adjustments.find((a) => a.kind === 'quote' && a.status === 'pending') || null;
+
+  // Tell the page whether "Mulai Bekerja" may unlock.
+  useEffect(() => { onQuoteState?.(quoteApproved); }, [quoteApproved, onQuoteState]);
+
+  const submitQuote = async (e) => {
+    e.preventDefault();
+    const value = Math.round(Number(quoteTotal));
+    if (!Number.isFinite(value) || value < jobBase || value > 5000000) {
+      toast.error(`Isi harga antara ${jobBase.toLocaleString('id-ID')} dan 5.000.000`);
+      return;
+    }
+    setQuoting(true);
+    try {
+      await submitVisitQuote(supabase, order.id, value, quoteDesc.trim());
+      toast.success('Penawaran terkirim. Tunggu persetujuan pelanggan.');
+      setQuoteOpen(false);
+      setQuoteTotal('');
+      setQuoteDesc('');
+      load();
+    } catch (err) {
+      toast.error(friendlyError(err) || 'Gagal mengirim penawaran');
+    } finally {
+      setQuoting(false);
+    }
+  };
+
+  const submitAbsent = async (e) => {
+    e.preventDefault();
+    setReporting(true);
+    try {
+      await reportCustomerAbsent(supabase, order.id, absentNote.trim());
+      toast.success('Dilaporkan. Pesanan dibatalkan tanpa biaya.');
+      setAbsentOpen(false);
+      onFinished?.();
+    } catch (err) {
+      toast.error(friendlyError(err) || 'Gagal melapor');
+    } finally {
+      setReporting(false);
+    }
+  };
 
   const submitAsk = async (e) => {
     e.preventDefault();
@@ -96,6 +150,43 @@ export default function VisitTools({ order, onFinished }) {
 
   return (
     <>
+      {job && (
+        <Card className="flex flex-col gap-3 border-brand-line">
+          <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <Hammer size={16} className="text-ink-muted" aria-hidden="true" /> Pekerjaan lain dari pelanggan
+          </p>
+          <p className="break-words text-[14px] leading-relaxed text-ink">{job.description}</p>
+          <OrderPhotoThumbs paths={job.photos} label="Foto pekerjaan" />
+          {quoteApproved ? (
+            <Badge tone="success" className="self-start">Harga disetujui pelanggan</Badge>
+          ) : quotePending ? (
+            <div className="flex items-center justify-between gap-3 rounded-control bg-warning-soft px-3 py-2.5 text-[13px] text-warning-ink">
+              <span>Menunggu pelanggan menyetujui <Money value={Number(quotePending.amount) + jobBase} /></span>
+              <button
+                type="button"
+                className="min-h-9 shrink-0 font-semibold"
+                onClick={async () => {
+                  try { await cancelAdjustment(supabase, quotePending.id); load(); } catch (err) { toast.error(friendlyError(err)); }
+                }}
+              >
+                Ubah
+              </button>
+            </div>
+          ) : order.status === 'on_the_way' ? (
+            <>
+              <Button block leftIcon={<Tag size={17} />} onClick={() => setQuoteOpen(true)}>Kirim Penawaran Harga</Button>
+              <p className="text-[12px] leading-relaxed text-ink-muted">
+                Cek dulu di lokasi, lalu kirim harga jasanya. Mulai Bekerja terbuka setelah pelanggan setuju.
+              </p>
+            </>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-ink-muted">
+              Tekan Berangkat ke Lokasi. Harga dikirim setelah Anda melihat pekerjaannya langsung.
+            </p>
+          )}
+        </Card>
+      )}
+
       {items.length > 0 && (
         <Card className="flex flex-col gap-2">
           <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
@@ -126,11 +217,11 @@ export default function VisitTools({ order, onFinished }) {
                     <span className="break-words text-[13.5px] text-ink">{a.description}</span>
                     <span className="flex flex-wrap items-center gap-1.5">
                       <Badge tone={ADJ_STATUS[a.status]?.tone}>{ADJ_STATUS[a.status]?.label}</Badge>
-                      <span className="text-[12px] text-ink-muted">{a.kind === 'material' ? 'Bahan, tanpa komisi' : 'Jasa'}</span>
+                      <span className="text-[12px] text-ink-muted">{a.kind === 'material' ? 'Bahan, tanpa komisi' : a.kind === 'quote' ? 'Penawaran pekerjaan lain' : 'Jasa'}</span>
                     </span>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    <Money value={Number(a.amount)} className="text-[14px] font-medium text-ink" />
+                    <Money value={Number(a.amount) + (a.kind === 'quote' ? jobBase : 0)} className="text-[14px] font-medium text-ink" />
                     {a.status === 'pending' && (
                       <button
                         type="button"
@@ -165,6 +256,75 @@ export default function VisitTools({ order, onFinished }) {
           Pelanggan batal setelah dicek
         </Button>
       )}
+
+      {canCheckFinish && (
+        <Button variant="ghost" block leftIcon={<UserX size={17} />} onClick={() => setAbsentOpen(true)} className="text-danger-ink">
+          Pelanggan tidak ada di lokasi
+        </Button>
+      )}
+
+      <Sheet
+        open={quoteOpen}
+        onClose={() => { if (!quoting) setQuoteOpen(false); }}
+        dismissible={!quoting}
+        icon={<Tag size={22} />}
+        title="Kirim penawaran harga"
+        description="Total harga jasa untuk pekerjaan lain, sudah termasuk biaya cek. Material diajukan terpisah lewat Ajukan Biaya Tambahan."
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setQuoteOpen(false)} disabled={quoting}>Batal</Button>
+            <Button type="submit" form="quote-form" isLoading={quoting}>Kirim ke Pelanggan</Button>
+          </>
+        )}
+      >
+        <form id="quote-form" onSubmit={submitQuote} className="flex flex-col gap-4">
+          <Field
+            label="Total harga jasa (Rp)"
+            htmlFor="quote-total"
+            required
+            hint={`Minimal ${jobBase.toLocaleString('id-ID')}, maksimal 5.000.000. Komisi dihitung dari harga jasa.`}
+          >
+            <Input
+              id="quote-total"
+              type="number"
+              inputMode="numeric"
+              min={jobBase}
+              max={5000000}
+              step={1000}
+              value={quoteTotal}
+              onChange={(e) => setQuoteTotal(e.target.value)}
+              className="font-mono"
+              required
+            />
+          </Field>
+          <Field label="Rincian pekerjaan" htmlFor="quote-desc" required hint="Contoh: ganti kran + pindah pipa buangan 1 m, termasuk lem dan sambungan">
+            <Textarea id="quote-desc" rows={2} maxLength={300} value={quoteDesc} onChange={(e) => setQuoteDesc(e.target.value)} required />
+          </Field>
+        </form>
+      </Sheet>
+
+      <Sheet
+        open={absentOpen}
+        onClose={() => { if (!reporting) setAbsentOpen(false); }}
+        dismissible={!reporting}
+        size="sm"
+        tone="danger"
+        icon={<UserX size={22} />}
+        title="Pelanggan tidak ada di lokasi?"
+        description="Bisa dilaporkan 15 menit setelah jadwal. Pesanan dibatalkan tanpa biaya dan tanpa komisi; admin Wira diberi tahu. Coba hubungi pelanggan lewat chat dulu."
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setAbsentOpen(false)} disabled={reporting}>Kembali</Button>
+            <Button variant="danger" type="submit" form="absent-form" isLoading={reporting}>Laporkan</Button>
+          </>
+        )}
+      >
+        <form id="absent-form" onSubmit={submitAbsent} className="flex flex-col gap-2">
+          <Field label="Catatan (opsional)" htmlFor="absent-note" hint="Contoh: rumah dikunci, telepon lewat chat tidak dijawab">
+            <Textarea id="absent-note" rows={2} maxLength={300} value={absentNote} onChange={(e) => setAbsentNote(e.target.value)} />
+          </Field>
+        </form>
+      </Sheet>
 
       <Sheet
         open={askOpen}

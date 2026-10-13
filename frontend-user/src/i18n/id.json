@@ -190,7 +190,9 @@
     "book_failed": "Pesanan belum bisa dibuat: {{message}}",
     "hint_fill": "Isi lokasi jemput dan tujuan.",
     "hint_pick": "Pilih alamat dari daftar saran, atau geser pin di peta.",
-    "hint_no_route": "Rute tidak ditemukan. Coba geser pin ke jalan terdekat."
+    "hint_no_route": "Rute tidak ditemukan. Coba geser pin ke jalan terdekat.",
+    "again_banner": "Pesan lagi dengan driver sebelumnya",
+    "again_hint": "Kalau driver itu sedang online, pesanan ditawarkan ke beliau dulu selama 1 menit, lalu ke driver lain."
   },
   "food": {
     "search_placeholder": "Cari restoran atau menu favorit Anda",
@@ -325,7 +327,11 @@
       "AC": "Servis & Cuci AC",
       "Listrik": "Instalasi Listrik",
       "Plumbing": "Pipa & Pompa Air",
-      "Tukang": "Tukang Bangunan"
+      "Tukang": "Tukang Bangunan",
+      "CCTV": "CCTV & Jaringan",
+      "Las": "Las, Besi & Kanopi",
+      "Waterproofing": "Anti Bocor & Waterproofing",
+      "SumurBor": "Sumur Bor & Pompa"
     },
     "booking_title": "Pesan {{service}}",
     "technician_line": "Teknisi: {{name}}",
@@ -364,7 +370,28 @@
     "project_title": "Pekerjaan besar? Minta penawaran",
     "project_desc": "Renovasi, terazzo, cat ulang villa, pasang beberapa AC: teknisi terverifikasi mengirim harga, Anda membandingkan dan membayar bertahap.",
     "project_cta": "Ajukan Proyek",
-    "project_mine": "Proyek Saya"
+    "project_mine": "Proyek Saya",
+    "custom_title": "Pekerjaan lain",
+    "custom_desc": "Tidak ada di daftar? Tulis kebutuhan Anda, teknisi memberi harga di lokasi.",
+    "custom_price_check": "Kunjungan cek {{fee}}",
+    "custom_price_free": "Tanpa biaya tambahan, harganya ditawar di lokasi",
+    "custom_desc_label": "Ceritakan pekerjaannya",
+    "custom_desc_hint": "Minimal 10 huruf. Nomor HP tidak perlu ditulis; teknisi menghubungi Anda lewat aplikasi.",
+    "custom_desc_placeholder": "Contoh: ganti kran wastafel dapur yang patah, sekalian pindah pipa buangan sekitar 1 meter",
+    "custom_photos_label": "Foto (dianjurkan)",
+    "custom_photos_hint": "Maksimal 3 foto. Foto membantu teknisi membawa alat dan suku cadang yang tepat.",
+    "custom_photo_add": "Foto",
+    "custom_photo_remove": "Hapus foto",
+    "custom_photo_failed": "Foto gagal diunggah. Coba lagi, atau pesan tanpa foto.",
+    "custom_check_note": "{{fee}} dipotong dari total kalau Anda setuju dengan harga teknisi. Kalau tidak setuju, Anda hanya membayar kunjungan cek.",
+    "custom_combined_note": "Teknisi memberi harga untuk pekerjaan lain di lokasi. Pekerjaan baru dimulai setelah Anda menyetujuinya di aplikasi.",
+    "custom_desc_required": "Ceritakan pekerjaan lainnya (minimal 10 huruf).",
+    "custom_no_promo": "Kode promo tidak berlaku untuk pesanan yang hanya berisi Pekerjaan lain.",
+    "trust_label": "Jaminan pesanan lewat Wira",
+    "trust_verified": "Teknisi terverifikasi",
+    "trust_price": "Harga disetujui di aplikasi",
+    "big_job_note": "Lebih dari Rp 5 juta atau perlu beberapa hari?",
+    "big_job_cta": "Hubungi admin Wira"
   },
   "pool": {
     "cash_desc": "Bayar langsung ke teknisi setelah selesai",
@@ -515,7 +542,10 @@
     "review_cta": "Beri Ulasan",
     "close_receipt": "Tutup Rincian",
     "route_pickup": "Titik jemput",
-    "route_dropoff": "Tujuan"
+    "route_dropoff": "Tujuan",
+    "order_again": "Pesan lagi",
+    "order_again_tech": "Pesan lagi teknisi ini",
+    "order_again_driver": "Pesan lagi rute ini"
   },
   "order": {
     "cancel_desc_villa_full": "Dibatalkan paling lambat 3 hari sebelum check-in: pembayaran dikembalikan penuh. Admin Wira mentransfernya ke rekening Anda.",
@@ -840,7 +870,18 @@
     "adjust_failed": "Belum bisa diproses",
     "package_visit": "Paket bulanan: kunjungan {{n}} dari {{total}}",
     "booked_work": "Pekerjaan yang dipesan",
-    "extra": "Tambahan"
+    "extra": "Tambahan",
+    "quote_title": "Teknisi mengajukan harga",
+    "quote_work": "Harga jasa",
+    "quote_check": "Biaya cek (sudah dihitung)",
+    "quote_rest": "Tambahan yang dibayar",
+    "quote_approve": "Setujui {{amount}}",
+    "quote_reject_check": "Kalau ditolak, pekerjaan selesai dan Anda hanya membayar kunjungan cek {{fee}}.",
+    "quote_reject_combined": "Kalau ditolak, pekerjaan lain tidak dikerjakan; pekerjaan yang lain tetap berjalan.",
+    "quote_waiting": "Teknisi memberi harga untuk pekerjaan lain setelah melihat langsung di lokasi. Pekerjaan baru dimulai setelah Anda menyetujuinya di sini.",
+    "quote_approved": "Harga pekerjaan lain",
+    "job_label": "Pekerjaan lain yang Anda minta",
+    "photos_label": "Foto pekerjaan"
   },
   "partners": {
     "title": "Teknisi Wira",

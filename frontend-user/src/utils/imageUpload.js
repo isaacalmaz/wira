@@ -46,3 +46,19 @@ export async function uploadImageToBucket(supabaseClient, bucket, userId, file) 
   const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
+
+/**
+ * Same compression, for a private bucket (e.g. order-photos, migrations/0123):
+ * returns the object path inside the bucket instead of a public URL. Show it
+ * later with supabase.storage.from(bucket).createSignedUrl(path, seconds).
+ */
+export async function uploadPrivateImage(supabaseClient, bucket, userId, file) {
+  const blob = await compressImageToBlob(file, 1280, 0.78);
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await supabaseClient.storage.from(bucket).upload(path, blob, {
+    contentType: 'image/jpeg',
+    upsert: false,
+  });
+  if (error) throw error;
+  return path;
+}

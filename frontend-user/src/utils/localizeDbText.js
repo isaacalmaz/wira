@@ -34,6 +34,11 @@ const SERVICE_NAME_KEYS = {
   'Instalasi Listrik': 'service.categories.Listrik',
   'Pipa & Pompa Air': 'service.categories.Plumbing',
   'Tukang Bangunan': 'service.categories.Tukang',
+  // migrations/0123: categories named from service_skills
+  'CCTV & Jaringan': 'service.categories.CCTV',
+  'Las, Besi & Kanopi': 'service.categories.Las',
+  'Anti Bocor & Waterproofing': 'service.categories.Waterproofing',
+  'Sumur Bor & Pompa': 'service.categories.SumurBor',
 };
 
 // PoolPage `services[].name` and `monthlyPackage.name`

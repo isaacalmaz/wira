@@ -90,6 +90,9 @@ export default function ActiveOrderPage() {
   // WiraAsuh (migrations/0107): every step goes through its own functions.
   const isBabysit = order?.service_type === 'babysit';
   const [releaseOpen, setReleaseOpen] = useState(false);
+  // "Pekerjaan lain" (migrations/0123): work starts only after the customer
+  // approved the technician's quote; VisitTools reports it.
+  const [quoteApproved, setQuoteApproved] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
   const fetchOrder = useCallback(async () => {
@@ -227,6 +230,9 @@ export default function ActiveOrderPage() {
     if (type === 'service' || type === 'pool') {
       if (!isDriver) return null;
       if (s === 'accepted') return { label: 'Berangkat ke Lokasi', next: 'on_the_way' };
+      if (s === 'on_the_way' && type === 'service' && order.metadata?.job && !quoteApproved) {
+        return { label: 'Mulai Bekerja: tunggu harga disetujui', next: 'working', locked: true };
+      }
       if (s === 'on_the_way') return { label: 'Mulai Bekerja (PIN Pelanggan)', next: 'working' };
       if (s === 'working') return { label: 'Pekerjaan Selesai', next: 'completed' };
     } else if (type === 'ride' || type === 'send') {
@@ -258,7 +264,7 @@ export default function ActiveOrderPage() {
   
   const advanceStage = async () => {
     const info = getNextStageInfo();
-    if (!info) return;
+    if (!info || info.locked) return;
 
     // PIN Verification to start trip
     if ((info.next === 'in_trip' && ['ride', 'send', 'food'].includes(order.service_type)) || info.next === 'working') {
@@ -501,19 +507,21 @@ export default function ActiveOrderPage() {
             <span className="text-xs text-ink-muted">Pelanggan</span>
             <span className="truncate text-[15px] font-bold text-ink">{order.customer.name}</span>
           </div>
-          <a
-            href={`tel:${order.customer.phone}`}
-            aria-label="Telepon pelanggan"
-            title="Telepon pelanggan"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand bg-brand text-white transition-colors hover:bg-brand-hover"
-          >
-            <Phone size={19} />
-          </a>
+          {order.customer.phone && (
+            <a
+              href={`tel:${order.customer.phone}`}
+              aria-label="Telepon pelanggan"
+              title="Telepon pelanggan"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand bg-brand text-white transition-colors hover:bg-brand-hover"
+            >
+              <Phone size={19} />
+            </a>
+          )}
         </Card>
       )}
 
       {hasAccess && nextStageInfo && (
-        <Button size="lg" block onClick={advanceStage}>
+        <Button size="lg" block onClick={advanceStage} disabled={!!nextStageInfo.locked} leftIcon={nextStageInfo.locked ? <Lock size={17} /> : undefined}>
           {nextStageInfo.label}
         </Button>
       )}
@@ -531,7 +539,7 @@ export default function ActiveOrderPage() {
         </Button>
       )}
 
-      {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} />}
+      {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} onQuoteState={setQuoteApproved} />}
 
       {isVisit && isDriver && order.status === 'completed' && <CustomerRatingCard order={order} />}
 

@@ -183,3 +183,20 @@ export function subscribeToVisitChanges(supabase, userId, onChange) {
     supabase.removeChannel(channel);
   };
 }
+
+/**
+ * "Pekerjaan lain" (migrations/0123): the technician's price for the custom
+ * job, check fee included. The customer approves it before work can start.
+ */
+export async function submitVisitQuote(supabase, orderId, total, description) {
+  const { error } = await supabase.rpc('submit_visit_quote', {
+    p_order_id: orderId, p_total: total, p_description: description,
+  });
+  if (error) throw error;
+}
+
+/** Customer not at the address: cancel without charge (migrations/0123). */
+export async function reportCustomerAbsent(supabase, orderId, note) {
+  const { error } = await supabase.rpc('report_customer_absent', { p_order_id: orderId, p_note: note || null });
+  if (error) throw error;
+}

@@ -18,6 +18,7 @@ import {
   Clock,
   Receipt,
   Star,
+  RotateCcw,
 } from 'lucide-react';
 
 // Statuses that mean an order/ride is still actually "live" (not yet
@@ -60,6 +61,21 @@ function ReceiptRow({ label, children, strong = false }) {
       <span className="min-w-0 break-words text-right text-[13px] font-semibold text-ink">{children}</span>
     </div>
   );
+}
+
+// "Pesan lagi" (migrations/0124): a finished technician visit reopens the
+// booking with the same technician and category; a finished ride reopens the
+// route and offers it to the same driver first.
+function orderAgainTarget(order) {
+  const status = String(order?.rawStatus || order?.status || '').toLowerCase();
+  if (status !== OrderStatus.COMPLETED || !order?.driver_id) return null;
+  if (order.service_type === 'service' && order.rate_code) {
+    return { to: `/service?tech=${order.driver_id}&cat=${encodeURIComponent(order.rate_code)}`, labelKey: 'activity.order_again_tech' };
+  }
+  if (order.service_type === 'ride') {
+    return { to: `/ride?again=${order.id}`, labelKey: 'activity.order_again_driver' };
+  }
+  return null;
 }
 
 export default function ActivityPage() {
@@ -224,6 +240,20 @@ export default function ActivityPage() {
                 <Money value={selectedOrder.price} className="text-[15px] font-medium" />
               </ReceiptRow>
             </div>
+            {orderAgainTarget(selectedOrder) && (
+              <Button
+                variant="secondary"
+                block
+                leftIcon={<RotateCcw size={17} />}
+                onClick={() => {
+                  const target = orderAgainTarget(selectedOrder);
+                  setSelectedOrder(null);
+                  navigate(target.to);
+                }}
+              >
+                {t(orderAgainTarget(selectedOrder).labelKey)}
+              </Button>
+            )}
           </div>
         )}
       </Sheet>
