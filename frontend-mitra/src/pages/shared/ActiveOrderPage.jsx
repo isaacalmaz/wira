@@ -11,6 +11,7 @@ import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
+import PoolReportSheet from '../../components/shared/PoolReportSheet';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
 import { SERVICE_LABEL } from '../../constants/services';
@@ -93,6 +94,8 @@ export default function ActiveOrderPage() {
   // "Pekerjaan lain" (migrations/0123): work starts only after the customer
   // approved the technician's quote; VisitTools reports it.
   const [quoteApproved, setQuoteApproved] = useState(false);
+  // Pool care visits end with a report (migrations/0125).
+  const [reportOpen, setReportOpen] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
   const fetchOrder = useCallback(async () => {
@@ -230,10 +233,13 @@ export default function ActiveOrderPage() {
     if (type === 'service' || type === 'pool') {
       if (!isDriver) return null;
       if (s === 'accepted') return { label: 'Berangkat ke Lokasi', next: 'on_the_way' };
-      if (s === 'on_the_way' && type === 'service' && order.metadata?.job && !quoteApproved) {
+      if (s === 'on_the_way' && order.metadata?.job && !quoteApproved) {
         return { label: 'Mulai Bekerja: tunggu harga disetujui', next: 'working', locked: true };
       }
       if (s === 'on_the_way') return { label: 'Mulai Bekerja (PIN Pelanggan)', next: 'working' };
+      if (s === 'working' && type === 'pool' && !order.metadata?.job) {
+        return { label: 'Isi Laporan & Selesai', next: 'completed', report: true };
+      }
       if (s === 'working') return { label: 'Pekerjaan Selesai', next: 'completed' };
     } else if (type === 'ride' || type === 'send') {
       if (s === 'accepted') return { label: 'Menuju Lokasi', next: 'picking_up' };
@@ -265,6 +271,7 @@ export default function ActiveOrderPage() {
   const advanceStage = async () => {
     const info = getNextStageInfo();
     if (!info || info.locked) return;
+    if (info.report) { setReportOpen(true); return; }
 
     // PIN Verification to start trip
     if ((info.next === 'in_trip' && ['ride', 'send', 'food'].includes(order.service_type)) || info.next === 'working') {
@@ -540,6 +547,15 @@ export default function ActiveOrderPage() {
       )}
 
       {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} onQuoteState={setQuoteApproved} />}
+      {order.service_type === 'pool' && isDriver && order.status === 'working' && (
+        <PoolReportSheet
+          open={reportOpen}
+          order={order}
+          userId={user.id}
+          onClose={() => setReportOpen(false)}
+          onDone={() => { setReportOpen(false); fetchOrder(); }}
+        />
+      )}
 
       {isVisit && isDriver && order.status === 'completed' && <CustomerRatingCard order={order} />}
 

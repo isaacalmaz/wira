@@ -200,3 +200,19 @@ export async function reportCustomerAbsent(supabase, orderId, note) {
   const { error } = await supabase.rpc('report_customer_absent', { p_order_id: orderId, p_note: note || null });
   if (error) throw error;
 }
+
+// Pool care visit report + completion (migrations/0125). Photos are
+// order-photos paths under the technician's folder.
+export async function completePoolVisit(supabase, orderId, report) {
+  const { error } = await supabase.rpc('complete_pool_visit', {
+    p_order_id: orderId,
+    p_photos_before: report.photosBefore,
+    p_photos_after: report.photosAfter,
+    p_ph: report.ph,
+    p_chlorine: report.chlorine,
+    p_water_condition: report.waterCondition,
+    p_tasks: report.tasks,
+    p_note: report.note || null,
+  });
+  if (error) throw error;
+}

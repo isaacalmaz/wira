@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
 import QrisOrderPayment from '../components/common/QrisOrderPayment';
 import VisitExtras from '../components/common/VisitExtras';
+import VisitReportCard from '../components/common/VisitReportCard';
+import PaymentCheckCard from '../components/common/PaymentCheckCard';
 import ReviewModal from '../components/common/ReviewModal';
 import { canReview } from '../utils/review';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
@@ -486,6 +488,8 @@ export default function ActiveOrderPage() {
         </Card>
       )}
 
+      <PaymentCheckCard order={order} partnerName={order.driver?.name} />
+
       {canReview(order) && (
         <Card className="flex flex-col items-center gap-3 border-2 border-pay-line text-center">
           <div className="flex gap-0.5 text-pay" aria-hidden="true">
@@ -507,6 +511,7 @@ export default function ActiveOrderPage() {
       )}
 
       {isVisit && !isBabysit && <VisitExtras order={order} />}
+      <VisitReportCard order={order} />
 
       {/* Order + route summary */}
       <Card className="flex flex-col gap-4">

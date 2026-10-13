@@ -8,6 +8,8 @@ import { useOrders } from '../context/OrderContext';
 import { OrderStatus } from '../constants/orderStatus';
 import { useTranslation } from '../i18n';
 import { localizeOrderTitle, localizeOrderDetails, localizePaymentMethod } from '../utils/localizeDbText';
+import PaymentCheckCard from '../components/common/PaymentCheckCard';
+import VisitReportCard from '../components/common/VisitReportCard';
 import {
   ShoppingBag,
   Bike,
@@ -74,6 +76,11 @@ function orderAgainTarget(order) {
   }
   if (order.service_type === 'ride') {
     return { to: `/ride?again=${order.id}`, labelKey: 'activity.order_again_driver' };
+  }
+  // Package visits book a new single care visit with the same technician.
+  if (order.service_type === 'pool' && order.rate_code) {
+    const svc = order.rate_code === 'MONTHLY_VISIT' ? 'S1' : order.rate_code;
+    return { to: `/pool?tech=${order.driver_id}&svc=${encodeURIComponent(svc)}`, labelKey: 'activity.order_again_tech' };
   }
   return null;
 }
@@ -240,6 +247,8 @@ export default function ActivityPage() {
                 <Money value={selectedOrder.price} className="text-[15px] font-medium" />
               </ReceiptRow>
             </div>
+            <PaymentCheckCard order={selectedOrder} />
+            <VisitReportCard order={selectedOrder} />
             {orderAgainTarget(selectedOrder) && (
               <Button
                 variant="secondary"
