@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { requestForToken } from '../config/firebase';
+import { confirmRedirect } from '../utils/emailConfirm';
 
 const AuthContext = createContext();
 
@@ -40,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name: userData.name, phone: userData.phone } }
+      options: { data: { name: userData.name, phone: userData.phone }, emailRedirectTo: confirmRedirect() }
     });
     if (error) throw error;
 

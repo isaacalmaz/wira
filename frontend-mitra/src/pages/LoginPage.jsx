@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Car, Store, Home, Wrench, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import WiraMark from '../components/brand/WiraMark';
 import { Button, Card, Field, Input, Segmented } from '../components/ui';
 import { friendlyError } from '../utils/friendlyError';
+import { isEmailNotConfirmed, resendConfirmation } from '../utils/emailConfirm';
 
 // Single source of truth for the 4 mitra portals - label and icon, so
 // adding a role later only means adding one entry here instead of touching
@@ -21,12 +22,29 @@ const ROLE_CONFIG = {
 const ROLES = Object.keys(ROLE_CONFIG);
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  // Fresh sign-up: email filled in and the "confirm your email" note shown.
+  const [email, setEmail] = useState(() => location.state?.email || '');
   const [password, setPassword] = useState('');
   const [intendedRole, setIntendedRole] = useState('driver');
   const [loading, setLoading] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(() => !!location.state?.confirm);
+  const [resending, setResending] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const resend = async () => {
+    if (!email.trim()) return;
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      toast.success(`Email konfirmasi dikirim ulang ke ${email.trim()}.`);
+    } catch {
+      toast.error('Belum bisa mengirim ulang. Tunggu beberapa menit, lalu coba lagi.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -57,6 +75,7 @@ export default function LoginPage() {
         navigate('/unauthorized');
       }
     } catch (error) {
+      if (isEmailNotConfirmed(error)) setNeedsConfirm(true);
       toast.error(friendlyError(error) || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.');
     } finally {
       setLoading(false);
@@ -102,6 +121,15 @@ export default function LoginPage() {
               className="grid w-full grid-cols-2"
             />
           </div>
+
+          {needsConfirm && (
+            <div role="status" className="flex flex-col gap-2.5 rounded-control border border-brand-line bg-brand-soft px-4 py-3 text-[13.5px] leading-relaxed text-ink">
+              <p>Konfirmasi email Anda dulu: buka email dari Wira (cek juga folder Spam) lalu ketuk tautannya. Setelah itu masuk di sini.</p>
+              <Button type="button" size="sm" variant="secondary" isLoading={resending} disabled={!email.trim()} onClick={resend}>
+                Kirim ulang email konfirmasi
+              </Button>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <Field label="Email" htmlFor="login-email">

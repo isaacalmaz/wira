@@ -6,15 +6,33 @@ import toast from 'react-hot-toast';
 import { useTranslation } from '../i18n';
 import WiraMark from '../components/brand/WiraMark';
 import { isNative } from '../native/nativeShell';
+import { isEmailNotConfirmed, resendConfirmation } from '../utils/emailConfirm';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  // Fresh sign-up: email filled in and the "confirm your email" note shown.
+  const [email, setEmail] = useState(() => location.state?.email || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(() => !!location.state?.confirm);
+  const [resending, setResending] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { t } = useTranslation();
+
+  const resend = async () => {
+    if (!email.trim()) return;
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      toast.success(t('auth.resend_sent', { email: email.trim() }));
+    } catch (err) {
+      console.error('Resend confirmation failed:', err);
+      toast.error(t('auth.resend_failed'));
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -28,7 +46,12 @@ export default function LoginPage() {
       // Supabase's own message here is an untranslated developer string
       // ("Invalid login credentials"), so we always show our own wording.
       console.error('Login failed:', err);
-      toast.error(t('auth.login_failed'));
+      if (isEmailNotConfirmed(err)) {
+        setNeedsConfirm(true);
+        toast.error(t('auth.email_not_confirmed'), { duration: 7000 });
+      } else {
+        toast.error(t('auth.login_failed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -48,6 +71,15 @@ export default function LoginPage() {
             <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance">{t('auth.login_title')}</h1>
             <p className="text-sm leading-relaxed text-ink-muted">{t('auth.login_subtitle')}</p>
           </div>
+
+          {needsConfirm && (
+            <div role="status" className="flex flex-col gap-2.5 rounded-control border border-brand-line bg-brand-soft px-4 py-3 text-[13.5px] leading-relaxed text-ink">
+              <p>{t('auth.email_not_confirmed')}</p>
+              <Button type="button" size="sm" variant="secondary" isLoading={resending} disabled={!email.trim()} onClick={resend}>
+                {t('auth.resend_confirmation')}
+              </Button>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <Field label={t('auth.email')} htmlFor="login-email">
@@ -74,7 +106,7 @@ export default function LoginPage() {
               />
             </Field>
             <div className="text-right mt-[-8px] mb-2">
-              <Link to="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-ink hover:underline">Lupa kata sandi?</Link>
+              <Link to="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-ink hover:underline">{t('auth.forgot_password')}</Link>
             </div>
             <Button type="submit" block size="lg" className="mt-2" isLoading={loading}>
               {loading ? t('common.processing') : t('auth.login_submit')}

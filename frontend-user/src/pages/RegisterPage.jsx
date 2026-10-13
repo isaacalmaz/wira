@@ -22,9 +22,16 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(form.email, form.password, { name: form.name, phone: form.phone });
-      toast.success(t('auth.register_success'), { duration: 6000 });
-      navigate('/login');
+      const data = await register(form.email, form.password, { name: form.name, phone: form.phone });
+      // With "Confirm email" on, Supabase returns no session until the link
+      // in the email is opened; without it the customer is signed in already.
+      if (data?.session) {
+        toast.success(t('auth.register_success_now'));
+        navigate('/');
+      } else {
+        toast.success(t('auth.register_success'), { duration: 8000 });
+        navigate('/login', { state: { email: form.email.trim(), confirm: true } });
+      }
     } catch (err) {
       // Supabase's own message here is an untranslated developer string, so
       // we always show our own wording instead.

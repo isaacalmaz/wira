@@ -118,7 +118,13 @@
     "session_expired": "Your session has ended. Sign in again to continue.",
     "name_label": "Full name",
     "phone_label": "Phone number",
-    "confirm_password_label": "Confirm password"
+    "confirm_password_label": "Confirm password",
+    "email_not_confirmed": "Your email is not confirmed yet. Open the email from Wira (check Spam too) and tap the confirmation link.",
+    "resend_confirmation": "Resend confirmation email",
+    "resend_sent": "Confirmation email sent again to {{email}}.",
+    "resend_failed": "Could not resend yet. Wait a few minutes, then try again.",
+    "register_success_now": "Your account is ready. Welcome to Wira!",
+    "forgot_password": "Forgot password?"
   },
   "home": {
     "wallet_balance": "WiraPay Balance",

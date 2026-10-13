@@ -9,6 +9,7 @@ import { submitMitraApplication } from '../services/mitraApplicationService';
 import { useAuth } from '../context/AuthContext';
 import useSkills from '../hooks/useSkills';
 import { friendlyError } from '../utils/friendlyError';
+import { confirmRedirect } from '../utils/emailConfirm';
 
 // Kompres gambar otomatis agar ringan di cloud Supabase
 const compressImage = (file) => {
@@ -122,6 +123,7 @@ const RegisterPage = () => {
     phone: '',
     email: '',
     password: '',
+    confirmPassword: '',
     vehicle: '',
     plate: '',
     vehicleType: 'motor',
@@ -211,6 +213,10 @@ const RegisterPage = () => {
     // either does nothing useful or throws "not focusable" and breaks the
     // step flow entirely, so this is enforced here instead, on the actual
     // submit handler that advances past step 3, not just via HTML.
+    if (step === 2 && !signedIn && formData.password !== formData.confirmPassword) {
+      toast.error('Konfirmasi kata sandi belum sama. Ketik ulang kata sandi yang sama.');
+      return;
+    }
     if (step === 3 && role === 'driver' && !formData.simPhoto) {
       toast.error('Unggah foto SIM & STNK terlebih dahulu untuk melanjutkan.');
       return;
@@ -233,6 +239,10 @@ const RegisterPage = () => {
       setLoading(true);
 
       let authId = signedIn ? user.id : null;
+      // No session after sign-up = Supabase "Confirm email" is on: the new
+      // partner confirms the address first, then signs in (the application
+      // is saved already, submit_mitra_application accepts a fresh account).
+      let needsEmailConfirm = false;
       // 0. Buat akun di Supabase Auth (skipped for a signed-in account)
       if (!signedIn) try {
         const { data, error: authError } = await supabase.auth.signUp({
@@ -243,7 +253,8 @@ const RegisterPage = () => {
               name: formData.name,
               phone: formData.phone,
               role: role
-            }
+            },
+            emailRedirectTo: confirmRedirect(),
           }
         });
         if (authError) throw authError;
@@ -257,6 +268,7 @@ const RegisterPage = () => {
         }
 
         authId = data.user.id;
+        needsEmailConfirm = !data.session;
       } catch (err) {
         if (err.taken || /already|registered|exists/i.test(err.message || '')) {
           setEmailTaken(true);
@@ -291,8 +303,13 @@ const RegisterPage = () => {
 
       try {
         await submitMitraApplication(supabase, { ...application, email: formData.email }, authId);
-        toast.success('Pendaftaran berhasil dikirim!');
-        navigate('/pending-verification');
+        if (needsEmailConfirm) {
+          toast.success('Pendaftaran terkirim. Konfirmasi email Anda dulu, lalu masuk.', { duration: 8000 });
+          navigate('/login', { state: { email: formData.email.trim(), confirm: true } });
+        } else {
+          toast.success('Pendaftaran berhasil dikirim!');
+          navigate('/pending-verification');
+        }
       } catch (err) {
         console.error('Submit application error:', err);
         toast.error(`Akun dibuat, tetapi pendaftaran mitra gagal dikirim: ${friendlyError(err) || 'Error tidak diketahui'}. Masuk (Login) lalu ajukan ulang.`);
@@ -428,6 +445,18 @@ const RegisterPage = () => {
                       name="password"
                       autoComplete="new-password"
                       value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength={6}
+                    />
+                  </Field>
+                  <Field label="Ulangi Kata Sandi" htmlFor="reg-confirm-password" required>
+                    <Input
+                      id="reg-confirm-password"
+                      type="password"
+                      name="confirmPassword"
+                      autoComplete="new-password"
+                      value={formData.confirmPassword}
                       onChange={handleChange}
                       required
                       minLength={6}

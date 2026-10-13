@@ -8,6 +8,7 @@ export function friendlyError(err, fallback = 'Terjadi kendala. Coba lagi sebent
   if (!msg) return fallback;
   if (NETWORK.test(msg)) return 'Koneksi terputus. Periksa internet Anda, lalu coba lagi.';
   if (/invalid login credentials/i.test(msg)) return 'Email atau kata sandi salah.';
+  if (/email not confirmed/i.test(msg)) return 'Email Anda belum dikonfirmasi. Buka email dari Wira (cek juga folder Spam) lalu ketuk tautan konfirmasinya.';
   if (TECHNICAL.test(msg)) return fallback;
   return msg;
 }

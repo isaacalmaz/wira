@@ -118,7 +118,13 @@
     "session_expired": "Sesi Anda sudah berakhir. Masuk kembali untuk melanjutkan.",
     "name_label": "Nama lengkap",
     "phone_label": "Nomor HP",
-    "confirm_password_label": "Ulangi kata sandi"
+    "confirm_password_label": "Ulangi kata sandi",
+    "email_not_confirmed": "Email Anda belum dikonfirmasi. Buka email dari Wira (cek juga folder Spam) lalu ketuk tautan konfirmasinya.",
+    "resend_confirmation": "Kirim ulang email konfirmasi",
+    "resend_sent": "Email konfirmasi dikirim ulang ke {{email}}.",
+    "resend_failed": "Belum bisa mengirim ulang. Tunggu beberapa menit, lalu coba lagi.",
+    "register_success_now": "Akun Anda berhasil dibuat. Selamat datang di Wira!",
+    "forgot_password": "Lupa kata sandi?"
   },
   "home": {
     "wallet_balance": "Saldo WiraPay",
