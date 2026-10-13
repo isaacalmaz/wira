@@ -1,25 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, FileSearch, Power, Plus, Store, Star, Clock, DoorOpen } from 'lucide-react';
+import { Search, RefreshCw, Power, Plus, Store, Star, Clock, DoorOpen, Inbox } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { setMerchantActive } from '../services/partnerAdminService';
 import { supabase } from '../config/supabase';
-import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
-import MitraReviewModal from '../components/common/MitraReviewModal';
+import { fetchPendingApplications } from '../services/mitraApplicationService';
+import { applicationKind } from '../services/peopleAdminService';
 import toast from 'react-hot-toast';
-import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, Segmented, Stat, Table } from '../components/ui';
+import { Badge, Button, Input, PageHeader, Stat, Table } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
-import { toMerchantApplication } from '../services/merchantApprovalService';
 
 const MerchantsPage = () => {
   const [liveMerchants, setLiveMerchants] = useState([]);
-  const [pendingMerchants, setPendingMerchants] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [selectedMerchant, setSelectedMerchant] = useState(null);
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('live'); // 'live' or 'pending'
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -36,11 +32,9 @@ const MerchantsPage = () => {
       if (merchantsErr) throw merchantsErr;
       setLiveMerchants(merchantsData || []);
 
-      // Restaurant registrations only; villa registrations (role 'villa')
-      // are reviewed on VillasPage.
-      const pendingApplications = await fetchPendingApplications(['merchant']);
-      const p = pendingApplications.map(toMerchantApplication);
-      setPendingMerchants(p);
+      // Registrations are reviewed in Pendaftaran; here only the count.
+      const pendingApplications = await fetchPendingApplications(['merchant'], 'id, service_type');
+      setPendingCount(pendingApplications.filter((a) => applicationKind({ role: 'merchant', ...a }) === 'merchant').length);
     } catch (err) {
       console.error(err);
       toast.error('Gagal memuat data merchant');
@@ -52,18 +46,6 @@ const MerchantsPage = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleVerify = async (id, accept, notes = '') => {
-    try {
-      await reviewApplication(id, accept, notes);
-      toast.success(accept ? 'Restoran disetujui dan siap mengisi menu.' : 'Pendaftaran ditolak; alasannya dikirim ke pendaftar.');
-      setIsReviewOpen(false);
-      fetchData();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Terjadi kesalahan saat memverifikasi merchant');
-    }
-  };
 
   // Restaurants are deactivated, never deleted (admin_set_merchant_active,
   // migrations/0101): hidden from customers, history kept, reversible.
@@ -86,7 +68,7 @@ const MerchantsPage = () => {
       <PageHeader
         className="!mb-0"
         title="Restoran"
-        subtitle="Kelola restoran WiraFood dan persetujuan pendaftaran restoran baru. Villa ada di menu Villas."
+        subtitle="Restoran WiraFood yang sudah disetujui. Pendaftar baru diperiksa di Pendaftaran."
         actions={(
           <Button variant="secondary" onClick={fetchData} aria-label="Muat ulang" className="px-3">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -97,30 +79,15 @@ const MerchantsPage = () => {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Restoran" value={liveMerchants.length} icon={<Store size={18} />} />
         <Stat label="Aktif" value={liveMerchants.filter((m) => m.listing_status !== 'suspended').length} icon={<DoorOpen size={18} />} tone="neutral" />
-        <Stat label="Menunggu Verifikasi" value={pendingMerchants.length} icon={<Clock size={18} />} tone="neutral" />
+        <Stat label="Menunggu di Pendaftaran" value={pendingCount} icon={<Clock size={18} />} tone="neutral" />
       </div>
 
-      {/* Tabs */}
-      <Segmented
-        ariaLabel="Daftar merchant"
-        className="self-start"
-        value={activeTab}
-        onChange={setActiveTab}
-        options={[
-          { value: 'live', label: <>Restoran <span className="font-mono">({liveMerchants.length})</span></> },
-          {
-            value: 'pending',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                Menunggu Verifikasi
-                {pendingMerchants.length > 0 && <Badge tone="warning" className="px-2 py-0 font-mono">{pendingMerchants.length}</Badge>}
-              </span>
-            ),
-          },
-        ]}
-      />
+      {pendingCount > 0 && (
+        <Link to="/applications" className="flex items-center gap-3 rounded-card border border-warning-line bg-warning-soft px-4 py-3 text-[13.5px] font-semibold text-warning-ink">
+          <Inbox size={18} aria-hidden="true" /> {pendingCount} pendaftar Restoran menunggu di Pendaftaran
+        </Link>
+      )}
 
-      {activeTab === 'live' ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
@@ -150,7 +117,7 @@ const MerchantsPage = () => {
                     {m.listing_status === 'suspended' && <Badge tone="danger" dot className="ml-2">Dinonaktifkan</Badge>}
                     {m.category && <span className="block text-[12px] font-normal text-ink-muted">{m.category}</span>}
                   </td>
-                  <td className="whitespace-nowrap">{m.owner_id ? <Link to={`/partners/${m.owner_id}`} className="hover:underline">{m.owner?.name || 'Pemilik'}</Link> : <span className="text-ink-muted">—</span>}</td>
+                  <td className="whitespace-nowrap">{m.owner_id ? <Link to={`/accounts/${m.owner_id}`} className="hover:underline">{m.owner?.name || 'Pemilik'}</Link> : <span className="text-ink-muted">—</span>}</td>
                   <td className="max-w-[260px] truncate text-ink-muted" title={m.address}>{m.address}</td>
                   <td className="text-right">
                     <span className="inline-flex items-center gap-1 font-mono">
@@ -176,60 +143,6 @@ const MerchantsPage = () => {
             </tbody>
           </Table>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {pendingMerchants.map(merchant => {
-            return (
-            <Card key={merchant.id} className="flex flex-col gap-4">
-              <div className="flex items-start gap-3">
-                <IconTile tone="neutral" size="sm"><Store size={17} /></IconTile>
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <h3 className="truncate text-[14px] font-semibold text-ink">{merchant.name}</h3>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge tone="neutral">WiraFood</Badge>
-                    <Badge tone="warning" dot>Menunggu Verifikasi</Badge>
-                  </div>
-                </div>
-              </div>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
-                <dt className="text-ink-muted">Pemilik</dt>
-                <dd className="min-w-0 truncate text-ink">{merchant.owner}</dd>
-                <dt className="text-ink-muted">HP</dt>
-                <dd className="min-w-0 truncate font-mono text-ink">{merchant.phone}</dd>
-                <dt className="text-ink-muted">Lokasi</dt>
-                <dd className="min-w-0 truncate text-ink" title={merchant.address}>{merchant.address}</dd>
-              </dl>
-              <Button
-                variant="secondary"
-                size="sm"
-                block
-                className="mt-auto"
-                leftIcon={<FileSearch size={15} />}
-                onClick={() => { setSelectedMerchant(merchant); setIsReviewOpen(true); }}
-              >
-                Review Berkas
-              </Button>
-            </Card>
-            );
-          })}
-          {pendingMerchants.length === 0 && (
-            <EmptyState
-              className="col-span-full"
-              icon={<FileSearch size={24} />}
-              title="Tidak ada pendaftar restoran baru saat ini."
-            />
-          )}
-        </div>
-      )}
-
-      {selectedMerchant && (
-        <MitraReviewModal
-          isOpen={isReviewOpen}
-          onClose={() => setIsReviewOpen(false)}
-          mitra={selectedMerchant}
-          onVerify={handleVerify}
-        />
-      )}
 
       <ReasonSheet
         open={!!deleteTarget}

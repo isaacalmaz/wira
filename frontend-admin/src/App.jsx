@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import Spinner from './components/ui/Spinner';
@@ -7,6 +7,11 @@ import { Suspense, lazy } from 'react';
 import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEATURE_FLAG_ROLES } from './config/roles';
 
 // Layout
+function PartnerRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/accounts/${id}`} replace />;
+}
+
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
 
 // Pages
@@ -15,9 +20,11 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const FeatureFlagsPage = lazy(() => import('./pages/FeatureFlagsPage'));
-const UsersPage = lazy(() => import('./pages/UsersPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'));
+const PartnersPage = lazy(() => import('./pages/PartnersPage'));
+const TeamPage = lazy(() => import('./pages/TeamPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
-const DriversPage = lazy(() => import('./pages/DriversPage'));
 const MerchantsPage = lazy(() => import('./pages/MerchantsPage'));
 const TechniciansPage = lazy(() => import('./pages/TechniciansPage'));
 const ReviewsPage = lazy(() => import('./pages/ReviewsPage'));
@@ -119,9 +126,26 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="users" element={
+            <Route path="customers" element={
               <ProtectedRoute allowedRoles={ADMIN_ROLES}>
-                <UsersPage />
+                <CustomersPage />
+              </ProtectedRoute>
+            } />
+            {/* Old links: Pengguna became Pelanggan, partner profiles are account profiles. */}
+            <Route path="users" element={<Navigate to="/customers" replace />} />
+            <Route path="applications" element={
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
+                <ApplicationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="nannies" element={
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
+                <PartnersPage kind="nanny" />
+              </ProtectedRoute>
+            } />
+            <Route path="team" element={
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
+                <TeamPage />
               </ProtectedRoute>
             } />
             <Route path="orders" element={
@@ -131,7 +155,7 @@ function App() {
             } />
             <Route path="drivers" element={
               <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
-                <DriversPage />
+                <PartnersPage kind="driver" />
               </ProtectedRoute>
             } />
             <Route path="merchants" element={
@@ -174,11 +198,12 @@ function App() {
                 <AuditLogPage />
               </ProtectedRoute>
             } />
-            <Route path="partners/:id" element={
+            <Route path="accounts/:id" element={
               <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <PartnerProfilePage />
               </ProtectedRoute>
             } />
+            <Route path="partners/:id" element={<PartnerRedirect />} />
             <Route path="commission" element={
               <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <CommissionPage />

@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CORE_ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES } from '../../config/roles';
 import { Button, Card, Money, cx } from '../ui';
 
-const ROLE_PAGE = { driver: '/drivers', courier: '/drivers', merchant: '/merchants', villa: '/villas', technician: '/technicians' };
+const ROLE_PAGE = { driver: '/applications', courier: '/applications', merchant: '/applications', villa: '/applications', technician: '/applications' };
 const ROLE_NAME = { driver: 'driver', courier: 'kurir', merchant: 'resto', villa: 'villa', technician: 'teknisi' };
 
 // Kinds from admin_attention() (migrations/0100). level: 3 = money or a
@@ -112,7 +112,7 @@ export default function AttentionBoard({ onLoaded }) {
             const roles = k.key === 'applications'
               ? Object.entries(k.by_role || {}).sort((a, b) => b[1] - a[1])
               : null;
-            const go = k.link || (roles?.[0] && ROLE_PAGE[roles[0][0]]) || '/drivers';
+            const go = k.link || (roles?.[0] && ROLE_PAGE[roles[0][0]]) || '/applications';
             return (
               <div key={k.key} className={cx('flex flex-col gap-2 rounded-card border p-4', tone.box)}>
                 <button type="button" onClick={() => navigate(go)} className="flex items-start gap-3 text-left">
@@ -136,7 +136,7 @@ export default function AttentionBoard({ onLoaded }) {
                       <button
                         key={role}
                         type="button"
-                        onClick={() => navigate(ROLE_PAGE[role] || '/users')}
+                        onClick={() => navigate(ROLE_PAGE[role] || '/applications')}
                         className="rounded-full border border-warning-line bg-card px-2.5 py-0.5 text-[12px] font-medium text-ink hover:border-line-strong"
                       >
                         {n} {ROLE_NAME[role] || role}

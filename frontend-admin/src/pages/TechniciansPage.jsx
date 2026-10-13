@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
+import { fetchPendingApplications } from '../services/mitraApplicationService';
 import { setUserBlocked } from '../services/partnerAdminService';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { Link } from 'react-router-dom';
-import { Wrench, Ban, CheckCircle, Eye, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
+import { Wrench, Ban, CheckCircle, Inbox, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import MitraReviewModal from '../components/common/MitraReviewModal';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Badge, Button, Card, IconTile, ListRow, PageHeader, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
+import { Badge, Button, Card, PageHeader, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
 
 const SKILL_GROUPS = [
   { group: 'servis', title: 'Servis harian', hint: 'harga tetap, dipesan langsung' },
@@ -17,10 +16,8 @@ const SKILL_GROUPS = [
 
 const TechniciansPage = () => {
   const [techs, setTechs] = useState([]);
-  const [pendingTechs, setPendingTechs] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedTech, setSelectedTech] = useState(null);
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [blockTarget, setBlockTarget] = useState(null);
   // Skills (migrations/0089): what each technician is offered.
   const [skillList, setSkillList] = useState([]);
@@ -45,7 +42,7 @@ const TechniciansPage = () => {
         setTechs(activeMitras);
       }
 
-      setPendingTechs(await fetchPendingApplications(['technician']));
+      setPendingCount((await fetchPendingApplications(['technician'], 'id')).length);
 
       // Before 0089 these tables don't exist yet; the page still works.
       const [{ data: skillRows }, { data: profileRows }] = await Promise.all([
@@ -65,20 +62,6 @@ const TechniciansPage = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  const handleVerify = async (id, accept, notes = '') => {
-    try {
-      // KTP + selfie reviewed in the modal: approving also verifies the
-      // technician (done inside admin_review_application, migrations/0101).
-      await reviewApplication(id, accept, notes);
-      toast.success(accept ? 'Teknisi disetujui. Pendaftar diberi tahu lewat notifikasi.' : 'Pendaftaran ditolak; alasannya dikirim ke pendaftar.');
-      setIsReviewOpen(false);
-      fetchData();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Terjadi kesalahan saat memverifikasi');
-    }
-  };
 
   // Step 1: ask for confirmation before blocking/unblocking - this used to
   // fire immediately on one icon click, but blocking a technician
@@ -150,39 +133,13 @@ const TechniciansPage = () => {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Teknisi terdaftar" value={loading ? '–' : techs.length} icon={<Wrench size={18} />} />
         <Stat label="Diblokir" value={loading ? '–' : blockedCount} icon={<Ban size={18} />} tone="danger" />
-        <Stat label="Perlu Persetujuan" value={loading ? '–' : pendingTechs.length} icon={<Clock size={18} />} tone="neutral" />
+        <Stat label="Menunggu di Pendaftaran" value={loading ? '–' : pendingCount} icon={<Clock size={18} />} tone="neutral" />
       </div>
 
-      {/* Antrean Persetujuan (Hanya muncul jika ada) */}
-      {pendingTechs.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-            <h2 className="flex-1 text-[15px] font-bold tracking-tight text-ink">Perlu Persetujuan</h2>
-            <Badge tone="warning" dot>{pendingTechs.length} menunggu</Badge>
-          </div>
-          <ul className="divide-y divide-line">
-            {pendingTechs.map(pending => (
-              <li key={pending.id}>
-                <ListRow
-                  className="px-4 py-3"
-                  leading={<IconTile tone="neutral" size="sm"><Wrench size={17} /></IconTile>}
-                  title={pending.name}
-                  subtitle={`${pending.specialization} - ${pending.experience}`}
-                  trailing={(
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      leftIcon={<Eye size={15} />}
-                      onClick={() => { setSelectedTech(pending); setIsReviewOpen(true); }}
-                    >
-                      Tinjau
-                    </Button>
-                  )}
-                />
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {pendingCount > 0 && (
+        <Link to="/applications" className="flex items-center gap-3 rounded-card border border-warning-line bg-warning-soft px-4 py-3 text-[13.5px] font-semibold text-warning-ink">
+          <Inbox size={18} aria-hidden="true" /> {pendingCount} pendaftar Teknisi menunggu di Pendaftaran
+        </Link>
       )}
 
       {loading ? (
@@ -209,7 +166,7 @@ const TechniciansPage = () => {
                 <tr key={t.id}>
                   <td className="font-semibold">
                     <div className="flex flex-col items-start gap-1">
-                      <Link to={`/partners/${t.id}`} className="hover:underline">{t.name}</Link>
+                      <Link to={`/accounts/${t.id}`} className="hover:underline">{t.name}</Link>
                       {profiles[t.id] && (
                         <button
                           type="button"
@@ -284,15 +241,6 @@ const TechniciansPage = () => {
             )}
           </tbody>
         </Table>
-      )}
-
-      {selectedTech && (
-        <MitraReviewModal
-          isOpen={isReviewOpen}
-          onClose={() => setIsReviewOpen(false)}
-          mitra={selectedTech}
-          onVerify={handleVerify}
-        />
       )}
 
       <Sheet

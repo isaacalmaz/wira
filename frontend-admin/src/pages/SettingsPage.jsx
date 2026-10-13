@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
 import { Save } from 'lucide-react';
-import StaffSection from '../components/common/StaffSection';
 import { Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
 import toast from 'react-hot-toast';
 
@@ -143,7 +142,6 @@ const SettingsPage = () => {
       </div>
 
       {/* Staff: real accounts and roles (migrations/0102) */}
-      <StaffSection />
     </div>
   );
 };

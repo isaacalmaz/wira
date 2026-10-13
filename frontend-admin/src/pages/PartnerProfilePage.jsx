@@ -10,6 +10,7 @@ import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHead
 import ReasonSheet from '../components/common/ReasonSheet';
 import DeleteAccountSheet from '../components/common/DeleteAccountSheet';
 import { setUserBlocked, setPartnerAccess, setMerchantActive, KIND_LABEL } from '../services/partnerAdminService';
+import { WALLET_ENABLED } from '../config/wallet';
 import { SERVICE_LABEL } from '../config/services';
 import { formatDateTime } from '../utils/datetime';
 
@@ -75,7 +76,7 @@ export default function PartnerProfilePage() {
   if (!u) {
     return (
       <div className="flex flex-col gap-4">
-        <PageHeader back title="Profil mitra" className="!mb-0" />
+        <PageHeader back title="Profil akun" className="!mb-0" />
         <EmptyState title="Akun tidak ditemukan" />
       </div>
     );
@@ -93,7 +94,7 @@ export default function PartnerProfilePage() {
       <PageHeader
         back
         className="!mb-0"
-        eyebrow="Profil mitra"
+        eyebrow={access.length ? `Profil akun · ${access.map((k) => KIND_LABEL[k] || k).join(", ")}` : "Profil akun · Pelanggan"}
         title={u.name || 'Tanpa nama'}
         subtitle={`Bergabung ${when(u.created_at)}`}
         actions={core && (
@@ -157,12 +158,47 @@ export default function PartnerProfilePage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label="Pesanan selesai" value={Number(s.completed || 0).toLocaleString('id-ID')} hint={`${s.completed_30d || 0} dalam 30 hari`} />
-        <Stat label="Nilai 30 hari" value={<Money value={s.gmv_30d || 0} className="text-[22px]" />} tone="pay" hint="Total dibayar pelanggan" />
-        <Stat label="Rating" value={data.rating?.count ? `${Number(data.rating.avg).toLocaleString('id-ID')} ★` : '—'} icon={<Star size={18} />} tone="neutral" hint={`${data.rating?.count || 0} ulasan`} />
-        <Stat label="Saldo pendapatan" value={<Money value={u.payable_balance || 0} className="text-[22px]" />} tone="neutral" hint={`${s.active || 0} pesanan berjalan · ${s.cancelled || 0} batal`} />
-      </div>
+      {(() => {
+        const c = data.customer || {};
+        const owed = Math.max(-(Number(u.payable_balance) || 0), 0);
+        const d = data.debt || {};
+        return (
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <Stat label="Pesanan sebagai pelanggan" value={Number(c.orders || 0).toLocaleString('id-ID')}
+              hint={c.last_order_at ? `Terakhir ${when(c.last_order_at)}${c.rating_count ? ` · dinilai mitra ${Number(c.rating_avg).toFixed(1)}★` : ''}` : 'Belum pernah memesan'} />
+            {access.length > 0 ? (
+              <>
+                <Stat label="Order sebagai mitra (30 hari)" value={Number(s.completed_30d || 0).toLocaleString('id-ID')}
+                  hint={`${s.completed || 0} selesai total · ${s.active || 0} berjalan`} />
+                <Stat label="Pendapatan mitra (30 hari)" value={<Money value={Math.round(Number(s.income_30d) || 0)} className="text-[22px]" />} tone="pay"
+                  hint={data.rating?.count ? `Rating ${Number(data.rating.avg).toLocaleString('id-ID')}★ (${data.rating.count})` : 'Belum ada ulasan'} />
+                <Stat label="Komisi belum disetor" value={<Money value={Math.round(owed)} className="text-[22px]" />} tone={d.locked ? 'danger' : 'neutral'}
+                  hint={d.locked ? 'Order baru terkunci' : `Batas Rp ${Number(d.limit || 0).toLocaleString('id-ID')} · ${d.grace_days ?? '–'} hari`} />
+              </>
+            ) : (
+              <Stat label="Pesanan selesai / batal" value={`${c.completed || 0} / ${c.cancelled || 0}`} hint={`${c.active || 0} sedang berjalan`} />
+            )}
+          </div>
+        );
+      })()}
+
+      {core && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 text-[13px]">
+          <span className="text-ink-muted">
+            {access.length ? 'Tambah peran mitra lewat Pendaftaran (data dan dokumen dicek dulu).' : 'Akun ini belum menjadi mitra. Calon mitra mendaftar di mitra.wira.one/gabung, lalu disetujui di Pendaftaran.'}
+          </span>
+          <span className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => navigate('/applications')}>Buka Pendaftaran</Button>
+            {!access.includes('nanny') && u.status === 'Aktif' && (
+              <Button size="sm" variant="secondary" leftIcon={<Baby size={14} />} onClick={() => act({
+                title: `Jadikan ${u.name} Pengasuh WiraAsuh?`, label: 'Beri akses Pengasuh',
+                description: 'Pengasuh adalah orang kepercayaan Wira, jadi aksesnya diberikan langsung di sini. Ia bisa masuk ke portal Pengasuh di Wira Mitra.',
+                done: 'Akses Pengasuh diberikan', run: (r) => setPartnerAccess(u.id, 'nanny', true, r),
+              })}>Jadikan Pengasuh</Button>
+            )}
+          </span>
+        </Card>
+      )}
 
       {data.technician && (
         <Card className="flex flex-wrap items-center gap-3 text-[13px]">
@@ -223,7 +259,7 @@ export default function PartnerProfilePage() {
               {data.recent_orders.map((o) => (
                 <tr key={o.id} onClick={() => navigate(`/orders?id=${o.id}`)} className="cursor-pointer hover:bg-sunken/60">
                   <td>
-                    <span className="block font-semibold">{o.title || o.id.slice(0, 8)}</span>
+                    <span className="block font-semibold">{o.title || o.id.slice(0, 8)}{o.as_role && <span className="ml-2 align-middle"><Badge tone="neutral">{o.as_role === 'customer' ? 'Pelanggan' : o.as_role === 'partner' ? 'Mitra' : 'Di tempatnya'}</Badge></span>}</span>
                     <span className="font-mono text-[11.5px] text-ink-muted">{when(o.created_at)}</span>
                   </td>
                   <td className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{SERVICE_LABEL[o.service_type] || o.service_type}</td>
@@ -255,7 +291,7 @@ export default function PartnerProfilePage() {
           ) : <p className="text-[13px] text-ink-muted">Belum ada ulasan.</p>}
         </section>
 
-        <section className="flex flex-col gap-3">
+        {(WALLET_ENABLED || data.payouts?.length > 0) && <section className="flex flex-col gap-3">
           <SectionHeader title="Pencairan" className="mb-0" />
           {data.payouts?.length ? (
             <Card padding="none" className="divide-y divide-line">
@@ -273,7 +309,7 @@ export default function PartnerProfilePage() {
               ))}
             </Card>
           ) : <p className="text-[13px] text-ink-muted">Belum ada pencairan.</p>}
-        </section>
+        </section>}
       </div>
 
       {docs.length > 0 && (
@@ -316,7 +352,7 @@ export default function PartnerProfilePage() {
         account={{ id: u.id, name: u.name }}
         open={deleting}
         onClose={() => setDeleting(false)}
-        onDeleted={(mode) => (mode === 'permanent' ? navigate('/users', { replace: true }) : load())}
+        onDeleted={(mode) => (mode === 'permanent' ? navigate('/customers', { replace: true }) : load())}
       />
 
       <ReasonSheet

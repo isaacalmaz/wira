@@ -104,7 +104,7 @@ export default function AuditLogPage() {
 
   const targetLink = (r) => {
     if (r.target_type === 'order') return `/orders?id=${r.target_id}`;
-    if (r.subject_user_id) return `/partners/${r.subject_user_id}`;
+    if (r.subject_user_id) return `/accounts/${r.subject_user_id}`;
     return null;
   };
 

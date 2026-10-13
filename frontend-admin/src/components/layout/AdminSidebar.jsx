@@ -21,12 +21,15 @@ import {
   Percent,
   History,
   Megaphone,
-  MapPinned,
   Smartphone,
+  Inbox,
+  Baby,
+  ShieldCheck,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
+import AccountSearch from './AccountSearch';
 import { Badge, cx } from '../ui';
 import { CORE_ADMIN_ROLES, ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES, FEATURE_FLAG_ROLES } from '../../config/roles';
 
@@ -37,11 +40,14 @@ export const MENU_ITEMS = [
   { name: 'Dasbor', icon: LayoutDashboard, path: '/dashboard', roles: ADMIN_ROLES, group: 'ringkasan' },
   { name: 'Pesanan', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
   { name: 'Proyek', icon: ClipboardList, path: '/projects', roles: CORE_ADMIN_ROLES, group: 'operasional' },
-  { name: 'Pengguna', icon: Users, path: '/users', roles: ADMIN_ROLES, group: 'operasional' },
-  { name: 'Driver', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, countKey: 'driver', group: 'mitra' },
-  { name: 'Restoran', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, countKey: 'merchant', group: 'mitra' },
+  { name: 'Pelanggan', icon: Users, path: '/customers', roles: ADMIN_ROLES, group: 'operasional' },
+  // Pendaftaran is the only way in for new partners (one queue, all kinds).
+  { name: 'Pendaftaran', icon: Inbox, path: '/applications', roles: CORE_ADMIN_ROLES, countKey: 'applications', group: 'mitra' },
+  { name: 'Driver', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Restoran', icon: Store, path: '/merchants', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Villa', icon: Home, path: '/villas', roles: CORE_ADMIN_ROLES, countKey: 'villa', group: 'mitra' },
-  { name: 'Teknisi', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, countKey: 'technician', group: 'mitra' },
+  { name: 'Teknisi', icon: Wrench, path: '/technicians', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Pengasuh', icon: Baby, path: '/nannies', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
@@ -49,8 +55,8 @@ export const MENU_ITEMS = [
   { name: 'Promo', icon: Ticket, path: '/promos', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Pusat Bantuan', icon: MessageSquare, path: '/support', roles: CS_ADMIN_ROLES, group: 'layanan' },
   { name: 'Pengumuman', icon: Megaphone, path: '/announcements', roles: CS_ADMIN_ROLES, group: 'layanan' },
-  { name: 'Fitur Layanan', icon: ToggleLeft, path: '/features', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
-  { name: 'Wilayah Operasi', icon: MapPinned, path: '/zones', roles: FEATURE_FLAG_ROLES, group: 'sistem' },
+  { name: 'Tim Admin', icon: ShieldCheck, path: '/team', roles: CORE_ADMIN_ROLES, group: 'sistem' },
+  { name: 'Fitur & Wilayah', icon: ToggleLeft, path: '/features', also: ['/zones'], roles: FEATURE_FLAG_ROLES, group: 'sistem' },
   { name: 'Rilis Aplikasi', icon: Smartphone, path: '/releases', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Log Aktivitas', icon: History, path: '/audit', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Pengaturan', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
@@ -61,7 +67,7 @@ const GROUPS = [
   { key: 'operasional', label: 'Operasional' },
   { key: 'mitra', label: 'Mitra' },
   { key: 'bisnis', label: 'Bisnis & Keuangan' },
-  { key: 'layanan', label: 'Layanan & Komunikasi' },
+  { key: 'layanan', label: 'Layanan' },
   { key: 'sistem', label: 'Sistem' },
 ];
 
@@ -72,31 +78,18 @@ const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [pendingCounts, setPendingCounts] = useState({ driver: 0, merchant: 0, villa: 0, technician: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ applications: 0, villa: 0 });
 
   const fetchPendingCounts = async () => {
     try {
       const list = await fetchPendingApplications(null, 'id, role');
-
-      // Driver (Ride) and Kurir (Send) are two distinct registration roles
-      // now (see migrations/0031) but still share the /drivers admin page
-      // and its sidebar badge - matching only 'driver' here would repeat
-      // the exact bug just fixed for Villa registrations (commit 1476fc0):
-      // a pending Kurir application would exist but never
-      // be counted, so the sidebar badge could sit at 0 while a real
-      // registration silently waited.
-      const driverCount = list.filter((m) => m.role === 'driver' || m.role === 'courier').length;
-      const merchantCount = list.filter((m) => m.role === 'merchant').length;
-      const techCount = list.filter((m) => m.role === 'technician').length;
-      // Villas: new host registrations plus properties hosts added that
-      // wait for review (migration 0097).
+      // Villa: properties existing hosts added that wait for review (0097);
+      // new hosts themselves are in Pendaftaran.
       const { count: listings } = await supabase
         .from('merchants')
         .select('id', { count: 'exact', head: true })
         .eq('listing_status', 'pending');
-      const villaCount = list.filter((m) => m.role === 'villa').length + (listings || 0);
-
-      setPendingCounts({ driver: driverCount, merchant: merchantCount, villa: villaCount, technician: techCount });
+      setPendingCounts({ applications: list.length, villa: listings || 0 });
     } catch { /* best-effort; ignore */ }
   };
 
@@ -120,7 +113,7 @@ const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
     const fullPath = isNestedInAdmin ? `/admin${item.path}` : item.path;
     const isActive = isNestedInAdmin
       ? location.pathname === fullPath || (item.path !== '/' && location.pathname.startsWith(fullPath))
-      : location.pathname.startsWith(item.path);
+      : location.pathname.startsWith(item.path) || (item.also || []).some((p) => location.pathname.startsWith(p));
     const badgeCount = item.countKey ? pendingCounts[item.countKey] : 0;
 
     return (
@@ -188,6 +181,12 @@ const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
           )}
         </Link>
       </div>
+
+      {!isCollapsed && (
+        <div className="shrink-0 px-3 pt-3">
+          <AccountSearch onNavigate={onClose} />
+        </div>
+      )}
 
       {/* Navigasi */}
       <nav className="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">

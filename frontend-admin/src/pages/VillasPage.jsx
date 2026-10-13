@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Power, RefreshCw, Check, X, MapPin, BedDouble, Users, Building2, FileSearch, UserPlus } from 'lucide-react';
+import { Search, Plus, Power, RefreshCw, Check, X, MapPin, BedDouble, Users, Building2, Inbox } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card, EmptyState, Field, Input, Money, PageHeader, Segmented, Sheet, Table, Textarea } from '../components/ui';
 import MerchantFormSheet from '../components/common/MerchantFormSheet';
-import MitraReviewModal from '../components/common/MitraReviewModal';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { setMerchantActive } from '../services/partnerAdminService';
 import { Link } from 'react-router-dom';
-import { fetchPendingApplications, reviewApplication } from '../services/mitraApplicationService';
-import { toMerchantApplication } from '../services/merchantApprovalService';
+import { fetchPendingApplications } from '../services/mitraApplicationService';
+import { applicationKind } from '../services/peopleAdminService';
 
 const STATUS = {
   pending: { tone: 'warning', label: 'Menunggu' },
@@ -20,9 +19,9 @@ const STATUS = {
 const statusOf = (v) => (v.listing_status === 'approved' && v.is_open === false ? { tone: 'neutral', label: 'Dijeda' } : STATUS[v.listing_status] || STATUS.approved);
 
 /**
- * Everything WiraVilla: new host registrations (mitra_applications role
- * 'villa'), properties hosts add from Wira Mitra (migration 0097), which
- * wait here for approval or a rejection with a reason, and every villa.
+ * Every WiraVilla property: the ones hosts add from Wira Mitra (migration
+ * 0097) wait here for approval or a rejection with a reason. New hosts are
+ * approved in Pendaftaran.
  */
 const VillasPage = () => {
   const [villas, setVillas] = useState([]);
@@ -34,8 +33,7 @@ const VillasPage = () => {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [applications, setApplications] = useState([]);
-  const [reviewApp, setReviewApp] = useState(null);
+  const [pendingHosts, setPendingHosts] = useState(0);
 
   const fetchVillas = async (first = false) => {
     setLoading(true);
@@ -46,16 +44,11 @@ const VillasPage = () => {
       .order('created_at', { ascending: false });
     if (error) toast.error('Gagal memuat vila: ' + error.message);
     setVillas(data || []);
-    let apps = [];
-    try {
-      apps = (await fetchPendingApplications(['villa'])).map(toMerchantApplication);
-    } catch (err) {
-      toast.error('Gagal memuat pendaftar villa: ' + err.message);
-    }
-    setApplications(apps);
+    fetchPendingApplications(['villa', 'merchant'], 'id, role, service_type')
+      .then((l) => setPendingHosts(l.filter((a) => applicationKind(a) === 'villa').length))
+      .catch(() => {});
     // Open on whatever is waiting for an admin.
-    if (first && apps.length) setTab('applications');
-    else if (first && (data || []).some((v) => v.listing_status === 'pending')) setTab('pending');
+    if (first && (data || []).some((v) => v.listing_status === 'pending')) setTab('pending');
     setLoading(false);
   };
 
@@ -78,18 +71,6 @@ const VillasPage = () => {
       toast.error(err.message || 'Gagal menyimpan keputusan');
     } finally {
       setBusy(null);
-    }
-  };
-
-  const handleVerify = async (id, accept, notes = '') => {
-    try {
-      const app = applications.find((a) => a.id === id);
-      await reviewApplication(id, accept, notes);
-      toast.success(accept ? `${app?.name || 'Villa'} disetujui. Pemilik bisa masuk ke portal Villa.` : 'Pendaftaran ditolak.');
-      setReviewApp(null);
-      fetchVillas();
-    } catch (err) {
-      toast.error(err.message || 'Gagal memverifikasi pendaftaran');
     }
   };
 
@@ -133,12 +114,17 @@ const VillasPage = () => {
         )}
       />
 
+      {pendingHosts > 0 && (
+        <Link to="/applications" className="flex items-center gap-3 rounded-card border border-warning-line bg-warning-soft px-4 py-3 text-[13.5px] font-semibold text-warning-ink">
+          <Inbox size={18} aria-hidden="true" /> {pendingHosts} pendaftar pemilik villa menunggu di Pendaftaran
+        </Link>
+      )}
+
       <Segmented
         scroll
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'applications', label: `Pendaftar Baru (${applications.length})` },
           { value: 'pending', label: `Properti Menunggu (${pending.length})` },
           { value: 'all', label: `Semua (${villas.length})` },
           { value: 'rejected', label: 'Ditolak' },
@@ -150,33 +136,7 @@ const VillasPage = () => {
         <Input type="text" aria-label="Cari vila atau pemilik" placeholder="Cari nama vila atau pemilik..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
       </div>
 
-      {tab === 'applications' ? (
-        applications.length === 0 ? (
-          <EmptyState icon={<UserPlus size={22} />} title={loading ? 'Memuat...' : 'Tidak ada pendaftar villa baru'} />
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {applications.map((a) => (
-              <Card key={a.id} className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="truncate text-[14px] font-semibold text-ink">{a.name}</h3>
-                  <span><Badge tone="warning" dot>Menunggu Verifikasi</Badge></span>
-                </div>
-                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
-                  <dt className="text-ink-muted">Pemilik</dt>
-                  <dd className="min-w-0 truncate text-ink">{a.owner}</dd>
-                  <dt className="text-ink-muted">HP</dt>
-                  <dd className="min-w-0 truncate font-mono text-ink">{a.phone}</dd>
-                  <dt className="text-ink-muted">Lokasi</dt>
-                  <dd className="min-w-0 truncate text-ink" title={a.address}>{a.address}</dd>
-                </dl>
-                <Button variant="secondary" size="sm" block className="mt-auto" leftIcon={<FileSearch size={15} />} onClick={() => setReviewApp(a)}>
-                  Review Berkas
-                </Button>
-              </Card>
-            ))}
-          </div>
-        )
-      ) : tab === 'pending' ? (
+      {tab === 'pending' ? (
         filtered.length === 0 ? (
           <EmptyState icon={<Building2 size={22} />} title={loading ? 'Memuat...' : 'Tidak ada properti yang menunggu'} />
         ) : (
@@ -248,7 +208,7 @@ const VillasPage = () => {
                     {['rejected', 'suspended'].includes(v.listing_status) && v.review_note && <p className="text-[12px] text-danger-ink">Alasan: {v.review_note}</p>}
                   </td>
                   <td className="whitespace-nowrap">
-                    {v.owner_id ? <Link to={`/partners/${v.owner_id}`} className="hover:underline">{v.owner?.name || 'Pemilik'}</Link> : <p>—</p>}
+                    {v.owner_id ? <Link to={`/accounts/${v.owner_id}`} className="hover:underline">{v.owner?.name || 'Pemilik'}</Link> : <p>—</p>}
                     {v.owner_id && <p className="text-[12px] text-ink-muted">{perHost[v.owner_id]} properti</p>}
                   </td>
                   <td className="text-right"><Money value={v.price_per_night || 0} /></td>
@@ -296,10 +256,6 @@ const VillasPage = () => {
           <Textarea id="villa-reject-reason" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Contoh: Foto kamar mandi belum ada, harga tidak sesuai foto" />
         </Field>
       </Sheet>
-
-      {reviewApp && (
-        <MitraReviewModal isOpen={!!reviewApp} onClose={() => setReviewApp(null)} mitra={reviewApp} onVerify={handleVerify} />
-      )}
 
       <ReasonSheet
         open={!!deleteTarget}

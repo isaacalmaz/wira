@@ -3,7 +3,8 @@ import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { RefreshCw, Sliders, Map as MapIcon, Trash2, Edit, Plus, MapPin, Save } from 'lucide-react';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Sheet, Stat } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Segmented, Sheet, Stat } from '../components/ui';
+import { useNavigate } from 'react-router-dom';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -113,6 +114,7 @@ const MapModal = ({ zone, onClose, onSaveMap }) => {
 // their map boundaries).
 const FeatureFlagsPage = ({ mode = 'features' }) => {
   const isZones = mode === 'zones';
+  const navigate = useNavigate();
   const [features, setFeatures] = useState(INITIAL_FEATURES);
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -339,13 +341,22 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
 
       <PageHeader
         className="!mb-0"
-        title={isZones ? 'Wilayah operasi' : 'Fitur layanan'}
+        title="Fitur & Wilayah"
         subtitle={isZones ? 'Daftar wilayah dan batas petanya' : 'Nyalakan atau matikan layanan di aplikasi pelanggan, langsung tanpa rilis baru'}
         actions={(
           <Button variant="secondary" onClick={fetchFeatures} aria-label="Muat Ulang" title="Muat Ulang" className="px-3">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </Button>
         )}
+      />
+
+      {/* One menu, two tabs; each keeps its own URL (/features, /zones). */}
+      <Segmented
+        ariaLabel="Fitur atau wilayah"
+        className="self-start"
+        value={mode}
+        onChange={(v) => navigate(v === 'zones' ? '/zones' : '/features')}
+        options={[{ value: 'features', label: 'Fitur layanan' }, { value: 'zones', label: 'Wilayah operasi' }]}
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
