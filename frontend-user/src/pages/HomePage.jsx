@@ -163,22 +163,10 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-6 lg:max-w-none">
-      {/* Greeting; on desktop with a "Where to?" shortcut into Ride */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
-          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words lg:text-[26px]">{displayName}</h1>
-        </div>
-        {shownServices.some((s) => s.path === '/ride') && (
-          <Link
-            to="/ride"
-            className="hidden min-w-[340px] items-center gap-2.5 rounded-control border border-line-strong bg-card py-1 pl-3.5 pr-1 text-[14px] text-ink-muted transition-colors hover:border-brand lg:flex"
-          >
-            <MapPin size={18} className="shrink-0 text-brand-ink" aria-hidden="true" />
-            <span className="flex-1">{t('home.where_to')}</span>
-            <span className="rounded-[10px] bg-brand px-3.5 py-2 text-[13px] font-semibold text-white">{t('home.book_ride')}</span>
-          </Link>
-        )}
+      {/* Greeting */}
+      <div className="flex flex-col gap-0.5">
+        <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
+        <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words lg:text-[26px]">{displayName}</h1>
       </div>
 
       {/* Desktop: services left, promos and activity right. Phone: one column, same order. */}
@@ -240,8 +228,9 @@ export default function HomePage() {
             const hero = index < 2;
             const last = index === shownServices.length - 1;
             const wide = !hero && last && (shownServices.length - 2) % 2 === 1;
-            // Four columns on desktop: the last card fills the row.
-            const lgSpan = !hero && last ? 4 - ((shownServices.length - 1) % 4) : 1;
+            // Four columns on desktop: the two favourites take two each (one
+            // row), the rest one each, and the last card fills its row.
+            const lgSpan = !hero && last ? 4 - ((shownServices.length - 3) % 4) : 1;
             const hasPromo = promoKeys.has(service.key);
             return (
               <Link
@@ -250,7 +239,7 @@ export default function HomePage() {
                 className={cx(
                   'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
-                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
+                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
                     : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3 lg:min-h-[132px]',
                       LG_SPAN[lgSpan], lgSpan > 1 && !wide && 'lg:min-h-0 lg:flex-row lg:items-center lg:gap-3'),
                 )}
@@ -286,6 +275,24 @@ export default function HomePage() {
       </div>
 
       <div className="flex min-w-0 flex-col gap-6">
+      {/* Desktop only: a shortcut into Ride, so the column never starts empty. */}
+      {shownServices.some((sv) => sv.path === '/ride') && (
+        <Link
+          to="/ride"
+          className="hidden flex-col gap-3 rounded-card border border-line bg-card p-4 transition-colors hover:border-brand lg:flex"
+        >
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">{t('home.where_to')}</span>
+            <span className="text-[12.5px] text-ink-muted">{t('home.where_to_sub')}</span>
+          </span>
+          <span className="flex items-center gap-2.5 rounded-control border border-line-strong bg-ground px-3 py-2.5 text-[14px] text-ink-muted">
+            <MapPin size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
+            {t('home.where_to_placeholder')}
+          </span>
+          <span className="inline-flex min-h-10 items-center justify-center rounded-control bg-brand px-3 text-[13.5px] font-semibold text-white">{t('home.book_ride')}</span>
+        </Link>
+      )}
+
       <PromoCarousel services={availableServices} excludeId={spotPromoId} stacked />
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
@@ -300,6 +307,13 @@ export default function HomePage() {
           <span className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
         </button>
       </section>}
+
+      {recentOrders.length === 0 && (
+        <section className="hidden lg:block">
+          <SectionHeader title={t('home.recent')} />
+          <p className="rounded-card border border-dashed border-line-strong px-4 py-6 text-center text-[13px] leading-relaxed text-ink-muted">{t('home.recent_empty')}</p>
+        </section>
+      )}
 
       {recentOrders.length > 0 && (
       <section>

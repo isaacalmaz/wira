@@ -175,7 +175,10 @@
     "spot_carousel": "Highlights for you",
     "spot_slide": "{{n}} of {{total}}",
     "where_to": "Where to?",
-    "book_ride": "Book a ride"
+    "book_ride": "Book a ride",
+    "where_to_sub": "Motorbike or car, picked up at your door.",
+    "where_to_placeholder": "Enter destination",
+    "recent_empty": "No orders yet. Your orders will show up here."
   },
   "ride": {
     "pickup_placeholder": "Pickup point",
