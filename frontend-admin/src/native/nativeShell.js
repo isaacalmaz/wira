@@ -31,7 +31,18 @@ export async function registerNativePush(onToken) {
   const { PushNotifications } = await import('@capacitor/push-notifications');
   const perm = await PushNotifications.requestPermissions();
   if (perm.receive !== 'granted') return;
-  PushNotifications.addListener('registration', ({ value }) => onToken(value));
+  // onToken returns a Supabase query, which only runs when awaited: the
+  // un-awaited call here saved no Android token at all from 2026-10-02 to
+  // 2026-10-13 (so no app user got a push). Await it and log failures.
+  PushNotifications.addListener('registration', async ({ value }) => {
+    try {
+      const res = await onToken(value);
+      if (res?.error) console.error('Saving push token failed:', res.error.message);
+    } catch (err) {
+      console.error('Saving push token failed:', err);
+    }
+  });
+  PushNotifications.addListener('registrationError', (err) => console.error('Push registration failed:', err?.error || err));
   PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
     const url = notification?.data?.url;
     if (url) window.location.assign(url);
