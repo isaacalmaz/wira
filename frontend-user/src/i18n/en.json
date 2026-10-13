@@ -6,7 +6,9 @@
     "profile": "Profile",
     "settings": "Settings",
     "logout": "Log out",
-    "guest_name": "Wira user"
+    "guest_name": "Wira user",
+    "collapse_sidebar": "Collapse menu",
+    "expand_sidebar": "Expand menu"
   },
   "topbar": {
     "toggle_theme_dark": "Switch to dark mode",
@@ -165,7 +167,9 @@
     "spot_tip_pool": "Cloudy pool? Book a cleaning.",
     "spot_tip_asuh": "Need a babysitter? Book one on {{service}}.",
     "spot_carousel": "Highlights for you",
-    "spot_slide": "{{n}} of {{total}}"
+    "spot_slide": "{{n}} of {{total}}",
+    "where_to": "Where to?",
+    "book_ride": "Book a ride"
   },
   "ride": {
     "pickup_placeholder": "Pickup point",

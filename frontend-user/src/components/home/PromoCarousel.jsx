@@ -27,7 +27,7 @@ const discountLabel = (promo) => {
  * Hidden entirely when there is nothing to show.
  * `services`: the services currently enabled on the home grid.
  */
-export default function PromoCarousel({ services, excludeId }) {
+export default function PromoCarousel({ services, excludeId, stacked = false }) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [promos, setPromos] = useState([]);
@@ -97,7 +97,7 @@ export default function PromoCarousel({ services, excludeId }) {
       <div
         ref={trackRef}
         onScroll={onScroll}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={cx('flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', stacked && 'lg:flex-col lg:overflow-visible lg:pb-0')}
       >
         {visible.map((promo) => {
           const svc = serviceOf(promo);
@@ -105,7 +105,7 @@ export default function PromoCarousel({ services, excludeId }) {
           return (
             <article
               key={promo.id}
-              className={cx('flex min-h-[120px] flex-none snap-start overflow-hidden rounded-card border border-line bg-card', visible.length > 1 ? 'w-[90%] sm:w-[360px]' : 'w-full sm:w-[380px]')}
+              className={cx('flex min-h-[120px] flex-none snap-start overflow-hidden rounded-card border border-line bg-card', visible.length > 1 ? 'w-[90%] sm:w-[360px]' : 'w-full sm:w-[380px]', stacked && 'lg:w-full')}
             >
               <div className="flex w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 border-r-2 border-dashed border-ground bg-laut-700 px-1 text-white">
                 <span className="font-mono text-[20px] font-medium leading-none tracking-tight">{discountLabel(promo)}</span>
@@ -142,7 +142,7 @@ export default function PromoCarousel({ services, excludeId }) {
         })}
       </div>
       {visible.length > 1 && (
-        <div className="mt-2 flex justify-center gap-1.5" aria-hidden="true">
+        <div className={cx('mt-2 flex justify-center gap-1.5', stacked && 'lg:hidden')} aria-hidden="true">
           {visible.map((p, i) => (
             <span key={p.id} className={cx('h-1.5 rounded-full transition-all', i === active ? 'w-4 bg-brand' : 'w-1.5 bg-line-strong')} />
           ))}

@@ -1,5 +1,5 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +23,16 @@ export default function Layout() {
   const online = useOnlineStatus();
   const { t } = useTranslation();
   const profile = useMyProfile();
+  // Desktop sidebar: full or an icon strip, remembered per browser.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebarCollapsed') === '1'; } catch { return false; }
+  });
+  const toggleSidebar = () => setCollapsed((c) => {
+    try { localStorage.setItem('sidebarCollapsed', c ? '0' : '1'); } catch { /* private mode */ }
+    return !c;
+  });
+  // Home uses the screen width on desktop (two columns); other pages stay a reading column.
+  const isHome = location.pathname === '/';
 
   if (loading) {
     return (
@@ -59,8 +69,8 @@ export default function Layout() {
         </div>
       )}
       {/* Desktop sidebar */}
-      <div className="hidden md:block w-64 flex-shrink-0">
-        <Sidebar />
+      <div className={`hidden md:block flex-shrink-0 transition-[width] duration-200 ${collapsed ? 'w-[76px]' : 'w-64'}`}>
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -72,7 +82,7 @@ export default function Layout() {
           </div>
         )}
         <main className={`flex-1 overflow-y-auto ${isFullScreenPage ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : 'px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-6 md:pb-10'}`}>
-          <div className={isFullScreenPage ? 'h-full w-full' : 'max-w-3xl mx-auto'}>
+          <div className={isFullScreenPage ? 'h-full w-full' : isHome ? 'max-w-3xl mx-auto lg:max-w-6xl' : 'max-w-3xl mx-auto'}>
             <Outlet />
           </div>
         </main>

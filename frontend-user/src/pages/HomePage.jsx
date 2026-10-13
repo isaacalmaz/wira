@@ -7,7 +7,7 @@ import { isNative } from '../native/nativeShell';
 import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { Link } from 'react-router-dom';
-import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package, MapPin } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,8 @@ const STATUS_TONE = {
   completed: 'success',
   cancelled: 'danger',
 };
+// Static class names so Tailwind keeps them.
+const LG_SPAN = { 1: 'lg:col-span-1', 2: 'lg:col-span-2', 3: 'lg:col-span-3', 4: 'lg:col-span-4' };
 const statusTone = (raw) => STATUS_TONE[String(raw || '').toLowerCase()] || 'brand';
 
 // Leading icon for an activity row, from the service catalogue.
@@ -160,12 +162,28 @@ export default function HomePage() {
     : service.name_en.replace('Wira', ''));
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-6">
-      {/* Greeting */}
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
-        <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words">{displayName}</h1>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-6 lg:max-w-none">
+      {/* Greeting; on desktop with a "Where to?" shortcut into Ride */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words lg:text-[26px]">{displayName}</h1>
+        </div>
+        {shownServices.some((s) => s.path === '/ride') && (
+          <Link
+            to="/ride"
+            className="hidden min-w-[340px] items-center gap-2.5 rounded-control border border-line-strong bg-card py-1 pl-3.5 pr-1 text-[14px] text-ink-muted transition-colors hover:border-brand lg:flex"
+          >
+            <MapPin size={18} className="shrink-0 text-brand-ink" aria-hidden="true" />
+            <span className="flex-1">{t('home.where_to')}</span>
+            <span className="rounded-[10px] bg-brand px-3.5 py-2 text-[13px] font-semibold text-white">{t('home.book_ride')}</span>
+          </Link>
+        )}
       </div>
+
+      {/* Desktop: services left, promos and activity right. Phone: one column, same order. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
+      <div className="flex min-w-0 flex-col gap-6">
 
       {/* Kartu Dompet WiraPay (web only, config/wallet) */}
       {WALLET_ENABLED && (
@@ -216,11 +234,14 @@ export default function HomePage() {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
           {shownServices.map((service, index) => {
             const Icon = service.icon || Package;
             const hero = index < 2;
-            const wide = !hero && index === shownServices.length - 1 && (shownServices.length - 2) % 2 === 1;
+            const last = index === shownServices.length - 1;
+            const wide = !hero && last && (shownServices.length - 2) % 2 === 1;
+            // Four columns on desktop: the last card fills the row.
+            const lgSpan = !hero && last ? 4 - ((shownServices.length - 1) % 4) : 1;
             const hasPromo = promoKeys.has(service.key);
             return (
               <Link
@@ -230,7 +251,8 @@ export default function HomePage() {
                   'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
                     ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
-                    : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3'),
+                    : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3 lg:min-h-[132px]',
+                      LG_SPAN[lgSpan], lgSpan > 1 && !wide && 'lg:min-h-0 lg:flex-row lg:items-center lg:gap-3'),
                 )}
               >
                 {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
@@ -261,7 +283,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PromoCarousel services={availableServices} excludeId={spotPromoId} />
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-6">
+      <PromoCarousel services={availableServices} excludeId={spotPromoId} stacked />
 
       {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
       
@@ -315,6 +340,8 @@ export default function HomePage() {
         )}
       </section>
       )}
+      </div>
+      </div>
 
       {/* Menu Customization Sheet */}
       <Sheet

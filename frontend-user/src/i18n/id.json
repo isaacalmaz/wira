@@ -6,7 +6,9 @@
     "profile": "Profil",
     "settings": "Pengaturan",
     "logout": "Keluar",
-    "guest_name": "Pengguna Wira"
+    "guest_name": "Pengguna Wira",
+    "collapse_sidebar": "Ciutkan menu",
+    "expand_sidebar": "Lebarkan menu"
   },
   "topbar": {
     "toggle_theme_dark": "Ganti ke tampilan gelap",
@@ -165,7 +167,9 @@
     "spot_tip_pool": "Kolam keruh? Jadwalkan perawatan.",
     "spot_tip_asuh": "Butuh pengasuh anak? Pesan di {{service}}.",
     "spot_carousel": "Sorotan untuk Anda",
-    "spot_slide": "{{n}} dari {{total}}"
+    "spot_slide": "{{n}} dari {{total}}",
+    "where_to": "Mau ke mana?",
+    "book_ride": "Pesan ride"
   },
   "ride": {
     "pickup_placeholder": "Titik jemput",
