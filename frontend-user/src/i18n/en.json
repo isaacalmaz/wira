@@ -1296,6 +1296,8 @@
     "address_placeholder": "Your address",
     "budget_label": "Spending limit (Rp)",
     "budget_hint": "The driver will not spend more than this. Up to {{max}}.",
+    "budget_new_customer": "For new customers. Rises to {{max}} after {{left}} more completed orders.",
+    "transfer_note": "The driver may ask you in this order's chat to transfer the shopping money to their account first. If you do, you only pay the delivery fee on arrival, and the driver returns any change in cash, matching the receipt.",
     "fee": "Delivery fee",
     "fee_km": "Delivery fee ({{km}} km)",
     "pay_cash": "Pay cash on delivery",

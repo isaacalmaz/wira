@@ -4,10 +4,13 @@ import { SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Button, Card, Field, IconTile, Input } from '../ui';
 
-// app_settings keys from migrations/0128 (ranges are checked by
+// app_settings keys from migrations/0128, 0132 and 0133 (ranges are checked by
 // admin_set_app_setting on the server too).
 const SETTINGS = [
   { key: 'titip_budget_max', label: 'Batas belanja titip beli', unit: 'Rp', hint: 'Rp 10.000 – 5.000.000. Batas talangan driver per pesanan.', fallback: 300000 },
+  // migrations/0133: lower limit until a customer has enough completed orders.
+  { key: 'titip_budget_new_max', label: 'Batas belanja titip beli: pelanggan baru', unit: 'Rp', hint: 'Rp 10.000 – 5.000.000. Tidak pernah di atas batas biasa.', fallback: 100000 },
+  { key: 'titip_trusted_orders', label: 'Pelanggan baru sampai punya', unit: 'pesanan', hint: '0 – 50 pesanan selesai (semua layanan). 0 = semua pelanggan pakai batas biasa.', fallback: 3, zeroOk: true },
   { key: 'titip_auto_approve_minutes', label: 'Struk titip beli disetujui otomatis setelah', unit: 'menit', hint: '5 – 240 menit tanpa jawaban pelanggan.', fallback: 30 },
   { key: 'big_item_quote_min', label: 'Harga minimum barang besar', unit: 'Rp', hint: 'Penawaran driver mobil tidak boleh di bawah ini.', fallback: 30000 },
   { key: 'big_item_quote_max', label: 'Harga maksimum barang besar', unit: 'Rp', hint: 'Penawaran driver mobil tidak boleh di atas ini.', fallback: 1000000 },

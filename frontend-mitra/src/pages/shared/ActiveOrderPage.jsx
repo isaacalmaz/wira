@@ -15,6 +15,7 @@ import PoolReportSheet from '../../components/shared/PoolReportSheet';
 import SendJobTools from '../../components/shared/SendJobTools';
 import RideHourlyTools from '../../components/shared/RideHourlyTools';
 import VillaRequestQuote from '../../components/shared/VillaRequestQuote';
+import TitipTransferTemplate from '../../components/shared/TitipTransferTemplate';
 import { finishHourlyRide } from '../../services/stage4Service';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
@@ -220,6 +221,15 @@ export default function ActiveOrderPage() {
       console.error(error);
       toast.error('Gagal mengirim pesan');
     }
+  };
+
+  const sendTemplate = async (text) => {
+    const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+    if (error) {
+      toast.error('Gagal mengirim pesan');
+      throw error;
+    }
+    toast.success('Pesan terkirim ke pelanggan');
   };
 
   const getNextStageInfo = () => {
@@ -629,8 +639,10 @@ export default function ActiveOrderPage() {
             const isMe = m.sender_id === user?.id;
             return (
               <div key={m.id} className={cx('flex flex-col gap-0.5', isMe ? 'items-end' : 'items-start')}>
-                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card px-3.5 py-2 text-sm leading-relaxed', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
-                  {m.text}
+                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card text-sm leading-relaxed', m.text?.startsWith('[IMAGE]') ? 'p-1.5' : 'px-3.5 py-2', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
+                  {m.text?.startsWith('[IMAGE]')
+                    ? <img src={m.text.slice(7)} alt="Gambar dari chat" className="w-full rounded-[12px] bg-sunken" />
+                    : m.text}
                 </div>
                 <span className="px-1 font-mono text-[10.5px] text-ink-muted">
                   {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -639,6 +651,9 @@ export default function ActiveOrderPage() {
             );
           })}
         </div>
+        {isDriver && order.service_type === 'send' && order.rate_code === 'TITIP' && ['accepted', 'picking_up'].includes(order.status) && (
+          <TitipTransferTemplate order={order} userId={user.id} onSend={sendTemplate} />
+        )}
         <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
           <input
             value={inputText}
