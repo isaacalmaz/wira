@@ -14,5 +14,5 @@ export { default as Segmented } from './Segmented';
 export { default as Notice } from './Notice';
 export { default as Spinner } from './Spinner';
 export { cx } from './cx';
-export { default as Stat } from './Stat';
+export { default as Stat, StatMoney } from './Stat';
 export { default as Table } from './Table';

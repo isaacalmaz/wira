@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Scale } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import { Badge, Button, Card, EmptyState, Field, Money, PageHeader, Segmented, Sheet, Spinner, Stat, Table, Textarea } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Field, Money, PageHeader, Segmented, Sheet, Spinner, Stat, StatMoney, Table, Textarea } from '../components/ui';
 
 const STATUS = { open: ['warning', 'Menunggu penawaran'], awarded: ['brand', 'Dikerjakan'], completed: ['success', 'Selesai'], cancelled: ['danger', 'Dibatalkan'], expired: ['neutral', 'Ditutup'] };
 const STAGE = { pending: ['neutral', 'Belum dibayar'], funded: ['brand', 'Ditahan'], submitted: ['warning', 'Menunggu persetujuan'], released: ['success', 'Cair'], refunded: ['neutral', 'Dikembalikan'], disputed: ['danger', 'Keberatan'] };
@@ -59,7 +59,7 @@ export default function ProjectsPage() {
       <PageHeader className="!mb-0" title="Proyek" subtitle="Pekerjaan besar dengan penawaran dan termin. Dana termin ditahan Wira sampai pelanggan menyetujui." />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Proyek berjalan" value={loading ? '–' : rows.filter((r) => ['open', 'awarded'].includes(r.status)).length} icon={<ClipboardList size={18} />} />
-        <Stat label="Dana ditahan" value={loading ? '–' : <Money value={held} />} tone="pay" />
+        <Stat label="Dana ditahan" value={loading ? '–' : <StatMoney value={held} />} tone="pay" />
         <Stat label="Perlu keputusan" value={loading ? '–' : disputed} icon={<Scale size={18} />} tone="danger" />
       </div>
       <Segmented ariaLabel="Saring proyek" value={filter} onChange={setFilter} options={[

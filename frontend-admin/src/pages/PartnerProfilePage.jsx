@@ -6,7 +6,7 @@ import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import { CORE_ADMIN_ROLES } from '../config/roles';
 import { orderStatusLabel, orderStatusTone } from '../config/orderStatus';
-import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, Table } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Money, Notice, PageHeader, SectionHeader, Spinner, Stat, StatMoney, Table } from '../components/ui';
 import PartnerFlagsList from '../components/common/PartnerFlagsList';
 import ReasonSheet from '../components/common/ReasonSheet';
 import DeleteAccountSheet from '../components/common/DeleteAccountSheet';
@@ -217,9 +217,9 @@ export default function PartnerProfilePage() {
               <>
                 <Stat label="Order sebagai mitra (30 hari)" value={Number(s.completed_30d || 0).toLocaleString('id-ID')}
                   hint={`${s.completed || 0} selesai total · ${s.active || 0} berjalan`} />
-                <Stat label="Pendapatan mitra (30 hari)" value={<Money value={Math.round(Number(s.income_30d) || 0)} className="text-[22px]" />} tone="pay"
+                <Stat label="Pendapatan mitra (30 hari)" value={<StatMoney value={Math.round(Number(s.income_30d) || 0)} />} tone="pay"
                   hint={data.rating?.count ? `Rating ${Number(data.rating.avg).toLocaleString('id-ID')}★ (${data.rating.count})` : 'Belum ada ulasan'} />
-                <Stat label="Komisi belum disetor" value={<Money value={Math.round(owed)} className="text-[22px]" />} tone={d.locked ? 'danger' : 'neutral'}
+                <Stat label="Komisi belum disetor" value={<StatMoney value={Math.round(owed)} />} tone={d.locked ? 'danger' : 'neutral'}
                   hint={d.locked ? 'Order baru terkunci' : `Batas Rp ${Number(d.limit || 0).toLocaleString('id-ID')} · ${d.grace_days ?? '–'} hari`} />
               </>
             ) : (

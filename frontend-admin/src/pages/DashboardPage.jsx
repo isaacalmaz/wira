@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import {
-  Badge, Card, EmptyState, Money, PageHeader, SectionHeader, Spinner, Stat, Table,
+  Badge, Card, EmptyState, Money, PageHeader, SectionHeader, Spinner, Stat, StatMoney, Table,
 } from '../components/ui';
 import { useTheme } from '../context/ThemeContext';
 import AttentionBoard from '../components/common/AttentionBoard';
@@ -233,7 +233,7 @@ const DashboardPage = () => {
   };
   const axisTick = { fontSize: 12, fill: palette.axis };
   // Big money figures sit a step smaller than counts so long rupiah fits the tile.
-  const moneyValue = (n) => <Money value={n} className="text-[22px]" />;
+  const moneyValue = (n) => <StatMoney value={n} />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -243,9 +243,10 @@ const DashboardPage = () => {
 
       {/* Key figures */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {/* Money first: full width on phones, then the counts two by two. */}
+        <Stat className="col-span-2 sm:col-span-1" label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
+        <Stat className="col-span-2 sm:col-span-1" label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi per layanan (menu Komisi)" />
         <Stat label="Pesanan Hari Ini" value={stats.ordersToday.toLocaleString('id-ID')} icon={<ShoppingBag size={18} />} hint="Semua status layanan" />
-        <Stat label="Volume Transaksi (GMV)" value={moneyValue(stats.gmv)} icon={<TrendingUp size={18} />} tone="pay" hint="Kotor, dari pesanan selesai" />
-        <Stat label="Pendapatan Platform" value={moneyValue(stats.revenue)} icon={<Wallet size={18} />} tone="pay" hint="Komisi per layanan (menu Komisi)" />
         <Stat label="Menunggu Verifikasi" value={Number(attention?.applications?.count || 0).toLocaleString('id-ID')} icon={<UserPlus size={18} />} tone={attention?.applications?.count > 0 ? 'brand' : 'neutral'} hint="Pendaftaran mitra baru" />
         <Stat label="Total Pengguna" value={stats.users.toLocaleString('id-ID')} icon={<Users size={18} />} tone="neutral" hint="Aktif" />
         <Stat label="Total Driver" value={stats.drivers.toLocaleString('id-ID')} icon={<Car size={18} />} tone="neutral" hint="Aktif" />
