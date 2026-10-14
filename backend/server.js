@@ -68,11 +68,17 @@ app.get('/', (req, res) => {
 });
 
 // Import Routes
-// Only endpoints that need a secret (service-role key, Midtrans server key,
-// webhook secrets, FCM credentials) live here - everything else is done by
-// the frontends directly against Supabase under RLS.
+// Only endpoints that need a secret (service-role key, webhook secrets, FCM
+// credentials) live here - everything else is done by the frontends directly
+// against Supabase under RLS.
 app.use('/api/notifications', require('./routes/notification.routes'));
-app.use('/api/midtrans', require('./routes/midtrans'));
+// Midtrans is switched off (2026-10-14): Wira has no Midtrans account, the
+// server key was never set, so the webhook accepted signatures made with the
+// public placeholder key and anyone could credit a WiraPay top-up. The owner
+// refuses payment gateways; routes/midtrans.js stays only as history.
+app.use('/api/midtrans', (req, res) => {
+  res.status(410).json({ success: false, message: 'Pembayaran Midtrans tidak tersedia' });
+});
 app.use('/api/mutasiku', require('./routes/mutasiku'));
 app.use('/api/dispatch', require('./routes/dispatch.routes'));
 app.use('/api/push', require('./routes/push.routes'));
