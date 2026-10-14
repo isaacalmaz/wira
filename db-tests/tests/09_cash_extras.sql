@@ -40,10 +40,12 @@ SELECT wira_test.ok((SELECT description LIKE '%Terima pembayarannya tunai%' FROM
                      WHERE user_id = '09000000-0000-0000-0000-000000000002' ORDER BY created_at DESC LIMIT 1),
     'technician is told to collect the extra in cash');
 
+SELECT wira_test.login('09000000-0000-0000-0000-000000000002'); -- the technician finishes the job
 UPDATE orders SET status = 'completed' WHERE id = '09000000-0000-0000-0000-0000000000a1';
 SELECT wira_test.eq((SELECT payable_balance FROM users WHERE id = '09000000-0000-0000-0000-000000000002'), -10000::numeric,
     'at completion 20% commission on the cash jasa (50000) comes off payable; material is not cut');
 UPDATE orders SET details = 'later edit' WHERE id = '09000000-0000-0000-0000-0000000000a1';
+SELECT wira_test.login('09000000-0000-0000-0000-000000000002'); -- the technician finishes the job
 UPDATE orders SET status = 'completed' WHERE id = '09000000-0000-0000-0000-0000000000a1';
 SELECT wira_test.eq((SELECT payable_balance FROM users WHERE id = '09000000-0000-0000-0000-000000000002'), -10000::numeric,
     'commission is taken once (no second charge on later updates)');
@@ -58,6 +60,7 @@ SELECT wira_test.eq((SELECT total_price FROM orders WHERE id = '09000000-0000-00
     'cash order extra is added to total_price as before');
 SELECT wira_test.ok(NOT (SELECT paid_cash FROM order_adjustments WHERE id = '09000000-0000-0000-0000-0000000000b3'),
     'cash order extra is not flagged (its commission is in total_price)');
+SELECT wira_test.login('09000000-0000-0000-0000-000000000002'); -- the technician finishes the job
 UPDATE orders SET status = 'completed' WHERE id = '09000000-0000-0000-0000-0000000000a2';
 SELECT wira_test.eq((SELECT payable_balance FROM users WHERE id = '09000000-0000-0000-0000-000000000002'), -10000::numeric,
     'no extra commission from 0135 on a cash order');
