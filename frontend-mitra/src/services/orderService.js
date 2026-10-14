@@ -92,6 +92,9 @@ export function isOrderEligibleForDriver(order, driver) {
   const { serviceTypes, sendPackageSizes } = eligibleServiceTypesForDriver(driver);
   if (!serviceTypes.includes(order.service_type)) return false;
   if (order.package_size === 'mobil' && (driver?.vehicle_type || 'motor') !== 'mobil') return false;
+  // WiraRide Motor/Mobil only for a driver with that vehicle (migrations/0131).
+  if (['ride', 'WiraRide'].includes(order.service_type) && ['motor', 'mobil'].includes(order.rate_code)
+      && order.rate_code !== (driver?.vehicle_type || 'motor')) return false;
   if (sendPackageSizes && SEND_SERVICE_TYPES.includes(order.service_type)) {
     return sendPackageSizes.includes(order.package_size);
   }
