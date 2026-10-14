@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
+import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
@@ -18,6 +18,8 @@ import RideExtras from '../components/common/RideExtras';
 import WarrantyCard from '../components/common/WarrantyCard';
 import VillaRequestsCard from '../components/common/VillaRequestsCard';
 import ReviewModal from '../components/common/ReviewModal';
+import ChatImage from '../components/common/ChatImage';
+import { compressChatImage, isChatImage, chatImageSrc } from '../utils/chatImage';
 import { canReview } from '../utils/review';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
 import { fetchCounterpartyProfiles } from '../services/profileService';
@@ -90,6 +92,8 @@ export default function ActiveOrderPage() {
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [sendingImage, setSendingImage] = useState(false);
+  const chatFileRef = useRef(null);
   const { pingedCount, totalCandidates } = useOrderDispatch(order, session);
   const chatRef = useRef(null);
   // UI only: the cancel confirmation sheet and the chat section anchor.
@@ -246,6 +250,23 @@ export default function ActiveOrderPage() {
     if (error) {
       console.error(error);
       toast.error(t('order.chat_send_failed'));
+    }
+  };
+
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user) return;
+    setSendingImage(true);
+    try {
+      const text = await compressChatImage(file);
+      const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message === 'not-an-image' ? t('order.chat_image_invalid') : t('order.chat_image_failed'));
+    } finally {
+      setSendingImage(false);
     }
   };
 
@@ -613,10 +634,13 @@ export default function ActiveOrderPage() {
           )}
           {messages.map((m) => {
             const isMe = m.sender_id === user?.id;
+            const image = isChatImage(m.text);
             return (
               <div key={m.id} className={`flex flex-col gap-0.5 ${isMe ? 'items-end' : 'items-start'}`}>
-                <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-card px-3.5 py-2 text-sm leading-relaxed ${isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink'}`}>
-                  {m.text}
+                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card text-sm leading-relaxed', image ? 'w-56 p-1.5' : 'px-3.5 py-2', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
+                  {image
+                    ? <ChatImage src={chatImageSrc(m.text)} alt={t('order.chat_image_alt')} openLabel={t('order.chat_image_open')} closeLabel={t('order.chat_image_close')} />
+                    : m.text}
                 </div>
                 <span className="px-1 font-mono text-[10.5px] text-ink-muted">
                   {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -624,8 +648,26 @@ export default function ActiveOrderPage() {
               </div>
             );
           })}
+          {sendingImage && (
+            <div className="flex justify-end">
+              <span className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-ink">
+                <Spinner size={12} />{t('order.chat_uploading')}
+              </span>
+            </div>
+          )}
         </div>
         <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
+          <input type="file" accept="image/*" className="hidden" ref={chatFileRef} onChange={sendImage} />
+          <button
+            type="button"
+            onClick={() => chatFileRef.current?.click()}
+            disabled={sendingImage}
+            title={t('order.chat_send_image')}
+            aria-label={t('order.chat_send_image')}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink disabled:opacity-50"
+          >
+            <ImageIcon size={20} />
+          </button>
           <input
             value={inputText}
             onChange={e => setInputText(e.target.value)}

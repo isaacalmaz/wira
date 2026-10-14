@@ -4,6 +4,8 @@ import { Send, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { Sheet, Spinner, cx } from '../ui';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import ChatImage from './ChatImage';
+import { compressChatImage, isChatImage, chatImageSrc } from '../../utils/chatImage';
 
 export default function ChatModal({ orderId, onClose, receiverName }) {
   const { user } = useAuth();
@@ -58,39 +60,21 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
     }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file || !user) return;
-
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // Kompresi ekstrim (0.6 quality) agar tidak memberatkan kolom teks DB
-        const base64Compressed = canvas.toDataURL('image/jpeg', 0.6);
-        const text = `[IMAGE]${base64Compressed}`;
-
-        const { error } = await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
-        if (error) {
-          console.error(error);
-          toast.error('Gagal mengirim gambar');
-        }
-        setIsUploading(false);
-      };
-    };
-    e.target.value = null; // reset input
+    try {
+      const text = await compressChatImage(file);
+      const { error } = await supabase.from('messages').insert([{ order_id: orderId, sender_id: user.id, text }]);
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message === 'not-an-image' ? 'File ini bukan gambar. Pilih foto dari galeri atau kamera.' : 'Foto belum terkirim. Periksa koneksi, lalu coba lagi.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Always rendered while the parent keeps it mounted, so `open` is fixed.
@@ -114,7 +98,8 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink"
+            disabled={isUploading}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink disabled:opacity-50"
             title="Kirim Gambar"
             aria-label="Kirim Gambar"
           >
@@ -150,19 +135,19 @@ export default function ChatModal({ orderId, onClose, receiverName }) {
       ) : (
         messages.map((m) => {
           const isMe = m.sender_id === user.id;
-          const isImage = m.text.startsWith('[IMAGE]');
-          const content = isImage ? m.text.replace('[IMAGE]', '') : m.text;
+          const isImage = isChatImage(m.text);
+          const content = isImage ? chatImageSrc(m.text) : m.text;
           return (
             <div key={m.id} className={cx('flex flex-col gap-0.5', isMe ? 'items-end' : 'items-start')}>
               <div
                 className={cx(
                   'max-w-[80%] break-words rounded-card text-sm leading-relaxed',
-                  isImage ? 'p-1.5' : 'px-3.5 py-2',
+                  isImage ? 'w-56 p-1.5' : 'px-3.5 py-2',
                   isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink',
                 )}
               >
                 {isImage ? (
-                  <img src={content} alt="Attachment" className="w-full rounded-[12px] bg-sunken" />
+                  <ChatImage src={content} alt="Foto dari chat" openLabel="Perbesar foto" closeLabel="Tutup foto" />
                 ) : (
                   <p className="whitespace-pre-wrap">{content}</p>
                 )}

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { fetchCounterpartyProfiles } from '../../services/profileService';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2, Baby, XCircle } from 'lucide-react';
+import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2, Baby, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
@@ -16,6 +16,8 @@ import SendJobTools from '../../components/shared/SendJobTools';
 import RideHourlyTools from '../../components/shared/RideHourlyTools';
 import VillaRequestQuote from '../../components/shared/VillaRequestQuote';
 import TitipTransferTemplate from '../../components/shared/TitipTransferTemplate';
+import ChatImage from '../../components/common/ChatImage';
+import { compressChatImage, isChatImage, chatImageSrc } from '../../utils/chatImage';
 import { finishHourlyRide } from '../../services/stage4Service';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
@@ -83,6 +85,8 @@ export default function ActiveOrderPage() {
   // Chat state
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [sendingImage, setSendingImage] = useState(false);
+  const chatFileRef = useRef(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -220,6 +224,23 @@ export default function ActiveOrderPage() {
     if (error) {
       console.error(error);
       toast.error('Gagal mengirim pesan');
+    }
+  };
+
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user) return;
+    setSendingImage(true);
+    try {
+      const text = await compressChatImage(file);
+      const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message === 'not-an-image' ? 'File ini bukan gambar. Pilih foto dari galeri atau kamera.' : 'Foto belum terkirim. Periksa koneksi, lalu coba lagi.');
+    } finally {
+      setSendingImage(false);
     }
   };
 
@@ -637,11 +658,12 @@ export default function ActiveOrderPage() {
           )}
           {messages.map((m) => {
             const isMe = m.sender_id === user?.id;
+            const image = isChatImage(m.text);
             return (
               <div key={m.id} className={cx('flex flex-col gap-0.5', isMe ? 'items-end' : 'items-start')}>
-                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card text-sm leading-relaxed', m.text?.startsWith('[IMAGE]') ? 'p-1.5' : 'px-3.5 py-2', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
-                  {m.text?.startsWith('[IMAGE]')
-                    ? <img src={m.text.slice(7)} alt="Gambar dari chat" className="w-full rounded-[12px] bg-sunken" />
+                <div className={cx('max-w-[85%] whitespace-pre-wrap break-words rounded-card text-sm leading-relaxed', image ? 'w-56 p-1.5' : 'px-3.5 py-2', isMe ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md border border-line bg-card text-ink')}>
+                  {image
+                    ? <ChatImage src={chatImageSrc(m.text)} alt="Foto dari chat" openLabel="Perbesar foto" closeLabel="Tutup foto" />
                     : m.text}
                 </div>
                 <span className="px-1 font-mono text-[10.5px] text-ink-muted">
@@ -655,6 +677,17 @@ export default function ActiveOrderPage() {
           <TitipTransferTemplate order={order} userId={user.id} onSend={sendTemplate} />
         )}
         <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
+          <input type="file" accept="image/*" className="hidden" ref={chatFileRef} onChange={sendImage} />
+          <button
+            type="button"
+            onClick={() => chatFileRef.current?.click()}
+            disabled={sendingImage}
+            title="Kirim foto"
+            aria-label="Kirim foto"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink disabled:opacity-50"
+          >
+            {sendingImage ? <Spinner size={18} /> : <ImageIcon size={20} />}
+          </button>
           <input
             value={inputText}
             onChange={e => setInputText(e.target.value)}

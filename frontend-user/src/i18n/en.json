@@ -638,6 +638,13 @@
     "chat_empty": "No messages yet. Say hello to your partner.",
     "chat_placeholder": "Write a message...",
     "chat_send_failed": "That message didn't send. Check your connection and try again.",
+    "chat_send_image": "Send a photo",
+    "chat_uploading": "Sending photo...",
+    "chat_image_failed": "The photo wasn't sent. Check your connection and try again.",
+    "chat_image_invalid": "That file isn't an image. Pick a photo from your gallery or camera.",
+    "chat_image_alt": "Photo from the chat",
+    "chat_image_open": "Enlarge photo",
+    "chat_image_close": "Close photo",
     "service_title": {
       "ride": "WiraRide",
       "food": "WiraFood",

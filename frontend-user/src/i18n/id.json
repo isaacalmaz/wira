@@ -638,6 +638,13 @@
     "chat_empty": "Belum ada pesan. Sapa mitra Anda dulu, yuk.",
     "chat_placeholder": "Tulis pesan Anda...",
     "chat_send_failed": "Pesan belum terkirim. Periksa koneksi Anda, lalu coba lagi.",
+    "chat_send_image": "Kirim foto",
+    "chat_uploading": "Mengirim foto...",
+    "chat_image_failed": "Foto belum terkirim. Periksa koneksi Anda, lalu coba lagi.",
+    "chat_image_invalid": "File ini bukan gambar. Pilih foto dari galeri atau kamera.",
+    "chat_image_alt": "Foto dari chat",
+    "chat_image_open": "Perbesar foto",
+    "chat_image_close": "Tutup foto",
     "service_title": {
       "ride": "WiraRide",
       "food": "WiraFood",
