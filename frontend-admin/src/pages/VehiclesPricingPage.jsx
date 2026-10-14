@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
 import PricingRulesSection, { MoneyCellInput, Switch, cellInputClass } from './PricingRulesSection';
+import ServiceLimitsCard from '../components/common/ServiceLimitsCard';
 import { Button, Card, Field, Input, Money, Notice, PageHeader, SectionHeader, Sheet, Spinner, Table, cx } from '../components/ui';
 
 // A base price/rate of 0 or below is never a real, intentional price on a
@@ -18,7 +19,7 @@ const emptyDraft = { name: '', type: '', service_type: 'ride', price: 0, per_km_
 // (per_km_rate is always 0 for them per migration 0057's seed), so only the
 // WiraFood delivery-fee section exposes the per-km input to avoid clutter.
 const RULE_GROUPS = [
-  { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga = harga dasar + (tarif/km x jarak jalan). Isi tarif/km 0 untuk harga tetap berapa pun jaraknya.', showPerKmRate: true },
+  { key: 'send', title: 'WiraSend - Paket Kirim', description: 'Harga = harga dasar + (tarif/km x jarak jalan). Isi tarif/km 0 untuk harga tetap berapa pun jaraknya. TITIP = ongkir titip beli (barang belanjaan tidak kena komisi). BESAR = barang besar mobil, harganya dari penawaran driver, biarkan 0.', showPerKmRate: true },
   { key: 'service', title: 'WiraService - Tarif Layanan', description: 'Harga dasar tiap kategori jasa servis.', showPerKmRate: false },
   { key: 'pool', title: 'WiraPool - Tarif Layanan', description: 'Harga dasar tiap layanan kolam renang.', showPerKmRate: false },
   { key: 'babysit', title: 'WiraAsuh - Tarif Pengasuh', description: 'HOURLY = tarif per jam (1 anak); EXTRA_CHILD = tambahan per anak berikutnya per jam.', showPerKmRate: false },
@@ -307,6 +308,8 @@ const VehiclesPricingPage = () => {
           </Button>
         )}
       />
+
+      <ServiceLimitsCard />
 
       <section>
         <SectionHeader

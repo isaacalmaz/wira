@@ -12,6 +12,7 @@ import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
 import PoolReportSheet from '../../components/shared/PoolReportSheet';
+import SendJobTools from '../../components/shared/SendJobTools';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
 import { SERVICE_LABEL } from '../../constants/services';
@@ -242,6 +243,15 @@ export default function ActiveOrderPage() {
       }
       if (s === 'working') return { label: 'Pekerjaan Selesai', next: 'completed' };
     } else if (type === 'ride' || type === 'send') {
+      // Free-form send jobs (migrations/0128): SendJobTools drives the
+      // titip beli steps after the store; a big item waits for its quote.
+      if (type === 'send' && order.rate_code === 'TITIP') {
+        if (!isDriver) return null;
+        return s === 'accepted' ? { label: 'Menuju Toko', next: 'picking_up' } : null;
+      }
+      if (type === 'send' && order.rate_code === 'BESAR' && s === 'accepted' && !quoteApproved) {
+        return { label: 'Menuju Lokasi: tunggu harga disetujui', next: 'picking_up', locked: true };
+      }
       if (s === 'accepted') return { label: 'Menuju Lokasi', next: 'picking_up' };
       if (s === 'picking_up') return { label: 'Mulai Perjalanan', next: 'in_trip' };
       if (s === 'in_trip') return { label: 'Selesaikan Pesanan', next: 'completed' };
@@ -547,6 +557,9 @@ export default function ActiveOrderPage() {
       )}
 
       {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} onQuoteState={setQuoteApproved} />}
+      {order.service_type === 'send' && isDriver && (order.metadata?.titip || order.metadata?.job) && (
+        <SendJobTools order={order} userId={user.id} onChanged={fetchOrder} onQuoteState={setQuoteApproved} />
+      )}
       {order.service_type === 'pool' && isDriver && order.status === 'working' && (
         <PoolReportSheet
           open={reportOpen}

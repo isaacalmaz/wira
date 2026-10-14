@@ -13,6 +13,7 @@ import QrisOrderPayment from '../components/common/QrisOrderPayment';
 import VisitExtras from '../components/common/VisitExtras';
 import VisitReportCard from '../components/common/VisitReportCard';
 import PaymentCheckCard from '../components/common/PaymentCheckCard';
+import SendExtras from '../components/common/SendExtras';
 import ReviewModal from '../components/common/ReviewModal';
 import { canReview } from '../utils/review';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
@@ -287,6 +288,9 @@ export default function ActiveOrderPage() {
   // accepted (plus 3 minutes), then through CS.
   const isVilla = ['villa', 'WiraVilla'].includes(order?.service_type);
   const isFood = ['food', 'WiraFood'].includes(order?.service_type);
+  // Titip beli (migrations/0128): once the driver is at the store they are
+  // buying with their own money, so the customer can no longer cancel.
+  const isTitip = order?.service_type === 'send' && order?.rate_code === 'TITIP';
   const villaRatio = () => {
     if (!order?.check_in) return 1;
     const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
@@ -298,6 +302,7 @@ export default function ActiveOrderPage() {
     if (isVilla) return order.status === 'pending' || (order.status === 'accepted' && villaRatio() > 0);
     if (isFood) return order.status === 'pending' || (order.status === 'accepted' && sinceAccept != null && sinceAccept <= FREE_WINDOW_MS);
     if (order.status === 'pending') return true;
+    if (isTitip && order.status !== 'accepted') return false;
     if (isVisit && ['accepted', 'on_the_way'].includes(order.status)) {
       if (!isBabysit && sinceAccept != null && sinceAccept <= FREE_WINDOW_MS) return true;
       return scheduledMs == null || nowTick < scheduledMs - VISIT_LOCK_MS || visitLate;
@@ -343,7 +348,8 @@ export default function ActiveOrderPage() {
       : sinceAccept != null && sinceAccept >= NO_SHOW_MS
         ? t('order.cancel_desc_late')
         : t('order.cancel_desc_accepted');
-  const pinStatuses = isVisit ? ['accepted', 'on_the_way'] : ['accepted', 'picking_up'];
+  // Titip beli: the PIN is given when the goods arrive.
+  const pinStatuses = isVisit ? ['accepted', 'on_the_way'] : isTitip ? ['picking_up', 'in_trip'] : ['accepted', 'picking_up'];
   const scheduledLabel = scheduledMs != null
     ? new Date(scheduledMs).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
     : null;
@@ -426,7 +432,7 @@ export default function ActiveOrderPage() {
           <Card className="flex flex-col items-center gap-3 text-center">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
               <ShieldCheck size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
-              {isBabysit ? t('order.pin_label_babysit') : isVisit ? t('order.pin_label_visit') : t('order.pin_label')}
+              {isBabysit ? t('order.pin_label_babysit') : isVisit ? t('order.pin_label_visit') : isTitip ? t('titip.pin_label') : t('order.pin_label')}
             </p>
             {securityPin ? (
               <div className="flex justify-center gap-2" aria-label={String(securityPin).split('').join(' ')}>
@@ -511,6 +517,7 @@ export default function ActiveOrderPage() {
       )}
 
       {isVisit && !isBabysit && <VisitExtras order={order} />}
+      {order.service_type === 'send' && (order.metadata?.titip || order.metadata?.job) && <SendExtras order={order} onChat={openChat} />}
       <VisitReportCard order={order} />
 
       {/* Order + route summary */}

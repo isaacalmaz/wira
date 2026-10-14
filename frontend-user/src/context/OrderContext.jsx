@@ -26,7 +26,8 @@ export const OrderProvider = ({ children }) => {
   const mapDbOrderToUi = (o) => {
     let uiService = 'WiraRide';
     if (o.service_type === 'food') uiService = 'WiraFood';
-    else if (o.service_type === 'send') uiService = 'WiraSend';
+    // Titip beli (migrations/0128) is a send order booked from WiraFood.
+    else if (o.service_type === 'send') uiService = o.rate_code === 'TITIP' ? 'WiraFood' : 'WiraSend';
     else if (o.service_type === 'villa') uiService = 'WiraVilla';
     else if (o.service_type === 'service') uiService = 'WiraService';
     else if (o.service_type === 'pool') uiService = 'WiraPool';
