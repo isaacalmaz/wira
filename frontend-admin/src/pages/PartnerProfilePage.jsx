@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone, Mail, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby, Trash2 } from 'lucide-react';
+import { Phone, Mail, MessageCircle, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +30,27 @@ const waLink = (phone) => {
   const d = String(phone || '').replace(/\D/g, '');
   return d ? `https://wa.me/${d.startsWith('0') ? `62${d.slice(1)}` : d}` : null;
 };
+
+const telLink = (phone) => {
+  const d = String(phone || '').replace(/[^\d+]/g, '');
+  return d ? `tel:${d}` : null;
+};
+
+// Opens the phone's dialer, WhatsApp or mail app (in the Android app too:
+// Capacitor hands tel:, mailto: and outside links to the system).
+function ContactLink({ href, icon, children, external = false }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-line-strong bg-card px-4 py-2.5 text-sm font-semibold text-ink hover:bg-sunken"
+    >
+      <span className="inline-flex shrink-0">{icon}</span>
+      {children}
+    </a>
+  );
+}
 
 // Flags for this account (migrations/0125), shown only when there are some.
 function AccountFlags({ id }) {
@@ -159,15 +180,29 @@ export default function PartnerProfilePage() {
             );
           })}
         </div>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
           {u.phone && (
-            <a href={waLink(u.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-mono text-ink hover:underline">
-              <Phone size={14} className="text-ink-muted" />{u.phone}
-            </a>
+            <span className="inline-flex items-center gap-1.5 font-mono text-ink">
+              <Phone size={14} className="shrink-0 text-ink-muted" />{u.phone}
+            </span>
           )}
-          {u.email && <span className="inline-flex items-center gap-1.5 text-ink"><Mail size={14} className="text-ink-muted" />{u.email}</span>}
+          {u.email && (
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-ink">
+              <Mail size={14} className="shrink-0 text-ink-muted" /><span className="break-all">{u.email}</span>
+            </span>
+          )}
           {u.vehicle_type && <span className="text-ink-muted">Kendaraan: <span className="text-ink">{u.vehicle_type}</span></span>}
         </div>
+        {(u.phone || u.email) && (
+          <div className="flex w-full flex-col gap-2 border-t border-line pt-3">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Hubungi {u.name?.split(' ')[0] || 'mitra'}</p>
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+              <ContactLink href={telLink(u.phone)} icon={<Phone size={16} />}>Telepon</ContactLink>
+              <ContactLink href={waLink(u.phone)} icon={<MessageCircle size={16} />} external>WhatsApp</ContactLink>
+              <ContactLink href={u.email ? `mailto:${u.email}` : null} icon={<Mail size={16} />}>Email</ContactLink>
+            </div>
+          </div>
+        )}
       </Card>
 
       {(() => {

@@ -10,7 +10,9 @@ export default function PageHeader({ title, subtitle, back, backLabel = 'Kembali
   const navigate = useNavigate();
   const goBack = () => (typeof back === 'string' ? navigate(back) : navigate(-1));
   return (
-    <div className={cx('flex items-start gap-3 mb-5', className)}>
+    // Phones: actions wrap onto their own full-width row under the title, so a
+    // long name or two buttons never squeeze the title or run off screen.
+    <div className={cx('flex flex-wrap items-start gap-3 mb-5 sm:flex-nowrap', className)}>
       {back && (
         <button
           type="button"
@@ -26,7 +28,7 @@ export default function PageHeader({ title, subtitle, back, backLabel = 'Kembali
         <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight leading-tight text-balance">{title}</h1>
         {subtitle && <p className="text-sm leading-relaxed text-ink-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{actions}</div>}
     </div>
   );
 }
