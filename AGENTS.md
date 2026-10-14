@@ -46,7 +46,13 @@ write in. They decide product questions. You do the engineering.
   may have left untracked files, e.g. `skills-lock.json`; leave them alone).
 - **Batch commits.** Vercel is on the Hobby plan: 100 deployments/day, and every push to `main`
   deploys 4 projects (wira-user, wira-mitra, wira-admin, wira-backend). One push = 4 deploys. Group
-  related work into one push. If deploys silently stop, check for the quota error
+  related work into one push. Since 2026-10-14 each project's `vercel.json` skips its build when
+  its folder (and the root npm files) didn't change (`scripts/vercel-ignore-build.sh`), and
+  branches `claude/**` get **no Vercel preview** (CI on the PR still builds everything). To get a
+  preview for such a branch, remove `"claude/**": false` from `git.deploymentEnabled` in that
+  app's `vercel.json`. Each Vercel project's root directory is its app folder, so the repo-root
+  `vercel.json` is not used by any project (wira.one/panduan proves `frontend-user/vercel.json` is
+  the live one). If deploys silently stop, check for the quota error
   (`api-deployments-free-per-day`) via a manual redeploy before suspecting the GitHub webhook;
   the only fix is waiting 24h.
 - **Mockup first for visible redesigns.** For a new screen or a redesign, the owner wants to see a

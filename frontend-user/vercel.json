@@ -1,4 +1,6 @@
 {
+  "ignoreCommand": "bash ../scripts/vercel-ignore-build.sh",
+  "git": { "deploymentEnabled": { "claude/**": false } },
   "rewrites": [
     { "source": "/panduan", "destination": "/panduan.html" },
     { "source": "/(.*)", "destination": "/index.html" }
