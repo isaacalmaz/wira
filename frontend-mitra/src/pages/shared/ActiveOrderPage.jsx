@@ -7,12 +7,15 @@ import { ChevronLeft, Send, Phone, MessageSquare, Lock, ShieldCheck, Bike, Packa
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
 import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
-import { Badge, Button, Card, IconTile, Money, Sheet, Spinner, cx } from '../../components/ui';
+import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../../components/ui';
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
 import VisitTools from '../../components/shared/VisitTools';
 import PoolReportSheet from '../../components/shared/PoolReportSheet';
 import SendJobTools from '../../components/shared/SendJobTools';
+import RideHourlyTools from '../../components/shared/RideHourlyTools';
+import VillaRequestQuote from '../../components/shared/VillaRequestQuote';
+import { finishHourlyRide } from '../../services/stage4Service';
 import CustomerRatingCard from '../../components/shared/CustomerRatingCard';
 import { friendlyError } from '../../utils/friendlyError';
 import { SERVICE_LABEL } from '../../constants/services';
@@ -249,6 +252,16 @@ export default function ActiveOrderPage() {
         if (!isDriver) return null;
         return s === 'accepted' ? { label: 'Menuju Toko', next: 'picking_up' } : null;
       }
+      // WiraRide for later (migrations/0132): heading out opens 90 minutes
+      // before pickup; an hourly hire ends with its own button.
+      if (type === 'ride' && order.scheduled_at && s === 'accepted'
+          && Date.now() < new Date(order.scheduled_at).getTime() - 90 * 60000) {
+        const opens = new Date(new Date(order.scheduled_at).getTime() - 90 * 60000);
+        return { label: `Berangkat mulai ${opens.toLocaleString('id-ID', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}`, next: 'picking_up', locked: true };
+      }
+      if (type === 'ride' && order.metadata?.hourly && s === 'in_trip') {
+        return { label: 'Selesaikan Sewa', next: 'completed', hourly: true };
+      }
       if (type === 'send' && order.rate_code === 'BESAR' && s === 'accepted' && !quoteApproved) {
         return { label: 'Menuju Lokasi: tunggu harga disetujui', next: 'picking_up', locked: true };
       }
@@ -282,6 +295,19 @@ export default function ActiveOrderPage() {
     const info = getNextStageInfo();
     if (!info || info.locked) return;
     if (info.report) { setReportOpen(true); return; }
+    if (info.hourly) {
+      if (!window.confirm('Selesaikan sewa sekarang? Lewat waktu dihitung otomatis.')) return;
+      try {
+        const res = await finishHourlyRide(supabase, order.id);
+        toast.success(Number(res?.overtime_amount) > 0
+          ? `Sewa selesai. Lewat waktu ${res.overtime_minutes} menit, total Rp ${Number(res.total).toLocaleString('id-ID')}.`
+          : `Sewa selesai. Total Rp ${Number(res?.total || order.total_price).toLocaleString('id-ID')}.`);
+        fetchOrder();
+      } catch (err) {
+        toast.error(friendlyError(err));
+      }
+      return;
+    }
 
     // PIN Verification to start trip
     if ((info.next === 'in_trip' && ['ride', 'send', 'food'].includes(order.service_type)) || info.next === 'working') {
@@ -556,6 +582,17 @@ export default function ActiveOrderPage() {
         </Button>
       )}
 
+      {order.service_type === 'ride' && order.scheduled_at && !['completed', 'cancelled'].includes(order.status) && (
+        <Notice tone="info">
+          Jadwal jemput {new Date(order.scheduled_at).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} WITA.
+          Nomor pelanggan terlihat mulai 60 menit sebelumnya.
+        </Notice>
+      )}
+      {order.service_type === 'ride' && isDriver && order.metadata?.hourly && <RideHourlyTools order={order} onChanged={fetchOrder} />}
+      {['villa', 'WiraVilla'].includes(order.service_type) && order.merchant?.owner_id === user.id && <VillaRequestQuote order={order} />}
+      {order.metadata?.warranty_claim_id && (
+        <Notice tone="warning">Kunjungan garansi: jasa gratis dan tanpa komisi. Material baru tetap diajukan dan disetujui pelanggan.</Notice>
+      )}
       {isVisit && isDriver && <VisitTools order={order} onFinished={fetchOrder} onQuoteState={setQuoteApproved} />}
       {order.service_type === 'send' && isDriver && (order.metadata?.titip || order.metadata?.job) && (
         <SendJobTools order={order} userId={user.id} onChanged={fetchOrder} onQuoteState={setQuoteApproved} />

@@ -12,6 +12,7 @@ import {
 } from '../../services/technicianService';
 import { dayKey } from '../../utils/earnings';
 import VisitJobCard from '../../components/shared/VisitJobCard';
+import WarrantyClaimsCard from '../../components/shared/WarrantyClaimsCard';
 import useSkills, { orderSkill } from '../../hooks/useSkills';
 import { friendlyError } from '../../utils/friendlyError';
 
@@ -158,6 +159,8 @@ const TechHomePage = () => {
         <h1 className="break-words text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance sm:text-2xl">Halo, {user?.name || 'Mitra Teknisi'}!</h1>
         <p className="text-sm text-ink-muted">Mitra Jasa Servis Wira</p>
       </div>
+
+      {user?.id && <WarrantyClaimsCard userId={user.id} />}
 
       {profileLoaded && profile && skills.length === 0 && (
         <Notice tone="warning">

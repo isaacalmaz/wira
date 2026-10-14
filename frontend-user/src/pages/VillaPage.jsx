@@ -7,6 +7,7 @@ import {
   Sheet,
   Field,
   Select,
+  Input,
   Money,
   IconTile,
   Notice,
@@ -87,6 +88,8 @@ function SummaryRow({ label, children, strong = false, className = '' }) {
   );
 }
 
+const VILLA_REQUEST_CODES = ['early_checkin', 'late_checkout', 'extra_bed', 'airport_pickup', 'other'];
+
 export default function VillaPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -148,6 +151,8 @@ export default function VillaPage() {
   const [guests, setGuests] = useState(2);
   const [paymentMethod, setPaymentMethod] = useState('QRIS');
   const [loading, setLoading] = useState(false);
+  // Special requests (migrations/0132): the host prices them after booking.
+  const [requests, setRequests] = useState({});
 
   // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx.
   const [promoCode, setPromoCode] = useState('');
@@ -163,7 +168,13 @@ export default function VillaPage() {
     setGuests((g) => (villa.maxGuests ? Math.min(g, villa.maxGuests) : g));
     setCheckIn(null);
     setCheckOut(null);
+    setRequests({});
   };
+  const toggleRequest = (code) => setRequests((r) => {
+    const next = { ...r };
+    if (code in next) delete next[code]; else next[code] = '';
+    return next;
+  });
   const guestOptions = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20].filter((g) => !selectedVilla?.maxGuests || g <= selectedVilla.maxGuests);
   if (selectedVilla?.maxGuests && !guestOptions.includes(selectedVilla.maxGuests)) guestOptions.push(selectedVilla.maxGuests);
   const moreFromHost = selectedVilla ? villas.filter((v) => v.ownerId && v.ownerId === selectedVilla.ownerId && v.id !== selectedVilla.id) : [];
@@ -242,7 +253,13 @@ export default function VillaPage() {
         price: totalPrice,
         paymentMethod: paymentMethod,
         nights,
-        metadata: { check_in: checkIn, guests },
+        metadata: {
+          check_in: checkIn,
+          guests,
+          ...(Object.keys(requests).length
+            ? { villa_requests: Object.entries(requests).map(([code, note]) => ({ code, note: note.trim() || null })) }
+            : {}),
+        },
         promoCode: activePromo?.code || null,
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
@@ -475,6 +492,31 @@ export default function VillaPage() {
                 ))}
               </Select>
             </Field>
+
+            <div className="flex flex-col gap-2">
+              <GroupLabel>{t('villareq.booking_title')}</GroupLabel>
+              <div className="flex flex-col gap-2">
+                {VILLA_REQUEST_CODES.map((code) => (
+                  <div key={code} className="flex flex-col gap-1.5">
+                    <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-[13.5px] text-ink">
+                      <input type="checkbox" checked={code in requests} onChange={() => toggleRequest(code)} className="h-[18px] w-[18px] accent-[rgb(var(--brand))]" />
+                      {t(`villareq.code_${code}`)}
+                    </label>
+                    {code in requests && (
+                      <Input
+                        aria-label={t('villareq.note_label')}
+                        value={requests[code]}
+                        maxLength={120}
+                        onChange={(e) => setRequests((r) => ({ ...r, [code]: e.target.value }))}
+                        placeholder={t(`villareq.note_${code}`)}
+                        className="min-h-9 py-1.5 text-[13px]"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[12px] leading-relaxed text-ink-muted">{t('villareq.booking_hint')}</p>
+            </div>
 
             {/* Pilihan Metode Bayar */}
             <div className="flex flex-col gap-2">

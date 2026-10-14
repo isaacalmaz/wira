@@ -51,6 +51,7 @@ export const MENU_ITEMS = [
   { name: 'Pengasuh', icon: Baby, path: '/nannies', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Ulasan', icon: Star, path: '/reviews', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Penanda Mitra', icon: Flag, path: '/flags', roles: CORE_ADMIN_ROLES, group: 'mitra' },
+  { name: 'Garansi', icon: ShieldCheck, path: '/warranty', roles: CORE_ADMIN_ROLES, group: 'mitra' },
   { name: 'Keuangan', icon: Wallet, path: '/finance', roles: FINANCE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Harga', icon: Tag, path: '/pricing', roles: CORE_ADMIN_ROLES, group: 'bisnis' },
   { name: 'Komisi', icon: Percent, path: '/commission', roles: CORE_ADMIN_ROLES, group: 'bisnis' },

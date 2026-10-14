@@ -9,14 +9,14 @@ const MAX_JOB_PHOTOS = 3;
  * Holds File objects; the page uploads them to the private order-photos
  * bucket when the order is placed (migrations/0123).
  */
-export default function JobPhotoPicker({ files, onChange }) {
+export default function JobPhotoPicker({ files, onChange, label }) {
   const { t } = useTranslation();
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[13px] font-semibold text-ink">{t('service.custom_photos_label')}</span>
+      <span className="text-[13px] font-semibold text-ink">{label || t('service.custom_photos_label')}</span>
       <div className="flex flex-wrap gap-2">
         {files.map((file, i) => (
           <span key={`${file.name}-${i}`} className="relative">

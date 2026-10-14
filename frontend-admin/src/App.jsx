@@ -29,6 +29,7 @@ const MerchantsPage = lazy(() => import('./pages/MerchantsPage'));
 const TechniciansPage = lazy(() => import('./pages/TechniciansPage'));
 const ReviewsPage = lazy(() => import('./pages/ReviewsPage'));
 const FlagsPage = lazy(() => import('./pages/FlagsPage'));
+const WarrantyPage = lazy(() => import('./pages/WarrantyPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const VillasPage = lazy(() => import('./pages/VillasPage'));
 const VehiclesPricingPage = lazy(() => import('./pages/VehiclesPricingPage'));
@@ -187,6 +188,11 @@ function App() {
             <Route path="flags" element={
               <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <FlagsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="warranty" element={
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
+                <WarrantyPage />
               </ProtectedRoute>
             } />
             <Route path="pricing" element={

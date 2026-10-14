@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Banknote, Hammer, UserX } from 'lucide-react';
+import { Banknote, Hammer, ShieldAlert, UserX, CarFront } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { Button, Card, EmptyState, Field, Money, Sheet, Spinner, Textarea, cx } from '../ui';
 import { formatDate } from '../../utils/datetime';
@@ -10,11 +10,15 @@ const KIND = {
   payment: { icon: Banknote, tone: 'border-l-danger bg-danger-soft', ink: 'text-danger-ink' },
   check_only: { icon: Hammer, tone: 'border-l-warning bg-warning-soft', ink: 'text-warning-ink' },
   absent: { icon: UserX, tone: 'border-l-warning bg-warning-soft', ink: 'text-warning-ink' },
+  driver_cancel: { icon: CarFront, tone: 'border-l-warning bg-warning-soft', ink: 'text-warning-ink' },
+  warranty: { icon: ShieldAlert, tone: 'border-l-warning bg-warning-soft', ink: 'text-warning-ink' },
 };
 
 function headline(f) {
   if (f.kind === 'payment') return `${f.answer === 'unpaid' ? 'Belum dibayar' : 'Pembayaran tidak sesuai'} · ${f.subject_name || 'mitra'}`;
   if (f.kind === 'check_only') return `Sering selesai di biaya cek · ${f.subject_name || 'teknisi'}`;
+  if (f.kind === 'driver_cancel') return `Sering melepas pesanan · ${f.subject_name || 'sopir'}`;
+  if (f.kind === 'warranty') return `Sering kena klaim garansi · ${f.subject_name || 'teknisi'}`;
   return `Pelanggan sering tidak di lokasi · ${f.subject_name || 'pelanggan'}`;
 }
 
@@ -25,6 +29,8 @@ function detail(f) {
       : <>Pelanggan bilang membayar <Money value={f.amount} />, total di aplikasi <Money value={f.expected} />. {f.title}</>;
   }
   if (f.kind === 'check_only') return `${f.hits} dari ${f.total} "Pekerjaan lain" dalam 30 hari selesai hanya di biaya cek.`;
+  if (f.kind === 'driver_cancel') return `${f.hits} pesanan dilepas setelah diterima dalam 30 hari${f.total ? `, ${f.total} di antaranya jadwal yang dibatalkan mendekati jam jemput` : ''}.`;
+  if (f.kind === 'warranty') return `${f.hits} klaim garansi dikabulkan dalam 60 hari.`;
   return `${f.hits} kunjungan dibatalkan karena pelanggan tidak di lokasi dalam 90 hari.`;
 }
 

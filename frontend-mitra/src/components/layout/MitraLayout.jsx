@@ -1,7 +1,7 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby, Bell } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby, Bell, CalendarClock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
@@ -46,16 +46,11 @@ const MitraLayout = ({ children }) => {
       base.push({ to: `/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
     }
 
-    // Driver and Kurir deliberately get NO 4th nav tab here, unlike
-    // merchant/villa/technician. Each of those three has a real standalone
-    // management surface behind its extra tab (a product catalog, a listing
-    // editor, a work calendar) that doesn't fit inside Beranda/Pesanan.
-    // Driver/Kurir have no equivalent - there's no separate "thing to
-    // manage" beyond the incoming-job screen (Beranda) and the job list
-    // (Pesanan) itself, so Beranda/Pesanan/Pendapatan/Profil is already the
-    // complete set. Forcing a 4th tab here just to match tab-count would add
-    // a dead-end screen, not real parity - so this asymmetry stays, on
-    // purpose, after reviewing it.
+    // WiraRide bookings for later (migrations/0132) are taken ahead of time
+    // from their own list, so drivers get a Jadwal tab like technicians.
+    if (activeRole === 'driver') {
+      base.push({ to: `/driver/schedule`, icon: CalendarClock, label: 'Jadwal' });
+    }
 
     base.push(
       { to: `/${activeRole}/earnings`, icon: Wallet, label: 'Pendapatan' },
