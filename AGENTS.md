@@ -80,7 +80,7 @@ write in. They decide product questions. You do the engineering.
   orders → unread notice ≤3 days → promo → "order again"/time-of-day tip) above the service grid.
 - Display name: read from `public.users` via `hooks/useMyProfile.js`, never from auth metadata (a
   person can have a customer and a partner account with the same email; metadata goes stale).
-- Highest migration today: `0135_cash_extras_on_qris_orders.sql`. Always `ls migrations | tail` before adding one,
+- Highest migration today: `0136_extras_after_quote.sql`. Always `ls migrations | tail` before adding one,
   and add a row to `migrations/README.md`.
 - `db-tests/` + CI job `db-tests` test money/security migrations on Postgres 16 (see `WIRA_HANDOFF.md` §6.9).
 

@@ -69,6 +69,9 @@ export default function VisitTools({ order, onFinished, onQuoteState }) {
   const job = order.metadata?.job || null;
   const jobBase = Number(job?.base || 0);
   const quoteApproved = adjustments.some((a) => a.kind === 'quote' && a.status === 'approved');
+  // "Pekerjaan lain": the price quote comes first; extras only after the
+  // customer approved it (the server refuses them before, migrations/0136).
+  const extrasLocked = !!job && !quoteApproved;
   const quotePending = adjustments.find((a) => a.kind === 'quote' && a.status === 'pending') || null;
 
   // Tell the page whether "Mulai Bekerja" may unlock.
@@ -245,11 +248,17 @@ export default function VisitTools({ order, onFinished, onQuoteState }) {
             </ul>
           ) : (
             <p className="text-[12.5px] leading-relaxed text-ink-muted">
-              Butuh bahan, suku cadang atau pekerjaan di luar pesanan? Ajukan di sini. Pelanggan menyetujuinya di aplikasi
-              {extrasFromWallet ? ' dan langsung terbayar dari saldo WiraPay-nya.' : ', lalu membayar tunai ke Anda.'}
+              {extrasLocked ? (
+                'Kirim penawaran harga dulu. Setelah pelanggan menyetujui harga, bahan atau biaya lain bisa diajukan di sini.'
+              ) : (
+                <>
+                  Butuh bahan, suku cadang atau pekerjaan di luar pesanan? Ajukan di sini. Pelanggan menyetujuinya di aplikasi
+                  {extrasFromWallet ? ' dan langsung terbayar dari saldo WiraPay-nya.' : ', lalu membayar tunai ke Anda.'}
+                </>
+              )}
             </p>
           )}
-          {onSite && (
+          {onSite && !extrasLocked && (
             <Button variant="secondary" block onClick={() => setAskOpen(true)} disabled={hasPending}>
               {hasPending ? 'Menunggu jawaban pelanggan' : 'Ajukan Biaya Tambahan'}
             </Button>
