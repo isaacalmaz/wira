@@ -12,8 +12,11 @@ import Money from './Money';
 export default function Stat({ label, value, icon, tone = 'brand', hint, className = '' }) {
   return (
     <div className={cx('flex min-w-0 flex-col gap-3 rounded-card border border-line bg-card p-4', className)}>
-      <div className="flex items-start gap-3">
-        <span className="min-w-0 flex-1 break-words text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted sm:tracking-[0.1em]">{label}</span>
+      {/* wrap-reverse: when the card is too narrow for label and icon side by
+          side (phone + large text), the icon moves above the label instead of
+          squeezing it into broken syllables. */}
+      <div className="flex flex-wrap-reverse items-start justify-between gap-2">
+        <span className="min-w-[min(7.5rem,100%)] flex-1 break-words text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted sm:tracking-[0.1em]">{label}</span>
         {icon && <IconTile tone={tone} size="sm">{icon}</IconTile>}
       </div>
       <span className="min-w-0 font-mono text-[26px] font-medium leading-none tracking-tight text-ink [overflow-wrap:anywhere]">{value}</span>
