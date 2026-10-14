@@ -35,6 +35,7 @@ MIGRATION_FILES=(
   0083_dispatch_window_from_payment.sql
   0084_mitra_applications.sql
   0085_migrate_and_lock_mitra_registrations.sql
+  0134_wallet_server_switch.sql
 )
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 --set=SHOW_CONTEXT=never)

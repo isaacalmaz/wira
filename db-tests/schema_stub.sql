@@ -88,6 +88,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
+-- --- app_settings (live table; 0134 reads wallet_enabled from it) ------------
+CREATE TABLE public.app_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB
+);
+
 -- --- merchants (0001) -------------------------------------------------------
 CREATE TABLE public.merchants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

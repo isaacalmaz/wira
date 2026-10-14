@@ -1,6 +1,10 @@
 -- 0059 server-side price + 0070 atomic WiraPay checkout + 0074 login required.
 \echo '--- 01 wallet checkout: create_order_and_pay charges the server price; clients cannot create paid/wallet orders'
 
+-- WiraPay is off in production (0134); this file tests the wallet path itself,
+-- so it switches the wallet on and back off at the end.
+INSERT INTO app_settings (key, value) VALUES ('wallet_enabled', 'true'::jsonb);
+
 -- Fixtures (as the migration owner, i.e. RLS/trigger-exempt).
 INSERT INTO users (id, name, role, wallet_balance) VALUES
   ('01000000-0000-0000-0000-000000000001', 'W1 rich customer', 'user', 100000),
@@ -108,3 +112,5 @@ SELECT wira_test.throws($q$SELECT create_order_and_pay(p_service_type => 'send',
 SELECT wira_test.throws($q$INSERT INTO orders (user_id, service_type, rate_code) VALUES (NULL, 'send', 'kecil')$q$,
     '%permission denied%', 'anon cannot INSERT orders (guest checkout gone, 0074)');
 RESET ROLE;
+
+DELETE FROM app_settings WHERE key = 'wallet_enabled';
