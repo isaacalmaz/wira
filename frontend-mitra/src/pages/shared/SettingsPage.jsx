@@ -66,6 +66,8 @@ const SettingsPage = () => {
     setJobTypePrefs(Array.isArray(user.job_type_preferences) ? user.job_type_preferences : []);
   }, [isDriver, user]);
 
+  const vehicleLocked = !!user?.vehicle_type;
+
   const handleVehicleTypeChange = (nextType) => {
     setVehicleType(nextType);
     if (nextType === 'mobil') {
@@ -90,7 +92,7 @@ const SettingsPage = () => {
       // response array length is checked.
       const { error, data } = await supabase
         .from('users')
-        .update({ vehicle_type: vehicleType, job_type_preferences: finalPrefs })
+        .update(vehicleLocked ? { job_type_preferences: finalPrefs } : { vehicle_type: vehicleType, job_type_preferences: finalPrefs })
         .eq('id', user.id)
         .select();
 
@@ -245,31 +247,45 @@ const SettingsPage = () => {
         <Card padding="lg" className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">
             <h2 className="text-[15px] font-bold tracking-tight text-ink">Preferensi Layanan Driver</h2>
-            <p className="text-[13px] leading-relaxed text-ink-muted">Pilih kategori kendaraan dan layanan yang ingin Anda terima.</p>
+            <p className="text-[13px] leading-relaxed text-ink-muted">{vehicleLocked ? 'Pilih layanan yang ingin Anda terima.' : 'Pilih kategori kendaraan dan layanan yang ingin Anda terima.'}</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-ink">Kategori Kendaraan</span>
-            <div className="grid grid-cols-2 gap-2">
-              {[{ id: 'motor', label: 'Motor', icon: Bike }, { id: 'mobil', label: 'Mobil', icon: Car }].map((v) => {
-                const active = vehicleType === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => handleVehicleTypeChange(v.id)}
-                    className={cx(
-                      'inline-flex min-h-11 items-center justify-center gap-2 rounded-control border px-3 py-2.5 text-sm font-semibold transition-colors',
-                      active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-card text-ink hover:bg-sunken',
-                    )}
-                  >
-                    <v.icon size={18} aria-hidden="true" />
-                    {v.label}
-                  </button>
-                );
-              })}
-            </div>
+            {vehicleLocked ? (
+              // Checked by an admin with the SIM & STNK (migrations/0137), so
+              // only an admin changes it.
+              <div className="flex flex-col gap-1.5">
+                <span className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line bg-sunken px-3 py-2.5 text-sm font-semibold text-ink">
+                  {user.vehicle_type === 'mobil' ? <Car size={18} aria-hidden="true" /> : <Bike size={18} aria-hidden="true" />}
+                  {user.vehicle_type === 'mobil' ? 'Mobil' : 'Motor'}
+                </span>
+                <p className="text-xs leading-relaxed text-ink-muted">
+                  Sesuai pendaftaran yang disetujui admin. Ganti kendaraan? Hubungi admin lewat Pusat Bantuan dan kirim foto SIM &amp; STNK kendaraan barunya.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {[{ id: 'motor', label: 'Motor', icon: Bike }, { id: 'mobil', label: 'Mobil', icon: Car }].map((v) => {
+                  const active = vehicleType === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => handleVehicleTypeChange(v.id)}
+                      className={cx(
+                        'inline-flex min-h-11 items-center justify-center gap-2 rounded-control border px-3 py-2.5 text-sm font-semibold transition-colors',
+                        active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-card text-ink hover:bg-sunken',
+                      )}
+                    >
+                      <v.icon size={18} aria-hidden="true" />
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {!user?.vehicle_type && (
               <p className="text-xs font-medium text-warning-ink">
                 Wajib dipilih dan disimpan sebelum Anda bisa mulai Online.
