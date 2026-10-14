@@ -44,6 +44,7 @@ BEGIN
     -- in Keuangan approving a QRIS top-up fires pay_order_after_qris_topup.
     IF COALESCE(NEW.wallet_balance, 0) < COALESCE(OLD.wallet_balance, 0)
        AND auth.uid() IS NOT NULL
+       AND COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role', '') <> 'service_role'
        AND NOT EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid()
                        AND role IN ('admin', 'Superadmin', 'superadmin', 'Admin Ops', 'Admin Keuangan'))
        AND NOT public.wallet_enabled() THEN

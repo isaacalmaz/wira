@@ -91,6 +91,7 @@ SELECT wira_test.throws(format('SELECT approve_topup_and_credit(%L, %s, %L, %L)'
     '%permission denied%', 'customer cannot approve their own top-up');
 
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.throws(format('SELECT approve_topup_and_credit(%L, %s, %L, %L)', :'pool_topup', 150000, 'manual', 'x'),
     '%amount mismatch%', 'approval with the wrong amount raises');
 SELECT wira_test.eq(approve_topup_and_credit(:'pool_topup', :'pool_amount', 'manual', 'QRIS test'),
@@ -115,6 +116,7 @@ BEGIN
 END $$;
 
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.eq(approve_topup_and_credit(:'pool_topup', :'pool_amount', 'manual', 'QRIS replay'),
     'already_processed', 'replayed approval is a no-op');
 RESET ROLE;
@@ -149,6 +151,7 @@ RESET ROLE;
 SELECT id AS villa_topup, amount AS villa_amount FROM topup_requests WHERE order_id = :'villa_order' \gset
 SELECT wallet_balance AS bal_before FROM users WHERE id = '03000000-0000-0000-0000-000000000003' \gset
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.eq(approve_topup_and_credit(:'villa_topup', :'villa_amount', 'manual', 'late'),
     'approved', 'late transfer for a cancelled order is still approved');
 RESET ROLE;
@@ -169,6 +172,7 @@ UPDATE orders SET created_at = NOW() - INTERVAL '20 minutes' WHERE title = 'Q3 s
 UPDATE topup_requests SET created_at = NOW() - INTERVAL '3 hours'
     WHERE order_id = (SELECT id FROM orders WHERE title = 'Q3 stale');
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT expire_awaiting_qris_orders();
 RESET ROLE;
 SELECT wira_test.eq((SELECT status FROM orders WHERE title = 'Q3 stale'), 'cancelled', 'order unpaid after 15 min is cancelled');

@@ -94,6 +94,7 @@ SELECT wira_test.eq((SELECT wallet_balance FROM users WHERE id = '02000000-0000-
 SELECT wira_test.throws($q$UPDATE promos SET per_user_limit = 0 WHERE code = 'T_RIDE5K'$q$,
     '%promos_per_user_limit_positive%', 'per_user_limit must be > 0 (0076 CHECK)');
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.ok(increment_promo_usage((SELECT id FROM promos WHERE code = 'T_RIDE5K')),
     'service_role can still call increment_promo_usage');
 RESET ROLE;
