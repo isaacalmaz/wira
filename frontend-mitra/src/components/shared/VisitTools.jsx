@@ -6,6 +6,7 @@ import { Badge, Button, Card, Field, Input, Money, Segmented, Sheet, Textarea, c
 import { cancelAdjustment, finishAsCheck, reportCustomerAbsent, requestAdjustment, submitVisitQuote } from '../../services/technicianService';
 import OrderPhotoThumbs from './OrderPhotoThumbs';
 import { friendlyError } from '../../utils/friendlyError';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 const ADJ_STATUS = {
   pending: { tone: 'warning', label: 'Menunggu pelanggan' },
@@ -63,6 +64,8 @@ export default function VisitTools({ order, onFinished, onQuoteState }) {
   const canCheckFinish = ['accepted', 'on_the_way'].includes(order.status);
   const hasPending = adjustments.some((a) => a.status === 'pending');
   const paidOnline = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
+  // While WiraPay is off, extras on a QRIS-paid order are paid to you in cash (migrations/0135).
+  const extrasFromWallet = paidOnline && WALLET_ENABLED;
   const job = order.metadata?.job || null;
   const jobBase = Number(job?.base || 0);
   const quoteApproved = adjustments.some((a) => a.kind === 'quote' && a.status === 'approved');
@@ -219,6 +222,9 @@ export default function VisitTools({ order, onFinished, onQuoteState }) {
                       <Badge tone={ADJ_STATUS[a.status]?.tone}>{ADJ_STATUS[a.status]?.label}</Badge>
                       <span className="text-[12px] text-ink-muted">{a.kind === 'material' ? 'Bahan, tanpa komisi' : a.kind === 'quote' ? 'Penawaran pekerjaan lain' : 'Jasa'}</span>
                     </span>
+                    {a.status === 'approved' && a.paid_cash && (
+                      <span className="text-[12.5px] font-semibold text-brand-ink">Terima tunai dari pelanggan</span>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <Money value={Number(a.amount) + (a.kind === 'quote' ? jobBase : 0)} className="text-[14px] font-medium text-ink" />
@@ -240,7 +246,7 @@ export default function VisitTools({ order, onFinished, onQuoteState }) {
           ) : (
             <p className="text-[12.5px] leading-relaxed text-ink-muted">
               Butuh bahan, suku cadang atau pekerjaan di luar pesanan? Ajukan di sini. Pelanggan menyetujuinya di aplikasi
-              {paidOnline ? ' dan langsung terbayar dari saldo WiraPay-nya.' : ', lalu membayar tunai ke Anda.'}
+              {extrasFromWallet ? ' dan langsung terbayar dari saldo WiraPay-nya.' : ', lalu membayar tunai ke Anda.'}
             </p>
           )}
           {onSite && (

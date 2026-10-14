@@ -2,8 +2,11 @@ import { CalendarClock, MapPin, MessageSquareText, Star, Waves, Wrench, ChevronR
 import { Badge, Button, Card, IconTile, Money, cx } from '../ui';
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, visitInfo } from '../../services/technicianService';
+import { WALLET_ENABLED } from '../../config/wallet';
 
-const PAYMENT_LABEL = { cash: 'Tunai', wallet: 'WiraPay', qris: 'QRIS' };
+// QRIS orders are stored as payment_method 'wallet' (migrations/0077); with
+// WiraPay off that can only be QRIS.
+const PAYMENT_LABEL = { cash: 'Tunai', wallet: WALLET_ENABLED ? 'WiraPay' : 'QRIS', qris: 'QRIS' };
 
 /**
  * One technician visit: an open job (with "Ambil" action) or one of the

@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n';
 import { Badge, Button, Card, Money, Notice, cx } from '../ui';
 import OrderPhotoThumbs from './OrderPhotoThumbs';
 import { friendlyError } from '../../utils/friendlyError';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 // Drops a <Money> into a translated sentence at {{amount}} / {{fee}}.
 const SLOT = '\u0000';
@@ -60,8 +61,11 @@ export default function VisitExtras({ order }) {
   const items = Array.isArray(order.metadata?.items) ? order.metadata.items : [];
   const visitNo = order.metadata?.package_visit;
   const paidOnline = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
+  // While WiraPay is off, extras on a QRIS-paid order are paid in cash (migrations/0135).
+  const extrasInCash = paidOnline && !WALLET_ENABLED;
   const pending = adjustments.filter((a) => a.status === 'pending');
   const decided = adjustments.filter((a) => a.status === 'approved');
+  const cashTotal = decided.filter((a) => a.paid_cash).reduce((sum, a) => sum + Number(a.amount), 0);
   const active = ['on_the_way', 'working'].includes(order.status);
   // "Pekerjaan lain" (migrations/0123): the technician's on-site quote.
   const job = order.metadata?.job || null;
@@ -110,6 +114,9 @@ export default function VisitExtras({ order }) {
               {withMoney(t('visit.quote_approve', { amount: SLOT }), Number(adj.amount) + jobBase)}
             </Button>
           </div>
+          {extrasInCash && (
+            <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('visit.quote_pay_cash_qris')}</p>
+          )}
           <p className="text-[12px] leading-relaxed text-ink-muted">
             {jobBase > 0
               ? withMoney(t('visit.quote_reject_check', { fee: SLOT }), jobBase)
@@ -130,7 +137,7 @@ export default function VisitExtras({ order }) {
             <Money value={Number(adj.amount)} className="shrink-0 text-[17px] font-medium text-ink" />
           </div>
           <p className="text-[12.5px] leading-relaxed text-ink-muted">
-            {paidOnline ? t('visit.adjust_pay_wallet') : t('visit.adjust_pay_cash')}
+            {extrasInCash ? t('visit.adjust_pay_cash_qris') : paidOnline ? t('visit.adjust_pay_wallet') : t('visit.adjust_pay_cash')}
           </p>
           <div className="grid grid-cols-2 gap-2.5">
             <Button variant="secondary" onClick={() => respond(adj, false)} isLoading={busy === `${adj.id}:reject`} disabled={!!busy}>
@@ -174,10 +181,17 @@ export default function VisitExtras({ order }) {
                 <li key={adj.id} className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 text-ink">
                     {adj.kind === 'quote' ? t('visit.quote_approved') : t('visit.extra')}: {adj.description}
+                    {adj.paid_cash && <Badge tone="neutral" className="ml-1.5 align-middle">{t('visit.paid_cash_badge')}</Badge>}
                   </span>
                   <Money value={Number(adj.amount)} className="shrink-0 text-ink" />
                 </li>
               ))}
+              {cashTotal > 0 && (
+                <li className="flex items-baseline justify-between gap-3 border-t border-line pt-1.5 font-semibold">
+                  <span className="min-w-0 text-ink">{t('visit.paid_cash_total')}</span>
+                  <Money value={cashTotal} className="shrink-0 text-ink" />
+                </li>
+              )}
             </ul>
           )}
         </Card>

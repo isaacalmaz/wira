@@ -42,6 +42,7 @@ SELECT wira_test.ok((SELECT promo_usage_id IS NOT NULL FROM orders WHERE title =
 UPDATE orders SET status = 'cancelled' WHERE title = 'E1 send promo';
 SELECT wira_test.eq((SELECT usage FROM promos WHERE code = 'T_SEND5K'), 0, 'cancelling the order gives the use back');
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 UPDATE orders SET details = 'backend edit' WHERE title = 'E1 send promo';
 RESET ROLE;
 SELECT wira_test.eq((SELECT usage FROM promos WHERE code = 'T_SEND5K'), 0, 'no second release on later edits');
@@ -78,11 +79,13 @@ RESET ROLE;
 UPDATE orders SET created_at = NOW() - INTERVAL '40 minutes' WHERE id = :'late_order';
 SELECT id AS late_topup, amount AS late_amount FROM topup_requests WHERE order_id = :'late_order' \gset
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.eq(approve_topup_and_credit(:'late_topup', :'late_amount', 'manual', 'late pool'), 'approved', 'late QRIS payment approved');
 RESET ROLE;
 SELECT wira_test.ok((SELECT status = 'pending' AND payment_status = 'paid' AND paid_at > NOW() - INTERVAL '1 minute'
     FROM orders WHERE id = :'late_order'), 'payment sets paid_at');
 SET ROLE service_role;
+SELECT wira_test.login(NULL); -- like the webhook: service key, no user
 SELECT wira_test.ok(:'late_order'::uuid IN (SELECT dispatch_due_orders(100)),
     'order created 40 min ago but paid now is still dispatched');
 SELECT wira_test.ok((SELECT id FROM orders WHERE title = 'E1 stale send') NOT IN (SELECT dispatch_due_orders(100)),

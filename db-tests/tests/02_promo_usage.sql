@@ -1,6 +1,10 @@
 -- 0046 usage_limit + 0059 discount + 0076 server-side promo usage.
 \echo '--- 02 promo usage: counted on the server, exhausted promo raises, client RPCs closed'
 
+-- Some checks pay with WiraPay; it is off in production (0134), so switch it
+-- on for this file only.
+INSERT INTO app_settings (key, value) VALUES ('wallet_enabled', 'true'::jsonb);
+
 INSERT INTO users (id, name, role, wallet_balance) VALUES
   ('02000000-0000-0000-0000-000000000001', 'P1 customer', 'user', 100000),
   ('02000000-0000-0000-0000-000000000002', 'P2 customer', 'user', 100000),
@@ -93,3 +97,5 @@ SET ROLE service_role;
 SELECT wira_test.ok(increment_promo_usage((SELECT id FROM promos WHERE code = 'T_RIDE5K')),
     'service_role can still call increment_promo_usage');
 RESET ROLE;
+
+DELETE FROM app_settings WHERE key = 'wallet_enabled';

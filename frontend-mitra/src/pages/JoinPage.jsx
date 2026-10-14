@@ -8,6 +8,7 @@ import { Card, IconTile, cx } from '../components/ui';
 import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
 import { loadCommissionRates, commissionRate } from '../services/orderService';
+import { WALLET_ENABLED } from '../config/wallet';
 
 // Wira's cut per service is set by admins (commission_rates, migrations/
 // 0099); texts below carry {cut:service} / {keep:service} placeholders that
@@ -25,7 +26,7 @@ const ROLES = {
       { icon: Banknote, title: 'Tarif jelas per kilometer', text: 'Harga dihitung otomatis dari jarak; pelanggan melihat harga sebelum memesan, tanpa tawar-menawar.' },
       { icon: ShieldCheck, title: 'Aman untuk kedua pihak', text: 'Perjalanan dimulai dengan PIN dari pelanggan; lokasi dan riwayat tercatat di aplikasi.' },
       { icon: ToggleRight, title: 'Atur jam kerja sendiri', text: 'Nyalakan Online saat siap menerima pesanan, matikan kapan saja. Tidak ada target.' },
-      { icon: Wallet, title: 'Pendapatan langsung tercatat', text: 'Tiap pesanan selesai masuk ke saldo pendapatan dan bisa dicairkan dari aplikasi.' },
+      { icon: Wallet, title: 'Dibayar langsung oleh pelanggan', text: 'Pelanggan membayar tunai ke Anda saat perjalanan selesai. Semua pesanan dan pendapatan tercatat di aplikasi.' },
     ],
     needs: [
       { icon: CreditCard, text: 'SIM aktif dan STNK (difoto saat daftar)' },
@@ -42,12 +43,12 @@ const ROLES = {
   merchant: {
     key: 'merchant', register: 'merchant', icon: Store, label: 'Restoran / Warung', sub: 'Jual makanan di WiraFood',
     headline: 'Pelanggan baru untuk dapur Anda, diantar driver Wira.',
-    intro: 'Tampilkan menu dan foto makanan Anda di WiraFood. Pelanggan memesan dan membayar di aplikasi, driver Wira yang mengantar.',
+    intro: 'Tampilkan menu dan foto makanan Anda di WiraFood. Pelanggan memesan di aplikasi, driver Wira yang mengambil dan mengantar.',
     benefits: [
       { icon: Utensils, title: 'Pelanggan di sekitar Anda', text: 'Warga dan wisatawan di Lombok menemukan warung Anda lewat aplikasi Wira.' },
       { icon: ImageIcon, title: 'Kelola menu sendiri', text: 'Tambah menu, harga dan foto dari HP. Tandai menu habis atau tutup toko kapan saja.' },
       { icon: Bike, title: 'Tidak perlu kurir sendiri', text: 'Begitu pesanan siap, driver Wira terdekat datang mengambil dan mengantar.' },
-      { icon: Wallet, title: 'Pembayaran aman', text: 'Pelanggan membayar lewat WiraPay atau QRIS sebelum Anda memasak.' },
+      { icon: Wallet, title: 'Dibayar saat diambil', text: 'Driver membayar harga menu ke Anda secara tunai saat mengambil pesanan.' },
       { icon: Star, title: 'Ulasan membangun nama', text: 'Rating dan ulasan pelanggan membantu warung Anda dipilih lebih sering.' },
       { icon: Banknote, title: 'Potongan jelas', text: '{cut:food} dari harga makanan. Ongkos kirim untuk driver, tidak dipotong dari bagian Anda.' },
     ],
@@ -66,11 +67,11 @@ const ROLES = {
   villa: {
     key: 'villa', register: 'villa', icon: Building2, label: 'Villa / Penginapan', sub: 'Sewakan di WiraVilla',
     headline: 'Isi kamar kosong Anda dengan tamu dari aplikasi Wira.',
-    intro: 'Daftarkan villa, homestay atau penginapan Anda di WiraVilla. Tamu memesan dan membayar di muka lewat aplikasi.',
+    intro: 'Daftarkan villa, homestay atau penginapan Anda di WiraVilla. Tamu memilih tanggal dan memesan lewat aplikasi.',
     benefits: [
       { icon: Building2, title: 'Tamu lokal dan wisatawan', text: 'Penginapan Anda tampil bagi pengguna Wira yang mencari tempat menginap di Lombok.' },
       { icon: ImageIcon, title: 'Kelola listing sendiri', text: 'Atur foto, deskripsi dan harga per malam dari aplikasi Wira Mitra.' },
-      { icon: Wallet, title: 'Dibayar di muka', text: 'Tamu membayar lewat WiraPay atau QRIS saat memesan; Anda tinggal menyiapkan kamar.' },
+      { icon: Wallet, title: 'Pembayaran jelas', text: 'Tamu membayar lewat QRIS saat memesan, atau tunai langsung ke Anda saat tiba.' },
       { icon: CalendarCheck, title: 'Terima atau tolak pesanan', text: 'Setiap pesanan masuk ke aplikasi untuk Anda konfirmasi.' },
       { icon: Star, title: 'Ulasan tamu', text: 'Ulasan yang baik membuat penginapan Anda lebih dipercaya.' },
       { icon: Banknote, title: 'Potongan jelas', text: '{cut:villa} dari nilai sewa. Tidak ada biaya pendaftaran atau biaya bulanan.' },
@@ -88,14 +89,14 @@ const ROLES = {
     ],
   },
   technician: {
-    key: 'technician', register: 'technician', icon: Wrench, label: 'Teknisi & Jasa', sub: 'AC, listrik, pipa, kolam, renovasi',
-    headline: 'Pekerjaan datang ke Anda. Bayaran aman lewat Wira.',
-    intro: 'Servis AC, listrik, pipa, kolam renang, sampai proyek terazzo dan renovasi villa. Pilih keahlian dan wilayah Anda sendiri.',
+    key: 'technician', register: 'technician', icon: Wrench, label: 'Teknisi & Jasa', sub: 'AC, listrik, pipa, kolam, tukang',
+    headline: 'Pekerjaan datang ke Anda. Pelanggan bayar langsung ke Anda.',
+    intro: 'Servis AC, listrik, pipa, kolam renang dan pekerjaan tukang. Pilih keahlian dan wilayah Anda sendiri.',
     benefits: [
       { icon: CalendarCheck, title: 'Pekerjaan sesuai keahlian', text: 'Pesanan sesuai keahlian dan wilayah Anda muncul di aplikasi, lengkap dengan jadwal dan rincian.' },
       { icon: Banknote, title: 'Harga jelas', text: 'Daftar harga per pekerjaan sudah tetap. Bahan diajukan terpisah dan disetujui pelanggan di aplikasi.' },
-      { icon: Wallet, title: 'Uang bahan 100% untuk Anda', text: 'Pelanggan membayar lewat WiraPay; bahan dan suku cadang tidak dipotong sama sekali.' },
-      { icon: ClipboardList, title: 'Proyek lewat penawaran', text: 'Renovasi, terazzo, cat villa: kirim penawaran sendiri, dibayar bertahap (DP + termin) dengan potongan {cut:project}.' },
+      { icon: Wallet, title: 'Uang bahan 100% untuk Anda', text: 'Pelanggan membayar tunai langsung ke Anda; bahan dan suku cadang tidak dipotong sama sekali.' },
+      { icon: ClipboardList, title: 'Pekerjaan di luar daftar', text: 'Pelanggan bisa meminta pekerjaan lain; Anda menentukan harganya di lokasi, dan pekerjaan dimulai setelah pelanggan setuju di aplikasi.' },
       { icon: Star, title: 'Reputasi yang terlihat', text: 'Ulasan, portofolio foto dan badge Terverifikasi membuat Anda dipilih lebih dulu.' },
       { icon: ShieldCheck, title: 'Tetap dibayar bila batal di lokasi', text: 'Pelanggan batal setelah Anda datang dan mengecek? Anda tetap mendapat biaya cek.' },
     ],
@@ -121,8 +122,8 @@ const SLUG = { driver: 'driver', merchant: 'restoran', villa: 'villa', technicia
 
 const FAQ = [
   { q: 'Apakah ada biaya pendaftaran?', a: 'Tidak ada. Pendaftaran gratis, tanpa biaya bulanan. Wira hanya mengambil potongan dari pesanan yang selesai.' },
-  { q: 'Kapan pendapatan bisa dicairkan?', a: 'Pendapatan masuk ke saldo mitra begitu pesanan selesai dan bisa ditarik ke rekening atau e-wallet dari menu Pendapatan.' },
-  { q: 'Bagaimana dengan pesanan bayar tunai?', a: 'Anda menerima uangnya langsung dari pelanggan; potongan Wira dicatat dan diperhitungkan dengan pendapatan Anda berikutnya.' },
+  { q: 'Bagaimana saya dibayar?', a: 'Pelanggan membayar langsung ke Anda, umumnya tunai. Tidak perlu menunggu pencairan dari Wira.' },
+  { q: 'Bagaimana membayar potongan Wira?', a: 'Potongan tiap pesanan tercatat di aplikasi. Anda menyetornya lewat menu Setor Komisi: transfer, unggah bukti, lalu tim Wira mengonfirmasi. Boleh setor di muka sebagai deposit.' },
   { q: 'Bisakah saya mendaftar untuk lebih dari satu jenis?', a: 'Bisa. Misalnya driver yang juga punya warung: daftar satu per satu, lalu pindah peran dari aplikasi yang sama.' },
   { q: 'Apakah data dan dokumen saya aman?', a: 'Foto SIM, STNK, KTP dan selfie hanya dilihat tim Wira untuk verifikasi. Nomor HP Anda tidak ditampilkan ke pelanggan.' },
   { q: 'Wilayah mana saja?', a: 'Seluruh Lombok: Mataram, Lombok Barat, Senggigi, Lombok Utara, Gili, Lombok Tengah, Kuta Mandalika dan Lombok Timur.' },
@@ -275,7 +276,7 @@ export default function JoinPage() {
                 {active === 'driver' && fill('Yang Anda terima setelah potongan Wira. Tarif mengikuti jarak dan bisa berubah.')}
                 {active === 'merchant' && fill('Bagian Anda dari harga makanan setelah potongan {cut:food}. Ongkos kirim untuk driver.')}
                 {active === 'villa' && fill('Bagian Anda dari nilai sewa setelah potongan {cut:villa}.')}
-                {active === 'technician' && fill('Yang Anda terima per pekerjaan setelah potongan {cut:service}. Bahan dibayar terpisah, tanpa potongan; proyek dipotong {cut:project}.')}
+                {active === 'technician' && fill('Yang Anda terima per pekerjaan setelah potongan {cut:service}. Bahan dibayar terpisah, tanpa potongan.')}
               </p>
             </Card>
           )}
@@ -297,7 +298,8 @@ export default function JoinPage() {
         {active === 'technician' && skills.length > 0 && (
           <section className="flex flex-col gap-4">
             <h2 className="text-[22px] font-extrabold tracking-tight text-ink">Keahlian yang kami cari</h2>
-            {[['servis', 'Servis harian (harga tetap)'], ['proyek', 'Proyek & renovasi (lewat penawaran)']].map(([g, label]) => (
+            {/* Projects (quotes, DP + termin) run on WiraPay, so they stay hidden while it's off. */}
+            {[['servis', 'Servis harian (harga tetap)'], ...(WALLET_ENABLED ? [['proyek', 'Proyek & renovasi (lewat penawaran)']] : [])].map(([g, label]) => (
               <div key={g} className="flex flex-col gap-2">
                 <p className="text-[13px] font-semibold text-ink-muted">{label}</p>
                 <div className="flex flex-wrap gap-2">
