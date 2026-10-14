@@ -191,7 +191,33 @@ export default function PartnerProfilePage() {
               <Mail size={14} className="shrink-0 text-ink-muted" /><span className="break-all">{u.email}</span>
             </span>
           )}
-          {u.vehicle_type && <span className="text-ink-muted">Kendaraan: <span className="text-ink">{u.vehicle_type}</span></span>}
+          {u.vehicle_type && (
+            <span className="inline-flex items-center gap-2 text-ink-muted">
+              Kendaraan: <span className="text-ink">{u.vehicle_type === 'mobil' ? 'Mobil' : 'Motor'}</span>
+              {core && access.includes('driver') && (
+                <button
+                  type="button"
+                  className="font-semibold text-brand-ink underline"
+                  onClick={() => {
+                    const next = u.vehicle_type === 'mobil' ? 'motor' : 'mobil';
+                    const nextLabel = next === 'mobil' ? 'Mobil' : 'Motor';
+                    act({
+                      title: `Ubah kendaraan jadi ${nextLabel}?`,
+                      description: `Cek dulu SIM & STNK kendaraan barunya. Mitra langsung menerima pesanan untuk ${nextLabel}${next === 'mobil' ? ' (antar makanan dimatikan)' : ''}.`,
+                      label: `Ubah jadi ${nextLabel}`,
+                      done: 'Kendaraan diubah',
+                      run: async (r) => {
+                        const { error } = await supabase.rpc('admin_set_driver_vehicle', { p_user: u.id, p_vehicle: next, p_note: r });
+                        if (error) throw error;
+                      },
+                    });
+                  }}
+                >
+                  Ubah
+                </button>
+              )}
+            </span>
+          )}
         </div>
         {(u.phone || u.email) && (
           <div className="flex w-full flex-col gap-2 border-t border-line pt-3">
