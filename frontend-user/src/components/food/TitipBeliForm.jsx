@@ -26,7 +26,7 @@ const emptyItem = () => ({ name: '', qty: '1', note: '' });
  * customer lists the items and a spending limit; the driver shops, sends the
  * receipt for approval, then delivers. Stored as a send order 'TITIP'; the
  * delivery fee comes from pricing_rules send/TITIP, the limit from
- * app_settings titip_budget_max (both set by admins).
+ * my_titip_budget (titip_budget_max, lower for new customers; set by admins).
  */
 export default function TitipBeliForm() {
   const navigate = useNavigate();
@@ -43,7 +43,8 @@ export default function TitipBeliForm() {
   const [ifMissing, setIfMissing] = useState('ask');
   const [budget, setBudget] = useState('');
   const [rule, setRule] = useState(null); // { base, perKm }
-  const [maxBudget, setMaxBudget] = useState(300000);
+  const [maxBudget, setMaxBudget] = useState(100000);
+  const [limitInfo, setLimitInfo] = useState(null);
   const [routeMeters, setRouteMeters] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,8 +52,15 @@ export default function TitipBeliForm() {
     supabase.from('pricing_rules').select('base_price, per_km_rate')
       .eq('service_type', 'send').eq('code', 'TITIP').eq('is_active', true).maybeSingle()
       .then(({ data }) => { if (data) setRule({ base: Number(data.base_price) || 0, perKm: Number(data.per_km_rate) || 0 }); });
-    supabase.from('app_settings').select('value').eq('key', 'titip_budget_max').maybeSingle()
-      .then(({ data }) => { if (data && Number(data.value) > 0) setMaxBudget(Number(data.value)); });
+    // New customers get a lower limit until they have a few completed orders
+    // (migrations/0133, both numbers set by admins).
+    supabase.rpc('my_titip_budget')
+      .then(({ data }) => {
+        if (data && Number(data.max) > 0) {
+          setMaxBudget(Number(data.max));
+          setLimitInfo(data);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -204,7 +212,17 @@ export default function TitipBeliForm() {
           label={t('titip.budget_label')}
           htmlFor="titip-budget"
           required
-          hint={withMoney(t('titip.budget_hint', { max: SLOT }), maxBudget)}
+          hint={(
+            <>
+              {withMoney(t('titip.budget_hint', { max: SLOT }), maxBudget)}
+              {limitInfo && Number(limitInfo.max) < Number(limitInfo.full_max) && (
+                <> {withMoney(t('titip.budget_new_customer', {
+                  max: SLOT,
+                  left: Math.max(1, Number(limitInfo.trusted_orders) - Number(limitInfo.completed)),
+                }), Number(limitInfo.full_max))}</>
+              )}
+            </>
+          )}
         >
           <Input
             id="titip-budget"

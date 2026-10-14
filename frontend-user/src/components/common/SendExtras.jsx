@@ -128,6 +128,9 @@ export default function SendExtras({ order, onChat }) {
           </dl>
           {receipt?.status === 'approved' && receipt.photos?.length > 0 && <OrderPhotoThumbs paths={receipt.photos} label={t('titip.receipt_photo')} />}
           {!receipt && ['accepted', 'picking_up'].includes(order.status) && <Notice tone="info">{t('titip.shopping_note')}</Notice>}
+          {['accepted', 'picking_up', 'in_trip'].includes(order.status) && (
+            <p className="text-[12px] leading-relaxed text-ink-muted">{t('titip.transfer_note')}</p>
+          )}
         </Card>
       </>
     );

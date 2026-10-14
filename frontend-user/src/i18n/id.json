@@ -1296,6 +1296,8 @@
     "address_placeholder": "Alamat Anda",
     "budget_label": "Batas belanja (Rp)",
     "budget_hint": "Driver tidak membeli lebih dari ini. Maksimal {{max}}.",
+    "budget_new_customer": "Untuk pelanggan baru. Naik jadi {{max}} setelah {{left}} pesanan lagi selesai.",
+    "transfer_note": "Driver boleh meminta uang belanja ditransfer dulu ke rekeningnya lewat chat pesanan ini. Kalau Anda transfer, saat barang tiba Anda hanya membayar ongkir, dan sisa uang belanja dikembalikan tunai sesuai struk.",
     "fee": "Ongkir",
     "fee_km": "Ongkir ({{km}} km)",
     "pay_cash": "Bayar tunai saat diterima",
