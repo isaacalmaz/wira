@@ -13,7 +13,7 @@ import {
   Wallet,
   Banknote,
 } from 'lucide-react';
-import { Button, Money, Notice, IconTile, Badge, cx } from '../components/ui';
+import { Button, Money, Notice, IconTile, Badge, Segmented, Textarea, cx } from '../components/ui';
 import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
@@ -29,9 +29,15 @@ import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
 import { WALLET_ENABLED } from '../config/wallet';
 
+const SLOT = '\u0000';
+function withMoney(text, value) {
+  const [before, after = ''] = text.split(SLOT);
+  return <>{before}<Money value={value} />{after}</>;
+}
+
 export default function RidePage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder, orders } = useOrders();
   const [searchParams] = useSearchParams();
@@ -46,6 +52,31 @@ export default function RidePage() {
   const [paymentMethod, setPaymentMethod] = useState('Tunai'); // 'WiraPay' or 'Tunai'
 
   const [vehicles, setVehicles] = useState([]);
+  // Stage 4 (migrations/0132): "Nanti" books a pickup time, "Per jam" rents
+  // a driver for some hours. The limits come from admin settings.
+  const [mode, setMode] = useState(searchParams.get('mode') === 'hourly' ? 'hourly' : searchParams.get('mode') === 'later' ? 'later' : 'now');
+  const [limits, setLimits] = useState({ minMinutes: 60, maxDays: 7, minHours: 2, maxHours: 12 });
+  const [schedDay, setSchedDay] = useState(0);
+  const [schedTime, setSchedTime] = useState('');
+  const [hours, setHours] = useState(2);
+  const [startNow, setStartNow] = useState(true);
+  const [plan, setPlan] = useState('');
+  useEffect(() => {
+    supabase.from('app_settings').select('key, value')
+      .in('key', ['ride_schedule_min_minutes', 'ride_schedule_max_days', 'ride_hourly_min_hours', 'ride_hourly_max_hours'])
+      .then(({ data }) => {
+        if (!data) return;
+        const get = (k, d) => { const r = data.find((x) => x.key === k); return r && Number(r.value) > 0 ? Number(r.value) : d; };
+        const next = {
+          minMinutes: get('ride_schedule_min_minutes', 60),
+          maxDays: get('ride_schedule_max_days', 7),
+          minHours: get('ride_hourly_min_hours', 2),
+          maxHours: get('ride_hourly_max_hours', 12),
+        };
+        setLimits(next);
+        setHours((h) => Math.min(Math.max(h, next.minHours), next.maxHours));
+      });
+  }, []);
   
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -63,6 +94,7 @@ export default function RidePage() {
           basePrice: v.price, // Store original for calculation
           price: v.price,
           perKmRate: v.per_km_rate,
+          hourlyRate: Number(v.hourly_rate) || 0,
           time: v.duration,
           icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
           desc: t('ride.capacity', { count: v.capacity })
@@ -155,7 +187,7 @@ export default function RidePage() {
 
   // Otomatis mencari rute jika marker 0 dan 1 sudah ada (pickup & dropoff valid)
   useEffect(() => {
-    if (mapState.markers.length === 2 && pickup && dropoff && step === 'input') {
+    if (mode !== 'hourly' && mapState.markers.length === 2 && pickup && dropoff && step === 'input') {
       const getRoute = async () => {
         setIsSearching(true);
         setRouteFailed(false);
@@ -173,7 +205,7 @@ export default function RidePage() {
       };
       getRoute();
     }
-  }, [mapState.markers, pickup, dropoff, step]);
+  }, [mapState.markers, pickup, dropoff, step, mode]);
 
   // Fallback fleet, used only until the `vehicles` table loads. Names match
   // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
@@ -195,7 +227,48 @@ export default function RidePage() {
     return { ...v, price: dynamicPrice, time: t('ride.eta_minutes', { minutes: estMins }) };
   });
 
+  // Pickup times for "Nanti" (and a scheduled hourly rent): every 15 minutes
+  // from the admin-set lead time up to the last allowed day.
+  const dayOptions = Array.from({ length: limits.maxDays + 1 }, (_, i) => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
+    return d;
+  });
+  const timeOptions = (() => {
+    const day = dayOptions[schedDay] || dayOptions[0];
+    const earliest = Date.now() + limits.minMinutes * 60000;
+    const latest = Date.now() + limits.maxDays * 86400000;
+    const list = [];
+    for (let m = 0; m < 24 * 60; m += 15) {
+      const at = new Date(day.getTime() + m * 60000);
+      if (at.getTime() >= earliest && at.getTime() <= latest) list.push(at);
+    }
+    return list;
+  })();
+  const pad = (n) => String(n).padStart(2, '0');
+  const timeKey = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const scheduledAt = (() => {
+    if (mode === 'now' || (mode === 'hourly' && startNow)) return null;
+    const found = timeOptions.find((d) => timeKey(d) === schedTime);
+    return found || null;
+  })();
+  const needsTime = mode === 'later' || (mode === 'hourly' && !startNow);
+  const dayLabel = (d, i) => (i === 0 ? t('ride.today') : i === 1 ? t('ride.tomorrow')
+    : d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID', { weekday: 'short', day: 'numeric' }));
+  const whenLabel = scheduledAt
+    ? scheduledAt.toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+
   const handleLanjut = () => {
+    if (mode === 'hourly') {
+      if (!pickup || !mapState.markers[0]) {
+        toast.error(t('ride.hourly_need_pickup'));
+        return;
+      }
+      const withRate = sourceVehicles.filter((v) => v.hourlyRate > 0);
+      setSelectedVehicle(withRate[0] || null);
+      setStep('vehicle');
+      return;
+    }
     if (!pickup || !dropoff) {
       toast.error(t('ride.missing_points'));
       return;
@@ -246,6 +319,7 @@ export default function RidePage() {
   usePendingPromo('ride', promoCode, setPromoCode, handleCheckPromo);
   
   const calculateFinalPrice = () => {
+    if (mode === 'hourly') return (selectedVehicle?.hourlyRate || 0) * hours;
     const basePrice = selectedVehicle?.price || 15000;
     if (!activePromo) return basePrice;
     
@@ -259,6 +333,14 @@ export default function RidePage() {
 
   const handleStartBooking = async () => {
     const finalPrice = calculateFinalPrice();
+    if (needsTime && !scheduledAt) {
+      toast.error(t('ride.pick_time_first'));
+      return;
+    }
+    if (mode === 'hourly' && !(selectedVehicle?.hourlyRate > 0)) {
+      toast.error(t('ride.hourly_unavailable'));
+      return;
+    }
     if (paymentMethod === 'WiraPay' && balance < finalPrice) {
       toast.error(t('ride.insufficient_balance'));
       return;
@@ -290,33 +372,41 @@ export default function RidePage() {
         nearbyDrivers = nearby || [];
       }
 
-      const orderDetails = JSON.stringify({
-        pickup: { name: withAddressNote(pickup, pickupNote), lat: pickupLat, lng: pickupLng },
-        dropoff: { name: dropoff, lat: mapState.markers[1]?.lat, lng: mapState.markers[1]?.lng },
-        route: mapState.route
-      });
+      const isHourly = mode === 'hourly';
+      const orderDetails = JSON.stringify(isHourly
+        ? { pickup: { name: withAddressNote(pickup, pickupNote), lat: pickupLat, lng: pickupLng }, plan: plan.trim() || null }
+        : {
+          pickup: { name: withAddressNote(pickup, pickupNote), lat: pickupLat, lng: pickupLng },
+          dropoff: { name: dropoff, lat: mapState.markers[1]?.lat, lng: mapState.markers[1]?.lng },
+          route: mapState.route
+        });
+      const metadata = {
+        ...(againDriverId && !scheduledAt ? { preferred_partner_id: againDriverId } : {}),
+        ...(scheduledAt ? { scheduled_at: scheduledAt.toISOString() } : {}),
+        ...(isHourly ? { hourly: { hours, plan: plan.trim() || null } } : {}),
+      };
 
       const order = await addOrder({
         // WiraPay is charged by create_order_and_pay in the same DB transaction
         // as the order insert, for the server-computed price (migrations/0070).
-        paymentDescription: `WiraRide ke ${dropoff}`,
+        paymentDescription: isHourly ? `WiraRide sewa ${hours} jam` : `WiraRide ke ${dropoff}`,
         serviceType: 'ride',
-        title: `Perjalanan ke ${dropoff}`,
+        title: isHourly ? `Sewa ${selectedVehicle?.name || 'WiraRide'} ${hours} jam` : `Perjalanan ke ${dropoff}`,
         price: finalPrice,
         paymentMethod: paymentMethod,
         details: orderDetails,
         pickupLat,
         pickupLng,
-        dropoffLat,
-        dropoffLng,
+        dropoffLat: isHourly ? null : dropoffLat,
+        dropoffLng: isHourly ? null : dropoffLng,
         // Structured pricing inputs for the server-side trigger
         // (migrations/0059): rateCode must equal vehicles.type - the
         // vehicles fetch above maps `id: v.type`, so selectedVehicle.id IS
         // vehicles.type (e.g. 'motor'/'mobil'), not a UI label.
         rateCode: selectedVehicle?.id || null,
-        distanceMeters: routeInfo?.distance ?? null,
-        ...(againDriverId ? { metadata: { preferred_partner_id: againDriverId } } : {}),
-        promoCode: activePromo?.code || null,
+        distanceMeters: isHourly ? null : routeInfo?.distance ?? null,
+        ...(Object.keys(metadata).length ? { metadata } : {}),
+        promoCode: isHourly ? null : activePromo?.code || null,
       });
       if (paymentMethod === 'WiraPay') refreshWallet();
 
@@ -324,7 +414,9 @@ export default function RidePage() {
 
       // Dispatch is handled in ActiveOrderPage
 
-      if (driverCount === 0) {
+      if (scheduledAt) {
+        toast.success(t('ride.scheduled_placed', { time: whenLabel }));
+      } else if (driverCount === 0) {
         toast.error(t('ride.no_driver_nearby'), { duration: 6000 });
       } else {
         toast.success(t('ride.searching_driver'));
@@ -340,6 +432,10 @@ export default function RidePage() {
   const distanceKm = routeInfo ? (routeInfo.distance / 1000).toFixed(1) : null;
   const etaLabel = routeInfo ? t('ride.eta_minutes', { minutes: Math.ceil(routeInfo.duration / 60) }) : null;
   const vehicleIcon = (id) => (id === 'motor' ? Bike : id === 'mobil' ? Car : CarFront);
+  const chipCls = (active) => cx(
+    'min-h-10 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
+    active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-card text-ink hover:border-brand',
+  );
   const helperBtn = 'inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-1.5 -mx-1.5 text-[12.5px] font-semibold text-brand-ink transition-colors hover:bg-brand-soft';
 
   return (
@@ -398,7 +494,7 @@ export default function RidePage() {
             {/* Grid: marker rail on the left, inputs on the right. The rail line
                 runs from the pickup dot to the destination square. */}
             <div className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-2.5">
-              <span className="col-start-1 row-start-1 row-end-5 my-[22px] w-px justify-self-center bg-line-strong" aria-hidden="true" />
+              {mode !== 'hourly' && <span className="col-start-1 row-start-1 row-end-5 my-[22px] w-px justify-self-center bg-line-strong" aria-hidden="true" />}
               <span className="relative z-[1] col-start-1 row-start-1 h-2.5 w-2.5 self-center justify-self-center rounded-full bg-brand ring-[3px] ring-brand-soft" aria-hidden="true" />
               <div className="col-start-2 row-start-1">
                 <LocationAutocomplete
@@ -431,6 +527,7 @@ export default function RidePage() {
                   <LocateFixed size={14} aria-hidden="true" /> {t('common.use_current_location')}
                 </button>
               </div>
+              {mode !== 'hourly' && (<>
               <div className="col-start-2 row-start-3 mb-2 border-t border-line" aria-hidden="true" />
 
               <span className="relative z-[1] col-start-1 row-start-4 h-2.5 w-2.5 self-center justify-self-center rounded-[3px] bg-danger ring-[3px] ring-danger-soft" aria-hidden="true" />
@@ -465,6 +562,7 @@ export default function RidePage() {
                   <LocateFixed size={14} aria-hidden="true" /> {t('common.use_current_location')}
                 </button>
               </div>
+              </>)}
             </div>
           </div>
         )}
@@ -484,7 +582,20 @@ export default function RidePage() {
         {step === 'input' && (
           <>
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-5 pb-1">
-              {routeInfo ? (
+              <Segmented
+                ariaLabel={t('ride.mode_label')}
+                value={mode}
+                onChange={(m) => { setMode(m); setSchedTime(''); }}
+                options={[
+                  { value: 'now', label: t('ride.mode_now') },
+                  { value: 'later', label: t('ride.mode_later') },
+                  { value: 'hourly', label: t('ride.mode_hourly') },
+                ]}
+                className="w-full"
+              />
+              {mode === 'hourly' ? (
+                <p className="text-[13px] leading-relaxed text-ink-muted">{pickup ? t('ride.hourly_hint') : t('ride.hint_hourly_pickup')}</p>
+              ) : routeInfo ? (
                 <div className="flex items-center gap-3 rounded-card border border-line bg-card px-4 py-3">
                   <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink-muted">{t('ride.distance')}</span>
                   <span className="whitespace-nowrap font-mono text-[13px] text-ink-muted">{etaLabel}</span>
@@ -505,11 +616,11 @@ export default function RidePage() {
                 block
                 size="lg"
                 onClick={handleLanjut}
-                disabled={!pickup || !dropoff || isSearching || !routeInfo}
-                isLoading={isSearching}
+                disabled={mode === 'hourly' ? !pickup : (!pickup || !dropoff || isSearching || !routeInfo)}
+                isLoading={mode !== 'hourly' && isSearching}
                 rightIcon={<ArrowRight size={18} />}
               >
-                {isSearching ? t('ride.calculating') : t('ride.continue')}
+                {mode !== 'hourly' && isSearching ? t('ride.calculating') : t('ride.continue')}
               </Button>
             </div>
           </>
@@ -537,20 +648,67 @@ export default function RidePage() {
                     <span className="sr-only">{t('activity.route_pickup')}: </span>{pickup}
                   </p>
                   <p className="truncate text-[14px] font-semibold text-ink">
-                    <span className="sr-only">{t('activity.route_dropoff')}: </span>{dropoff}
+                    {mode === 'hourly'
+                      ? t('ride.hourly_summary', { hours })
+                      : <><span className="sr-only">{t('activity.route_dropoff')}: </span>{dropoff}</>}
                   </p>
                 </div>
-                {distanceKm && (
+                {distanceKm && mode !== 'hourly' && (
                   <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-xs text-ink-muted">{distanceKm} km</span>
                 )}
               </div>
 
               <div className="h-px bg-line" aria-hidden="true" />
 
+              {mode === 'hourly' && (
+                <div className="flex flex-col gap-2.5">
+                  <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.hours_title')}</h2>
+                  <div role="radiogroup" aria-label={t('ride.hours_title')} className="flex flex-wrap gap-2">
+                    {Array.from({ length: limits.maxHours - limits.minHours + 1 }, (_, i) => limits.minHours + i).map((h) => (
+                      <button key={h} type="button" role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={chipCls(hours === h)}>
+                        {t('ride.hours_n', { count: h })}
+                      </button>
+                    ))}
+                  </div>
+                  <div role="radiogroup" aria-label={t('ride.start_label')} className="flex flex-wrap gap-2">
+                    <button type="button" role="radio" aria-checked={startNow} onClick={() => setStartNow(true)} className={chipCls(startNow)}>{t('ride.start_now')}</button>
+                    <button type="button" role="radio" aria-checked={!startNow} onClick={() => setStartNow(false)} className={chipCls(!startNow)}>{t('ride.start_pick')}</button>
+                  </div>
+                </div>
+              )}
+
+              {needsTime && (
+                <div className="flex flex-col gap-2.5">
+                  <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.when_title')}</h2>
+                  <div role="radiogroup" aria-label={t('ride.when_title')} className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
+                    {dayOptions.map((d, i) => (
+                      <button key={i} type="button" role="radio" aria-checked={schedDay === i} onClick={() => { setSchedDay(i); setSchedTime(''); }} className={cx(chipCls(schedDay === i), 'shrink-0')}>
+                        {dayLabel(d, i)}
+                      </button>
+                    ))}
+                  </div>
+                  {timeOptions.length > 0 ? (
+                    <select
+                      id="ride-time"
+                      aria-label={t('ride.time_label')}
+                      value={schedTime}
+                      onChange={(e) => setSchedTime(e.target.value)}
+                      className="min-h-11 rounded-control border border-line-strong bg-card px-3 font-mono text-[14px] text-ink"
+                    >
+                      <option value="">{t('ride.time_placeholder')}</option>
+                      {timeOptions.map((d) => <option key={timeKey(d)} value={timeKey(d)}>{timeKey(d)}</option>)}
+                    </select>
+                  ) : (
+                    <p className="text-[12.5px] text-ink-muted">{t('ride.no_time_today')}</p>
+                  )}
+                  <p className="text-[12px] leading-relaxed text-ink-muted">{t('ride.schedule_hint', { minutes: limits.minMinutes, days: limits.maxDays })}</p>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2.5">
                 <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.select_vehicle')}</h2>
                 <div role="radiogroup" aria-label={t('ride.select_vehicle')} className="flex flex-col gap-2">
-                  {dynamicVehicles.map((v) => {
+                  {(mode === 'hourly' ? dynamicVehicles.filter((v) => v.hourlyRate > 0) : dynamicVehicles).map((v) => {
                     const isSelected = selectedVehicle?.id === v.id;
                     const Icon = vehicleIcon(v.id);
                     return (
@@ -572,10 +730,12 @@ export default function RidePage() {
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span className="truncate text-[14px] font-bold text-ink">{v.name}</span>
                           <span className="text-[11.5px] leading-snug text-ink-muted">
-                            {v.desc}{v.time ? <> · <span className="font-mono">{v.time}</span></> : null}
+                            {mode === 'hourly'
+                              ? withMoney(t('ride.per_hour', { price: SLOT }), v.hourlyRate)
+                              : <>{v.desc}{v.time ? <> · <span className="font-mono">{v.time}</span></> : null}</>}
                           </span>
                         </span>
-                        <Money value={v.price} className="shrink-0 text-[15px] font-medium text-ink" />
+                        <Money value={mode === 'hourly' ? v.hourlyRate * hours : v.price} className="shrink-0 text-[15px] font-medium text-ink" />
                       </button>
                     );
                   })}
@@ -591,7 +751,15 @@ export default function RidePage() {
                 onNoteChange={setPickupNote}
               />
 
-              <PromoField
+              {mode === 'hourly' && (
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="ride-plan" className="text-[13px] font-semibold text-ink">{t('ride.plan_label')}</label>
+                  <Textarea id="ride-plan" rows={2} maxLength={300} value={plan} onChange={(e) => setPlan(e.target.value)} placeholder={t('ride.plan_placeholder')} />
+                  <p className="text-[12px] leading-relaxed text-ink-muted">{t('ride.hourly_rules')}</p>
+                </div>
+              )}
+
+              {mode !== 'hourly' && <PromoField
                 id="ride-promo"
                 activePromo={activePromo}
                 promoCode={promoCode}
@@ -600,7 +768,7 @@ export default function RidePage() {
                 onRemove={() => { setActivePromo(null); setPromoCode(''); setPromoError(''); }}
                 checking={checkingPromo}
                 error={promoError}
-              />
+              />}
 
               {/* Metode Pembayaran */}
               <div className="flex flex-col gap-2">
@@ -644,7 +812,7 @@ export default function RidePage() {
                 <Notice tone="danger">{t('ride.insufficient_balance')}</Notice>
               )}
 
-              {activePromo && selectedVehicle && (
+              {activePromo && selectedVehicle && mode !== 'hourly' && (
                 <div className="flex items-center gap-2 text-[13px]">
                   <span className="flex-1 text-ink-muted">{selectedVehicle.name}</span>
                   <Money value={selectedVehicle.price} tone="muted" className="line-through" />
@@ -665,7 +833,11 @@ export default function RidePage() {
                 size="lg"
                 onClick={handleStartBooking}
               >
-                {t('ride.book_now', { price: formatRupiah(calculateFinalPrice()) })}
+                {mode === 'hourly'
+                  ? t('ride.hourly_book', { hours, price: formatRupiah(calculateFinalPrice()) })
+                  : scheduledAt
+                    ? t('ride.later_book', { time: whenLabel, price: formatRupiah(calculateFinalPrice()) })
+                    : t('ride.book_now', { price: formatRupiah(calculateFinalPrice()) })}
               </Button>
             </div>
           </>

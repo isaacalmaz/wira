@@ -26,6 +26,8 @@ const JOB_TYPE_SERVICE_TYPES = {
 // mobil drivers may only receive Send jobs whose package is one of these tiers.
 // 'mobil' = Barang besar (migrations/0128): car drivers only.
 const SEND_LARGE_PACKAGE_SIZES = ['sedang', 'besar', 'mobil'];
+// Matches app_settings ride_schedule_queue_minutes' default (migrations/0132).
+const SCHEDULED_OFFER_LEAD_MS = 30 * 60 * 1000;
 
 /**
  * ============================================================================
@@ -92,6 +94,13 @@ export function isOrderEligibleForDriver(order, driver) {
   const { serviceTypes, sendPackageSizes } = eligibleServiceTypesForDriver(driver);
   if (!serviceTypes.includes(order.service_type)) return false;
   if (order.package_size === 'mobil' && (driver?.vehicle_type || 'motor') !== 'mobil') return false;
+  // A scheduled ride is taken from the Jadwal tab, not offered as an incoming
+  // order, until 30 minutes before pickup (migrations/0132).
+  if (order.scheduled_at && RIDE_SERVICE_TYPES.includes(order.service_type)
+      && Date.now() < new Date(order.scheduled_at).getTime() - SCHEDULED_OFFER_LEAD_MS) return false;
+  // WiraRide Motor/Mobil only for a driver with that vehicle (migrations/0131).
+  if (['ride', 'WiraRide'].includes(order.service_type) && ['motor', 'mobil'].includes(order.rate_code)
+      && order.rate_code !== (driver?.vehicle_type || 'motor')) return false;
   if (sendPackageSizes && SEND_SERVICE_TYPES.includes(order.service_type)) {
     return sendPackageSizes.includes(order.package_size);
   }

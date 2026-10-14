@@ -14,6 +14,9 @@ import VisitExtras from '../components/common/VisitExtras';
 import VisitReportCard from '../components/common/VisitReportCard';
 import PaymentCheckCard from '../components/common/PaymentCheckCard';
 import SendExtras from '../components/common/SendExtras';
+import RideExtras from '../components/common/RideExtras';
+import WarrantyCard from '../components/common/WarrantyCard';
+import VillaRequestsCard from '../components/common/VillaRequestsCard';
 import ReviewModal from '../components/common/ReviewModal';
 import { canReview } from '../utils/review';
 import { OrderStatus, getStatusKey } from '../constants/orderStatus';
@@ -308,6 +311,8 @@ export default function ActiveOrderPage() {
       return scheduledMs == null || nowTick < scheduledMs - VISIT_LOCK_MS || visitLate;
     }
     if (!isVisit && ['accepted', 'picking_up'].includes(order.status)) {
+      // A scheduled ride (migrations/0132) can be cancelled until pickup.
+      if (order.service_type === 'ride' && order.scheduled_at) return true;
       if (sinceAccept == null) return true; // fallback
       return sinceAccept <= FREE_WINDOW_MS || sinceAccept >= NO_SHOW_MS;
     }
@@ -339,7 +344,10 @@ export default function ActiveOrderPage() {
   const paidWithWallet = ['wallet', 'qris'].includes(order.payment_method) && order.payment_status === 'paid';
   const partnerName = order.driver?.name || t('chat.default_partner');
   const ServiceIcon = SERVICE_ICONS[order.service_type] || Route;
-  const cancelDescription = isVilla && order.status !== 'pending'
+  const isScheduledRide = order.service_type === 'ride' && !!order.scheduled_at;
+  const cancelDescription = isScheduledRide && order.status !== 'pending'
+    ? t('order.cancel_desc_scheduled')
+    : isVilla && order.status !== 'pending'
     ? t(villaRatio() >= 1 ? 'order.cancel_desc_villa_full' : 'order.cancel_desc_villa_half')
     : order.status === 'pending'
     ? t('order.cancel_desc_pending')
@@ -399,7 +407,7 @@ export default function ActiveOrderPage() {
         </div>
       )}
 
-      {order.status === 'pending' && (
+      {order.status === 'pending' && !isScheduledRide && (
         <Card className="flex items-start gap-3.5">
           <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-warning-line bg-warning-soft text-warning">
             <Spinner size={20} />
@@ -518,6 +526,9 @@ export default function ActiveOrderPage() {
 
       {isVisit && !isBabysit && <VisitExtras order={order} />}
       {order.service_type === 'send' && (order.metadata?.titip || order.metadata?.job) && <SendExtras order={order} onChat={openChat} />}
+      {order.service_type === 'ride' && <RideExtras order={order} />}
+      {isVilla && <VillaRequestsCard order={order} />}
+      {['service', 'pool'].includes(order.service_type) && <WarrantyCard order={order} />}
       <VisitReportCard order={order} />
 
       {/* Order + route summary */}

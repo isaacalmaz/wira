@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Clock, Gavel, Wallet, ArrowDownToLine, LifeBuoy, Star, UserPlus, Home, CheckCircle2, RefreshCw,
-  Coins, Ban, Baby, CalendarCheck, QrCode, UtensilsCrossed, Flag,
-} from 'lucide-react';
+  Coins, Ban, Baby, CalendarCheck, QrCode, UtensilsCrossed, Flag, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { CORE_ADMIN_ROLES, CS_ADMIN_ROLES, FINANCE_ADMIN_ROLES } from '../../config/roles';
@@ -29,6 +28,7 @@ export const KINDS = [
   { key: 'villa_listings', label: 'Properti villa menunggu', icon: Home, level: 2, link: '/villas', roles: CORE_ADMIN_ROLES },
   { key: 'commission_debtors', label: 'Mitra terblokir utang komisi', icon: Ban, level: 1, link: '/finance', roles: FINANCE_ADMIN_ROLES, money: true, hint: 'Tagih lewat WhatsApp' },
   { key: 'tickets', label: 'Tiket bantuan terbuka', icon: LifeBuoy, level: 1, link: '/support', roles: CS_ADMIN_ROLES },
+  { key: 'warranty_claims', label: 'Klaim garansi perlu keputusan', icon: ShieldAlert, level: 2, link: '/warranty', roles: CORE_ADMIN_ROLES, hint: 'Keberatan teknisi atau lewat batas jawab' },
   { key: 'partner_flags', label: 'Penanda mitra', icon: Flag, level: 2, link: '/flags', roles: CORE_ADMIN_ROLES, hint: 'Pembayaran tidak sesuai dan pola mencurigakan' },
   { key: 'low_reviews', label: 'Ulasan 1–2 bintang', icon: Star, level: 1, link: '/reviews', roles: CORE_ADMIN_ROLES, hint: '7 hari terakhir' },
 ];
@@ -61,15 +61,21 @@ export default function AttentionBoard({ onLoaded }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: d, error: e }, flags] = await Promise.all([
+    const [{ data: d, error: e }, flags, claims] = await Promise.all([
       supabase.rpc('admin_attention'),
       // migrations/0125; missing before it is applied, so errors are ignored.
       supabase.rpc('admin_partner_flags', { p_subject: null }),
+      // migrations/0132: disputed claims and claims past the technician's deadline.
+      supabase.from('warranty_claims').select('created_at')
+        .or(`status.eq.disputed,and(status.eq.pending,response_due.lt.${new Date().toISOString()})`)
+        .order('created_at', { ascending: true }),
     ]);
+    const claimRows = claims.error ? [] : (claims.data || []);
     const rows = flags.error ? [] : (flags.data || []);
     const merged = d ? {
       ...d,
       partner_flags: { count: rows.length, oldest: rows.length ? rows[rows.length - 1].created_at : null },
+      warranty_claims: { count: claimRows.length, oldest: claimRows[0]?.created_at || null },
     } : null;
     setError(e ? e.message : null);
     setData(merged);

@@ -123,6 +123,11 @@ const VehiclesPricingPage = () => {
       toast.error('Tarif/km harus lebih besar dari 0');
       return;
     }
+    // migrations/0132: empty = hourly hire off for this vehicle.
+    if (patch.hourly_rate != null && (!Number.isInteger(patch.hourly_rate) || patch.hourly_rate < 10000 || patch.hourly_rate > 500000)) {
+      toast.error('Sewa per jam Rp 10.000 sampai Rp 500.000, atau kosongkan untuk mematikan');
+      return;
+    }
     setConfirmVehicle(v);
   };
 
@@ -287,6 +292,7 @@ const VehiclesPricingPage = () => {
     const out = [];
     if (patch[baseField] !== undefined) out.push({ label: 'Harga dasar', from: row[baseField], to: patch[baseField] });
     if (patch.per_km_rate !== undefined) out.push({ label: 'Tarif/km', from: row.per_km_rate, to: patch.per_km_rate });
+    if (patch.hourly_rate !== undefined) out.push({ label: 'Sewa/jam', from: row.hourly_rate, to: patch.hourly_rate });
     return out;
   };
 
@@ -329,6 +335,7 @@ const VehiclesPricingPage = () => {
               <th>Tipe</th>
               <th className="text-right">Harga Dasar</th>
               <th className="text-right">Tarif/km</th>
+              <th className="text-right" title="Sewa per jam (WiraRide Per jam). Kosong = tidak tersedia.">Sewa/jam</th>
               <th className="text-right">Kapasitas</th>
               <th>Durasi</th>
               <th>Aktif</th>
@@ -358,6 +365,16 @@ const VehiclesPricingPage = () => {
                       onChange={e => setField(v.id, 'per_km_rate', Number(e.target.value))}
                       className="ml-auto w-32"
                     />
+                  </td>
+                  <td className="text-right">
+                    {v.service_type === 'ride' ? (
+                      <MoneyCellInput
+                        aria-label={`Sewa per jam ${v.name}`}
+                        value={getField(v, 'hourly_rate') ?? ''}
+                        onChange={e => setField(v.id, 'hourly_rate', e.target.value === '' ? null : Number(e.target.value))}
+                        className="ml-auto w-32"
+                      />
+                    ) : <span className="text-ink-muted">–</span>}
                   </td>
                   <td className="text-right">
                     <input
@@ -405,7 +422,7 @@ const VehiclesPricingPage = () => {
             })}
             {vehicles.length === 0 && !loading && (
               <tr>
-                <td colSpan="9" className="py-8 text-center text-ink-muted">Belum ada data kendaraan/harga.</td>
+                <td colSpan="10" className="py-8 text-center text-ink-muted">Belum ada data kendaraan/harga.</td>
               </tr>
             )}
           </tbody>
