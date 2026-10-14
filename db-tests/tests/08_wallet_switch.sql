@@ -6,7 +6,8 @@
 INSERT INTO users (id, name, role, wallet_balance) VALUES
   ('08000000-0000-0000-0000-000000000001', 'S1 customer with balance', 'user', 100000),
   ('08000000-0000-0000-0000-000000000002', 'S2 admin', 'admin', 0),
-  ('08000000-0000-0000-0000-000000000003', 'S3 qris customer', 'user', 0);
+  ('08000000-0000-0000-0000-000000000003', 'S3 qris customer', 'user', 0),
+  ('08000000-0000-0000-0000-000000000004', 'S4 finance admin', 'Admin Keuangan', 0);
 INSERT INTO vehicles (name, type, service_type, price, per_km_rate)
   VALUES ('Motor', 'motor', 'ride', 12000, 3000) ON CONFLICT DO NOTHING;
 INSERT INTO pricing_rules (service_type, code, name, base_price)
@@ -34,13 +35,17 @@ SELECT wira_test.login('08000000-0000-0000-0000-000000000002');
 SELECT wira_test.eq(wira_test.rows($q$UPDATE users SET wallet_balance = wallet_balance - 1000
         WHERE id = '08000000-0000-0000-0000-000000000001'$q$),
     1::bigint, 'an admin can still correct a balance downwards');
+SELECT wira_test.login('08000000-0000-0000-0000-000000000004');
+SELECT wira_test.eq(wira_test.rows($q$UPDATE users SET wallet_balance = wallet_balance - 1000
+        WHERE id = '08000000-0000-0000-0000-000000000001'$q$),
+    1::bigint, 'an Admin Keuangan can too (approving QRIS top-ups in Keuangan)');
 RESET ROLE;
 SET ROLE service_role;
 SELECT wira_test.login(NULL);
 UPDATE users SET wallet_balance = wallet_balance - 1000 WHERE id = '08000000-0000-0000-0000-000000000001';
 RESET ROLE;
 SELECT wira_test.eq((SELECT wallet_balance FROM users WHERE id = '08000000-0000-0000-0000-000000000001'),
-    98000::numeric, 'admin and service-role decreases went through (100000 - 2 x 1000)');
+    97000::numeric, 'admin, finance and service-role decreases went through (100000 - 3 x 1000)');
 
 -- --- QRIS per order still pays the order (webhook = service role, no user) -------
 SET ROLE authenticated;

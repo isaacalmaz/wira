@@ -12,11 +12,12 @@
 -- switch on 2026-10-14.
 --
 -- Rule: while app setting wallet_enabled is not true, a request made by a
--- signed-in user who is not an admin may not LOWER anyone's
+-- signed-in user who is not staff may not LOWER anyone's
 -- users.wallet_balance. Everything else keeps working:
 --   * QRIS per order: approve_topup_and_credit -> pay_order_after_qris_topup
 --     credits and then debits the wallet, but it runs from the Mutasiku
---     webhook (service role, no auth.uid()) or from an admin in Keuangan.
+--     webhook (service role, no auth.uid()) or from an admin in Keuangan
+--     (a trigger on topup_requests, so staff incl. 'Admin Keuangan' are exempt).
 --   * pg_cron jobs (no auth.uid()), e.g. renew_pool_subscriptions.
 --   * Credits (QRIS refunds land in the wallet; the admin pays them back by
 --     hand), admin corrections, migrations run in the SQL Editor.
@@ -39,9 +40,12 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 CREATE OR REPLACE FUNCTION public.enforce_wallet_switch()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Staff = admin_can('finance') roles (0102), written out because an admin
+    -- in Keuangan approving a QRIS top-up fires pay_order_after_qris_topup.
     IF COALESCE(NEW.wallet_balance, 0) < COALESCE(OLD.wallet_balance, 0)
        AND auth.uid() IS NOT NULL
-       AND NOT public.is_admin()
+       AND NOT EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid()
+                       AND role IN ('admin', 'Superadmin', 'superadmin', 'Admin Ops', 'Admin Keuangan'))
        AND NOT public.wallet_enabled() THEN
         RAISE EXCEPTION 'WiraPay sedang tidak aktif. Bayar tunai atau QRIS per pesanan.';
     END IF;
