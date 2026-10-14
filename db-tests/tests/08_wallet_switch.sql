@@ -35,10 +35,25 @@ SELECT wira_test.login('08000000-0000-0000-0000-000000000002');
 SELECT wira_test.eq(wira_test.rows($q$UPDATE users SET wallet_balance = wallet_balance - 1000
         WHERE id = '08000000-0000-0000-0000-000000000001'$q$),
     1::bigint, 'an admin can still correct a balance downwards');
+RESET ROLE;
+-- Keuangan approves a QRIS top-up through SECURITY DEFINER code (the 0078
+-- payment trigger), which bypasses RLS; this helper stands in for it.
+CREATE FUNCTION wira_test.definer_debit(p_user UUID, p_amount NUMERIC) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE n BIGINT;
+BEGIN
+    UPDATE public.users SET wallet_balance = wallet_balance - p_amount WHERE id = p_user;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RETURN n;
+END $$;
+GRANT EXECUTE ON FUNCTION wira_test.definer_debit(UUID, NUMERIC) TO authenticated;
+SET ROLE authenticated;
 SELECT wira_test.login('08000000-0000-0000-0000-000000000004');
-SELECT wira_test.eq(wira_test.rows($q$UPDATE users SET wallet_balance = wallet_balance - 1000
-        WHERE id = '08000000-0000-0000-0000-000000000001'$q$),
-    1::bigint, 'an Admin Keuangan can too (approving QRIS top-ups in Keuangan)');
+SELECT wira_test.eq(wira_test.definer_debit('08000000-0000-0000-0000-000000000001', 1000), 1::bigint,
+    'an Admin Keuangan can too (approving QRIS top-ups in Keuangan)');
+SELECT wira_test.login('08000000-0000-0000-0000-000000000001');
+SELECT wira_test.throws($q$SELECT wira_test.definer_debit('08000000-0000-0000-0000-000000000001', 1000)$q$,
+    '%WiraPay sedang tidak aktif%', 'the same definer path is refused for the customer (trigger, not RLS)');
 RESET ROLE;
 SET ROLE service_role;
 SELECT wira_test.login(NULL);
