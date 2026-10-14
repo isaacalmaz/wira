@@ -844,9 +844,20 @@ const DriverHomePage = () => {
                 {incomingOrder.status === OrderStatus.READY ? 'Antar Makanan' : serviceLabel(incomingOrder.service_type)}
               </Badge>
               <div className="flex flex-col items-end gap-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pendapatan Anda</span>
-                <Money value={driverOfferAmount(incomingOrder)} className="text-[24px] font-medium leading-none tracking-tight text-ink" />
-                <span className="text-[11.5px] text-ink-muted">Pelanggan bayar <Money value={incomingOrder.total_price} className="text-[11.5px]" />{incomingOrder.payment_method === 'cash' ? ' · tunai' : ''}</span>
+                {incomingOrder.package_size === 'mobil' ? (
+                  // Barang besar (migrations/0128): no price until the driver quotes.
+                  <>
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Barang besar</span>
+                    <span className="text-[18px] font-bold leading-none text-ink">Harga Anda tawarkan</span>
+                    <span className="text-[11.5px] text-ink-muted">dari foto, sebelum berangkat · tunai</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Pendapatan Anda</span>
+                    <Money value={driverOfferAmount(incomingOrder)} className="text-[24px] font-medium leading-none tracking-tight text-ink" />
+                    <span className="text-[11.5px] text-ink-muted">Pelanggan bayar <Money value={incomingOrder.total_price} className="text-[11.5px]" />{incomingOrder.payment_method === 'cash' ? ' · tunai' : ''}</span>
+                  </>
+                )}
               </div>
             </div>
 

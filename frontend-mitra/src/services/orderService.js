@@ -24,7 +24,8 @@ const JOB_TYPE_SERVICE_TYPES = {
 };
 
 // mobil drivers may only receive Send jobs whose package is one of these tiers.
-const SEND_LARGE_PACKAGE_SIZES = ['sedang', 'besar'];
+// 'mobil' = Barang besar (migrations/0128): car drivers only.
+const SEND_LARGE_PACKAGE_SIZES = ['sedang', 'besar', 'mobil'];
 
 /**
  * ============================================================================
@@ -90,6 +91,7 @@ export function isOrderEligibleForDriver(order, driver) {
   if (!order) return false;
   const { serviceTypes, sendPackageSizes } = eligibleServiceTypesForDriver(driver);
   if (!serviceTypes.includes(order.service_type)) return false;
+  if (order.package_size === 'mobil' && (driver?.vehicle_type || 'motor') !== 'mobil') return false;
   if (sendPackageSizes && SEND_SERVICE_TYPES.includes(order.service_type)) {
     return sendPackageSizes.includes(order.package_size);
   }
@@ -206,7 +208,9 @@ export async function fetchPendingOrders(supabaseClient, mode = 'driver', filter
     driverQuery = applyEligibilityFilter(driverQuery, eligibility);
     const { data, error } = await driverQuery;
     if (error) throw new Error(`fetchPendingOrders failed: ${error.message}`);
-    return canReceiveFood ? [...(data || []), ...(await fetchReadyFoodDeliveries(supabaseClient))] : (data || []);
+    // Big items need a car; the filter above cannot say "except for motors".
+    const eligible = (data || []).filter((o) => isOrderEligibleForDriver(o, driver));
+    return canReceiveFood ? [...eligible, ...(await fetchReadyFoodDeliveries(supabaseClient))] : eligible;
   }
 
   if (mode === 'technician' && driverPos?.lat != null && driverPos?.lng != null) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileText, Package, Briefcase, Luggage, Wallet, Banknote } from 'lucide-react';
-import { Button, Card, Field, Input, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
+import { Link, useNavigate } from 'react-router-dom';
+import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Truck } from 'lucide-react';
+import { Button, Card, Field, Input, Textarea, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchCoordinates, fetchRoute } from '../utils/osmHelpers';
@@ -17,12 +17,16 @@ import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
 import { WALLET_ENABLED } from '../config/wallet';
+import { useAuth } from '../context/AuthContext';
+import { uploadPrivateImage } from '../utils/imageUpload';
+import JobPhotoPicker from '../components/common/JobPhotoPicker';
 
 export default function SendPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
+  const { user } = useAuth();
 
   const [selectedPackage, setSelectedPackage] = useState('kecil');
   const [paymentMethod, setPaymentMethod] = useState('Tunai');
@@ -48,6 +52,10 @@ export default function SendPage() {
   const [receiverNote, setReceiverNote] = useState('');
   const [receiverCoords, setReceiverCoords] = useState(null);
   const [itemNote, setItemNote] = useState('');
+  // "Barang besar (mobil)" (migrations/0128): photos, no price up front.
+  const [bigDesc, setBigDesc] = useState('');
+  const [bigPhotos, setBigPhotos] = useState([]); // File[]
+  const [bigHelper, setBigHelper] = useState(false);
 
   // `name` stays Indonesian on purpose: it is written into the order's
   // `details`, which the courier reads in the partner app. Only the labels
@@ -62,15 +70,19 @@ export default function SendPage() {
     { id: 'besar', name: 'Paket Besar', base: 30000, perKm: 0 },
   ];
   const [rules, setRules] = useState(null);
+  const [hasBigItem, setHasBigItem] = useState(false);
   const [routeMeters, setRouteMeters] = useState(null);
 
   useEffect(() => {
-    supabase.from('pricing_rules').select('code, name, base_price, per_km_rate, is_active')
+    supabase.from('pricing_rules').select('*')
       .eq('service_type', 'send').eq('is_active', true).order('base_price')
       .then(({ data }) => {
-        if (data?.length) {
-          setRules(data.map((r) => ({ id: r.code, name: r.name || r.code, base: Number(r.base_price) || 0, perKm: Number(r.per_km_rate) || 0 })));
+        // Titip beli and Barang besar are is_custom rows, not packages.
+        const plain = (data || []).filter((r) => !r.is_custom);
+        if (plain.length) {
+          setRules(plain.map((r) => ({ id: r.code, name: r.name || r.code, base: Number(r.base_price) || 0, perKm: Number(r.per_km_rate) || 0 })));
         }
+        setHasBigItem((data || []).some((r) => r.code === 'BESAR'));
       });
   }, []);
 
@@ -91,6 +103,7 @@ export default function SendPage() {
     return txt === key ? (suffix ? '' : p.name) : txt;
   };
 
+  const isBig = selectedPackage === 'BESAR';
   const currentPkg = packages.find((p) => p.id === selectedPackage) || packages[0];
 
   const handleCheckPromo = async () => {
@@ -128,6 +141,7 @@ export default function SendPage() {
   };
 
   const calculateFinalPrice = () => {
+    if (isBig) return 0;
     const basePrice = currentPkg.price;
     if (!activePromo) return basePrice;
     if (activePromo.type === 'Percentage') {
@@ -141,6 +155,14 @@ export default function SendPage() {
     e.preventDefault();
     if (!senderName || !senderPhone || !senderAddress || !receiverName || !receiverPhone || !receiverAddress) {
       toast.error(t('send.incomplete'));
+      return;
+    }
+    if (isBig && bigDesc.trim().length < 10) {
+      toast.error(t('send.big_desc_required'));
+      return;
+    }
+    if (isBig && bigPhotos.length === 0) {
+      toast.error(t('send.big_photo_required'));
       return;
     }
 
@@ -210,7 +232,36 @@ export default function SendPage() {
         nearbyDrivers = nearby || [];
       }
 
-      const order = await addOrder({
+      let bigPhotoPaths = [];
+      if (isBig) {
+        try {
+          bigPhotoPaths = await Promise.all(bigPhotos.map((f) => uploadPrivateImage(supabase, 'order-photos', user.id, f)));
+        } catch (upErr) {
+          console.error('Big item photo upload failed:', upErr);
+          toast.error(t('service.custom_photo_failed'));
+          return;
+        }
+      }
+
+      const order = await addOrder(isBig ? {
+        paymentDescription: `WiraSend Barang besar ke ${receiverName}`,
+        service: 'WiraSend',
+        serviceType: 'send',
+        title: `Barang besar ke ${receiverName}`,
+        details: `No. Resi: ${resi} • Barang besar (mobil)${bigHelper ? ' • Perlu bantu angkat' : ''} (${withAddressNote(senderAddress, senderNote)} ➔ ${withAddressNote(receiverAddress, receiverNote)})`,
+        price: 0,
+        status: 'pending',
+        paymentMethod: 'Tunai',
+        packageSize: 'mobil',
+        pickupLat,
+        pickupLng,
+        dropoffLat,
+        dropoffLng,
+        rateCode: 'BESAR',
+        distanceMeters: routeMeters ?? null,
+        promoCode: null,
+        metadata: { job: { description: bigDesc.trim(), photos: bigPhotoPaths, helper: bigHelper } },
+      } : {
         // WiraPay is charged by create_order_and_pay in the same DB transaction
         // as the order insert, for the server-computed price (migrations/0070).
         paymentDescription: `WiraSend Paket ke ${receiverName}`,
@@ -404,9 +455,63 @@ export default function SendPage() {
                 );
               })}
             </div>
+            {hasBigItem && (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isBig}
+                onClick={() => setSelectedPackage('BESAR')}
+                className={cx(
+                  'flex min-w-0 items-start gap-3 rounded-tile text-left transition-colors',
+                  isBig ? 'border-2 border-brand bg-brand-soft/50 p-[13px]' : 'border border-pay-line bg-pay-soft p-3.5 hover:border-line-strong',
+                )}
+              >
+                <IconTile tone="brand" size="sm"><Truck size={18} /></IconTile>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[14px] font-bold leading-snug text-ink">{t('send.big_title')}</span>
+                  <span className="text-[12px] leading-snug text-ink-muted">{t('send.big_desc')}</span>
+                  <span className="text-[12px] font-semibold text-ink">{t('send.big_price')}</span>
+                </span>
+              </button>
+            )}
+            {isBig && (
+              <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
+                <Field label={t('send.big_desc_label')} htmlFor="send-big-desc" required hint={t('send.big_desc_hint')}>
+                  <Textarea
+                    id="send-big-desc"
+                    rows={3}
+                    maxLength={500}
+                    value={bigDesc}
+                    onChange={(e) => setBigDesc(e.target.value)}
+                    placeholder={t('send.big_desc_placeholder')}
+                    required
+                  />
+                </Field>
+                <JobPhotoPicker files={bigPhotos} onChange={setBigPhotos} />
+                <div className="flex flex-col gap-2">
+                  <span className="text-[13px] font-semibold text-ink">{t('send.big_helper')}</span>
+                  <div role="radiogroup" aria-label={t('send.big_helper')} className="grid grid-cols-2 gap-2">
+                    {[true, false].map((v) => (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        role="radio"
+                        aria-checked={bigHelper === v}
+                        onClick={() => setBigHelper(v)}
+                        className={cx(optionCls(bigHelper === v), 'justify-center text-[13px] font-semibold text-ink')}
+                      >
+                        {v ? t('send.big_helper_yes') : t('send.big_helper_no')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Notice tone="warning">{t('send.big_note')}</Notice>
+                <Link to="/support" className="text-[13px] font-semibold text-brand-ink hover:underline">{t('send.big_truck_cta')}</Link>
+              </div>
+            )}
           </section>
 
-          <PromoField
+          {!isBig && <PromoField
             id="send-promo"
             activePromo={activePromo}
             promoCode={promoCode}
@@ -415,7 +520,7 @@ export default function SendPage() {
             onRemove={handleRemovePromo}
             checking={checkingPromo}
             error={promoError}
-          />
+          />}
 
           {/* Metode Pembayaran */}
           <section className="flex flex-col gap-2">
@@ -424,7 +529,7 @@ export default function SendPage() {
               <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.payment_hint')}</p>
             </div>
             <div role="radiogroup" aria-label={t('common.payment_method')} className={cx('grid gap-2', WALLET_ENABLED ? 'grid-cols-2' : 'grid-cols-1')}>
-              {WALLET_ENABLED && (
+              {WALLET_ENABLED && !isBig && (
                 <button
                   type="button"
                   role="radio"
@@ -472,7 +577,7 @@ export default function SendPage() {
               block
               isLoading={loading}
             >
-              {loading ? t('send.booking') : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
+              {loading ? t('send.booking') : isBig ? t('send.big_submit') : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
             </Button>
           </div>
         </form>

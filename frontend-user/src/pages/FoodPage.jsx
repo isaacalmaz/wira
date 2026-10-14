@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Star, Clock, UtensilsCrossed } from 'lucide-react';
 import { Badge, Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
 import SafeImg from '../components/ui/SafeImg';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
+import TitipBeliForm from '../components/food/TitipBeliForm';
 
 export default function FoodPage() {
   const { t } = useTranslation();
@@ -12,6 +13,10 @@ export default function FoodPage() {
   const [category, setCategory] = useState('Semua');
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  // "Titip beli" tab (migrations/0128); /food?tab=titip opens it directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'titip' ? 'titip' : 'resto';
+  const setTab = (v) => setSearchParams(v === 'titip' ? { tab: 'titip' } : {}, { replace: true });
 
   // These values are the merchant `category` values stored in the database,
   // so they stay as-is for filtering; only their labels are translated.
@@ -47,6 +52,15 @@ export default function FoodPage() {
     <div className="flex flex-col gap-5">
       <PageHeader back="/" backLabel={t('common.back')} title={t('order.service_title.food')} className="mb-0" />
 
+      <Segmented
+        ariaLabel={t('titip.tabs_label')}
+        value={tab}
+        onChange={setTab}
+        className="w-full"
+        options={[{ value: 'resto', label: t('titip.tab_resto') }, { value: 'titip', label: t('titip.tab_titip') }]}
+      />
+
+      {tab === 'titip' ? <TitipBeliForm /> : (<>
       <div className="flex flex-col gap-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted" size={18} aria-hidden="true" />
@@ -127,6 +141,7 @@ export default function FoodPage() {
           ))}
         </div>
       )}
+      </>)}
     </div>
   );
 }
