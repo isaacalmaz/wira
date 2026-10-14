@@ -80,7 +80,7 @@ write in. They decide product questions. You do the engineering.
   orders → unread notice ≤3 days → promo → "order again"/time-of-day tip) above the service grid.
 - Display name: read from `public.users` via `hooks/useMyProfile.js`, never from auth metadata (a
   person can have a customer and a partner account with the same email; metadata goes stale).
-- Highest migration today: `0133_titip_new_customer_limit.sql`. Always `ls migrations | tail` before adding one,
+- Highest migration today: `0134_wallet_server_switch.sql`. Always `ls migrations | tail` before adding one,
   and add a row to `migrations/README.md`.
 - `db-tests/` + CI job `db-tests` test money/security migrations on Postgres 16 (see `WIRA_HANDOFF.md` §6.9).
 
@@ -95,6 +95,12 @@ write in. They decide product questions. You do the engineering.
   asking**; it blocks Play publishing. QRIS refunds still credit the wallet server-side, and the admin
   transfers them back by hand. The owner refuses payment gateways; Wira isn't a registered company
   (e-money licence grey area).
+  **Server side too since 0134 (2026-10-14):** trigger `trg_users_wallet_switch` refuses any
+  `wallet_balance` decrease requested by a signed-in non-staff user while
+  `app_settings.wallet_enabled` isn't `true` (QRIS per order, crons, credits and staff still work).
+  The Midtrans routes answer 410 (`backend/server.js`): the server key was never set, so the webhook
+  accepted the public placeholder key. Known gap: extra costs (`respond_order_adjustment`) on a
+  QRIS-paid Pool/Send/Service order are charged to the wallet, so they fail; owner to decide.
 - Cash food works like Gojek/Grab: the driver pays the restaurant the menu price at pickup and
   collects the total from the customer. The restaurant owes commission on the subtotal, the driver
   on the delivery fee; Wira funds promo discounts (refunded to the driver). Migration 0109.
