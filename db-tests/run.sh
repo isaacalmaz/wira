@@ -36,6 +36,7 @@ MIGRATION_FILES=(
   0084_mitra_applications.sql
   0085_migrate_and_lock_mitra_registrations.sql
   0134_wallet_server_switch.sql
+  0135_cash_extras_on_qris_orders.sql
 )
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 --set=SHOW_CONTEXT=never)

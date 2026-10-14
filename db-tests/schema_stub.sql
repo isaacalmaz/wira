@@ -275,6 +275,43 @@ CREATE POLICY "users_insert" ON public.users FOR INSERT WITH CHECK (auth.uid() =
 CREATE POLICY "users_update" ON public.users FOR UPDATE USING (auth.uid() = id OR is_admin());
 
 -- --- reviews (0039, referenced by 0080) -------------------------------------
+-- --- extra costs (0090/0123 shape) + helpers 0135 calls ----------------------
+ALTER TABLE public.orders
+    ADD COLUMN material_amount NUMERIC DEFAULT 0,
+    ADD COLUMN commission_rate NUMERIC,
+    ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+CREATE TABLE public.order_adjustments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+    requested_by UUID REFERENCES public.users(id),
+    kind TEXT NOT NULL,
+    amount NUMERIC NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    decided_at TIMESTAMPTZ
+);
+ALTER TABLE public.order_adjustments ENABLE ROW LEVEL SECURITY;
+CREATE TABLE public.notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    title TEXT,
+    description TEXT,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE public.order_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID, kind TEXT, from_status TEXT, to_status TEXT, actor_id UUID, note TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE FUNCTION public.format_rupiah(p NUMERIC) RETURNS TEXT
+LANGUAGE sql IMMUTABLE AS $$ SELECT 'Rp ' || p::bigint $$;
+CREATE FUNCTION public.notify_user(p_user UUID, p_title TEXT, p_desc TEXT, p_link TEXT) RETURNS void
+LANGUAGE sql AS $$ INSERT INTO public.notifications (user_id, title, description) VALUES (p_user, p_title, p_desc) $$;
+CREATE FUNCTION public.platform_commission_rate(p_service_type TEXT) RETURNS NUMERIC
+LANGUAGE sql STABLE AS $$ SELECT 0.20::numeric $$;
+
 CREATE TABLE public.reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
