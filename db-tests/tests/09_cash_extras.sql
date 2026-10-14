@@ -44,11 +44,8 @@ SELECT wira_test.login('09000000-0000-0000-0000-000000000002'); -- the technicia
 UPDATE orders SET status = 'completed' WHERE id = '09000000-0000-0000-0000-0000000000a1';
 SELECT wira_test.eq((SELECT payable_balance FROM users WHERE id = '09000000-0000-0000-0000-000000000002'), -10000::numeric,
     'at completion 20% commission on the cash jasa (50000) comes off payable; material is not cut');
-UPDATE orders SET details = 'later edit' WHERE id = '09000000-0000-0000-0000-0000000000a1';
-SELECT wira_test.login('09000000-0000-0000-0000-000000000002'); -- the technician finishes the job
-UPDATE orders SET status = 'completed' WHERE id = '09000000-0000-0000-0000-0000000000a1';
-SELECT wira_test.eq((SELECT payable_balance FROM users WHERE id = '09000000-0000-0000-0000-000000000002'), -10000::numeric,
-    'commission is taken once (no second charge on later updates)');
+SELECT wira_test.throws($q$UPDATE orders SET status = 'completed', details = 'again' WHERE id = '09000000-0000-0000-0000-0000000000a1'$q$,
+    '%already finalized%', 'a completed order cannot be touched again, so the commission is taken once');
 
 -- --- cash order: unchanged ---------------------------------------------------------
 SET ROLE authenticated;
