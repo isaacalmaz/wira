@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button, Card, Field, Input } from '../components/ui';
 import toast from 'react-hot-toast';
+import { resetRedirect } from '../utils/emailConfirm';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password',
+        redirectTo: resetRedirect(),
       });
       if (error) throw error;
       toast.success('Tautan reset password telah dikirim ke email Anda.');

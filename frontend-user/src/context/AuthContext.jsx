@@ -21,7 +21,13 @@ export const AuthProvider = ({ children }) => {
     });
 
     // Listen untuk perubahan auth (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // A password-reset link that landed anywhere but the reset form (e.g.
+      // an old link sent to the Site URL) still opens the form.
+      if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+        window.location.replace('/reset-password');
+        return;
+      }
       setUser(session?.user ?? null);
       setSession(session ?? null);
       setIsAuthenticated(!!session);

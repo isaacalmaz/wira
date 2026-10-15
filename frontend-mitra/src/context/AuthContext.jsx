@@ -13,7 +13,13 @@ export const AuthProvider = ({ children }) => {
       await handleSession(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // A password-reset link that landed anywhere but the reset form (e.g.
+      // an old link sent to the Site URL) still opens the form.
+      if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+        window.location.replace('/reset-password');
+        return;
+      }
       await handleSession(session);
     });
 

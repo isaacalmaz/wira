@@ -6,8 +6,13 @@ import { supabase } from '../config/supabase';
 // https://localhost, which a phone's mail app cannot open, so the public
 // site is used there. The address must be in Supabase Auth > URL
 // Configuration > Redirect URLs.
-export const confirmRedirect = () =>
-  `${Capacitor.isNativePlatform() ? 'https://mitra.wira.one' : window.location.origin}/login`;
+export const publicOrigin = () => (Capacitor.isNativePlatform() ? 'https://mitra.wira.one' : window.location.origin);
+
+export const confirmRedirect = () => `${publicOrigin()}/login`;
+
+// Password reset link destination (same reason: never https://localhost,
+// which Supabase refuses and replaces with the Site URL, the home page).
+export const resetRedirect = () => `${publicOrigin()}/reset-password`;
 
 /** Supabase refused a sign-in because the address is not confirmed yet. */
 export const isEmailNotConfirmed = (err) =>
