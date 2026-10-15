@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import {
-  Badge, Card, EmptyState, Money, PageHeader, SectionHeader, Spinner, Stat, StatMoney, Table,
+  Badge, Card, EmptyState, Money, PageHeader, SectionHeader, Segmented, Spinner, Stat, StatMoney, Table,
 } from '../components/ui';
 import { useTheme } from '../context/ThemeContext';
 import AttentionBoard from '../components/common/AttentionBoard';
@@ -42,6 +42,20 @@ const CHART_NIGHT = { grid: '#22363C', axis: '#9AA7AA', money: '#D9A845', bars: 
 // regardless of service type.
 const PLATFORM_COMMISSION_RATE = 0.20;
 
+// Chart periods (admin_dashboard_period, migrations/0138): calendar periods
+// in Lombok time; today by the hour, week (from Monday) and month by the day.
+const PERIODS = [
+  { value: 'today', label: 'Hari ini' },
+  { value: 'week', label: 'Minggu ini' },
+  { value: 'month', label: 'Bulan ini' },
+];
+const bucketLabel = (at, period) => {
+  const d = new Date(at);
+  if (period === 'today') return `${String(d.getHours()).padStart(2, '0')}.00`;
+  if (period === 'week') return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+};
+
 const DashboardPage = () => {
   const [stats, setStats] = useState({
     users: 0,
@@ -65,6 +79,27 @@ const DashboardPage = () => {
   // the key figures above.
   const [recentOrders, setRecentOrders] = useState([]);
   const [attention, setAttention] = useState(null);
+  // Chart period; null data = 0138 not applied yet, the charts then keep the
+  // fixed last-7-days / all-time figures from admin_order_stats.
+  const [period, setPeriod] = useState('week');
+  const [periodData, setPeriodData] = useState(null);
+  const [periodLoading, setPeriodLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPeriodLoading(true);
+    supabase.rpc('admin_dashboard_period', { p_period: period }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        if (error.code !== 'PGRST202') console.error('Dashboard period error:', error);
+        setPeriodData(null);
+      } else {
+        setPeriodData(data);
+      }
+      setPeriodLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [period]);
 
   useEffect(() => {
     const fetchExtras = async () => {
@@ -235,6 +270,18 @@ const DashboardPage = () => {
   // Big money figures sit a step smaller than counts so long rupiah fits the tile.
   const moneyValue = (n) => <StatMoney value={n} />;
 
+  const periodLabel = PERIODS.find((x) => x.value === period)?.label.toLowerCase();
+  const lineData = periodData
+    ? (periodData.series || []).map((b) => ({ name: bucketLabel(b.at, period), Pendapatan: Number(b.commission) || 0 }))
+    : chartData;
+  const barData = periodData
+    ? Object.entries(periodData.by_service || {})
+      .map(([type, n]) => ({ name: SERVICE_LABEL[type] || type, Pesanan: Number(n) || 0 }))
+      .sort((a, b) => b.Pesanan - a.Pesanan)
+    : serviceData;
+  const chartRevenue = periodData ? Number(periodData.commission) || 0 : stats.revenue;
+  const chartGmv = periodData ? Number(periodData.gmv) || 0 : stats.gmv;
+
   return (
     <div className="flex flex-col gap-6">
       {header}
@@ -254,23 +301,32 @@ const DashboardPage = () => {
         <Stat label="Transaksi Berhasil" value={stats.transactions.toLocaleString('id-ID')} icon={<Activity size={18} />} tone="success" hint="Selesai" />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      {/* Charts: one period for both (Hari ini / Minggu ini / Bulan ini). */}
+      <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[15px] font-bold tracking-tight text-ink">Grafik</h2>
+        {periodData !== null || periodLoading ? (
+          <Segmented ariaLabel="Periode grafik" value={period} onChange={setPeriod} options={PERIODS} />
+        ) : (
+          <Badge tone="neutral">7 hari terakhir</Badge>
+        )}
+      </div>
+      <div className={`grid grid-cols-1 gap-6 transition-opacity xl:grid-cols-3 ${periodLoading ? 'opacity-60' : ''}`}>
         {/* Revenue Line Chart */}
         <Card padding="lg" className="min-w-0 xl:col-span-2">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1">
               <h2 className="text-[15px] font-bold tracking-tight text-ink">Pendapatan Platform (komisi)</h2>
-              <Money value={stats.revenue} tone="pay" className="text-[26px] font-medium leading-tight tracking-tight" />
+              <Money value={chartRevenue} tone="pay" className="text-[26px] font-medium leading-tight tracking-tight" />
               <p className="text-xs text-ink-muted">
-                dari <Money value={stats.gmv} className="text-ink" /> volume transaksi (GMV)
+                dari <Money value={chartGmv} className="text-ink" /> volume transaksi (GMV)
+                {periodData ? <> · {Number(periodData.completed).toLocaleString('id-ID')} pesanan selesai {periodLabel}</> : ' · semua waktu'}
               </p>
             </div>
-            <Badge tone="neutral">7 hari terakhir</Badge>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={lineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke={palette.grid} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={6} />
                 <YAxis
@@ -298,12 +354,15 @@ const DashboardPage = () => {
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-[15px] font-bold tracking-tight text-ink">Sebaran Layanan</h2>
-              <p className="text-xs text-ink-muted">Jumlah pesanan per layanan</p>
+              <p className="text-xs text-ink-muted">Jumlah pesanan per layanan{periodData ? `, ${periodLabel}` : ''}</p>
             </div>
           </div>
+          {barData.length === 0 ? (
+            <div className="flex h-64 items-center justify-center text-center text-[13px] text-ink-muted">Belum ada pesanan {periodLabel}.</div>
+          ) : (
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={serviceData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+              <BarChart data={barData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke={palette.grid} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={axisTick} dy={6} />
                 <YAxis axisLine={false} tickLine={false} tick={{ ...axisTick, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }} allowDecimals={false} width={40} />
@@ -314,14 +373,16 @@ const DashboardPage = () => {
                   itemStyle={{ color: palette.ink, fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
                 />
                 <Bar dataKey="Pesanan" radius={[6, 6, 0, 0]} barSize={40}>
-                  {serviceData.map((entry, i) => (
+                  {barData.map((entry, i) => (
                     <Cell key={entry.name} fill={palette.bars[i % palette.bars.length]} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
+          )}
         </Card>
+      </div>
       </div>
 
       {/* Recent orders (click opens the order) */}
