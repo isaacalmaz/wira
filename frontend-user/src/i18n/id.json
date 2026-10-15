@@ -178,7 +178,8 @@
     "book_ride": "Pesan ride",
     "where_to_sub": "Motor atau mobil, dijemput di depan pintu.",
     "where_to_placeholder": "Masukkan tujuan",
-    "recent_empty": "Belum ada pesanan. Pesanan Anda akan muncul di sini."
+    "recent_empty": "Belum ada pesanan. Pesanan Anda akan muncul di sini.",
+    "arrange_reset": "Kembalikan ke urutan Wira"
   },
   "ride": {
     "pickup_placeholder": "Titik jemput",

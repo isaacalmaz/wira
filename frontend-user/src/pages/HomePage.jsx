@@ -52,7 +52,8 @@ export default function HomePage() {
         if (Array.isArray(parsed)) return parsed;
       }
     } catch { /* invalid stored value: fall back to default */ }
-    return SERVICES.map(s => s.id);
+    // null = the customer never arranged: follow the admin's order.
+    return null;
   });
   const [hiddenServices, setHiddenServices] = useState(() => {
     try {
@@ -132,9 +133,20 @@ export default function HomePage() {
 
   const recentOrders = orders.slice(0, 3);
 
-  // Customer's own order (localStorage), unknown ids last. Services an admin
-  // switched off are not shown at all, in the grid or in "Arrange".
-  const orderIndex = (id) => (serviceOrder.indexOf(id) !== -1 ? serviceOrder.indexOf(id) : 999);
+  // Customer's own order (localStorage) if they arranged one, otherwise the
+  // order admins set in Fitur & Wilayah (feature_flags, live); services not
+  // in that list follow the app's own order. Unknown ids last. Services an
+  // admin switched off are not shown at all, in the grid or in "Arrange".
+  const adminOrder = [
+    ...(Array.isArray(globalFlags) ? globalFlags.map((f) => f.id) : []),
+    ...SERVICES.map((sv) => sv.id),
+  ].filter((id, i, all) => all.indexOf(id) === i);
+  const baseOrder = serviceOrder || adminOrder;
+  const orderIndex = (id) => (baseOrder.indexOf(id) !== -1 ? baseOrder.indexOf(id) : 999);
+  const resetServiceOrder = () => {
+    setServiceOrder(null);
+    try { localStorage.removeItem('serviceOrder'); } catch { /* private mode */ }
+  };
   const orderedServices = activeServices.slice().sort((a, b) => orderIndex(a.id) - orderIndex(b.id));
   const availableServices = orderedServices.filter((s) => s.enabled && (WALLET_ENABLED || s.id !== 'wira_pay'));
   const shownServices = availableServices.filter((s) => !hiddenServices.includes(s.id));
@@ -365,9 +377,16 @@ export default function HomePage() {
         description={t('home.arrange_menu_hint')}
         closeLabel={t('common.close')}
         footer={(
-          <Button variant="secondary" onClick={() => setIsMenuModalOpen(false)}>
-            {t('common.close')}
-          </Button>
+          <div className="flex flex-col gap-2">
+            {serviceOrder && (
+              <Button variant="ghost" onClick={resetServiceOrder}>
+                {t('home.arrange_reset')}
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setIsMenuModalOpen(false)}>
+              {t('common.close')}
+            </Button>
+          </div>
         )}
       >
         <Card padding="none" className="divide-y divide-line overflow-hidden">

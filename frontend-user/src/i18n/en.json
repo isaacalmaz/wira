@@ -178,7 +178,8 @@
     "book_ride": "Book a ride",
     "where_to_sub": "Motorbike or car, picked up at your door.",
     "where_to_placeholder": "Enter destination",
-    "recent_empty": "No orders yet. Your orders will show up here."
+    "recent_empty": "No orders yet. Your orders will show up here.",
+    "arrange_reset": "Back to Wira's order"
   },
   "ride": {
     "pickup_placeholder": "Pickup point",

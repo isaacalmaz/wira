@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Sliders, Map as MapIcon, Trash2, Edit, Plus, MapPin, Save } from 'lucide-react';
+import { RefreshCw, Sliders, Map as MapIcon, Trash2, Edit, Plus, MapPin, Save, ChevronUp, ChevronDown } from 'lucide-react';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Segmented, Sheet, Stat } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Field, Input, Notice, PageHeader, SectionHeader, Segmented, Sheet, Stat } from '../components/ui';
 import { useNavigate } from 'react-router-dom';
 
 import L from 'leaflet';
@@ -30,6 +30,21 @@ const INITIAL_FEATURES = [
   { id: 'wira_pool', name: 'WiraPool (Perawatan Kolam Renang)', status: false, regions: [] },
   { id: 'wira_asuh', name: 'WiraAsuh (Pengasuh Anak)', status: true, regions: [] },
 ];
+
+// Not on the customer home grid: WiraPay is off (config/wallet), WiraPulsa
+// has no screen. They stay in the list for their switch, below the rest.
+const HOME_HIDDEN = ['wira_pay', 'wira_pulsa'];
+
+// Saves the whole service list (order = customer home order, 0-based; the
+// first two active ones are the big cards). Throws when RLS refused it.
+const saveFeatureConfig = async (list) => {
+  const { data, error } = await supabase
+    .from('feature_flags')
+    .upsert({ region: 'features_config', features: list, updated_at: new Date().toISOString() }, { onConflict: 'region' })
+    .select('region');
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('Akses ditolak.');
+};
 
 const MapModal = ({ zone, onClose, onSaveMap }) => {
   const mapRef = React.useRef(null);
@@ -256,20 +271,35 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
     setFeatures(updatedFeatures);
 
     try {
-      const { error } = await supabase
-        .from('feature_flags')
-        .upsert({
-          region: 'features_config',
-          features: updatedFeatures,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'region' });
-
-      if (error) throw error;
+      await saveFeatureConfig(updatedFeatures);
       toast.success(`${target.name} ${target.status ? 'diaktifkan' : 'dinonaktifkan'} untuk seluruh kota.`);
     } catch (err) {
       console.error(err);
       toast.error('Gagal menyimpan perubahan fitur global');
       fetchFeatures(); // revert local state on failure
+    }
+  };
+
+  // Home layout: move a service one place up/down among the ones shown on
+  // the customer home (hidden ones stay at the end). Saved right away; the
+  // customer app follows the list live (HomePage, feature_flags channel).
+  const homeList = features.filter((f) => !HOME_HIDDEN.includes(f.id));
+  const bigIds = homeList.filter((f) => f.status).slice(0, 2).map((f) => f.id);
+  const moveFeature = async (id, dir) => {
+    const i = homeList.findIndex((f) => f.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= homeList.length) return;
+    const next = [...homeList];
+    [next[i], next[j]] = [next[j], next[i]];
+    const updated = [...next, ...features.filter((f) => HOME_HIDDEN.includes(f.id))];
+    const before = features;
+    setFeatures(updated);
+    try {
+      await saveFeatureConfig(updated);
+    } catch (err) {
+      console.error(err);
+      setFeatures(before);
+      toast.error('Gagal menyimpan urutan layanan');
     }
   };
 
@@ -376,13 +406,36 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
       )}
 
       {!isZones && <section>
-        <SectionHeader title="Layanan Global" />
+        <SectionHeader title="Layanan & urutan Beranda" />
+        <p className="-mt-1 mb-3 text-[13px] text-ink-muted">
+          Urutan di sini sama dengan urutan layanan di Beranda pelanggan. Dua layanan aktif teratas tampil sebagai kartu besar.
+          Pelanggan yang mengatur urutannya sendiri lewat "Atur" tetap memakai urutannya.
+        </p>
         <Card padding="none">
           <ul className="divide-y divide-line">
-            {features.map((feature) => (
-              <li key={feature.id} className="flex items-center gap-4 px-4 py-2.5">
+            {[...homeList, ...features.filter((f) => HOME_HIDDEN.includes(f.id))].map((feature) => {
+              const pos = homeList.findIndex((f) => f.id === feature.id);
+              const onHome = pos >= 0;
+              return (
+              <li key={feature.id} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex shrink-0 flex-col">
+                  <button type="button" disabled={!onHome || pos === 0} onClick={() => moveFeature(feature.id, -1)}
+                    className="inline-flex h-7 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink disabled:opacity-25 disabled:hover:bg-transparent"
+                    aria-label={`Naikkan ${feature.name}`} title="Naikkan">
+                    <ChevronUp size={17} />
+                  </button>
+                  <button type="button" disabled={!onHome || pos === homeList.length - 1} onClick={() => moveFeature(feature.id, 1)}
+                    className="inline-flex h-7 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink disabled:opacity-25 disabled:hover:bg-transparent"
+                    aria-label={`Turunkan ${feature.name}`} title="Turunkan">
+                    <ChevronDown size={17} />
+                  </button>
+                </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-[14px] font-semibold text-ink">{feature.name}</span>
+                  <span className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-ink">
+                    {feature.name}
+                    {bigIds.includes(feature.id) && <Badge tone="brand">Kartu besar</Badge>}
+                    {!onHome && <Badge tone="neutral">Tidak di Beranda</Badge>}
+                  </span>
                   <span className="font-mono text-[12px] text-ink-muted">Kunci: {feature.id}</span>
                 </div>
                 <span className={`w-16 text-right text-[12.5px] font-semibold ${feature.status ? 'text-success-ink' : 'text-ink-muted'}`}>
@@ -394,7 +447,8 @@ const FeatureFlagsPage = ({ mode = 'features' }) => {
                   label={feature.name}
                 />
               </li>
-            ))}
+              );
+            })}
           </ul>
         </Card>
       </section>}
