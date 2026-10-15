@@ -24,15 +24,15 @@ const SERVICES = [
     enabled: true,
   },
   {
-    id: 'wira_food',
-    key: 'wira_food',
-    name_id: 'WiraFood',
-    name_en: 'WiraFood',
-    description_id: 'Pesan makanan dari restoran',
-    description_en: 'Order food from restaurants',
-    icon: UtensilsCrossed,
-    path: '/food',
-    color: '#D97706',       // Sandy gold
+    id: 'wira_service',
+    key: 'wira_service',
+    name_id: 'WiraService',
+    name_en: 'WiraService',
+    description_id: 'Jasa teknisi & tukang',
+    description_en: 'Engineering & repair services',
+    icon: Wrench,
+    path: '/service',
+    color: '#EF4444',       // Red
     enabled: true,
   },
   {
@@ -72,15 +72,15 @@ const SERVICES = [
     enabled: true,
   },
   {
-    id: 'wira_service',
-    key: 'wira_service',
-    name_id: 'WiraService',
-    name_en: 'WiraService',
-    description_id: 'Jasa teknisi & tukang',
-    description_en: 'Engineering & repair services',
-    icon: Wrench,
-    path: '/service',
-    color: '#EF4444',       // Red
+    id: 'wira_food',
+    key: 'wira_food',
+    name_id: 'WiraFood',
+    name_en: 'WiraFood',
+    description_id: 'Pesan makanan dari restoran',
+    description_en: 'Order food from restaurants',
+    icon: UtensilsCrossed,
+    path: '/food',
+    color: '#D97706',       // Sandy gold
     enabled: true,
   },
   {
