@@ -6,6 +6,8 @@ import { Badge, Button, Table } from '../ui';
 import { formatDateTime } from '../../utils/datetime';
 
 const PLAY_TESTERS_URL = 'https://play.google.com/console/u/0/developers/6382692752988564582/app/4974526613589818292/tracks/4700274319503413459?tab=testers';
+const OPT_IN_USER_URL = 'https://play.google.com/apps/testing/com.wira.user';
+const OPT_IN_MITRA_URL = 'https://play.google.com/apps/testing/com.wira.mitra';
 
 /**
  * Gmail addresses left on the wira.one landing page ("Unduh aplikasi" >
@@ -53,6 +55,10 @@ export default function TesterSignupsSection() {
           <p className="text-[13px] leading-relaxed text-ink-muted">
             Dari tombol "Unduh aplikasi" di wira.one. Tambahkan ke daftar <b>tim wira</b> di{' '}
             <a href={PLAY_TESTERS_URL} target="_blank" rel="noreferrer" className="font-semibold text-brand-ink hover:underline">Play Console</a>, lalu centang.
+            Tautan opt-in tester:{' '}
+            <a href={OPT_IN_USER_URL} target="_blank" rel="noreferrer" className="font-semibold text-brand-ink hover:underline">Wira</a>
+            {' · '}
+            <a href={OPT_IN_MITRA_URL} target="_blank" rel="noreferrer" className="font-semibold text-brand-ink hover:underline">Wira Mitra</a>.
           </p>
         </div>
         <Button variant="secondary" size="sm" leftIcon={<Copy size={15} />} onClick={copyPending} disabled={pending.length === 0}>

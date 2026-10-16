@@ -170,7 +170,7 @@ the background or on the next cold start. Hard-won facts:
 
 ## 7. Pending / ideas the owner deferred
 
-- Restructure admin "Rilis Aplikasi" into "Tester & Aplikasi": tester signups on top, APK upload only
-  for Wira Admin (the Play apps don't use it), links to Play Console. The owner said "later".
-- `WIRA_HANDOFF.md` §4 lists manual tasks for the owner (rotate the Firebase key, VAPID key, etc.).
-  Some may be done by now; ask before assuming either way.
+- `WIRA_HANDOFF.md` §4 lists manual tasks for the owner (VAPID key, Midtrans production credentials).
+  Firebase Admin key rotation (2026-10-13) and the "Tester & Aplikasi" admin page restructure
+  (2026-10-17) are done.
+

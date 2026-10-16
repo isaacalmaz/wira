@@ -60,7 +60,7 @@ export const MENU_ITEMS = [
   { name: 'Pengumuman', icon: Megaphone, path: '/announcements', roles: CS_ADMIN_ROLES, group: 'layanan' },
   { name: 'Tim Admin', icon: ShieldCheck, path: '/team', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Fitur & Wilayah', icon: ToggleLeft, path: '/features', also: ['/zones'], roles: FEATURE_FLAG_ROLES, group: 'sistem' },
-  { name: 'Rilis Aplikasi', icon: Smartphone, path: '/releases', roles: CORE_ADMIN_ROLES, group: 'sistem' },
+  { name: 'Tester & Aplikasi', icon: Smartphone, path: '/releases', roles: CORE_ADMIN_ROLES, countKey: 'testers', group: 'sistem' },
   { name: 'Log Aktivitas', icon: History, path: '/audit', roles: CORE_ADMIN_ROLES, group: 'sistem' },
   { name: 'Pengaturan', icon: Settings, path: '/settings', roles: CORE_ADMIN_ROLES, group: 'sistem' },
 ];
@@ -81,18 +81,18 @@ const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [pendingCounts, setPendingCounts] = useState({ applications: 0, villa: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ applications: 0, villa: 0, testers: 0 });
 
   const fetchPendingCounts = async () => {
     try {
       const list = await fetchPendingApplications(null, 'id, role');
       // Villa: properties existing hosts added that wait for review (0097);
       // new hosts themselves are in Pendaftaran.
-      const { count: listings } = await supabase
-        .from('merchants')
-        .select('id', { count: 'exact', head: true })
-        .eq('listing_status', 'pending');
-      setPendingCounts({ applications: list.length, villa: listings || 0 });
+      const [{ count: listings }, { count: testers }] = await Promise.all([
+        supabase.from('merchants').select('id', { count: 'exact', head: true }).eq('listing_status', 'pending'),
+        supabase.from('tester_signups').select('id', { count: 'exact', head: true }).eq('added', false),
+      ]);
+      setPendingCounts({ applications: list.length, villa: listings || 0, testers: testers || 0 });
     } catch { /* best-effort; ignore */ }
   };
 
