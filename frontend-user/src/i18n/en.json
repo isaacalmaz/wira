@@ -295,6 +295,7 @@
     "receiver_section": "Drop-off (Recipient)",
     "sender_name": "Sender's name",
     "sender_phone": "Sender's mobile number",
+    "phone_badge_personal": "Personal",
     "use_my_phone": "Use my phone",
     "my_phone": "My number",
     "from_saved_address": "From Saved Addresses",

@@ -111,20 +111,25 @@ export default function PhoneInputWithSuggestions({
                 e.preventDefault();
                 handleSelect(userProfile.phone, userProfile.name);
               }}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-brand-soft"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-brand-soft/70"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-ink">
-                <User size={14} aria-hidden="true" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-ink">
+                <User size={15} aria-hidden="true" />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="flex items-center justify-between text-[13px] font-semibold text-ink">
-                  <span>{t('send.use_my_phone')}</span>
-                  <span className="text-[11px] font-medium text-brand-ink">{t('send.my_phone')}</span>
+                <span className="flex items-center justify-between gap-1.5">
+                  <span className="font-mono text-sm font-bold tracking-tight text-ink">
+                    {userProfile.phone}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand-ink">
+                    {t('send.phone_badge_personal')}
+                  </span>
                 </span>
-                <span className="font-mono text-xs text-ink-muted truncate">
-                  {userProfile.phone}
-                  {userProfile.name ? ` • ${userProfile.name}` : ''}
-                </span>
+                {userProfile.name && (
+                  <span className="truncate text-xs text-ink-muted">
+                    {userProfile.name}
+                  </span>
+                )}
               </span>
             </button>
           )}
@@ -142,16 +147,27 @@ export default function PhoneInputWithSuggestions({
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    handleSelect(addr.phone);
+                    handleSelect(addr.phone, addr.label);
                   }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-sunken"
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-sunken"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sunken text-ink-muted">
-                    <Bookmark size={13} aria-hidden="true" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sunken text-ink-muted">
+                    <Bookmark size={14} aria-hidden="true" />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[13px] font-semibold text-ink truncate">{addr.label}</span>
-                    <span className="font-mono text-xs text-ink-muted truncate">{addr.phone}</span>
+                    <span className="flex items-center justify-between gap-1.5">
+                      <span className="font-mono text-xs font-semibold text-ink">
+                        {addr.phone}
+                      </span>
+                      <span className="shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] font-medium text-ink-muted border border-line/60">
+                        {addr.label}
+                      </span>
+                    </span>
+                    {addr.address && (
+                      <span className="truncate text-[11px] text-ink-muted">
+                        {addr.address}
+                      </span>
+                    )}
                   </span>
                 </button>
               ))}
