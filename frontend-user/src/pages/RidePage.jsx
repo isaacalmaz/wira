@@ -477,20 +477,24 @@ export default function RidePage() {
         />
       </div>
 
-      {/* Top overlay: back button + (step 1) the pickup/destination search card */}
-      <div className="pointer-events-none absolute inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[400] flex items-start gap-2 md:inset-x-auto md:left-1/2 md:top-6 md:w-[31rem] md:-translate-x-1/2">
-        <button
-          type="button"
-          onClick={() => (step === 'vehicle' ? setStep('input') : navigate('/'))}
-          title={t('common.back')}
-          aria-label={t('common.back')}
-          className="pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
-        >
-          <ChevronLeft size={20} />
-        </button>
+      {/* Top overlay: on step 2 show back button; on step 1 search card stretches full length left to right */}
+      {step === 'vehicle' && (
+        <div className="pointer-events-none absolute inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[400] flex items-start md:inset-x-auto md:left-1/2 md:top-6 md:w-[31rem] md:-translate-x-1/2">
+          <button
+            type="button"
+            onClick={() => setStep('input')}
+            title={t('common.back')}
+            aria-label={t('common.back')}
+            className="pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-card text-ink shadow-pop transition-colors hover:bg-sunken"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        </div>
+      )}
 
-        {step === 'input' && (
-          <div className="pointer-events-auto min-w-0 flex-1 rounded-card border border-line bg-card p-3 shadow-pop">
+      {step === 'input' && (
+        <div className="pointer-events-none absolute inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[400] md:inset-x-auto md:left-1/2 md:top-6 md:w-[31rem] md:-translate-x-1/2">
+          <div className="pointer-events-auto w-full rounded-card border border-line bg-card p-3 shadow-pop">
             {/* Grid: marker rail on the left, inputs on the right. The rail line
                 runs from the pickup dot to the destination square. */}
             <div className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-2.5">
@@ -527,6 +531,12 @@ export default function RidePage() {
                   <LocateFixed size={14} aria-hidden="true" /> {t('common.use_current_location')}
                 </button>
               </div>
+              {mode === 'hourly' && (
+                <div className="col-start-2 row-start-3 my-1 flex items-center gap-2 rounded-[10px] bg-sunken px-2.5 py-1.5 text-[12px] text-ink-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand shrink-0" />
+                  <span>{t('ride.hourly_no_dropoff_note')}</span>
+                </div>
+              )}
               {mode !== 'hourly' && (<>
               <div className="col-start-2 row-start-3 mb-2 border-t border-line" aria-hidden="true" />
 
@@ -565,8 +575,8 @@ export default function RidePage() {
               </>)}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Booking panel: bottom sheet above the map (floating card on desktop) */}
       <section className={cx(
@@ -594,7 +604,33 @@ export default function RidePage() {
                 className="w-full"
               />
               {mode === 'hourly' ? (
-                <p className="text-[13px] leading-relaxed text-ink-muted">{pickup ? t('ride.hourly_hint') : t('ride.hint_hourly_pickup')}</p>
+                <div className="flex flex-col gap-2.5 rounded-card border border-brand-line bg-brand-soft/60 p-3.5 text-ink">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white">
+                      <Car size={15} />
+                    </span>
+                    <span className="text-[13.5px] font-bold text-brand-ink">
+                      {t('ride.hourly_card_title')}
+                    </span>
+                  </div>
+                  <p className="text-[12.5px] leading-relaxed text-ink">
+                    {t('ride.hourly_card_desc')}
+                  </p>
+                  <div className="flex flex-col gap-1 border-t border-brand-line/70 pt-2 text-[12px] text-ink-muted">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand shrink-0" />
+                      <span>{t('ride.hourly_bullet_stops')}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand shrink-0" />
+                      <span>{t('ride.hourly_bullet_fuel')}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand shrink-0" />
+                      <span>{t('ride.hourly_bullet_pickup')}</span>
+                    </div>
+                  </div>
+                </div>
               ) : routeInfo ? (
                 <div className="flex items-center gap-3 rounded-card border border-line bg-card px-4 py-3">
                   <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink-muted">{t('ride.distance')}</span>
