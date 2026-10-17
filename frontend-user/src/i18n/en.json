@@ -297,6 +297,8 @@
     "sender_phone": "Sender's mobile number",
     "use_my_phone": "Use my phone",
     "my_phone": "My number",
+    "from_saved_address": "From Saved Addresses",
+    "suggestions_label": "Phone number suggestions",
     "sender_address": "Parcel pickup address",
     "receiver_name": "Recipient's name",
     "receiver_phone": "Recipient's mobile number",

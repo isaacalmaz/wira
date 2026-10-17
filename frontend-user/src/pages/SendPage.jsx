@@ -20,6 +20,7 @@ import { WALLET_ENABLED } from '../config/wallet';
 import { useAuth } from '../context/AuthContext';
 import { uploadPrivateImage } from '../utils/imageUpload';
 import JobPhotoPicker from '../components/common/JobPhotoPicker';
+import PhoneInputWithSuggestions from '../components/common/PhoneInputWithSuggestions';
 
 export default function SendPage() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function SendPage() {
   const { user } = useAuth();
 
   const [userProfile, setUserProfile] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -49,6 +51,15 @@ export default function SendPage() {
             name: data.name || prev?.name || '',
           }));
         }
+      });
+
+    supabase
+      .from('saved_addresses')
+      .select('id, label, phone')
+      .eq('user_id', user.id)
+      .not('phone', 'is', null)
+      .then(({ data }) => {
+        if (data) setSavedAddresses(data);
       });
   }, [user]);
 
@@ -362,42 +373,18 @@ export default function SendPage() {
                 />
               </Field>
               <Field label={t('send.sender_phone')} htmlFor="send-sender-phone" required>
-                <div className="flex flex-col gap-1.5">
-                  <Input
-                    id="send-sender-phone"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder={t('wallet.recipient_placeholder')}
-                    value={senderPhone}
-                    onChange={(e) => setSenderPhone(e.target.value)}
-                    className="font-mono placeholder:font-sans"
-                    list={userProfile?.phone ? 'send-sender-phone-suggest' : undefined}
-                    required
-                  />
-                  {userProfile?.phone && (
-                    <datalist id="send-sender-phone-suggest">
-                      <option value={userProfile.phone}>
-                        {userProfile.name ? `${userProfile.name} (${t('send.my_phone')})` : t('send.my_phone')}
-                      </option>
-                    </datalist>
-                  )}
-                  {userProfile?.phone && senderPhone !== userProfile.phone && (
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSenderPhone(userProfile.phone);
-                          if (!senderName && userProfile.name) setSenderName(userProfile.name);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-medium text-brand-ink transition-colors hover:bg-brand/15 active:scale-95"
-                      >
-                        <Phone size={12} className="text-brand shrink-0" aria-hidden="true" />
-                        <span>{t('send.use_my_phone')}: <strong className="font-mono font-semibold">{userProfile.phone}</strong></span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <PhoneInputWithSuggestions
+                  id="send-sender-phone"
+                  value={senderPhone}
+                  onChange={setSenderPhone}
+                  onSelectSuggestion={({ name }) => {
+                    if (!senderName && name) setSenderName(name);
+                  }}
+                  userProfile={userProfile}
+                  savedAddresses={savedAddresses}
+                  placeholder={t('wallet.recipient_placeholder')}
+                  required
+                />
               </Field>
             </div>
             <AddressMapPicker
@@ -433,41 +420,18 @@ export default function SendPage() {
                 />
               </Field>
               <Field label={t('send.receiver_phone')} htmlFor="send-receiver-phone" required>
-                <div className="flex flex-col gap-1.5">
-                  <Input
-                    id="send-receiver-phone"
-                    type="tel"
-                    inputMode="tel"
-                    placeholder={t('wallet.recipient_placeholder')}
-                    value={receiverPhone}
-                    onChange={(e) => setReceiverPhone(e.target.value)}
-                    className="font-mono placeholder:font-sans"
-                    list={userProfile?.phone ? 'send-receiver-phone-suggest' : undefined}
-                    required
-                  />
-                  {userProfile?.phone && (
-                    <datalist id="send-receiver-phone-suggest">
-                      <option value={userProfile.phone}>
-                        {userProfile.name ? `${userProfile.name} (${t('send.my_phone')})` : t('send.my_phone')}
-                      </option>
-                    </datalist>
-                  )}
-                  {userProfile?.phone && receiverPhone !== userProfile.phone && (
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReceiverPhone(userProfile.phone);
-                          if (!receiverName && userProfile.name) setReceiverName(userProfile.name);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-medium text-brand-ink transition-colors hover:bg-brand/15 active:scale-95"
-                      >
-                        <Phone size={12} className="text-brand shrink-0" aria-hidden="true" />
-                        <span>{t('send.use_my_phone')}: <strong className="font-mono font-semibold">{userProfile.phone}</strong></span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <PhoneInputWithSuggestions
+                  id="send-receiver-phone"
+                  value={receiverPhone}
+                  onChange={setReceiverPhone}
+                  onSelectSuggestion={({ name }) => {
+                    if (!receiverName && name) setReceiverName(name);
+                  }}
+                  userProfile={userProfile}
+                  savedAddresses={savedAddresses}
+                  placeholder={t('wallet.recipient_placeholder')}
+                  required
+                />
               </Field>
             </div>
             <AddressMapPicker
