@@ -676,6 +676,33 @@ export default function ActiveOrderPage() {
         {isDriver && order.service_type === 'send' && order.rate_code === 'TITIP' && ['accepted', 'picking_up'].includes(order.status) && (
           <TitipTransferTemplate order={order} userId={user.id} onSend={sendTemplate} />
         )}
+        {!['completed', 'cancelled', 'awaiting_payment'].includes(order.status) && (
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t border-line bg-card px-3 py-2">
+            {(['accepted', 'picking_up', 'on_the_way'].includes(order.status)
+              ? [
+                  'Halo Kak, pesanan sudah saya terima dan segera meluncur',
+                  'Titik jemput sudah sesuai aplikasi ya Kak?',
+                  'Saya sudah sampai di titik lokasi Kak',
+                  'Mohon ditunggu sebentar ya Kak',
+                ]
+              : [
+                  'Pesanan sedang diproses ya Kak',
+                  'Saya sedang menuju lokasi tujuan Kak',
+                  'Saya sudah sampai di tujuan Kak',
+                  'Terima kasih Kak!',
+                ]
+            ).map((txt) => (
+              <button
+                key={txt}
+                type="button"
+                onClick={() => sendTemplate(txt).catch(() => {})}
+                className="shrink-0 rounded-full border border-line-strong bg-sunken px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink active:scale-[0.98]"
+              >
+                {txt}
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
           <input type="file" accept="image/*" className="hidden" ref={chatFileRef} onChange={sendImage} />
           <button

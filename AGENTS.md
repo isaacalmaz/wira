@@ -8,6 +8,12 @@ When performing `.update()` or `.delete()` operations via the Supabase JS client
 When writing Supabase RPC functions (`RETURNS TABLE`), input parameters share the same namespace as the returned columns. 
 **Rule:** If you use identical names (e.g. `lat DOUBLE PRECISION` as input and `lat DOUBLE PRECISION` in output), Postgres will throw a fatal compilation error. Always prefix input parameters with `p_` or `user_` (e.g., `user_lat`).
 
+## 2b. Pre-Flight Feature Audit & Zero-Regression Engineering
+Before proposing a feature, claiming something is missing, or modifying any code:
+1. **Verify Existence First:** Never assume a feature is missing from memory or partial file reads. Always search (`git grep`) and read the relevant files (`frontend-user`, `frontend-mitra`, `frontend-admin`, `backend`, `migrations`) end-to-end to verify what is already implemented.
+2. **Blast-Radius & Side-Effect Check:** Before making any change, trace all callers, Realtime subscriptions, RLS policies, order state transitions (`pending`, `accepted`, `picking_up`, `on_the_way`, `working`, `in_trip`, `completed`, `cancelled`), and bilingual keys (`id.json` + `en.json`) to ensure zero regressions on other services (`ride`, `food`, `send`, `service`, `pool`, `villa`, `babysit`).
+3. **One-by-One Execution:** Implement multi-item improvements one at a time, verifying the build and existing flows at each step before moving to the next.
+
 ---
 
 # Working notes (handoff, updated 2026-10-11)

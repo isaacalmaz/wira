@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
+import { fetchRoute } from '../utils/osmHelpers';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, MessageCircle, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
+import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, MessageCircle, Share2, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
@@ -38,6 +39,47 @@ const statusTone = (status) => {
 };
 
 const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, babysit: Baby };
+
+function haversineMeters(a, b) {
+  if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+  const toRad = (d) => (Number(d) * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLng * sinLng;
+  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function playOrderAlert() {
+  try {
+    navigator.vibrate?.([180, 80, 180]);
+  } catch {
+    // ignore unsupported haptics
+  }
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    [587.33, 880].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+      gain.gain.setValueAtTime(0.12, now + idx * 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.14);
+      osc.stop(now + idx * 0.14 + 0.18);
+    });
+    setTimeout(() => { ctx.close?.().catch(() => {}); }, 600);
+  } catch {
+    // ignore audio autoplay restrictions
+  }
+}
 
 // Pickup/destination names for the route summary, read from the order's
 // details text (ride = JSON, send = the SendPage template). Returns null
@@ -83,6 +125,7 @@ export default function ActiveOrderPage() {
   const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [driverLoc, setDriverLoc] = useState(null);
+  const [routeCoords, setRouteCoords] = useState([]);
   // The real PIN, fetched separately from public.order_security_pins - the
   // orders.security_pin column no longer exists (migration 0067). RLS on
   // that table only returns a row to this order's real customer (or, for
@@ -160,7 +203,13 @@ export default function ActiveOrderPage() {
     if (!id) return;
     const channel = supabase.channel(`order_${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, (payload) => {
-        setOrder(prev => ({ ...prev, ...payload.new }));
+        setOrder(prev => {
+          const next = { ...prev, ...payload.new };
+          if (payload.new.driver_id && (!prev?.driver || prev.driver_id !== payload.new.driver_id)) {
+            fetchOrder();
+          }
+          return next;
+        });
         if (payload.new.status === 'completed') {
           // Stay on the page: it now asks for a review (0091).
           toast(t('order.completed_toast'));
@@ -171,17 +220,35 @@ export default function ActiveOrderPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [id, navigate]);
+  }, [id, navigate, fetchOrder, t]);
 
   // QRIS orders: announce the payment once the DB moves the order on, and
-  // poll as a fallback in case the realtime event is missed.
+  // poll as a fallback in case the realtime event is missed. Also chime when
+  // a partner accepts a pending order.
   const prevStatusRef = useRef(null);
   useEffect(() => {
     if (prevStatusRef.current === OrderStatus.AWAITING_PAYMENT && order?.status === OrderStatus.PENDING) {
       toast.success(t('order.qris_paid'));
+    } else if (prevStatusRef.current === OrderStatus.PENDING && order?.status === 'accepted') {
+      playOrderAlert();
+      toast.success(t('order.partner_matched_toast'));
     }
     prevStatusRef.current = order?.status ?? null;
-  }, [order?.status]);
+  }, [order?.status, t]);
+
+  // One-time chime & toast when driver GPS enters within 100 m of pickup
+  const arrivedNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (arrivedNotifiedRef.current || !driverLoc || !order) return;
+    if (!['accepted', 'picking_up', 'on_the_way'].includes(order.status)) return;
+    if (!order.pickup_lat || !order.pickup_lng) return;
+    const distM = haversineMeters(driverLoc, { lat: order.pickup_lat, lng: order.pickup_lng });
+    if (distM != null && distM <= 100) {
+      arrivedNotifiedRef.current = true;
+      playOrderAlert();
+      toast.success(t('order.driver_arriving_toast'));
+    }
+  }, [driverLoc, order, t]);
 
   useEffect(() => {
     if (order?.status !== OrderStatus.AWAITING_PAYMENT) return;
@@ -194,7 +261,7 @@ export default function ActiveOrderPage() {
 
   // Driver location tracking
   useEffect(() => {
-    if (!order?.driver_id || !['accepted', 'picking_up', 'in_trip'].includes(order.status)) return;
+    if (!order?.driver_id || !['accepted', 'picking_up', 'on_the_way', 'in_trip'].includes(order.status)) return;
     const locChannel = supabase.channel(`driver_loc_${order.driver_id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'drivers', filter: `id=eq.${order.driver_id}` }, (payload) => {
         if (payload.new.lat && payload.new.lng) {
@@ -204,6 +271,24 @@ export default function ActiveOrderPage() {
       .subscribe();
     return () => { supabase.removeChannel(locChannel); };
   }, [order?.driver_id, order?.status]);
+
+  // Fetch road polyline once between pickup and dropoff when both coordinates exist.
+  useEffect(() => {
+    if (!order?.pickup_lat || !order?.pickup_lng || !order?.dropoff_lat || !order?.dropoff_lng) {
+      setRouteCoords([]);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchRoute(
+      { lat: Number(order.pickup_lat), lng: Number(order.pickup_lng) },
+      { lat: Number(order.dropoff_lat), lng: Number(order.dropoff_lng) }
+    ).then((res) => {
+      if (!cancelled && res?.coordinates?.length) {
+        setRouteCoords(res.coordinates);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [order?.pickup_lat, order?.pickup_lng, order?.dropoff_lat, order?.dropoff_lng]);
 
   // Chat - backed by the real public.messages table (migration 0019's RLS
   // already scopes read/write to this order's real customer/driver/merchant
@@ -246,6 +331,15 @@ export default function ActiveOrderPage() {
     setInputText('');
     // RLS (migration 0019) already enforces that the sender must be a real
     // participant on this order - no client-side role check needed here.
+    const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
+    if (error) {
+      console.error(error);
+      toast.error(t('order.chat_send_failed'));
+    }
+  };
+
+  const sendQuickReply = async (text) => {
+    if (!text || !user) return;
     const { error } = await supabase.from('messages').insert({ order_id: id, sender_id: user.id, text });
     if (error) {
       console.error(error);
@@ -385,6 +479,27 @@ export default function ActiveOrderPage() {
   const openChat = () => chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const roundBtn = 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors';
 
+  // Live distance & ETA badge when driver GPS is streaming
+  const liveEta = (() => {
+    if (!driverLoc) return null;
+    if (['accepted', 'picking_up', 'on_the_way'].includes(order.status) && order.pickup_lat && order.pickup_lng) {
+      const distM = haversineMeters(driverLoc, { lat: order.pickup_lat, lng: order.pickup_lng });
+      if (distM == null) return null;
+      if (distM <= 120) return t('order.eta_arriving_soon');
+      const mins = Math.max(1, Math.round((distM * 1.3) / 450));
+      const km = `${(distM / 1000).toFixed(1)} km`;
+      return t('order.eta_pickup', { minutes: mins, distance: km });
+    }
+    if (order.status === 'in_trip' && order.dropoff_lat && order.dropoff_lng) {
+      const distM = haversineMeters(driverLoc, { lat: order.dropoff_lat, lng: order.dropoff_lng });
+      if (distM == null) return null;
+      const mins = Math.max(1, Math.round((distM * 1.3) / 450));
+      const km = `${(distM / 1000).toFixed(1)} km`;
+      return t('order.eta_dropoff', { minutes: mins, distance: km });
+    }
+    return null;
+  })();
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
       {/* Status header */}
@@ -415,10 +530,19 @@ export default function ActiveOrderPage() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
             <MapBounds order={order} driverLoc={driverLoc} />
+            {routeCoords.length > 0 && (
+              <Polyline positions={routeCoords} color="#16788C" weight={5} opacity={0.85} />
+            )}
             {order.pickup_lat && order.pickup_lng && <Marker position={[order.pickup_lat, order.pickup_lng]} icon={pickupIcon} />}
             {order.dropoff_lat && order.dropoff_lng && <Marker position={[order.dropoff_lat, order.dropoff_lng]} icon={dropoffIcon} />}
             {driverLoc && <Marker position={[driverLoc.lat, driverLoc.lng]} icon={driverIcon} />}
           </MapContainer>
+          {liveEta && (
+            <div className="pointer-events-none absolute bottom-3 left-3 z-[400] inline-flex items-center gap-2 rounded-full border border-line bg-card/95 px-3 py-1.5 text-[12px] font-semibold text-ink shadow-pop backdrop-blur-sm">
+              <span className="h-2 w-2 rounded-full bg-brand animate-pulse" />
+              <span>{liveEta}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -453,6 +577,13 @@ export default function ActiveOrderPage() {
       {isVisit && scheduledLabel && !['completed', 'cancelled'].includes(order.status) && (
         <Notice tone="info">{t('order.visit_scheduled', { time: scheduledLabel })}</Notice>
       )}
+
+      {driverLoc && ['accepted', 'picking_up', 'on_the_way'].includes(order.status) && order.pickup_lat && order.pickup_lng && (() => {
+        const d = haversineMeters(driverLoc, { lat: order.pickup_lat, lng: order.pickup_lng });
+        return d != null && d <= 100 ? (
+          <Notice tone="success">{t('order.driver_arriving_banner')}</Notice>
+        ) : null;
+      })()}
 
       {pinStatuses.includes(order.status) && (
         order.service_type === 'food' ? (
@@ -510,6 +641,33 @@ export default function ActiveOrderPage() {
           >
             <MessageCircle size={19} />
           </button>
+          {!['completed', 'cancelled'].includes(order.status) && (
+            <button
+              type="button"
+              onClick={() => {
+                const vehicleParts = [order.driver.vehicle_type, order.driver.plate_number?.toUpperCase()].filter(Boolean);
+                const vehicleStr = vehicleParts.length ? ` (${vehicleParts.join(' · ')})` : '';
+                const routeStr = route ? `${route.from || t('activity.route_pickup')} ➔ ${route.to || t('activity.route_dropoff')}` : localizeOrderTitle(order, t);
+                const gpsLat = driverLoc?.lat || order.pickup_lat || order.dropoff_lat;
+                const gpsLng = driverLoc?.lng || order.pickup_lng || order.dropoff_lng;
+                const mapStr = gpsLat && gpsLng ? `\nLokasi: https://maps.google.com/?q=${gpsLat},${gpsLng}` : '';
+                const text = t('order.share_trip_text', {
+                  service: t(`order.service_title.${order.service_type}`),
+                  orderId: order.id.slice(0, 6).toUpperCase(),
+                  driver: order.driver.name,
+                  vehicle: vehicleStr,
+                  route: routeStr,
+                  mapLink: mapStr,
+                });
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+              }}
+              title={t('order.share_trip')}
+              aria-label={t('order.share_trip')}
+              className={cx(roundBtn, 'border-line-strong bg-sunken text-ink hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink')}
+            >
+              <Share2 size={18} />
+            </button>
+          )}
           {order.driver.phone && (
             <a
               href={`tel:${order.driver.phone}`}
@@ -656,6 +814,25 @@ export default function ActiveOrderPage() {
             </div>
           )}
         </div>
+        {!['completed', 'cancelled', 'awaiting_payment'].includes(order.status) && (
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t border-line bg-card px-3 py-2">
+            {[
+              t('order.quick_reply_map'),
+              t('order.quick_reply_waiting'),
+              t('order.quick_reply_coming'),
+              t('order.quick_reply_thanks'),
+            ].map((txt) => (
+              <button
+                key={txt}
+                type="button"
+                onClick={() => sendQuickReply(txt)}
+                className="shrink-0 rounded-full border border-line-strong bg-sunken px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink active:scale-[0.98]"
+              >
+                {txt}
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={sendMessage} className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3">
           <input type="file" accept="image/*" className="hidden" ref={chatFileRef} onChange={sendImage} />
           <button

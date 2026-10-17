@@ -691,7 +691,19 @@
     "babysit_waiting_desc": "We're checking the babysitter's schedule and will notify you.",
     "pin_label_babysit": "Give this PIN to the babysitter when they arrive to start the session:",
     "cancel_desc_babysit_late": "The babysitter is more than an hour late, so cancelling is free.",
-    "cancel_desc_scheduled": "Cancelling is free. Within 2 hours of the pickup time it is still noted."
+    "cancel_desc_scheduled": "Cancelling is free. Within 2 hours of the pickup time it is still noted.",
+    "eta_pickup": "Partner ~{{minutes}} min away · {{distance}}",
+    "eta_arriving_soon": "Partner is arriving (<100 m)",
+    "eta_dropoff": "Arriving in ~{{minutes}} min · {{distance}}",
+    "quick_reply_map": "Right at the pin on the map",
+    "quick_reply_waiting": "I'm waiting out front",
+    "quick_reply_coming": "One moment, coming out now",
+    "quick_reply_thanks": "Thank you, drive safely",
+    "share_trip": "Share trip via WhatsApp",
+    "share_trip_text": "Hi, I'm currently using {{service}} (Order #{{orderId}}).\nPartner: {{driver}}{{vehicle}}\nRoute: {{route}}{{mapLink}}",
+    "partner_matched_toast": "Partner matched and heading your way!",
+    "driver_arriving_toast": "Your partner is arriving (<100 m away)!",
+    "driver_arriving_banner": "Your partner is less than 100 m from the pickup point. Please be ready to meet them."
   },
   "review": {
     "title": "Leave a Review",

@@ -691,7 +691,19 @@
     "babysit_waiting_desc": "Kami cek jadwal pengasuh dan kabari Anda lewat notifikasi.",
     "pin_label_babysit": "Berikan PIN ini kepada pengasuh saat tiba, untuk memulai sesi:",
     "cancel_desc_babysit_late": "Pengasuh terlambat lebih dari 1 jam, jadi pembatalan gratis.",
-    "cancel_desc_scheduled": "Batal gratis. Kalau kurang dari 2 jam sebelum jadwal, pembatalan tetap dicatat."
+    "cancel_desc_scheduled": "Batal gratis. Kalau kurang dari 2 jam sebelum jadwal, pembatalan tetap dicatat.",
+    "eta_pickup": "Mitra ~{{minutes}} mnt lagi · {{distance}}",
+    "eta_arriving_soon": "Mitra sudah dekat (<100 m)",
+    "eta_dropoff": "Tiba ~{{minutes}} mnt lagi · {{distance}}",
+    "quick_reply_map": "Sesuai titik di aplikasi ya",
+    "quick_reply_waiting": "Saya sudah menunggu di depan",
+    "quick_reply_coming": "Sebentar ya, saya keluar sekarang",
+    "quick_reply_thanks": "Terima kasih, hati-hati di jalan ya",
+    "share_trip": "Bagikan perjalanan ke WhatsApp",
+    "share_trip_text": "Halo, saya sedang menggunakan {{service}} (Order #{{orderId}}).\nMitra: {{driver}}{{vehicle}}\nRute: {{route}}{{mapLink}}",
+    "partner_matched_toast": "Mitra ditemukan dan sedang menuju lokasi Anda!",
+    "driver_arriving_toast": "Mitra sudah dekat (<100 m) dari titik jemput!",
+    "driver_arriving_banner": "Mitra sudah sangat dekat (<100 m) dari titik jemput. Silakan bersiap di titik temu."
   },
   "review": {
     "title": "Beri Ulasan",
