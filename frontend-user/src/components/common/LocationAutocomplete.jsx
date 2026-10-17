@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { MapPin, Bookmark, Store, Home } from 'lucide-react';
 import { supabase } from '../../config/supabase';
+import API_BASE_URL from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n';
 import { cx, Spinner } from '../ui';
 
-// Place search for Lombok:
-//  1. Wira's own places first: the customer's saved addresses, then partner
-//     restaurants and villas (by name).
-//  2. Photon (photon.komoot.io, OpenStreetMap data) for everything else. It
-//     is built for search-as-you-type (prefix matches, "pasar ken" finds
-//     "Pasar Kebon Roek"), unlike Nominatim, and is limited to Lombok and the
-//     Gilis here, ranked from Mataram outwards.
+// 3-Layer Hybrid Place Search for Lombok:
+//  1. Layer 1 (Rp 0, instant): Wira's own places — customer's saved addresses,
+//     partner restaurants/villas, and `cached_places` (Google Places previously
+//     looked up and cached in Supabase).
+//  2. Layer 2 (Rp 0, fast): Photon (photon.komoot.io, OpenStreetMap data)
+//     bounded to Lombok and the Gilis, ranked from Mataram outwards.
+//  3. Layer 3 (Google Places fallback via backend /api/places): called only
+//     when Layer 1 + Layer 2 have fewer than 4 strong matches for a 3+ char
+//     query. Resolved coordinates are automatically saved to `cached_places`
+//     so the next user searching the same warung/gang/kos gets it from Layer 1.
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 const LOMBOK_BBOX = '115.80,-9.10,116.80,-8.10'; // minLon,minLat,maxLon,maxLat
 const BIAS = { lat: -8.5833, lon: 116.1167 }; // Mataram
@@ -19,7 +23,11 @@ const DEBOUNCE_MS = 300;
 const MIN_CHARS = 2;
 
 const cache = new Map();
+const googleCache = new Map();
 const uniq = (parts) => parts.filter(Boolean).filter((p, i, a) => a.indexOf(p) === i);
+const makeSessionToken = () => (typeof crypto !== 'undefined' && crypto.randomUUID
+  ? crypto.randomUUID()
+  : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
 // OSM type -> short label shown under the name (Indonesian; the map data
 // itself is mostly Indonesian too).
@@ -53,19 +61,20 @@ function fromPhoton(f) {
   };
 }
 
+const matchesAllWords = (name, text) => {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  const n = (name || '').toLowerCase();
+  return words.length > 0 && words.every((w) => n.split(/[^\p{L}\p{N}]+/u).some((part) => part.startsWith(w)) || n.includes(w));
+};
+
 // Photon's own order, nudged: names containing every typed word first, then
 // places (mosques, hotels, shops) before streets with a matching name.
 function rank(list, text) {
-  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
-  const score = (s) => {
-    const n = (s.name || '').toLowerCase();
-    const all = words.every((w) => n.split(/[^\p{L}\p{N}]+/u).some((part) => part.startsWith(w)) || n.includes(w));
-    return (all ? 2 : 0) + (s.isStreet ? 0 : 1);
-  };
+  const score = (s) => (matchesAllWords(s.name, text) ? 2 : 0) + (s.isStreet ? 0 : 1);
   return list.map((s, i) => ({ s, i, k: score(s) })).sort((a, b) => b.k - a.k || a.i - b.i).map((x) => x.s);
 }
 
-const near = (a, b) => Math.abs(a.lat - b.lat) < 0.002 && Math.abs(a.lng - b.lng) < 0.002; // ~200 m
+const near = (a, b) => a.lat != null && b.lat != null && Math.abs(a.lat - b.lat) < 0.002 && Math.abs(a.lng - b.lng) < 0.002; // ~200 m
 
 async function searchPhoton(text, signal) {
   const q = text.trim().toLowerCase();
@@ -104,6 +113,49 @@ async function searchPartners(text) {
     }));
 }
 
+async function searchCachedPlaces(text) {
+  const clean = text.trim().replace(/[%_,()]/g, ' ');
+  if (!clean) return [];
+  const { data, error } = await supabase
+    .from('cached_places')
+    .select('place_id, name, address, type_label, lat, lng')
+    .ilike('name', `%${clean}%`)
+    .order('hit_count', { ascending: false })
+    .limit(4);
+  if (error || !data) return [];
+  return data.map((c) => ({
+    key: `cp-${c.place_id}`,
+    kind: 'osm',
+    placeId: c.place_id,
+    name: c.name,
+    area: c.address || '',
+    type: c.type_label || null,
+    lat: c.lat != null ? Number(c.lat) : null,
+    lng: c.lng != null ? Number(c.lng) : null,
+  }));
+}
+
+async function searchGooglePlaces(text, sessionToken, signal) {
+  const q = text.trim().toLowerCase();
+  if (q.length < 3) return [];
+  if (googleCache.has(q)) return googleCache.get(q);
+  const url = `${API_BASE_URL}/places/autocomplete?q=${encodeURIComponent(text.trim())}&sessionToken=${encodeURIComponent(sessionToken || '')}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const out = (data.suggestions || []).map((p) => ({
+    key: `g-${p.placeId}`,
+    kind: 'osm',
+    placeId: p.placeId,
+    name: p.name,
+    area: p.area || '',
+    lat: null,
+    lng: null,
+  }));
+  if (out.length > 0) googleCache.set(q, out);
+  return out;
+}
+
 const KIND_ICON = { saved: Bookmark, merchant: Store, villa: Home, osm: MapPin };
 
 /**
@@ -126,6 +178,7 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
   const timeoutRef = useRef(null);
   const abortRef = useRef(null);
   const savedRef = useRef(null);
+  const sessionTokenRef = useRef(makeSessionToken());
   const listId = `${id || 'loc'}-list`;
 
   useEffect(() => {
@@ -159,24 +212,49 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
     const needle = text.trim().toLowerCase();
     const osmPromise = searchPhoton(text, ctrl.signal)
       .catch((e) => { if (e.name !== 'AbortError') console.error('Photon error', e); return []; });
-    // Wira's own places answer fast: show them while the map search runs.
-    const [saved, partners] = await Promise.all([
+    // Layer 1: Wira's own places + cached Google Places answer fast.
+    const [saved, partners, cached] = await Promise.all([
       savedAddresses().then((rows) => rows
         .filter((a) => `${a.label} ${a.address}`.toLowerCase().includes(needle))
         .slice(0, 3)
         .map((a) => ({ key: `s-${a.id}`, kind: 'saved', name: a.label, area: a.address, lat: a.lat, lng: a.lng })))
         .catch(() => []),
       searchPartners(text).catch(() => []),
+      searchCachedPlaces(text).catch(() => []),
     ]);
     if (ctrl.signal.aborted) return;
-    const local = [...saved, ...partners];
+    const local = [...saved, ...partners, ...cached];
     if (local.length) {
       setSuggestions(local);
       setActive(-1);
     }
     const osm = await osmPromise;
     if (ctrl.signal.aborted) return;
-    setSuggestions([...local, ...osm].slice(0, 10));
+
+    const merged = [...local];
+    for (const s of osm) {
+      if (merged.some((m) => m.name.toLowerCase() === s.name.toLowerCase() && near(m, s))) continue;
+      merged.push(s);
+    }
+
+    // Layer 3: Only call Google Places if query >= 3 chars and Layer 1 + 2 have
+    // fewer than 4 strong matches containing all typed words.
+    const strongHits = merged.filter((m) => matchesAllWords(m.name, text)).length;
+    if (text.trim().length >= 3 && strongHits < 4) {
+      if (merged.length) {
+        setSuggestions(merged.slice(0, 10));
+        setActive(-1);
+      }
+      const googleHits = await searchGooglePlaces(text, sessionTokenRef.current, ctrl.signal)
+        .catch(() => []);
+      if (ctrl.signal.aborted) return;
+      for (const g of googleHits) {
+        if (merged.some((m) => m.placeId === g.placeId || m.name.toLowerCase() === g.name.toLowerCase())) continue;
+        merged.push(g);
+      }
+    }
+
+    setSuggestions(merged.slice(0, 10));
     setActive(-1);
     setSearched(true);
     setIsLoading(false);
@@ -197,6 +275,35 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
     onChange(item.name);
     setShowDropdown(false);
     let { lat, lng } = item;
+
+    // Resolve Google Place ID (and auto-cache it in Supabase for future users)
+    if ((lat == null || lng == null) && item.placeId) {
+      try {
+        const token = sessionTokenRef.current;
+        sessionTokenRef.current = makeSessionToken(); // rotate session token after selection
+        const res = await fetch(`${API_BASE_URL}/places/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            placeId: item.placeId,
+            sessionToken: token,
+            name: item.name,
+            area: item.area,
+            type: item.type,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.lat != null && data.lng != null) {
+            lat = data.lat;
+            lng = data.lng;
+          }
+        }
+      } catch (e) {
+        console.error('Google Place resolve error', e);
+      }
+    }
+
     // Partners without a pinned location: locate their address (or name).
     if (lat == null || lng == null) {
       try {
