@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Truck } from 'lucide-react';
+import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Truck, Phone } from 'lucide-react';
 import { Button, Card, Field, Input, Textarea, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
@@ -27,6 +27,30 @@ export default function SendPage() {
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
   const { user } = useAuth();
+
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const metaPhone = user.user_metadata?.phone || user.phone || '';
+    const metaName = user.user_metadata?.name || user.user_metadata?.full_name || '';
+    if (metaPhone || metaName) {
+      setUserProfile({ phone: metaPhone, name: metaName });
+    }
+    supabase
+      .from('users')
+      .select('name, phone')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setUserProfile((prev) => ({
+            phone: data.phone || prev?.phone || '',
+            name: data.name || prev?.name || '',
+          }));
+        }
+      });
+  }, [user]);
 
   const [selectedPackage, setSelectedPackage] = useState('kecil');
   const [paymentMethod, setPaymentMethod] = useState('Tunai');
@@ -338,17 +362,42 @@ export default function SendPage() {
                 />
               </Field>
               <Field label={t('send.sender_phone')} htmlFor="send-sender-phone" required>
-                <Input
-                  id="send-sender-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder={t('wallet.recipient_placeholder')}
-                  value={senderPhone}
-                  onChange={(e) => setSenderPhone(e.target.value)}
-                  className="font-mono placeholder:font-sans"
-                  required
-                />
+                <div className="flex flex-col gap-1.5">
+                  <Input
+                    id="send-sender-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder={t('wallet.recipient_placeholder')}
+                    value={senderPhone}
+                    onChange={(e) => setSenderPhone(e.target.value)}
+                    className="font-mono placeholder:font-sans"
+                    list={userProfile?.phone ? 'send-sender-phone-suggest' : undefined}
+                    required
+                  />
+                  {userProfile?.phone && (
+                    <datalist id="send-sender-phone-suggest">
+                      <option value={userProfile.phone}>
+                        {userProfile.name ? `${userProfile.name} (${t('send.my_phone')})` : t('send.my_phone')}
+                      </option>
+                    </datalist>
+                  )}
+                  {userProfile?.phone && senderPhone !== userProfile.phone && (
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSenderPhone(userProfile.phone);
+                          if (!senderName && userProfile.name) setSenderName(userProfile.name);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-medium text-brand-ink transition-colors hover:bg-brand/15 active:scale-95"
+                      >
+                        <Phone size={12} className="text-brand shrink-0" aria-hidden="true" />
+                        <span>{t('send.use_my_phone')}: <strong className="font-mono font-semibold">{userProfile.phone}</strong></span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </Field>
             </div>
             <AddressMapPicker
@@ -360,10 +409,11 @@ export default function SendPage() {
               coords={senderCoords}
               onCoordsChange={setSenderCoords}
               onNoteChange={setSenderNote}
+              onPhoneChange={(p) => { if (p) setSenderPhone(p); }}
               markerType="pickup"
               pinLabel={t('send.sender_section')}
             />
-            <AddressNoteField id="send-sender-note" address={senderAddress} lat={senderCoords?.lat} lng={senderCoords?.lng} note={senderNote} onNoteChange={setSenderNote} />
+            <AddressNoteField id="send-sender-note" address={senderAddress} lat={senderCoords?.lat} lng={senderCoords?.lng} note={senderNote} onNoteChange={setSenderNote} defaultPhone={senderPhone} />
           </Card>
 
           {/* Detail Penerima */}
@@ -383,16 +433,41 @@ export default function SendPage() {
                 />
               </Field>
               <Field label={t('send.receiver_phone')} htmlFor="send-receiver-phone" required>
-                <Input
-                  id="send-receiver-phone"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder={t('wallet.recipient_placeholder')}
-                  value={receiverPhone}
-                  onChange={(e) => setReceiverPhone(e.target.value)}
-                  className="font-mono placeholder:font-sans"
-                  required
-                />
+                <div className="flex flex-col gap-1.5">
+                  <Input
+                    id="send-receiver-phone"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder={t('wallet.recipient_placeholder')}
+                    value={receiverPhone}
+                    onChange={(e) => setReceiverPhone(e.target.value)}
+                    className="font-mono placeholder:font-sans"
+                    list={userProfile?.phone ? 'send-receiver-phone-suggest' : undefined}
+                    required
+                  />
+                  {userProfile?.phone && (
+                    <datalist id="send-receiver-phone-suggest">
+                      <option value={userProfile.phone}>
+                        {userProfile.name ? `${userProfile.name} (${t('send.my_phone')})` : t('send.my_phone')}
+                      </option>
+                    </datalist>
+                  )}
+                  {userProfile?.phone && receiverPhone !== userProfile.phone && (
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReceiverPhone(userProfile.phone);
+                          if (!receiverName && userProfile.name) setReceiverName(userProfile.name);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-medium text-brand-ink transition-colors hover:bg-brand/15 active:scale-95"
+                      >
+                        <Phone size={12} className="text-brand shrink-0" aria-hidden="true" />
+                        <span>{t('send.use_my_phone')}: <strong className="font-mono font-semibold">{userProfile.phone}</strong></span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </Field>
             </div>
             <AddressMapPicker
@@ -404,10 +479,11 @@ export default function SendPage() {
               coords={receiverCoords}
               onCoordsChange={setReceiverCoords}
               onNoteChange={setReceiverNote}
+              onPhoneChange={(p) => { if (p) setReceiverPhone(p); }}
               markerType="dropoff"
               pinLabel={t('send.receiver_section')}
             />
-            <AddressNoteField id="send-receiver-note" address={receiverAddress} lat={receiverCoords?.lat} lng={receiverCoords?.lng} note={receiverNote} onNoteChange={setReceiverNote} />
+            <AddressNoteField id="send-receiver-note" address={receiverAddress} lat={receiverCoords?.lat} lng={receiverCoords?.lng} note={receiverNote} onNoteChange={setReceiverNote} defaultPhone={receiverPhone} />
             <Field label={t('wallet.transfer_note_label')} htmlFor="send-item-note">
               <Input
                 id="send-item-note"

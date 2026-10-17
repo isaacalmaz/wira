@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import { toast } from 'react-hot-toast';
-import { MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed } from 'lucide-react';
+import { MapPin, Plus, Trash2, Home, Briefcase, Star, LocateFixed, Phone } from 'lucide-react';
 import { Button, Card, EmptyState, Field, IconTile, Input, PageHeader, Sheet, Spinner } from '../components/ui';
 import { APP_CONFIG } from '../config/app';
 import { useTranslation } from '../i18n';
@@ -23,6 +23,7 @@ export default function SavedAddressesPage() {
 
   const [formData, setFormData] = useState({
     label: '',
+    phone: '',
     note: '',
     address: '',
     lat: DEFAULT_COORDS.lat,
@@ -78,6 +79,7 @@ export default function SavedAddressesPage() {
         .insert([{
           user_id: user.id,
           label: formData.label,
+          phone: formData.phone.trim() || null,
           address: formData.address,
           lat: formData.lat,
           lng: formData.lng,
@@ -90,7 +92,7 @@ export default function SavedAddressesPage() {
 
       toast.success(t('addresses.saved'));
       setIsModalOpen(false);
-      setFormData({ label: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+      setFormData({ label: '', phone: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
       setHasPickedLocation(false);
       fetchAddresses();
     } catch (err) {
@@ -180,7 +182,7 @@ export default function SavedAddressesPage() {
         block
         leftIcon={<Plus size={18} aria-hidden="true" />}
         onClick={() => {
-          setFormData({ label: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
+          setFormData({ label: '', phone: '', address: '', note: '', lat: DEFAULT_COORDS.lat, lng: DEFAULT_COORDS.lng });
           setHasPickedLocation(false);
           setIsModalOpen(true);
         }}
@@ -208,6 +210,12 @@ export default function SavedAddressesPage() {
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
                 <h3 className="break-words text-[14px] font-semibold text-ink">{addr.label}</h3>
                 <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-muted">{addr.address}</p>
+                {addr.phone && (
+                  <p className="flex items-center gap-1 font-mono text-[12px] text-ink-muted">
+                    <Phone size={12} className="text-brand shrink-0" aria-hidden="true" />
+                    <span>{addr.phone}</span>
+                  </p>
+                )}
                 {addr.note && <p className="text-[12.5px] text-ink-muted">{t('address_note.landmark')}: {addr.note}</p>}
               </div>
               <button
@@ -249,6 +257,18 @@ export default function SavedAddressesPage() {
               value={formData.label}
               onChange={(e) => setFormData({...formData, label: e.target.value})}
               required
+            />
+          </Field>
+          <Field label={t('addresses.phone_field')} htmlFor="address-phone" hint={t('addresses.phone_hint')}>
+            <Input
+              id="address-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              placeholder={t('addresses.phone_placeholder')}
+              className="font-mono placeholder:font-sans"
             />
           </Field>
           <div className="relative z-10 flex flex-col gap-1.5">

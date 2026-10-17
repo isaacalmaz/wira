@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookmarkPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
@@ -8,15 +8,20 @@ import { Button, Field, Input, Sheet, cx } from '../ui';
 
 /**
  * "Address details / landmark" input for a booking address, with a button
- * that saves the address (plus the note) to the customer's saved addresses
- * (public.saved_addresses, note column from migrations/0086).
+ * that saves the address (plus note & phone) to the customer's saved addresses
+ * (public.saved_addresses, migrations/0038, migrations/0086, migrations/0140).
  */
-export default function AddressNoteField({ id, address, lat, lng, note, onNoteChange, className = '' }) {
+export default function AddressNoteField({ id, address, lat, lng, note, onNoteChange, defaultPhone = '', className = '' }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState(defaultPhone || '');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (defaultPhone) setPhone(defaultPhone);
+  }, [defaultPhone]);
 
   const presets = [t('address_note.preset_home'), t('address_note.preset_office'), t('address_note.preset_kos')];
 
@@ -41,6 +46,7 @@ export default function AddressNoteField({ id, address, lat, lng, note, onNoteCh
           lat: lat ?? null,
           lng: lng ?? null,
           note: (note || '').trim() || null,
+          phone: phone.trim() || null,
         })
         .select('id');
       if (error) throw error;
@@ -111,6 +117,18 @@ export default function AddressNoteField({ id, address, lat, lng, note, onNoteCh
               placeholder={t('address_note.name_placeholder')}
               maxLength={40}
               data-autofocus
+            />
+          </Field>
+          <Field label={t('addresses.phone_field')} htmlFor={`${id}-phone`}>
+            <Input
+              id={`${id}-phone`}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder={t('addresses.phone_placeholder')}
+              className="font-mono placeholder:font-sans"
             />
           </Field>
           <div className="flex flex-wrap gap-2">

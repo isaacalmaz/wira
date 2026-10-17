@@ -23,7 +23,7 @@ const reverseGeocode = async ({ lat, lng }) => {
  */
 export default function AddressMapPicker({
   id, label, placeholder, address, onAddressChange, coords, onCoordsChange,
-  onNoteChange, markerType = 'dropoff', pinLabel,
+  onNoteChange, onPhoneChange, markerType = 'dropoff', pinLabel,
 }) {
   const { t } = useTranslation();
   const [locating, setLocating] = useState(false);
@@ -91,10 +91,11 @@ export default function AddressMapPicker({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <SavedAddressPicker
           requireCoords={false}
-          onSelect={({ address: a, lat, lng, note }) => {
+          onSelect={({ address: a, lat, lng, note, phone }) => {
             onAddressChange(a);
             if (lat != null && lng != null) onCoordsChange({ lat, lng });
             onNoteChange?.(note || '');
+            onPhoneChange?.(phone || '');
           }}
         />
         <button

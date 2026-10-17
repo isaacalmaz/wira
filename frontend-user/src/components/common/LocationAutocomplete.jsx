@@ -193,7 +193,7 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
   const savedAddresses = async () => {
     if (!user) return [];
     if (!savedRef.current) {
-      const { data } = await supabase.from('saved_addresses').select('id, label, address, lat, lng').eq('user_id', user.id);
+      const { data } = await supabase.from('saved_addresses').select('id, label, address, lat, lng, phone, note').eq('user_id', user.id);
       savedRef.current = data || [];
     }
     return savedRef.current;
@@ -215,9 +215,9 @@ export default function LocationAutocomplete({ placeholder, icon: Icon, iconColo
     // Layer 1: Wira's own places + cached Google Places answer fast.
     const [saved, partners, cached] = await Promise.all([
       savedAddresses().then((rows) => rows
-        .filter((a) => `${a.label} ${a.address}`.toLowerCase().includes(needle))
+        .filter((a) => `${a.label} ${a.address} ${a.phone || ''}`.toLowerCase().includes(needle))
         .slice(0, 3)
-        .map((a) => ({ key: `s-${a.id}`, kind: 'saved', name: a.label, area: a.address, lat: a.lat, lng: a.lng })))
+        .map((a) => ({ key: `s-${a.id}`, kind: 'saved', name: a.label, area: a.address, lat: a.lat, lng: a.lng, phone: a.phone, note: a.note })))
         .catch(() => []),
       searchPartners(text).catch(() => []),
       searchCachedPlaces(text).catch(() => []),
