@@ -62,7 +62,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-ground">
+    <div className="relative flex h-[100dvh] overflow-hidden bg-ground">
       {!online && (
         <div role="status" className="fixed inset-x-0 top-0 z-[60] bg-warning px-4 py-2 text-center text-[13px] font-semibold text-white">
           {t('common.offline_banner')}
@@ -81,7 +81,7 @@ export default function Layout() {
             {t('common.suspended_banner')}
           </div>
         )}
-        <main className={`flex-1 overflow-y-auto ${isFullScreenPage ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : 'px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-6 md:pb-10'}`}>
+        <main className={`relative flex-1 overflow-y-auto overscroll-contain ${isFullScreenPage ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : 'px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-6 md:pb-10'}`}>
           <div className={isFullScreenPage ? 'h-full w-full' : isHome ? 'max-w-3xl mx-auto lg:max-w-6xl' : 'max-w-3xl mx-auto'}>
             <Outlet />
           </div>

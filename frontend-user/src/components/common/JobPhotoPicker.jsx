@@ -32,7 +32,7 @@ export default function JobPhotoPicker({ files, onChange, label }) {
           </span>
         ))}
         {files.length < MAX_JOB_PHOTOS && (
-          <label className="inline-flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-control border border-dashed border-line-strong text-[11px] text-ink-muted hover:bg-sunken">
+          <label className="relative inline-flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-control border border-dashed border-line-strong text-[11px] text-ink-muted hover:bg-sunken">
             <ImagePlus size={18} aria-hidden="true" />
             {t('service.custom_photo_add')}
             <input

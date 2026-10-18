@@ -187,7 +187,7 @@ export default function ReviewModal({ order, onClose, onSuccess }) {
         {/* Photos */}
         <div className="flex flex-col gap-2">
           <span className="text-[13px] font-semibold text-ink">{t('review.photos_label')}</span>
-          <div className="flex flex-wrap gap-2">
+          <div className="relative flex flex-wrap gap-2">
             {previews.map((src, i) => (
               <div key={src} className="relative h-20 w-20 overflow-hidden rounded-control border border-line">
                 <img src={src} alt={t('review.photo_alt', { n: i + 1 })} className="h-full w-full object-cover" />
