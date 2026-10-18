@@ -42,7 +42,7 @@ const PARTNERS = ['partner_driver', 'partner_resto', 'partner_villa', 'partner_t
 
 const goldBtn = 'inline-flex min-h-12 items-center justify-center rounded-[14px] bg-emas-400 px-6 text-[15px] font-bold text-[#1E1A10] transition-[filter] hover:brightness-105 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-emas-400';
 const ghostBtn = 'inline-flex min-h-10 items-center justify-center rounded-[12px] border border-white/35 px-4 text-[14px] font-bold text-[#F7F6F3] transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-emas-400';
-const eyebrow = 'text-[12px] font-bold uppercase tracking-[0.12em] text-emas-600 dark:text-emas-400';
+const eyebrow = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-pay-ink';
 
 export default function LandingPage() {
   const { t: tr, lang, toggleLang } = useTranslation();
@@ -166,7 +166,9 @@ export default function LandingPage() {
           <div className="grid gap-3.5 md:grid-cols-3">
             {TRUST.map(({ icon: Icon, key }) => (
               <div key={key} className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-card p-5">
-                <Icon size={22} className="text-emas-600 dark:text-emas-400" aria-hidden="true" />
+                <span className="grid h-11 w-11 place-items-center rounded-[13px] border border-pay-line bg-pay-soft text-pay-ink">
+                  <Icon size={22} aria-hidden="true" />
+                </span>
                 <h3 className="text-[17px] font-extrabold">{t(`${key}_title`)}</h3>
                 <p className="text-[15px] leading-relaxed text-ink-muted">{t(`${key}_desc`)}</p>
               </div>

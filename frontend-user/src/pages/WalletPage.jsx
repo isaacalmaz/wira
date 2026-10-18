@@ -699,15 +699,17 @@ export default function WalletPage() {
             </div>
           </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-              <label htmlFor="wallet-transfer-amount" className="text-[13px] font-semibold text-ink">
-                {t('wallet.transfer_amount_label')}
-              </label>
-              <span className="text-xs text-ink-muted">
-                {t('common.balance_with_amount', { amount: formatRupiah(balance) })}
+          <Field
+            label={
+              <span className="flex w-full items-baseline justify-between">
+                <span>{t('wallet.transfer_amount_label')}</span>
+                <span className="text-xs font-normal text-ink-muted">
+                  {t('common.balance_with_amount', { amount: formatRupiah(balance) })}
+                </span>
               </span>
-            </div>
+            }
+            htmlFor="wallet-transfer-amount"
+          >
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center font-mono text-[15px] text-ink-muted">
                 Rp
@@ -725,7 +727,7 @@ export default function WalletPage() {
                 required
               />
             </div>
-          </div>
+          </Field>
 
           <Field label={t('wallet.transfer_note_label')} htmlFor="wallet-transfer-note">
             <Input
