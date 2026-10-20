@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Minus, Plus, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, ShieldCheck } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, Minus, Plus, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, Sparkles, CheckCircle2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -14,7 +14,6 @@ import {
   IconTile,
   Notice,
   PageHeader,
-  EmptyState,
   cx,
 } from '../components/ui';
 import { useWallet } from '../context/WalletContext';
@@ -214,9 +213,9 @@ export default function ServicePage() {
   const techsFor = (skill) => technicians.filter((tech) => (tech.skills || []).includes(skill));
   const selectedTech = technicians.find((tech) => tech.id === selectedTechId) || null;
 
-  const handleOpenBooking = (cat) => {
+  const handleOpenBooking = (cat, preselectedTech = null) => {
     setSelectedService(cat);
-    setSelectedTechId('');
+    setSelectedTechId(preselectedTech?.id || '');
     // Start with the first item of the category picked once ("Pekerjaan
     // lain" when the category has nothing else).
     const first = itemsFor(cat.id)[0];
@@ -233,8 +232,10 @@ export default function ServicePage() {
     setIsModalOpen(true);
   };
 
+  const canProceed = chosenItems.length > 0 && (!customChosen || jobDesc.trim().length >= 10);
+
   const handleProceedToSchedule = () => {
-    if (bookingItems.length > 0 && chosenItems.length === 0 && (!customChosen || jobDesc.trim().length < 10)) {
+    if (chosenItems.length === 0) {
       toast.error(t('service.pick_item'));
       return;
     }
@@ -477,7 +478,9 @@ export default function ServicePage() {
         }
         description={
           bookingStep === 1
-            ? (selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line'))
+            ? (selectedTech
+                ? `${t('service.technician_line', { name: selectedTech.name })} • ${t('service.trust_verified_short') || 'Terverifikasi'}`
+                : (t('service.sheet_auto_assign') || 'Teknisi dipilihkan Wira • Terverifikasi & Resmi'))
             : (`${categoryLabel(selectedService)} • ${t('service.step_2_of_2') || 'Langkah 2 dari 2'}`)
         }
         footer={
@@ -486,7 +489,7 @@ export default function ServicePage() {
               type="button"
               size="lg"
               block
-              disabled={chosenItems.length === 0 && (!customChosen || jobDesc.trim().length < 10)}
+              disabled={!canProceed}
               onClick={handleProceedToSchedule}
               className="flex items-center justify-between"
             >
@@ -523,54 +526,24 @@ export default function ServicePage() {
         }
       >
         {bookingStep === 1 ? (
-          <div className="flex flex-col gap-4">
-            {/* Step Progress Pill */}
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white text-[11px] font-bold">1</span>
-                <span className="text-[12px] font-bold uppercase tracking-wider text-brand-ink">
-                  {t('service.step_1_of_2') || 'Langkah 1: Pilih Layanan'}
-                </span>
-              </div>
-              {chosenItems.length > 0 && (
-                <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[12px] font-bold text-brand-ink">
-                  {t('service.units_selected', { count: chosenItems.reduce((acc, m) => acc + (qty[m.code] || 0), 0) })}
-                </span>
-              )}
-            </div>
-
-            {/* Trust Badges */}
-            <div className="flex flex-wrap gap-1.5" aria-label={t('service.trust_label')}>
-              <Badge tone="success"><ShieldCheck size={12} aria-hidden="true" /> {t('service.trust_verified')}</Badge>
-              <Badge tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t('service.trust_price')}</Badge>
-            </div>
-
-            {/* Jaminan Penugasan Admin Ramah Awam */}
-            <div className="flex items-center gap-3 rounded-card border border-brand-line bg-brand-soft/40 p-3.5">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-                <ShieldCheck size={20} aria-hidden="true" />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p className="text-[13.5px] font-bold text-ink">
-                  {t('service.admin_assigned_title') || 'Teknisi Terbaik Ditugaskan Tim Wira'}
-                </p>
-                <p className="text-[12px] leading-relaxed text-ink-muted">
-                  {t('service.admin_assigned_desc') || 'Teknisi profesional terverifikasi akan dipilihkan dan ditugaskan langsung oleh admin Wira sesuai kebutuhan Anda.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Daftar Layanan / Pekerjaan (Bebas dari bug legend) */}
+          <div className="flex flex-col gap-3.5">
+            {/* Daftar Layanan / Pekerjaan */}
             {bookingItems.length > 0 && (
               <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <h3 className="text-[14px] font-bold text-ink">
-                    {t('service.how_many_units') || 'Berapa unit yang ingin diservis?'}
-                  </h3>
-                  <p className="text-[12px] text-ink-muted">
-                    {t('service.select_units_hint') || 'Pilih jenis cuci atau perbaikan sesuai kebutuhan Anda'}
-                  </p>
-                </div>
+                {menuItems.length > 0 && (
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <h3 className="text-[13.5px] font-bold text-ink">
+                      {t('service.how_many_units') || 'Berapa unit yang ingin diservis?'}
+                    </h3>
+                    {menuItems.some((m) => (qty[m.code] || 0) > 0) && (
+                      <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[11px] font-bold text-brand-ink">
+                        {t('service.units_selected', {
+                          count: menuItems.reduce((acc, m) => acc + (qty[m.code] || 0), 0),
+                        })}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {menuItems.length > 0 && (
                   <div className="flex flex-col gap-2">
@@ -639,57 +612,147 @@ export default function ServicePage() {
                   </div>
                 )}
 
-                {/* Pekerjaan Lain */}
+                {/* Pekerjaan Lain / Custom Item: First-Class Card */}
                 {customItem && (
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={customChosen}
-                      onClick={toggleCustom}
+                  <div className="flex flex-col gap-2 pt-0.5">
+                    <div
                       className={cx(
-                        'flex w-full items-start gap-3 rounded-card text-left transition-colors',
-                        customChosen ? 'border-2 border-brand bg-brand-soft/50 p-3.5' : 'border border-line bg-card p-3.5 hover:border-line-strong',
+                        'flex flex-col gap-3 rounded-card p-4 transition-all',
+                        customChosen
+                          ? 'border-2 border-brand bg-brand-soft/25'
+                          : 'border border-line bg-card hover:border-line-strong'
                       )}
                     >
-                      <span
-                        aria-hidden="true"
-                        className={cx('mt-0.5 flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full border-2', customChosen ? 'border-brand' : 'border-line-strong')}
+                      <div
+                        onClick={menuItems.length > 0 ? toggleCustom : undefined}
+                        className={cx(
+                          'flex items-start gap-3 select-none',
+                          menuItems.length > 0 && 'cursor-pointer'
+                        )}
+                        role={menuItems.length > 0 ? 'button' : undefined}
+                        tabIndex={menuItems.length > 0 ? 0 : undefined}
+                        onKeyDown={
+                          menuItems.length > 0
+                            ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  toggleCustom();
+                                }
+                              }
+                            : undefined
+                        }
                       >
-                        {customChosen && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-[14px] font-bold text-ink">{t('service.custom_title')}</span>
-                        <span className="text-[12px] leading-snug text-ink-muted">{t('service.custom_desc')}</span>
-                        <span className="text-[12.5px] font-semibold text-brand-ink">
-                          {menuItems.some((m) => (qty[m.code] || 0) > 0)
-                            ? t('service.custom_price_free')
-                            : withMoney(t('service.custom_price_check', { fee: SLOT }), checkFee)}
-                        </span>
-                      </span>
-                    </button>
-
-                    {customChosen && (
-                      <div className="mt-2.5 flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
-                        <Field label={t('service.custom_desc_label')} htmlFor="service-job-desc" required hint={t('service.custom_desc_hint')}>
-                          <Textarea
-                            id="service-job-desc"
-                            rows={3}
-                            maxLength={500}
-                            value={jobDesc}
-                            onChange={(e) => setJobDesc(e.target.value)}
-                            placeholder={t('service.custom_desc_placeholder')}
-                            required
-                          />
-                        </Field>
-                        <JobPhotoPicker files={jobPhotos} onChange={setJobPhotos} />
-                        <Notice tone="warning">
-                          {onlyCustom
-                            ? withMoney(t('service.custom_check_note', { fee: SLOT }), checkFee)
-                            : t('service.custom_combined_note')}
-                        </Notice>
+                        <IconTile tone={customChosen ? 'brand' : 'neutral'} size="md">
+                          {menuItems.length === 0 && selectedService && CATEGORY_ICONS[selectedService.id] ? (
+                            (() => {
+                              const CatIcon = CATEGORY_ICONS[selectedService.id];
+                              return <CatIcon size={20} />;
+                            })()
+                          ) : (
+                            <Wrench size={18} />
+                          )}
+                        </IconTile>
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h4 className="text-[14.5px] font-bold text-ink">
+                                {menuItems.length === 0 ? categoryLabel(selectedService) : t('service.custom_title')}
+                              </h4>
+                              <Badge tone="brand">
+                                <Sparkles size={11} className="mr-1 inline" aria-hidden="true" />
+                                {menuItems.length === 0 ? (t('service.custom_primary_badge') || 'Survei & Pengecekan') : (t('service.custom_badge') || 'Kustom')}
+                              </Badge>
+                            </div>
+                            {menuItems.length > 0 ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={customChosen ? 'primary' : 'secondary'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleCustom();
+                                }}
+                                className="shrink-0 min-h-11 font-bold"
+                                leftIcon={customChosen ? <CheckCircle2 size={16} /> : <Plus size={16} />}
+                              >
+                                {customChosen ? (t('common.selected') || 'Dipilih') : (t('service.select_custom_cta') || 'Pilih')}
+                              </Button>
+                            ) : (
+                              <Badge tone="success" dot className="shrink-0 font-semibold">
+                                {t('common.selected') || 'Dipilih'}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[12px] leading-relaxed text-ink-muted">
+                            {menuItems.length === 0
+                              ? (t('service.custom_only_desc') || 'Teknisi spesialis memeriksa kondisi di lapangan dan memberikan estimasi pekerjaan & sparepart secara transparan.')
+                              : t('service.custom_desc')}
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                            {onlyCustom ? (
+                              <>
+                                <span className="font-mono text-[13.5px] font-bold text-ink">
+                                  <Money value={checkFee} />
+                                </span>
+                                <span className="text-[11.5px] text-ink-muted">
+                                  ({t('service.check_fee_label') || 'Biaya Kunjungan Cek'})
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className={cx('font-mono text-[13.5px] font-bold', customChosen ? 'text-success' : 'text-brand-ink')}>
+                                  {menuItems.some((m) => (qty[m.code] || 0) > 0)
+                                    ? (t('service.custom_price_free') || 'Gratis Biaya Kunjungan')
+                                    : withMoney(t('service.custom_price_check', { fee: SLOT }), checkFee)}
+                                </span>
+                                {menuItems.some((m) => (qty[m.code] || 0) > 0) && (
+                                  <span className="text-[11.5px] text-ink-muted">
+                                    ({t('service.custom_combined_hint') || 'Termasuk kunjungan'})
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {customChosen && (
+                        <div className="flex flex-col gap-3 border-t border-line/60 pt-3">
+                          <Field
+                            label={menuItems.length === 0 ? (t('service.custom_only_desc_label') || 'Ceritakan Masalah / Kebutuhan Servis') : t('service.custom_desc_label')}
+                            htmlFor="service-job-desc"
+                            required
+                            hint={t('service.custom_desc_hint')}
+                          >
+                            <Textarea
+                              id="service-job-desc"
+                              rows={3}
+                              maxLength={500}
+                              value={jobDesc}
+                              onChange={(e) => setJobDesc(e.target.value)}
+                              placeholder={
+                                menuItems.length === 0
+                                  ? (t('service.custom_only_placeholder') || 'Contoh: Pompa air menyala tapi air tidak naik, atau perlu pembuatan sumur bor baru...')
+                                  : t('service.custom_desc_placeholder')
+                              }
+                              required
+                            />
+                          </Field>
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] font-semibold text-ink">
+                              {t('service.custom_photos_label')} <span className="font-normal text-ink-muted">({t('common.optional') || 'opsional'})</span>
+                            </span>
+                            <p className="text-[12px] text-ink-muted">{t('service.custom_photos_hint')}</p>
+                            <JobPhotoPicker files={jobPhotos} onChange={setJobPhotos} />
+                          </div>
+                          <Notice tone="brand">
+                            {onlyCustom
+                              ? withMoney(t('service.custom_check_note', { fee: SLOT }), checkFee)
+                              : t('service.custom_combined_note')}
+                          </Notice>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -702,16 +765,6 @@ export default function ServicePage() {
         ) : (
           /* LANGKAH 2: JADWAL & ALAMAT */
           <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
-            {/* Step Progress Pill */}
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white text-[11px] font-bold">2</span>
-                <span className="text-[12px] font-bold uppercase tracking-wider text-brand-ink">
-                  {t('service.step_2_of_2') || 'Langkah 2: Jadwal & Alamat'}
-                </span>
-              </div>
-            </div>
-
             {/* Ringkasan Layanan yang Dipilih di Step 1 */}
             <div className="flex items-center justify-between rounded-card border border-brand-line bg-brand-soft/40 p-3.5">
               <div className="flex min-w-0 flex-1 flex-col">
@@ -719,7 +772,13 @@ export default function ServicePage() {
                   {t('service.selected_summary') || 'Layanan yang Dipesan'}
                 </span>
                 <span className="truncate text-[13.5px] font-bold text-ink">
-                  {chosenItems.map((m) => `${localizeServiceItem(m, t).name} (${qty[m.code]}x)`).join(', ') || t('service.custom_title')}
+                  {chosenItems
+                    .map((m) =>
+                      m.is_custom
+                        ? (menuItems.length === 0 ? categoryLabel(selectedService) : t('service.custom_title'))
+                        : `${localizeServiceItem(m, t).name} (${qty[m.code]}x)`
+                    )
+                    .join(', ') || t('service.custom_title')}
                 </span>
                 <span className="font-mono text-[13px] font-extrabold text-brand-ink">
                   <Money value={itemsTotal} />

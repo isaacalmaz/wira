@@ -8,13 +8,7 @@ import {
   Wallet,
   Banknote,
   Truck,
-  Bike,
-  ArrowRight,
-  Check,
-  ChevronLeft,
   MapPin,
-  Sparkles,
-  ShieldCheck,
 } from 'lucide-react';
 import {
   Button,

@@ -12,10 +12,8 @@ import {
   BadgeCheck,
   Droplets,
   Wrench,
-  CheckCircle2,
   Calendar,
   Clock,
-  MapPin,
 } from 'lucide-react';
 import {
   Button,
@@ -30,7 +28,6 @@ import {
   PageHeader,
   SectionHeader,
   Segmented,
-  EmptyState,
   cx,
 } from '../components/ui';
 import { useWallet } from '../context/WalletContext';
@@ -677,8 +674,9 @@ export default function PoolPage() {
                     <Card
                       key={s.id}
                       padding="none"
+                      onClick={() => { if (!noPoolTechs) handleSelectServiceAndProceed(s); }}
                       className={cx(
-                        'flex flex-col justify-between gap-3 p-4 transition-all',
+                        'flex flex-col justify-between gap-3 p-4 transition-all cursor-pointer select-none',
                         isSelected
                           ? 'border-2 border-brand bg-brand-soft/20'
                           : 'border border-line bg-card hover:border-line-strong',
@@ -703,7 +701,10 @@ export default function PoolPage() {
                           variant={isSelected ? 'primary' : 'secondary'}
                           size="sm"
                           disabled={noPoolTechs}
-                          onClick={() => handleSelectServiceAndProceed(s)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectServiceAndProceed(s);
+                          }}
                           rightIcon={<ArrowRight size={14} />}
                         >
                           {isSelected ? t('pool.proceed_to_schedule') : t('pool.order_now')}
@@ -721,20 +722,29 @@ export default function PoolPage() {
             <section className="flex flex-col gap-3">
               <SectionHeader title={t('pool.tab_custom')} className="mb-0" />
               <Card
+                padding="none"
+                onClick={() => { if (!noPoolTechs) handleSelectServiceAndProceed(customService); }}
                 className={cx(
-                  'flex flex-col gap-3 transition-all',
+                  'flex flex-col justify-between gap-3 p-4 transition-all cursor-pointer select-none',
                   selectedService?.isCustom
                     ? 'border-2 border-brand bg-brand-soft/20'
                     : 'border border-line bg-card hover:border-line-strong',
                 )}
               >
-                <div className="flex flex-col gap-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[14px] font-bold text-ink">{t('pool.custom_title')}</h3>
-                    <Badge tone="pay">{t('pool.custom_badge')}</Badge>
-                    {selectedService?.isCustom && <Badge tone="brand" dot>{t('common.selected') || 'Dipilih'}</Badge>}
-                  </span>
-                  <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('pool.custom_desc')}</p>
+                <div className="flex items-start gap-3">
+                  <IconTile tone={selectedService?.isCustom ? 'brand' : 'neutral'} size="md">
+                    <Sparkles size={18} />
+                  </IconTile>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[14px] font-bold text-ink">{t('pool.custom_title')}</h3>
+                        <Badge tone="brand">{t('pool.custom_badge')}</Badge>
+                      </div>
+                      {selectedService?.isCustom && <Badge tone="brand" dot>{t('common.selected') || 'Dipilih'}</Badge>}
+                    </div>
+                    <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('pool.custom_desc')}</p>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-line/60 pt-3">
@@ -747,7 +757,10 @@ export default function PoolPage() {
                     variant={selectedService?.isCustom ? 'primary' : 'secondary'}
                     size="sm"
                     disabled={noPoolTechs}
-                    onClick={() => handleSelectServiceAndProceed(customService)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectServiceAndProceed(customService);
+                    }}
                     rightIcon={<ArrowRight size={14} />}
                   >
                     {selectedService?.isCustom ? t('pool.proceed_to_schedule') : t('pool.order_now')}
