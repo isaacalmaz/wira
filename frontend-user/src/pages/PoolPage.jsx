@@ -404,6 +404,11 @@ export default function PoolPage() {
 
   const handleConfirmOrder = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
     if (!selectedService) return;
     if (!address.trim()) {
       toast.error(t('common.address_required'));
@@ -620,7 +625,7 @@ export default function PoolPage() {
               className={cx(
                 'overflow-hidden transition-all',
                 selectedService?.id === 'MONTHLY'
-                  ? 'border-2 border-brand shadow-md'
+                  ? 'border-2 border-brand bg-brand-soft/20'
                   : 'border border-line hover:border-line-strong',
               )}
             >
@@ -630,7 +635,7 @@ export default function PoolPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="brand">{t('pool.popular_badge')}</Badge>
                     {selectedService?.id === 'MONTHLY' && (
-                      <Badge tone="success" dot>Dipilih</Badge>
+                      <Badge tone="success" dot>{t('common.selected') || 'Dipilih'}</Badge>
                     )}
                   </div>
                   <h2 className="text-[18px] font-extrabold leading-snug tracking-tight text-ink">
@@ -675,7 +680,7 @@ export default function PoolPage() {
                       className={cx(
                         'flex flex-col justify-between gap-3 p-4 transition-all',
                         isSelected
-                          ? 'border-2 border-brand bg-brand-soft/20 shadow-sm'
+                          ? 'border-2 border-brand bg-brand-soft/20'
                           : 'border border-line bg-card hover:border-line-strong',
                       )}
                     >
@@ -686,7 +691,7 @@ export default function PoolPage() {
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="text-[14px] font-bold text-ink">{t(`pool.services.${s.id}`) || s.name}</h3>
-                            {isSelected && <Badge tone="brand" dot>Dipilih</Badge>}
+                            {isSelected && <Badge tone="brand" dot>{t('common.selected') || 'Dipilih'}</Badge>}
                           </div>
                           <p className="text-[12.5px] leading-relaxed text-ink-muted">{s.desc}</p>
                         </div>
@@ -719,7 +724,7 @@ export default function PoolPage() {
                 className={cx(
                   'flex flex-col gap-3 transition-all',
                   selectedService?.isCustom
-                    ? 'border-2 border-brand bg-brand-soft/20 shadow-sm'
+                    ? 'border-2 border-brand bg-brand-soft/20'
                     : 'border border-line bg-card hover:border-line-strong',
                 )}
               >
@@ -727,7 +732,7 @@ export default function PoolPage() {
                   <span className="flex flex-wrap items-center gap-2">
                     <h3 className="text-[14px] font-bold text-ink">{t('pool.custom_title')}</h3>
                     <Badge tone="pay">{t('pool.custom_badge')}</Badge>
-                    {selectedService?.isCustom && <Badge tone="brand" dot>Dipilih</Badge>}
+                    {selectedService?.isCustom && <Badge tone="brand" dot>{t('common.selected') || 'Dipilih'}</Badge>}
                   </span>
                   <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('pool.custom_desc')}</p>
                 </div>
@@ -771,7 +776,7 @@ export default function PoolPage() {
                     className={cx(
                       'flex min-h-12 items-center justify-between rounded-tile p-3 text-left transition-all',
                       isSelected
-                        ? 'border-2 border-brand bg-brand-soft/40 shadow-sm'
+                        ? 'border-2 border-brand bg-brand-soft/40'
                         : 'border border-line bg-card hover:border-line-strong',
                     )}
                   >
@@ -938,7 +943,7 @@ export default function PoolPage() {
                         className={cx(
                           'flex h-11 items-center justify-center rounded-control font-mono text-[13.5px] transition-all',
                           isSelected
-                            ? 'border-2 border-brand bg-brand-soft font-bold text-brand-ink shadow-sm'
+                            ? 'border-2 border-brand bg-brand-soft font-bold text-brand-ink'
                             : 'border border-line bg-card text-ink hover:border-line-strong',
                         )}
                       >

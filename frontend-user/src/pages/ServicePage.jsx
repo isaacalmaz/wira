@@ -310,6 +310,11 @@ export default function ServicePage() {
 
   const handleConfirmOrder = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
     if (!selectedService) return;
     if (!address.trim()) {
       toast.error(t('common.address_required'));
@@ -542,7 +547,7 @@ export default function ServicePage() {
 
             {/* Jaminan Penugasan Admin Ramah Awam */}
             <div className="flex items-center gap-3 rounded-card border border-brand-line bg-brand-soft/40 p-3.5">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white">
                 <ShieldCheck size={20} aria-hidden="true" />
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -579,7 +584,7 @@ export default function ServicePage() {
                           className={cx(
                             'flex items-center justify-between gap-3 rounded-card p-3.5 transition-all',
                             isSelected
-                              ? 'border-2 border-brand bg-brand-soft/25 shadow-sm'
+                              ? 'border-2 border-brand bg-brand-soft/25'
                               : 'border border-line bg-card hover:border-line-strong'
                           )}
                         >
@@ -602,7 +607,7 @@ export default function ServicePage() {
                           </div>
 
                           {/* Stepper Ramah Jempol (Touch target >= 40px) */}
-                          <div className={cx('flex items-center gap-1.5 rounded-control p-1 transition-colors', isSelected ? 'bg-card border border-line-strong shadow-sm' : 'bg-sunken border border-line')}>
+                          <div className={cx('flex items-center gap-1.5 rounded-control p-1 transition-colors', isSelected ? 'bg-card border border-line-strong' : 'bg-sunken border border-line')}>
                             <button
                               type="button"
                               onClick={() => changeQty(item, -1)}
@@ -623,7 +628,7 @@ export default function ServicePage() {
                               onClick={() => changeQty(item, 1)}
                               disabled={n >= (item.max_qty || 10)}
                               aria-label={t('service.qty_more', { name: item.name })}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-brand text-white font-bold hover:bg-brand-hover active:scale-95 shadow-sm transition-all"
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-brand text-white font-bold hover:bg-brand-hover active:scale-95 transition-all"
                             >
                               <Plus size={18} />
                             </button>

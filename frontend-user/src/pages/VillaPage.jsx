@@ -379,7 +379,7 @@ export default function VillaPage() {
                   as="button"
                   type="button"
                   onClick={() => openVilla(villa)}
-                  className="flex flex-col overflow-hidden text-left transition-all hover:border-line-strong hover:shadow-sm"
+                  className="flex flex-col overflow-hidden text-left transition-all hover:border-line-strong"
                 >
                   <div className="aspect-[16/10] bg-sunken">
                     <SafeImg

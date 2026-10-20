@@ -25,7 +25,7 @@ export default function JobPhotoPicker({ files, onChange, label }) {
               type="button"
               onClick={() => onChange(files.filter((_, j) => j !== i))}
               aria-label={t('service.custom_photo_remove')}
-              className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-line bg-card text-ink shadow-sm"
+              className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-line-strong bg-card text-ink hover:bg-ground transition-colors"
             >
               <X size={14} />
             </button>

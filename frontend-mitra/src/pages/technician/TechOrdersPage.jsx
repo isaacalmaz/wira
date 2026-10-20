@@ -33,10 +33,19 @@ const TechOrdersPage = () => {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [open, mine, proj] = await Promise.all([
-        fetchOpenJobs(supabase), fetchMyJobs(supabase, user.id), supabase.rpc('get_technician_projects'),
+      const [open, mine, proj, modeRow] = await Promise.all([
+        fetchOpenJobs(supabase),
+        fetchMyJobs(supabase, user.id),
+        supabase.rpc('get_technician_projects'),
+        supabase.from('app_settings').select('value').eq('key', 'service_dispatch_mode').maybeSingle(),
       ]);
-      setOpenJobs(open);
+      const dispatchMode = modeRow?.data?.value || 'admin_only';
+      // Jika mode admin_only, servis ditugaskan eksklusif oleh admin Wira
+      // (hanya muncul di tab Pekerjaan Saya setelah ditugaskan).
+      const filteredOpen = dispatchMode === 'hybrid'
+        ? open
+        : open.filter((job) => job.service_type !== 'service');
+      setOpenJobs(filteredOpen);
       setMyJobs(mine);
       setProjects(proj.data || []);
     } catch (err) {

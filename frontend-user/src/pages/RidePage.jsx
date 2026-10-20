@@ -18,6 +18,7 @@ import { APP_CONFIG } from '../config/app';
 import { formatRupiah } from '../utils/formatRupiah';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
@@ -39,10 +40,12 @@ function withMoney(text, value) {
 
 export default function RidePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { t, lang } = useTranslation();
   const { balance, refreshWallet } = useWallet();
   const { addOrder, orders } = useOrders();
   const [searchParams] = useSearchParams();
+  const [isBooking, setIsBooking] = useState(false);
   // "Pesan lagi" from a finished ride (migrations/0124): same route, offered
   // to the same driver first.
   const [againDriverId, setAgainDriverId] = useState(null);
@@ -334,6 +337,12 @@ export default function RidePage() {
   };
 
   const handleStartBooking = async () => {
+    if (isBooking) return;
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
     const finalPrice = calculateFinalPrice();
     if (needsTime && !scheduledAt) {
       toast.error(t('ride.pick_time_first'));
@@ -348,6 +357,7 @@ export default function RidePage() {
       return;
     }
 
+    setIsBooking(true);
     try {
       const pickupLat = mapState.markers[0]?.lat;
       const pickupLng = mapState.markers[0]?.lng;
@@ -425,6 +435,8 @@ export default function RidePage() {
       }
     } catch (err) {
       toast.error(t('ride.book_failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -853,6 +865,8 @@ export default function RidePage() {
               <Button
                 size="lg"
                 onClick={handleStartBooking}
+                isLoading={isBooking}
+                disabled={isBooking}
               >
                 {mode === 'hourly'
                   ? t('ride.hourly_book', { hours, price: formatRupiah(calculateFinalPrice()) })

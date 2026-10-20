@@ -95,7 +95,7 @@ export default function LandingPage() {
                   <span className="block text-[11px] text-[#6B6862]">{t('phone_greet')}</span>
                   <b className="text-[18px] tracking-[-0.02em]">{t('phone_question')}</b>
                 </div>
-                <div className="mx-3.5 mb-3.5 overflow-hidden rounded-2xl bg-laut-700 text-[#F7F6F3]">
+                <div className="mx-3.5 mb-3.5 overflow-hidden rounded-card bg-laut-700 text-[#F7F6F3]">
                   <div className="tenun-band h-1.5" />
                   <div className="px-3.5 py-3">
                     <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-laut-300">{t('phone_active')}</span>

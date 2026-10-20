@@ -7,6 +7,7 @@ import { Badge, Button, Card, EmptyState, Sheet, Spinner } from '../../component
 import { NEGATIVE_TAGS } from '../../utils/review';
 import { Avatar, BOOKABLE, RatingLine, TrustBadges } from './shared';
 import { formatDate } from '../../utils/formatDate';
+import { WALLET_ENABLED } from '../../config/wallet';
 
 const LANGUAGE_KEY = { id: 'partners.lang_id', sasak: 'partners.lang_sasak', en: 'partners.lang_en' };
 
@@ -188,13 +189,13 @@ export default function TechnicianProfilePage() {
       {/* Book */}
       {/* Sticks above the bottom nav inside the scrolling page. */}
       <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4">
-        <div className="flex flex-col gap-2 rounded-card border border-line bg-card/95 p-3 shadow-[0_16px_40px_-16px_rgba(6,47,60,0.35)] backdrop-blur">
+        <div className="flex flex-col gap-2 rounded-card border border-line bg-card/95 p-3 shadow-sheet backdrop-blur">
           {bookable.length > 0 ? (
             <Button size="lg" block leftIcon={<CalendarCheck size={18} />} onClick={onBook}>
               {t('partners.book', { name: tech.name.split(' ')[0] })}
             </Button>
           ) : null}
-          {projectSkills.length > 0 && (
+          {WALLET_ENABLED && projectSkills.length > 0 && (
             <Button size="lg" block variant={bookable.length > 0 ? 'secondary' : 'primary'} onClick={() => navigate(`/projects/new?skill=${projectSkills[0]}`)}>
               {t('partners.project_cta')}
             </Button>

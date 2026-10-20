@@ -4,10 +4,10 @@ import { fetchPendingApplications } from '../services/mitraApplicationService';
 import { setUserBlocked } from '../services/partnerAdminService';
 import ReasonSheet from '../components/common/ReasonSheet';
 import { Link } from 'react-router-dom';
-import { Wrench, Ban, CheckCircle, Inbox, Clock, CheckCircle2, Pencil, Star } from 'lucide-react';
+import { Wrench, Ban, CheckCircle, Inbox, Clock, CheckCircle2, Pencil, Star, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/common/UIComponents';
-import { Badge, Button, Card, PageHeader, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
+import { Badge, Button, Card, IconTile, PageHeader, Segmented, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
 
 const SKILL_GROUPS = [
   { group: 'servis', title: 'Servis harian', hint: 'harga tetap, dipesan langsung' },
@@ -25,6 +25,8 @@ const TechniciansPage = () => {
   const [ratings, setRatings] = useState({}); // migrations/0091
   const [skillTarget, setSkillTarget] = useState(null); // { id, name, skills }
   const [savingSkills, setSavingSkills] = useState(false);
+  const [dispatchMode, setDispatchMode] = useState('admin_only');
+  const [savingMode, setSavingMode] = useState(false);
   const skillName = (code) => skillList.find((sk) => sk.code === code)?.name || code;
 
   const fetchData = async () => {
@@ -45,12 +47,16 @@ const TechniciansPage = () => {
       setPendingCount((await fetchPendingApplications(['technician'], 'id')).length);
 
       // Before 0089 these tables don't exist yet; the page still works.
-      const [{ data: skillRows }, { data: profileRows }] = await Promise.all([
+      const [{ data: skillRows }, { data: profileRows }, { data: modeRow }] = await Promise.all([
         supabase.from('service_skills').select('code, name, skill_group, sort_order, is_active').order('sort_order'),
         supabase.from('technician_profiles').select('user_id, skills, is_accepting, verified_at'),
+        supabase.from('app_settings').select('value').eq('key', 'service_dispatch_mode').maybeSingle(),
       ]);
       setSkillList((skillRows || []).filter((sk) => sk.is_active));
       setProfiles(Object.fromEntries((profileRows || []).map((p) => [p.user_id, p])));
+      if (modeRow?.value) {
+        setDispatchMode(typeof modeRow.value === 'string' ? modeRow.value : 'admin_only');
+      }
       const { data: ratingRows } = await supabase.rpc('admin_technician_ratings');
       setRatings(Object.fromEntries((ratingRows || []).map((r) => [r.user_id, r])));
     } catch (err) {
@@ -124,11 +130,53 @@ const TechniciansPage = () => {
     skills: t.skills.includes(code) ? t.skills.filter((c) => c !== code) : [...t.skills, code],
   }));
 
+  const handleUpdateDispatchMode = async (newMode) => {
+    setSavingMode(true);
+    const { error } = await supabase.rpc('admin_set_app_setting', {
+      p_key: 'service_dispatch_mode',
+      p_value: newMode,
+    });
+    setSavingMode(false);
+    if (error) {
+      toast.error(`Gagal menyimpan mode penugasan: ${error.message}`);
+      return;
+    }
+    setDispatchMode(newMode);
+    toast.success(newMode === 'admin_only' ? 'Mode diubah: 100% Penugasan oleh Admin' : 'Mode diubah: Keduanya (Admin & Teknisi Mandiri)');
+  };
+
   const blockedCount = techs.filter(t => (t.status || 'Aktif') !== 'Aktif').length;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader className="!mb-0" title="Teknisi" subtitle="Daftar Mitra Jasa Servis" />
+
+      {/* Switch Mode Penugasan Servis */}
+      <Card className="flex flex-col gap-3 border-brand-line bg-brand-soft/20 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <IconTile tone="brand" size="sm"><ShieldCheck size={18} /></IconTile>
+            <div className="flex flex-col gap-0.5">
+              <h3 className="text-[14.5px] font-bold text-ink">Mode Penugasan Servis (WiraService)</h3>
+              <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                {dispatchMode === 'admin_only'
+                  ? 'Saat ini aktif: 100% Penugasan oleh Admin. Teknisi tidak dapat mengambil mandiri dari aplikasi mitra.'
+                  : 'Saat ini aktif: Keduanya. Admin dapat menugaskan teknisi, dan teknisi juga dapat mengklaim pesanan mandiri.'}
+              </p>
+            </div>
+          </div>
+          <Segmented
+            size="sm"
+            ariaLabel="Mode Penugasan Servis"
+            value={dispatchMode}
+            onChange={(val) => !savingMode && val !== dispatchMode && handleUpdateDispatchMode(val)}
+            options={[
+              { value: 'admin_only', label: '100% Admin' },
+              { value: 'hybrid', label: 'Keduanya' },
+            ]}
+          />
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Teknisi terdaftar" value={loading ? '–' : techs.length} icon={<Wrench size={18} />} />

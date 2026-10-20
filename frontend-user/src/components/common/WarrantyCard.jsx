@@ -55,6 +55,10 @@ export default function WarrantyCard({ order }) {
   const expired = until && Date.now() > until.getTime();
 
   const submit = async () => {
+    if (!user) {
+      toast.error(t('common.login_required'));
+      return;
+    }
     if (desc.trim().length < 10) { toast.error(t('warranty.desc_short')); return; }
     if (photos.length === 0) { toast.error(t('warranty.photo_needed')); return; }
     setSending(true);

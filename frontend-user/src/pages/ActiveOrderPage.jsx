@@ -166,15 +166,13 @@ export default function ActiveOrderPage() {
       if (data?.driver_id) {
         const profiles = await fetchCounterpartyProfiles(supabase, [data.driver_id]);
         data.driver = profiles[data.driver_id] || null;
-      }
-      setOrder(data);
 
-      if (data?.driver_id) {
-        // Fetch initial driver loc
-        const { data: dData } = await supabase.from('drivers').select('lat, lng, vehicle_plate').eq('id', data.driver_id).single();
-        if (dData?.vehicle_plate) data.driver.plate_number = dData.vehicle_plate;
+        // Fetch initial driver loc and plate
+        const { data: dData } = await supabase.from('drivers').select('lat, lng, vehicle_plate').eq('id', data.driver_id).maybeSingle();
+        if (data.driver && dData?.vehicle_plate) data.driver.plate_number = dData.vehicle_plate;
         if (dData?.lat && dData?.lng) setDriverLoc({ lat: dData.lat, lng: dData.lng });
       }
+      setOrder({ ...data });
     } catch (err) {
       console.error(err);
       toast.error(t('order.load_failed', { message: friendlyError(err) || err.toString() }));
@@ -204,7 +202,9 @@ export default function ActiveOrderPage() {
     const channel = supabase.channel(`order_${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, (payload) => {
         setOrder(prev => {
-          const next = { ...prev, ...payload.new };
+          const isDriverDropped = prev?.driver_id && !payload.new.driver_id;
+          const next = { ...prev, ...payload.new, driver: isDriverDropped ? null : prev?.driver };
+          if (isDriverDropped) setDriverLoc(null);
           if (payload.new.driver_id && (!prev?.driver || prev.driver_id !== payload.new.driver_id)) {
             fetchOrder();
           }
@@ -586,6 +586,22 @@ export default function ActiveOrderPage() {
         </Card>
       )}
 
+      {order.service_type === 'food' && ['accepted', 'preparing', 'ready'].includes(order.status) && !order.driver && (
+        <Card className="flex items-start gap-3.5 border-brand-line bg-brand-soft/20">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-brand-line bg-brand-soft text-brand-ink">
+            <UtensilsCrossed size={20} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="text-[14px] font-semibold text-ink">
+              {order.status === 'ready' ? t('order.food_ready') : t('order.food_preparing')}
+            </p>
+            <p className="text-[13px] leading-relaxed text-ink-muted">
+              {order.status === 'ready' ? t('order.food_ready_desc') : t('order.food_preparing_desc')}
+            </p>
+          </div>
+        </Card>
+      )}
+
       {isVisit && scheduledLabel && !['completed', 'cancelled'].includes(order.status) && (
         <Notice tone="info">{t('order.visit_scheduled', { time: scheduledLabel })}</Notice>
       )}
@@ -662,7 +678,7 @@ export default function ActiveOrderPage() {
                 const routeStr = route ? `${route.from || t('activity.route_pickup')} ➔ ${route.to || t('activity.route_dropoff')}` : localizeOrderTitle(order, t);
                 const gpsLat = driverLoc?.lat || order.pickup_lat || order.dropoff_lat;
                 const gpsLng = driverLoc?.lng || order.pickup_lng || order.dropoff_lng;
-                const mapStr = gpsLat && gpsLng ? `\nLokasi: https://maps.google.com/?q=${gpsLat},${gpsLng}` : '';
+                const mapStr = gpsLat && gpsLng ? `\n${t('order.share_location_prefix') || 'Lokasi'}: https://maps.google.com/?q=${gpsLat},${gpsLng}` : '';
                 const text = t('order.share_trip_text', {
                   service: t(`order.service_title.${order.service_type}`),
                   orderId: order.id.slice(0, 6).toUpperCase(),

@@ -259,6 +259,11 @@ export default function SendPage() {
   // Final Order Submission (Step 3)
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
     if (!senderName || !senderPhone || !senderAddress || !receiverName || !receiverPhone || !receiverAddress) {
       toast.error(t('send.incomplete'));
       setStep(1);
@@ -654,7 +659,7 @@ export default function SendPage() {
             <section className="flex flex-col gap-3">
               <div className="flex flex-col gap-0.5">
                 <h3 className="text-[14px] font-bold text-ink">{t('send.package_section')}</h3>
-                <p className="text-[12px] text-ink-muted">Pilih paket sesuai ukuran dan berat barang Anda</p>
+                <p className="text-[12px] text-ink-muted">{t('send.package_subtitle')}</p>
               </div>
               <div role="radiogroup" aria-label={t('send.package_section')} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {packages.map((p) => {
@@ -708,13 +713,13 @@ export default function SendPage() {
 
           {/* OPSI MOBIL: BARANG BESAR (PINDAHAN / FURNITUR) */}
           {isBig && (
-            <Card className="flex flex-col gap-4 border-2 border-brand bg-card shadow-sm">
+            <Card className="flex flex-col gap-4 border-2 border-brand bg-card">
               <div className="flex items-start gap-3">
                 <IconTile tone="brand" size="md"><Truck size={22} /></IconTile>
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-[16px] font-bold text-ink">{t('send.big_title')}</h3>
-                    <Badge tone="brand">Armada Mobil</Badge>
+                    <Badge tone="brand">{t('send.fleet_car')}</Badge>
                   </div>
                   <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.big_desc')}</p>
                 </div>
@@ -738,9 +743,9 @@ export default function SendPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-semibold text-ink">
-                  Foto Barang <span className="text-danger">*</span>
+                  {t('send.item_photo')} <span className="text-danger">*</span>
                 </label>
-                <p className="text-[12px] text-ink-muted">Foto membantu driver membawa mobil dan tali pengikat yang sesuai.</p>
+                <p className="text-[12px] text-ink-muted">{t('send.item_photo_hint')}</p>
                 <JobPhotoPicker files={bigPhotos} onChange={setBigPhotos} />
               </div>
 

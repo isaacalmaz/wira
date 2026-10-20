@@ -58,10 +58,10 @@ export default function HourlyDurationCard({
         <div className="flex items-center justify-between gap-3 rounded-control border border-line bg-sunken/60 p-2.5">
           <button
             type="button"
-            aria-label="Kurangi durasi sewa"
+            aria-label={t('ride.hours_less') || 'Kurangi durasi sewa'}
             disabled={hours <= min}
             onClick={handleDecrement}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink shadow-sm transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >
             <Minus size={20} />
           </button>
@@ -84,10 +84,10 @@ export default function HourlyDurationCard({
 
           <button
             type="button"
-            aria-label="Tambah durasi sewa"
+            aria-label={t('ride.hours_more') || 'Tambah durasi sewa'}
             disabled={hours >= max}
             onClick={handleIncrement}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink shadow-sm transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >
             <Plus size={20} />
           </button>
@@ -115,7 +115,7 @@ export default function HourlyDurationCard({
                   className={cx(
                     'min-h-9 shrink-0 rounded-full px-3.5 font-mono text-[12px] font-semibold transition-all',
                     active
-                      ? 'border-2 border-brand bg-brand text-white shadow-sm ring-1 ring-brand-soft'
+                      ? 'border-2 border-brand bg-brand text-white ring-1 ring-brand-soft'
                       : 'border border-line bg-sunken text-ink hover:border-line-strong hover:bg-card'
                   )}
                 >

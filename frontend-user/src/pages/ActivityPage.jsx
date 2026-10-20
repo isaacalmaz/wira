@@ -147,7 +147,7 @@ export default function ActivityPage() {
                 as="button"
                 type="button"
                 padding="none"
-                onClick={() => IN_PROGRESS_STATUSES.includes((act.rawStatus || act.status).toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
+                onClick={() => IN_PROGRESS_STATUSES.includes(String(act.rawStatus || act.status || '').toLowerCase()) ? navigate(`/active-order/${act.id}`) : setSelectedOrder(act)}
                 className="hover:border-brand-line"
               >
                 <span className="flex flex-col gap-3 p-4">

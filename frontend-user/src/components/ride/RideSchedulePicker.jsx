@@ -136,7 +136,7 @@ export default function RideSchedulePicker({
           className={cx(
             'flex min-h-[52px] w-full items-center justify-between gap-3 rounded-control border bg-card px-3.5 py-2.5 text-left transition-all',
             schedTime
-              ? 'border-brand bg-brand-soft/20 shadow-sm'
+              ? 'border-brand bg-brand-soft/20'
               : 'border-line-strong hover:border-brand'
           )}
         >
@@ -262,7 +262,7 @@ export default function RideSchedulePicker({
                     className={cx(
                       'flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all',
                       activePeriod === 'all'
-                        ? 'border-2 border-brand bg-brand text-white shadow-sm'
+                        ? 'border-2 border-brand bg-brand text-white'
                         : 'border border-line bg-sunken text-ink hover:border-line-strong hover:bg-card'
                     )}
                   >
@@ -291,7 +291,7 @@ export default function RideSchedulePicker({
                         className={cx(
                           'flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all',
                           isSelected
-                            ? 'border-2 border-brand bg-brand text-white shadow-sm'
+                            ? 'border-2 border-brand bg-brand text-white'
                             : isDisabled
                               ? 'border border-line/60 bg-sunken/50 text-ink-muted/30 cursor-not-allowed'
                               : 'border border-line bg-sunken text-ink hover:border-line-strong hover:bg-card'
@@ -340,7 +340,7 @@ export default function RideSchedulePicker({
                                 className={cx(
                                   'flex min-h-11 items-center justify-center rounded-control border font-mono text-[14px] transition-all',
                                   isSelected
-                                    ? 'border-2 border-brand bg-brand text-white font-bold shadow-sm'
+                                    ? 'border-2 border-brand bg-brand text-white font-bold'
                                     : 'border-line bg-card text-ink hover:border-brand hover:bg-brand-soft/20 active:scale-95'
                                 )}
                               >
@@ -375,7 +375,7 @@ export default function RideSchedulePicker({
                           className={cx(
                             'flex min-h-11 items-center justify-center rounded-control border font-mono text-[14px] transition-all',
                             isSelected
-                              ? 'border-2 border-brand bg-brand text-white font-bold shadow-sm'
+                              ? 'border-2 border-brand bg-brand text-white font-bold'
                               : 'border-line bg-card text-ink hover:border-brand hover:bg-brand-soft/20 active:scale-95'
                           )}
                         >

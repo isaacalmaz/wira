@@ -264,7 +264,7 @@ export default function AsuhPage() {
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex items-center gap-2">
               <h2 className="text-[14.5px] font-bold text-ink">{t('asuh.intro_title')}</h2>
-              <Badge tone="success" dot>Terverifikasi</Badge>
+              <Badge tone="success" dot>{t('common.verified') || 'Terverifikasi'}</Badge>
             </div>
             <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('asuh.intro_body')}</p>
             {rates?.hourly != null && (
@@ -394,7 +394,7 @@ export default function AsuhPage() {
                         className="inline-flex items-center gap-1 text-[12px] font-medium text-danger hover:underline"
                       >
                         <Trash2 size={13} aria-hidden="true" />
-                        <span>Hapus</span>
+                        <span>{t('common.remove') || 'Hapus'}</span>
                       </button>
                     )}
                   </div>

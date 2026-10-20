@@ -206,7 +206,7 @@ function CheckoutItemCard({ item, onUpdateQty, onRemove, onUpdateNote, t }) {
       )}
 
       <div className="flex items-baseline justify-between border-t border-line/60 pt-2 text-[13px]">
-        <span className="text-xs text-ink-muted">Subtotal</span>
+        <span className="text-xs text-ink-muted">{t('restaurant.subtotal') || 'Subtotal'}</span>
         <Money value={item.price * item.qty} className="font-medium text-ink" />
       </div>
     </li>
@@ -371,9 +371,9 @@ export default function RestaurantPage() {
 
   const getCategoryLabel = (cat) => {
     if (cat === 'all') return t('restaurant.category_all');
-    if (cat === 'makanan') return 'Makanan';
-    if (cat === 'minuman') return 'Minuman';
-    if (cat === 'snack') return 'Camilan';
+    if (cat === 'makanan') return t('restaurant.category_food') || 'Makanan';
+    if (cat === 'minuman') return t('restaurant.category_drink') || 'Minuman';
+    if (cat === 'snack') return t('restaurant.category_snack') || 'Camilan';
     return cat.charAt(0).toUpperCase() + cat.slice(1);
   };
 
@@ -539,8 +539,9 @@ export default function RestaurantPage() {
       toast.error(t('restaurant.order_failed', { message: err.userMessage || friendlyError(err) }), {
         id: 'order-create-error',
       });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const totalItemsCount = cart.items.reduce((acc, curr) => acc + curr.qty, 0);

@@ -55,6 +55,11 @@ export default function NewProjectPage() {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
     if (!form.skill || !form.area) { toast.error(t('projects.need_skill_area')); return; }
     if (!address.trim()) { toast.error(t('common.address_required')); return; }
     setSaving(true);

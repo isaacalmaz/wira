@@ -52,7 +52,7 @@ export default function DownloadPage() {
             return (
               <Card key={app} className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl text-white" style={{ background: color }}><Icon size={22} /></span>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-tile text-white" style={{ background: color }}><Icon size={22} /></span>
                   <div>
                     <p className="text-[16px] font-bold text-ink">{name}</p>
                     <p className="text-[13px] text-ink-muted">{t(`download.${app}_sub`)}</p>

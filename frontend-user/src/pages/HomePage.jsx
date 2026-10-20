@@ -266,7 +266,7 @@ export default function HomePage() {
                   className={cx(
                     'grid shrink-0 place-items-center',
                     hero
-                      ? cx('h-14 w-14 rounded-2xl', index === 0 ? 'bg-white/15' : 'bg-black/10')
+                      ? cx('h-14 w-14 rounded-tile', index === 0 ? 'bg-white/15' : 'bg-black/10')
                       : 'h-12 w-12 rounded-[14px] bg-brand-soft text-brand-ink',
                   )}
                 >
