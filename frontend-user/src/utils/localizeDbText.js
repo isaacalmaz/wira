@@ -65,6 +65,61 @@ const POOL_SIZE_KEYS = {
   'Besar (> 50 m²)': 'pool.size_large',
 };
 
+// ServicePage `pricing_rules` item codes
+export const SERVICE_ITEM_KEYS = {
+  AC_CUCI_1PK: { name: 'service.items.AC_CUCI_1PK.name', desc: 'service.items.AC_CUCI_1PK.desc' },
+  AC_CUCI_2PK: { name: 'service.items.AC_CUCI_2PK.name', desc: 'service.items.AC_CUCI_2PK.desc' },
+  AC_CUCI_INV: { name: 'service.items.AC_CUCI_INV.name', desc: 'service.items.AC_CUCI_INV.desc' },
+  AC_OVERHAUL: { name: 'service.items.AC_OVERHAUL.name', desc: 'service.items.AC_OVERHAUL.desc' },
+  AC_FREON: { name: 'service.items.AC_FREON.name', desc: 'service.items.AC_FREON.desc' },
+  AC_BONGKAR: { name: 'service.items.AC_BONGKAR.name', desc: 'service.items.AC_BONGKAR.desc' },
+  LISTRIK_TITIK: { name: 'service.items.LISTRIK_TITIK.name', desc: 'service.items.LISTRIK_TITIK.desc' },
+  LISTRIK_PERBAIKAN: { name: 'service.items.LISTRIK_PERBAIKAN.name', desc: 'service.items.LISTRIK_PERBAIKAN.desc' },
+  PIPA_BOCOR: { name: 'service.items.PIPA_BOCOR.name', desc: 'service.items.PIPA_BOCOR.desc' },
+  POMPA_RINGAN: { name: 'service.items.POMPA_RINGAN.name', desc: 'service.items.POMPA_RINGAN.desc' },
+  POMPA_BESAR: { name: 'service.items.POMPA_BESAR.name', desc: 'service.items.POMPA_BESAR.desc' },
+  TOREN_KURAS: { name: 'service.items.TOREN_KURAS.name', desc: 'service.items.TOREN_KURAS.desc' },
+  TUKANG_SETENGAH: { name: 'service.items.TUKANG_SETENGAH.name', desc: 'service.items.TUKANG_SETENGAH.desc' },
+  TUKANG_HARIAN: { name: 'service.items.TUKANG_HARIAN.name', desc: 'service.items.TUKANG_HARIAN.desc' },
+  CHECK_FEE: { name: 'service.items.CHECK_FEE.name', desc: 'service.items.CHECK_FEE.desc' },
+};
+
+export const UNIT_KEYS = {
+  unit: 'service.units.unit',
+  titik: 'service.units.titik',
+  kunjungan: 'service.units.kunjungan',
+  orang: 'service.units.orang',
+};
+
+/**
+ * Returns a localized copy of a service menu item from pricing_rules.
+ * Preserves the original object if keys are not found or untranslated.
+ */
+export function localizeServiceItem(item, t) {
+  if (!item) return item;
+  if (item.is_custom) {
+    const unitK = item.unit_label ? UNIT_KEYS[item.unit_label.toLowerCase()] : null;
+    const transUnit = unitK ? t(unitK) : item.unit_label;
+    return {
+      ...item,
+      name: t('service.custom_title'),
+      description: t('service.custom_desc'),
+      unit_label: transUnit !== unitK ? transUnit : item.unit_label,
+    };
+  }
+  const keys = SERVICE_ITEM_KEYS[item.code];
+  const unitK = item.unit_label ? UNIT_KEYS[item.unit_label.toLowerCase()] : null;
+  const name = keys?.name ? t(keys.name) : item.name;
+  const description = keys?.desc ? t(keys.desc) : item.description;
+  const unit_label = unitK ? t(unitK) : item.unit_label;
+  return {
+    ...item,
+    name: name !== keys?.name ? name : item.name,
+    description: description !== keys?.desc ? description : item.description,
+    unit_label: unit_label !== unitK ? unit_label : item.unit_label,
+  };
+}
+
 const lookup = (table, value, t) => {
   const key = table[typeof value === 'string' ? value.trim() : value];
   return key ? t(key) : value;

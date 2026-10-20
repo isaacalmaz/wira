@@ -472,6 +472,74 @@
     "custom_combined_note": "The technician prices the extra job on site. Work starts only after you approve it in the app.",
     "custom_desc_required": "Describe the extra job (at least 10 characters).",
     "custom_no_promo": "Promo codes don't apply to an order that is only \"Something else\".",
+    "items": {
+      "AC_CUCI_1PK": {
+        "name": "AC Cleaning 0.5–1 HP",
+        "desc": "Indoor and outdoor cleaning, freon pressure check"
+      },
+      "AC_CUCI_2PK": {
+        "name": "AC Cleaning 1.5–2 HP",
+        "desc": "Indoor and outdoor cleaning, freon pressure check"
+      },
+      "AC_CUCI_INV": {
+        "name": "Inverter AC Cleaning",
+        "desc": "Special wash for 0.5–2 HP inverter AC units"
+      },
+      "AC_OVERHAUL": {
+        "name": "Full AC Overhaul Cleaning",
+        "desc": "Indoor unit dismantled and thoroughly washed"
+      },
+      "AC_FREON": {
+        "name": "Add Freon / Refrigerant",
+        "desc": "Top up R32/R410 freon to normal pressure"
+      },
+      "AC_BONGKAR": {
+        "name": "AC Relocation & Installation",
+        "desc": "Relocate unit; extra pipes and cables billed separately"
+      },
+      "LISTRIK_TITIK": {
+        "name": "Install / Replace Electrical Point",
+        "desc": "Lights, switches or wall sockets; labor only"
+      },
+      "LISTRIK_PERBAIKAN": {
+        "name": "Minor Electrical Repair",
+        "desc": "Short circuit, tripped MCB, broken switch or outlet"
+      },
+      "PIPA_BOCOR": {
+        "name": "Water Pipe Leak Repair",
+        "desc": "Leaking pipe, tap or plumbing fitting"
+      },
+      "POMPA_RINGAN": {
+        "name": "Minor Water Pump Service",
+        "desc": "Pump not drawing water or weak pressure"
+      },
+      "POMPA_BESAR": {
+        "name": "Major Water Pump Overhaul",
+        "desc": "Pump dismantled, seal or bearings replaced"
+      },
+      "TOREN_KURAS": {
+        "name": "Water Tank Cleaning",
+        "desc": "Water tank drained and scrubbed clean"
+      },
+      "TUKANG_SETENGAH": {
+        "name": "Half-Day Handyman",
+        "desc": "Around 4 hours of work; materials billed separately"
+      },
+      "TUKANG_HARIAN": {
+        "name": "Full-Day Handyman",
+        "desc": "Around 8 hours of work; materials billed separately"
+      },
+      "CHECK_FEE": {
+        "name": "On-Site Inspection Fee",
+        "desc": "Charged if work is cancelled after technician arrives and inspects"
+      }
+    },
+    "units": {
+      "unit": "unit",
+      "titik": "point",
+      "kunjungan": "visit",
+      "orang": "person"
+    },
     "trust_label": "What booking through Wira guarantees",
     "trust_verified": "Verified technicians",
     "trust_price": "Price approved in the app",

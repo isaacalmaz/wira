@@ -37,6 +37,7 @@ import { WALLET_ENABLED } from '../config/wallet';
 import { useAuth } from '../context/AuthContext';
 import { uploadPrivateImage } from '../utils/imageUpload';
 import JobPhotoPicker from '../components/common/JobPhotoPicker';
+import { localizeServiceItem } from '../utils/localizeDbText';
 
 // ---- Tenun Laut booking helpers (presentational only) ----
 
@@ -636,7 +637,8 @@ export default function ServicePage() {
 
                 {menuItems.length > 0 && (
                   <div className="flex flex-col gap-2">
-                    {menuItems.map((item) => {
+                    {menuItems.map((rawItem) => {
+                      const item = localizeServiceItem(rawItem, t);
                       const n = qty[item.code] || 0;
                       const isSelected = n > 0;
                       return (
@@ -780,7 +782,7 @@ export default function ServicePage() {
                   {t('service.selected_summary') || 'Layanan yang Dipesan'}
                 </span>
                 <span className="truncate text-[13.5px] font-bold text-ink">
-                  {chosenItems.map((m) => `${m.name} (${qty[m.code]}x)`).join(', ') || t('service.custom_title')}
+                  {chosenItems.map((m) => `${localizeServiceItem(m, t).name} (${qty[m.code]}x)`).join(', ') || t('service.custom_title')}
                 </span>
                 <span className="font-mono text-[13px] font-extrabold text-brand-ink">
                   <Money value={itemsTotal} />

@@ -472,6 +472,74 @@
     "custom_combined_note": "Teknisi memberi harga untuk pekerjaan lain di lokasi. Pekerjaan baru dimulai setelah Anda menyetujuinya di aplikasi.",
     "custom_desc_required": "Ceritakan pekerjaan lainnya (minimal 10 huruf).",
     "custom_no_promo": "Kode promo tidak berlaku untuk pesanan yang hanya berisi Pekerjaan lain.",
+    "items": {
+      "AC_CUCI_1PK": {
+        "name": "Cuci AC 0,5–1 PK",
+        "desc": "Cuci indoor dan outdoor, cek tekanan freon"
+      },
+      "AC_CUCI_2PK": {
+        "name": "Cuci AC 1,5–2 PK",
+        "desc": "Cuci indoor dan outdoor, cek tekanan freon"
+      },
+      "AC_CUCI_INV": {
+        "name": "Cuci AC Inverter",
+        "desc": "Untuk AC inverter 0,5–2 PK"
+      },
+      "AC_OVERHAUL": {
+        "name": "Cuci Besar AC (Overhaul)",
+        "desc": "Indoor dibongkar dan dicuci menyeluruh"
+      },
+      "AC_FREON": {
+        "name": "Tambah Freon",
+        "desc": "Tambah freon R32/R410 sampai tekanan normal"
+      },
+      "AC_BONGKAR": {
+        "name": "Bongkar Pasang AC",
+        "desc": "Pindah unit; pipa dan kabel tambahan dihitung terpisah"
+      },
+      "LISTRIK_TITIK": {
+        "name": "Pasang / Ganti Titik Listrik",
+        "desc": "Lampu, saklar atau stop kontak; jasa saja"
+      },
+      "LISTRIK_PERBAIKAN": {
+        "name": "Perbaikan Listrik Ringan",
+        "desc": "Korsleting, MCB turun, saklar atau stop kontak rusak"
+      },
+      "PIPA_BOCOR": {
+        "name": "Perbaikan Pipa Bocor",
+        "desc": "Pipa, kran atau sambungan bocor"
+      },
+      "POMPA_RINGAN": {
+        "name": "Servis Pompa Air Ringan",
+        "desc": "Pompa tidak menyedot atau tekanan lemah"
+      },
+      "POMPA_BESAR": {
+        "name": "Servis Besar Pompa Air",
+        "desc": "Pompa dibongkar, ganti seal atau bearing"
+      },
+      "TOREN_KURAS": {
+        "name": "Kuras Toren Air",
+        "desc": "Toren dikuras dan disikat"
+      },
+      "TUKANG_SETENGAH": {
+        "name": "Tukang Setengah Hari",
+        "desc": "Sekitar 4 jam kerja; bahan dihitung terpisah"
+      },
+      "TUKANG_HARIAN": {
+        "name": "Tukang Sehari Penuh",
+        "desc": "Sekitar 8 jam kerja; bahan dihitung terpisah"
+      },
+      "CHECK_FEE": {
+        "name": "Biaya Cek di Lokasi",
+        "desc": "Dibayar bila pekerjaan batal setelah teknisi datang dan mengecek"
+      }
+    },
+    "units": {
+      "unit": "unit",
+      "titik": "titik",
+      "kunjungan": "kunjungan",
+      "orang": "orang"
+    },
     "trust_label": "Jaminan pesanan lewat Wira",
     "trust_verified": "Teknisi terverifikasi",
     "trust_price": "Harga disetujui di aplikasi",
