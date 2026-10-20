@@ -445,6 +445,7 @@
     "proceed_to_schedule": "Lanjut ke Jadwal & Alamat",
     "change_services": "Ubah Layanan",
     "selected_summary": "Layanan yang Dipesan",
+    "units_selected": "{{count}} unit dipilih",
     "cash_payment_note": "Bayar tunai langsung ke teknisi setelah selesai dan diuji.",
     "qty_less": "Kurangi {{name}}",
     "qty_more": "Tambah {{name}}",

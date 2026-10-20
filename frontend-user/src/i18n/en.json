@@ -445,6 +445,7 @@
     "proceed_to_schedule": "Continue to Schedule & Address",
     "change_services": "Change Services",
     "selected_summary": "Selected Services",
+    "units_selected": "{{count}} units selected",
     "cash_payment_note": "Pay cash directly to technician after work is completed and tested.",
     "qty_less": "Fewer {{name}}",
     "qty_more": "More {{name}}",

@@ -600,7 +600,7 @@ export default function ServicePage() {
               </div>
               {chosenItems.length > 0 && (
                 <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[12px] font-bold text-brand-ink">
-                  {chosenItems.reduce((acc, m) => acc + (qty[m.code] || 0), 0)} Unit Dipilih
+                  {t('service.units_selected', { count: chosenItems.reduce((acc, m) => acc + (qty[m.code] || 0), 0) })}
                 </span>
               )}
             </div>
