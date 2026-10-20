@@ -70,7 +70,7 @@ export default function TechnicianProfilePage() {
 
   const book = (code) => {
     const path = BOOKABLE[code];
-    navigate(path === '/pool' ? `/pool` : `${path}?tech=${tech.id}&cat=${code}`);
+    navigate(path === '/pool' ? `/pool?tech=${tech.id}&svc=S1` : `${path}?tech=${tech.id}&cat=${code}`);
   };
   const onBook = () => (bookable.length === 1 ? book(bookable[0]) : setPickOpen(true));
 
