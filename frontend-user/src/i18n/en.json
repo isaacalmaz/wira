@@ -423,7 +423,16 @@
     "cal_next": "Next month",
     "cal_taken": "taken",
     "cal_selected": "selected",
-    "cal_loading": "loading availability..."
+    "cal_loading": "loading availability...",
+    "proceed_to_booking": "Proceed to Booking",
+    "change_dates": "Change Dates",
+    "booking_summary_title": "Reservation Summary",
+    "step_detail_title": "Villa Details & Availability",
+    "step_checkout_title": "Confirmation & Payment",
+    "select_dates_hint": "Select check-in & check-out dates on the calendar below",
+    "guests_count": "{{count}} Guests",
+    "back_to_catalog": "Back to Villa Catalog",
+    "back_to_detail": "Back to Villa Details"
   },
   "service": {
     "title": "WiraService — Home Repairs & Technicians",

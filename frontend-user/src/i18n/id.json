@@ -423,7 +423,16 @@
     "cal_next": "Bulan berikutnya",
     "cal_taken": "sudah terisi",
     "cal_selected": "dipilih",
-    "cal_loading": "memuat ketersediaan..."
+    "cal_loading": "memuat ketersediaan...",
+    "proceed_to_booking": "Lanjut ke Pemesanan",
+    "change_dates": "Ubah Tanggal",
+    "booking_summary_title": "Ringkasan Reservasi",
+    "step_detail_title": "Detail & Ketersediaan Villa",
+    "step_checkout_title": "Konfirmasi & Pembayaran",
+    "select_dates_hint": "Pilih tanggal check-in & check-out pada kalender di bawah",
+    "guests_count": "{{count}} Tamu",
+    "back_to_catalog": "Kembali ke Katalog Villa",
+    "back_to_detail": "Kembali ke Detail Villa"
   },
   "service": {
     "title": "WiraService — Teknisi & Jasa Rumah Tangga",
