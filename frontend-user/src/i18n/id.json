@@ -1357,7 +1357,14 @@
     "err_under3": "Maksimal 2 anak di bawah 3 tahun untuk satu pengasuh.",
     "err_phone": "Isi nomor darurat yang aktif.",
     "err_agree": "Centang persetujuan syarat WiraAsuh dulu.",
-    "title": "Pengasuh Anak"
+    "title": "Pengasuh Anak",
+    "step_1_title": "Langkah 1: Waktu & Data Anak",
+    "step_2_title": "Langkah 2: Lokasi & Konfirmasi",
+    "proceed_to_location": "Lanjut ke Lokasi & Kontak",
+    "change_session": "Ubah Sesi",
+    "session_summary_title": "Ringkasan Sesi Pengasuhan",
+    "child_number": "Anak ke-{{n}}",
+    "extra_child_fee": "+ {{amount}} / jam per anak tambahan"
   },
   "landing": {
     "nav_services": "Layanan",

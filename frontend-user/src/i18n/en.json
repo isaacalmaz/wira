@@ -1357,7 +1357,14 @@
     "err_under3": "At most 2 children under 3 per babysitter.",
     "err_phone": "Enter a working emergency number.",
     "err_agree": "Tick the WiraAsuh terms first.",
-    "title": "Babysitter"
+    "title": "Babysitter",
+    "step_1_title": "Step 1: Time & Child Details",
+    "step_2_title": "Step 2: Location & Confirmation",
+    "proceed_to_location": "Proceed to Location & Contact",
+    "change_session": "Change Session",
+    "session_summary_title": "Babysitting Session Summary",
+    "child_number": "Child {{n}}",
+    "extra_child_fee": "+ {{amount}} / hour per additional child"
   },
   "landing": {
     "nav_services": "Services",
