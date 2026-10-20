@@ -110,42 +110,32 @@ export default function JobPhotoPicker({ files, onChange, label }) {
         title={t('service.photo_source_title')}
         size="sm"
       >
-        <div className="flex flex-col gap-2.5 p-4 pt-1">
+        <div className="flex flex-col gap-2 p-4 pt-1">
           <button
             type="button"
             onClick={openCamera}
-            className="flex w-full items-center gap-3.5 rounded-card border border-line bg-card p-3.5 text-left transition-colors hover:border-brand hover:bg-sunken active:bg-sunken min-h-[56px]"
+            className="flex w-full items-center gap-3.5 rounded-card border border-line bg-card p-3.5 text-left transition-colors hover:border-brand hover:bg-sunken active:bg-sunken min-h-[52px]"
           >
             <IconTile tone="brand" size="md">
               <Camera size={20} />
             </IconTile>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-semibold text-ink">
-                {t('service.photo_source_camera')}
-              </div>
-              <div className="text-[12px] text-ink-muted">
-                {t('service.photo_source_camera_desc')}
-              </div>
-            </div>
+            <span className="flex-1 text-[15px] font-semibold text-ink">
+              {t('service.photo_source_camera')}
+            </span>
             <ChevronRight size={18} className="text-ink-muted shrink-0" />
           </button>
 
           <button
             type="button"
             onClick={openGallery}
-            className="flex w-full items-center gap-3.5 rounded-card border border-line bg-card p-3.5 text-left transition-colors hover:border-brand hover:bg-sunken active:bg-sunken min-h-[56px]"
+            className="flex w-full items-center gap-3.5 rounded-card border border-line bg-card p-3.5 text-left transition-colors hover:border-brand hover:bg-sunken active:bg-sunken min-h-[52px]"
           >
             <IconTile tone="neutral" size="md">
               <Images size={20} />
             </IconTile>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-semibold text-ink">
-                {t('service.photo_source_gallery')}
-              </div>
-              <div className="text-[12px] text-ink-muted">
-                {t('service.photo_source_gallery_desc')}
-              </div>
-            </div>
+            <span className="flex-1 text-[15px] font-semibold text-ink">
+              {t('service.photo_source_gallery')}
+            </span>
             <ChevronRight size={18} className="text-ink-muted shrink-0" />
           </button>
         </div>
