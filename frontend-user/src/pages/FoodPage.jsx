@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Star, Clock, UtensilsCrossed } from 'lucide-react';
-import { Badge, Card, Input, PageHeader, Segmented, EmptyState } from '../components/ui';
+import { Badge, Card, Input, PageHeader, Segmented, EmptyState, cx } from '../components/ui';
 import SafeImg from '../components/ui/SafeImg';
 import { supabase } from '../config/supabase';
 import { useTranslation } from '../i18n';
@@ -105,7 +105,10 @@ export default function FoodPage() {
               as={Link}
               to={`/restaurant/${rest.id}`}
               padding="none"
-              className="flex gap-3.5 p-3.5"
+              className={cx(
+                'flex gap-3.5 p-3.5 transition-colors hover:border-line-strong',
+                rest.is_open === false && 'opacity-75',
+              )}
             >
               <SafeImg icon={UtensilsCrossed}
                 src={rest.image}

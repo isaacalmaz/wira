@@ -25,6 +25,13 @@ const cartReducer = (state, action) => {
           item.id === action.payload.id ? { ...item, qty: action.payload.qty } : item
         )
       };
+    case 'UPDATE_NOTE':
+      return {
+        ...state,
+        items: state.items.map(item =>
+          item.id === action.payload.id ? { ...item, note: action.payload.note } : item
+        )
+      };
     case 'CLEAR_CART':
       return { items: [], restaurant: null };
     case 'SET_RESTAURANT':
@@ -40,13 +47,14 @@ export const CartProvider = ({ children }) => {
   const addItem = (item) => dispatch({ type: 'ADD_ITEM', payload: item });
   const removeItem = (id) => dispatch({ type: 'REMOVE_ITEM', payload: id });
   const updateQty = (id, qty) => dispatch({ type: 'UPDATE_QTY', payload: { id, qty } });
+  const updateNote = (id, note) => dispatch({ type: 'UPDATE_NOTE', payload: { id, note } });
   const clearCart = () => dispatch({ type: 'CLEAR_CART' });
   const setRestaurant = (rest) => dispatch({ type: 'SET_RESTAURANT', payload: rest });
 
   const subtotal = state.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
   return (
-    <CartContext.Provider value={{ cart: state, addItem, removeItem, updateQty, clearCart, setRestaurant, subtotal }}>
+    <CartContext.Provider value={{ cart: state, addItem, removeItem, updateQty, updateNote, clearCart, setRestaurant, subtotal }}>
       {children}
     </CartContext.Provider>
   );
