@@ -646,7 +646,20 @@
     "again_named": "Book {{name}} again",
     "again_hint": "Last visit: {{service}}",
     "again_notice": "Your last technician gets this order first. If they do not take it, another technician comes.",
-    "again_notice_named": "{{name}} gets this order first. If they do not take it, another technician comes."
+    "again_notice_named": "{{name}} gets this order first. If they do not take it, another technician comes.",
+    "step_1_title": "Step 1: Choose Service & Pool Size",
+    "step_2_title": "Step 2: Schedule, Address & Payment",
+    "proceed_to_schedule": "Proceed to Schedule & Address",
+    "change_service": "Change Service",
+    "selected_service_summary": "Selected Service",
+    "choose_time_slot": "Visit Time",
+    "package_includes": "Includes 4 monthly visits, bottom vacuum, wall brush, and full chemicals.",
+    "tab_all": "All",
+    "tab_monthly": "Monthly Plan (4x)",
+    "tab_single": "Single Visit",
+    "tab_custom": "Custom Work",
+    "selected_pool_size": "Pool Size: {{size}}",
+    "service_selected_toast": "{{service}} selected"
   },
   "wallet": {
     "card_label": "WiraPay — Digital Wallet",

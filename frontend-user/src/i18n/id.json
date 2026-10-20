@@ -646,7 +646,20 @@
     "again_named": "Pesan lagi {{name}}",
     "again_hint": "Kunjungan terakhir: {{service}}",
     "again_notice": "Pesanan ditawarkan dulu ke teknisi kunjungan terakhir Anda. Kalau dia tidak mengambil, teknisi lain yang datang.",
-    "again_notice_named": "Pesanan ditawarkan dulu ke {{name}}. Kalau dia tidak mengambil, teknisi lain yang datang."
+    "again_notice_named": "Pesanan ditawarkan dulu ke {{name}}. Kalau dia tidak mengambil, teknisi lain yang datang.",
+    "step_1_title": "Langkah 1: Pilih Paket & Ukuran Kolam",
+    "step_2_title": "Langkah 2: Jadwal, Alamat & Pembayaran",
+    "proceed_to_schedule": "Lanjut ke Jadwal & Alamat",
+    "change_service": "Ubah Layanan",
+    "selected_service_summary": "Layanan Terpilih",
+    "choose_time_slot": "Jam Kunjungan",
+    "package_includes": "Termasuk 4x kunjungan rutin sebulan, pembersihan lantai & dinding, serta obat/chemical lengkap.",
+    "tab_all": "Semua",
+    "tab_monthly": "Paket Bulanan (4x)",
+    "tab_single": "Perawatan Satuan",
+    "tab_custom": "Pekerjaan Khusus",
+    "selected_pool_size": "Ukuran Kolam: {{size}}",
+    "service_selected_toast": "{{service}} dipilih"
   },
   "wallet": {
     "card_label": "WiraPay — Dompet Digital",
