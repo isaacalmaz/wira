@@ -558,10 +558,22 @@ export default function ActiveOrderPage() {
             <Spinner size={20} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-[14px] font-semibold text-ink">{isBabysit ? t('order.babysit_waiting') : isVisit ? t('order.searching_technician') : order.service_type === 'food' ? t('order.food_waiting') : t('order.searching_driver')}</p>
+            <p className="text-[14px] font-semibold text-ink">
+              {isBabysit
+                ? t('order.babysit_waiting')
+                : order.service_type === 'service'
+                ? t('order.service_waiting_admin')
+                : isVisit
+                ? t('order.searching_technician')
+                : order.service_type === 'food'
+                ? t('order.food_waiting')
+                : t('order.searching_driver')}
+            </p>
             <p className="text-[13px] leading-relaxed text-ink-muted">
               {isBabysit
                 ? t('order.babysit_waiting_desc')
+                : order.service_type === 'service'
+                ? t('order.service_waiting_admin_desc')
                 : isVisit
                 ? t('order.visit_waiting')
                 : order.service_type === 'food'

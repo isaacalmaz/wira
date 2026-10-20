@@ -38,5 +38,6 @@ export function getStatusKey(rawStatus, serviceType) {
   if (service === 'babysit' && ['pending', 'on_the_way', 'working'].includes(normalized)) return `status.babysit_${normalized}`;
   if ((service === 'food' || service === 'wirafood') && normalized === 'pending') return 'status.food_pending';
   if ((service === 'villa' || service === 'wiravilla') && normalized === 'pending') return 'status.villa_pending';
+  if (service === 'service' && normalized === 'pending') return 'status.service_pending';
   return `status.${normalized}`;
 }

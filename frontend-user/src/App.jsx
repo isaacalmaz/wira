@@ -90,8 +90,8 @@ export default function Root() {
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />
                             <Route path="/asuh" element={<AsuhPage />} />
-                            <Route path="/technicians" element={<TechnicianDirectoryPage />} />
-                            <Route path="/technicians/:id" element={<TechnicianProfilePage />} />
+                            <Route path="/technicians" element={<Navigate to="/service" replace />} />
+                            <Route path="/technicians/:id" element={<Navigate to="/service" replace />} />
                             <Route path="/projects" element={WALLET_ENABLED ? <MyProjectsPage /> : <Navigate to="/" replace />} />
                             <Route path="/projects/new" element={WALLET_ENABLED ? <NewProjectPage /> : <Navigate to="/" replace />} />
                             <Route path="/projects/:id" element={WALLET_ENABLED ? <ProjectDetailPage /> : <Navigate to="/" replace />} />

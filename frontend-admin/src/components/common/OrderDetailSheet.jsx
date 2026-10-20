@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ClipboardList, XCircle, CheckCircle2, Repeat, Coins, StickyNote, MapPin, Phone, MessageCircle, Copy } from 'lucide-react';
+import { ClipboardList, XCircle, CheckCircle2, Repeat, Coins, StickyNote, MapPin, Phone, MessageCircle, Copy, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { CORE_ADMIN_ROLES } from '../../config/roles';
 import { orderStatusLabel, orderStatusTone } from '../../config/orderStatus';
-import { Badge, Button, Field, Input, Money, Notice, Sheet, Spinner, Textarea, cx } from '../ui';
+import { Badge, Button, Field, Input, Money, Notice, Sheet, Spinner, Textarea, Select, cx } from '../ui';
 import { SERVICE_LABEL } from '../../config/services';
 import { formatDateTime, prettySchedule } from '../../utils/datetime';
 
@@ -49,6 +49,8 @@ function actionsFor(order, core) {
   const open = !FINAL.includes(order.status);
   const isFood = ['food', 'WiraFood'].includes(order.service_type);
   const usesPartner = ['ride', 'send', 'service', 'pool', 'food', 'WiraFood'].includes(order.service_type);
+  // WiraService orders: admin delegates technician directly
+  if (core && order.service_type === 'service' && order.status === 'pending') list.push('assign_technician');
   // WiraAsuh requests: approve on behalf of the nanny, or decline (babysit_respond, 0107).
   if (core && order.service_type === 'babysit' && order.status === 'pending') list.push('babysit_accept', 'babysit_decline');
   if (core && open && !(order.service_type === 'babysit' && order.status === 'pending')) list.push('cancel');
@@ -61,6 +63,7 @@ function actionsFor(order, core) {
 }
 
 const ACTION_META = {
+  assign_technician: { label: 'Tugaskan teknisi', icon: UserCheck, variant: 'primary', title: 'Pilih & tugaskan teknisi', confirm: 'Tugaskan ke teknisi ini' },
   babysit_accept: { label: 'Setujui', icon: CheckCircle2, variant: 'primary', title: 'Setujui permintaan WiraAsuh', confirm: 'Setujui untuk pengasuh' },
   babysit_decline: { label: 'Tolak', icon: XCircle, variant: 'danger-soft', title: 'Tolak permintaan WiraAsuh', confirm: 'Tolak permintaan' },
   cancel: { label: 'Batalkan', icon: XCircle, variant: 'danger-soft', title: 'Batalkan pesanan', confirm: 'Batalkan pesanan' },
@@ -87,6 +90,9 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
   const [amount, setAmount] = useState('');
   const [chargePartner, setChargePartner] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [availableTechs, setAvailableTechs] = useState([]);
+  const [selectedTechId, setSelectedTechId] = useState('');
+  const [loadingTechs, setLoadingTechs] = useState(false);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -111,10 +117,73 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
     load();
   }, [load]);
 
-  const start = (a) => { setAction(a); setNote(''); setAmount(''); setChargePartner(false); };
+  const start = async (a) => {
+    setAction(a);
+    setNote('');
+    setAmount('');
+    setChargePartner(false);
+    if (a === 'assign_technician') {
+      setSelectedTechId('');
+      setLoadingTechs(true);
+      try {
+        const { data: techData, error: techErr } = await supabase.rpc('list_service_technicians', {
+          p_skill: order?.rate_code || null,
+        });
+        if (techErr) throw techErr;
+        if (!techData || techData.length === 0) {
+          const { data: allTechs } = await supabase.rpc('list_service_technicians');
+          setAvailableTechs(allTechs || []);
+        } else {
+          setAvailableTechs(techData);
+        }
+      } catch (err) {
+        console.error('Failed to load technicians:', err);
+        toast.error('Gagal memuat daftar teknisi');
+      } finally {
+        setLoadingTechs(false);
+      }
+    }
+  };
 
   const submit = async () => {
     setBusy(true);
+    if (action === 'assign_technician') {
+      if (!selectedTechId) {
+        toast.error('Pilih teknisi terlebih dahulu');
+        setBusy(false);
+        return;
+      }
+      const chosenTech = availableTechs.find((t) => t.id === selectedTechId);
+      const { error: assignErr } = await supabase
+        .from('orders')
+        .update({
+          status: 'accepted',
+          driver_id: selectedTechId,
+          accepted_at: new Date().toISOString(),
+        })
+        .eq('id', orderId);
+
+      setBusy(false);
+      if (assignErr) {
+        toast.error(`Gagal menugaskan teknisi: ${assignErr.message}`);
+        return;
+      }
+
+      if (note.trim()) {
+        await supabase.from('order_events').insert({
+          order_id: orderId,
+          kind: 'note',
+          actor_id: user?.id,
+          note: `Penugasan teknisi (${chosenTech?.name || 'mitra'}): ${note.trim()}`,
+        });
+      }
+
+      toast.success(`Teknisi ${chosenTech?.name || ''} berhasil ditugaskan!`);
+      setAction(null);
+      await load();
+      onChanged?.();
+      return;
+    }
     if (action === 'babysit_accept' || action === 'babysit_decline') {
       const { error: bErr } = await supabase.rpc('babysit_respond', {
         p_order_id: orderId, p_accept: action === 'babysit_accept', p_reason: note.trim() || null,
@@ -193,7 +262,11 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
             variant={action === 'cancel' ? 'danger' : 'primary'}
             onClick={submit}
             isLoading={busy}
-            disabled={(action !== 'babysit_accept' && action !== 'babysit_decline' && note.trim().length < 5) || (action === 'compensate' && !(Number(amount) > 0))}
+            disabled={
+              (action !== 'babysit_accept' && action !== 'babysit_decline' && action !== 'assign_technician' && note.trim().length < 5) ||
+              (action === 'compensate' && !(Number(amount) > 0)) ||
+              (action === 'assign_technician' && !selectedTechId)
+            }
           >
             {action === 'compensate' && Number(amount) > 0 ? `Kirim Rp ${Number(amount).toLocaleString('id-ID')}` : am.confirm}
           </Button>
@@ -216,6 +289,44 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
         <div className="flex flex-col gap-4">
           <h3 className="text-[15px] font-bold text-ink">{am.title}</h3>
           {actionHint && <Notice tone={action === 'cancel' ? 'warning' : 'info'}>{actionHint}</Notice>}
+          {action === 'assign_technician' && (
+            <div className="flex flex-col gap-3">
+              <Field label="Pilih Teknisi" htmlFor="assign-tech" required hint="Hanya mitra teknisi terverifikasi">
+                {loadingTechs ? (
+                  <div className="flex items-center gap-2 py-2 text-[13px] text-ink-muted">
+                    <Spinner size={16} /> Memuat daftar teknisi...
+                  </div>
+                ) : availableTechs.length === 0 ? (
+                  <Notice tone="warning">Tidak ada teknisi aktif dengan keahlian ini saat ini.</Notice>
+                ) : (
+                  <Select
+                    id="assign-tech"
+                    value={selectedTechId}
+                    onChange={(e) => setSelectedTechId(e.target.value)}
+                  >
+                    <option value="">-- Pilih Teknisi yang Ditugaskan --</option>
+                    {availableTechs.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} {t.experience_years ? `(${t.experience_years} thn)` : ''} — {t.jobs_completed || 0} order selesai
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              {selectedTechId && (() => {
+                const tech = availableTechs.find((t) => t.id === selectedTechId);
+                if (!tech) return null;
+                return (
+                  <div className="rounded-control border border-brand-line bg-brand-soft/40 p-3 text-[13px] text-ink">
+                    <p className="font-semibold">{tech.name}</p>
+                    <p className="text-[12px] text-ink-muted">
+                      Keahlian: {Array.isArray(tech.skills) ? tech.skills.join(', ') : 'Umum'} · {tech.jobs_completed || 0} pekerjaan selesai
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           {action === 'compensate' && (
             <>
               <Field label="Nominal (Rp)" htmlFor="comp-amount" required>
@@ -229,7 +340,12 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
               )}
             </>
           )}
-          <Field label={action === 'note' ? 'Catatan' : 'Alasan (dikirim ke pihak terkait dan dicatat)'} htmlFor="action-note" required hint="Minimal 5 karakter">
+          <Field
+            label={action === 'note' ? 'Catatan' : action === 'assign_technician' ? 'Catatan internal (opsional)' : 'Alasan (dikirim ke pihak terkait dan dicatat)'}
+            htmlFor="action-note"
+            required={action !== 'assign_technician'}
+            hint={action === 'assign_technician' ? 'Boleh dikosongkan' : 'Minimal 5 karakter'}
+          >
             <Textarea id="action-note" rows={3} maxLength={400} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
         </div>

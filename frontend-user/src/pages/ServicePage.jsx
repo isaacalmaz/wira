@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Sparkles, Minus, Plus, Star, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, ShieldCheck } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, ChevronRight, BadgeCheck, Minus, Plus, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, ShieldCheck } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -14,7 +14,6 @@ import {
   IconTile,
   Notice,
   PageHeader,
-  SectionHeader,
   EmptyState,
   cx,
 } from '../components/ui';
@@ -27,7 +26,6 @@ import AddressMapPicker from '../components/common/AddressMapPicker';
 import AddressNoteField from '../components/common/AddressNoteField';
 import { withAddressNote } from '../utils/addressNote';
 import { fetchCoordinates } from '../utils/osmHelpers';
-import { avatarSrc } from '../utils/avatar';
 import { VISIT_SLOTS, openSlots, firstBookableDate, witaToday, witaDatePlus, witaInstant } from '../utils/visitSchedule';
 import { usePendingPromo } from '../utils/pendingPromo';
 import { isPromoExpired } from '../utils/promoDates';
@@ -216,9 +214,9 @@ export default function ServicePage() {
   const techsFor = (skill) => technicians.filter((tech) => (tech.skills || []).includes(skill));
   const selectedTech = technicians.find((tech) => tech.id === selectedTechId) || null;
 
-  const handleOpenBooking = (cat, tech = null) => {
+  const handleOpenBooking = (cat) => {
     setSelectedService(cat);
-    setSelectedTechId(tech?.id || '');
+    setSelectedTechId('');
     // Start with the first item of the category picked once ("Pekerjaan
     // lain" when the category has nothing else).
     const first = itemsFor(cat.id)[0];
@@ -367,18 +365,13 @@ export default function ServicePage() {
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
-        details: (selectedTech ? `Teknisi: ${selectedTech.name} • ` : '')
-          + `Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
+        details: `Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
           + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : '')
           + (customChosen ? ` • Pekerjaan lain: ${jobDesc.trim()}` : ''),
-        // migrations/0089: the visit time and the chosen technician, who gets
-        // the job to themselves for 10 minutes before it opens to everyone
-        // with the same skill.
         metadata: {
           scheduled_at: witaInstant(serviceDate, serviceTime),
           ...(chosenItems.length > 0 ? { items: chosenItems.map((m) => ({ code: m.code, qty: qty[m.code] })) } : {}),
           ...(customChosen ? { job: { description: jobDesc.trim(), photos: photoPaths } } : {}),
-          ...(selectedTech ? { preferred_partner_id: selectedTech.id } : {}),
         },
         price: finalPrice,
         paymentMethod: paymentMethod,
@@ -439,7 +432,7 @@ export default function ServicePage() {
                 </span>
                 {techLoaded && (
                   <span className={cx('text-[12px] font-medium', unavailable ? 'text-ink-muted' : 'text-success-ink')}>
-                    {unavailable ? t('service.unavailable') : t('service.tech_count', { count })}
+                    {unavailable ? t('service.unavailable') : (t('service.available_badge') || 'Tersedia')}
                   </span>
                 )}
               </span>
@@ -462,70 +455,6 @@ export default function ServicePage() {
             <Button onClick={() => navigate('/projects/new')}>{t('service.project_cta')}</Button>
           </div>
         </Card>
-      )}
-
-      {/* Teknisi aktif */}
-      {technicians.length > 0 && (
-        <section>
-          <SectionHeader
-            title={t('service.recommended')}
-            action={<Link to="/technicians" className="inline-flex min-h-11 items-center">{t('partners.see_all')}</Link>}
-          />
-          <Card padding="none" className="divide-y divide-line overflow-hidden">
-            {technicians.map((tech) => {
-              const firstCategory = categories.find((c) => (tech.skills || []).includes(c.id));
-              const skillNames = categories.filter((c) => (tech.skills || []).includes(c.id))
-                .map((c) => categoryLabel(c));
-              return (
-                <div key={tech.id} className="flex items-center gap-3 p-3.5">
-                  <span
-                    aria-hidden="true"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-line bg-brand-soft text-[15px] font-bold text-brand-ink"
-                  >
-                    {tech.avatar_url
-                      ? <img src={avatarSrc(tech.avatar_url)} alt="" className="h-full w-full rounded-full object-cover" />
-                      : (tech.name || '?').trim().charAt(0).toUpperCase()}
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Link to={`/technicians/${tech.id}`} className="truncate text-[14px] font-semibold text-ink hover:underline">{tech.name}</Link>
-                    <p className="text-[12px] text-ink-muted">
-                      {skillNames.join(', ') || t('service.general_category')}
-                      {tech.experience_years ? ` • ${t('service.experience_years', { count: tech.experience_years })}` : ''}
-                    </p>
-                    {tech.rating_count >= 3 && (
-                      <p className="inline-flex flex-wrap items-center gap-1.5 text-[12px] font-semibold text-ink">
-                        <Star size={13} className="fill-pay text-pay" aria-hidden="true" />
-                        {t('service.rating_line', { avg: Number(tech.rating_avg).toFixed(1), count: tech.rating_count })}
-                        {tech.top_rated && <Badge tone="pay">{t('service.top_rated')}</Badge>}
-                      </p>
-                    )}
-                    {tech.jobs_completed > 0 ? (
-                      <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-ink">
-                        <BadgeCheck size={13} aria-hidden="true" />
-                        {t('service.jobs_done', { count: tech.jobs_completed })}
-                      </p>
-                    ) : (
-                      <p className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand-ink">
-                        <Sparkles size={13} aria-hidden="true" />
-                        {t('service.new_partner')}
-                      </p>
-                    )}
-                  </div>
-                  {firstCategory && (
-                    <Button
-                      variant="secondary"
-                      className="shrink-0"
-                      rightIcon={<ChevronRight size={16} />}
-                      onClick={() => handleOpenBooking(firstCategory, tech)}
-                    >
-                      {t('service.choose')}
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </Card>
-        </section>
       )}
 
       {/* SHEET BOOKING TEKNISI */}
@@ -611,17 +540,20 @@ export default function ServicePage() {
               <Badge tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t('service.trust_price')}</Badge>
             </div>
 
-            {/* Teknisi Pilihan jika ada */}
-            {selectedService && techsFor(selectedService.id).length > 0 && (
-              <Field label={t('service.tech_label')} htmlFor="service-tech" hint={selectedTech ? t('service.tech_hint_chosen') : t('service.tech_hint_auto')}>
-                <Select id="service-tech" value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}>
-                  <option value="">{t('service.auto_assign')}</option>
-                  {techsFor(selectedService.id).map((tech) => (
-                    <option key={tech.id} value={tech.id}>{tech.name}</option>
-                  ))}
-                </Select>
-              </Field>
-            )}
+            {/* Jaminan Penugasan Admin Ramah Awam */}
+            <div className="flex items-center gap-3 rounded-card border border-brand-line bg-brand-soft/40 p-3.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+                <ShieldCheck size={20} aria-hidden="true" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p className="text-[13.5px] font-bold text-ink">
+                  {t('service.admin_assigned_title') || 'Teknisi Terbaik Ditugaskan Tim Wira'}
+                </p>
+                <p className="text-[12px] leading-relaxed text-ink-muted">
+                  {t('service.admin_assigned_desc') || 'Teknisi profesional terverifikasi akan dipilihkan dan ditugaskan langsung oleh admin Wira sesuai kebutuhan Anda.'}
+                </p>
+              </div>
+            </div>
 
             {/* Daftar Layanan / Pekerjaan (Bebas dari bug legend) */}
             {bookingItems.length > 0 && (

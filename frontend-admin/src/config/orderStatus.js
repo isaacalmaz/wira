@@ -22,6 +22,7 @@ const SERVICE_STATUS_LABEL = {
   babysit: { pending: 'Menunggu Persetujuan', on_the_way: 'Pengasuh Menuju Lokasi', working: 'Sesi Berlangsung' },
   food: { pending: 'Menunggu Restoran' },
   villa: { pending: 'Menunggu Konfirmasi' },
+  service: { pending: 'Perlu Penugasan Teknisi' },
 };
 
 export const orderStatusLabel = (status, serviceType) =>
