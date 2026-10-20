@@ -1,7 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Package, Briefcase, Luggage, Wallet, Banknote, Truck, Phone } from 'lucide-react';
-import { Button, Card, Field, Input, Textarea, Money, Notice, IconTile, PageHeader, cx } from '../components/ui';
+import {
+  FileText,
+  Package,
+  Briefcase,
+  Luggage,
+  Wallet,
+  Banknote,
+  Truck,
+  Bike,
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  MapPin,
+  Sparkles,
+  ShieldCheck,
+} from 'lucide-react';
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Textarea,
+  Money,
+  Notice,
+  IconTile,
+  PageHeader,
+  Segmented,
+  Badge,
+  cx,
+} from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import { formatRupiah } from '../utils/formatRupiah';
 import { fetchCoordinates, fetchRoute } from '../utils/osmHelpers';
@@ -28,6 +56,9 @@ export default function SendPage() {
   const { balance, refreshWallet } = useWallet();
   const { addOrder } = useOrders();
   const { user } = useAuth();
+
+  // Wizard Step: 1 = Rute & Kontak, 2 = Paket & Armada, 3 = Konfirmasi & Pembayaran
+  const [step, setStep] = useState(1);
 
   const [userProfile, setUserProfile] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -63,41 +94,44 @@ export default function SendPage() {
       });
   }, [user]);
 
+  // Pre-fill sender with logged-in user profile for seamless usability
+  useEffect(() => {
+    if (userProfile) {
+      if (!senderName && userProfile.name) setSenderName(userProfile.name);
+      if (!senderPhone && userProfile.phone) setSenderPhone(userProfile.phone);
+    }
+  }, [userProfile]);
+
   const [selectedPackage, setSelectedPackage] = useState('kecil');
   const [paymentMethod, setPaymentMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
-  // Promo/kupon state - same shape as RidePage.jsx/RestaurantPage.jsx's
-  // handleCheckPromo/activePromo/calculateFinalPrice.
+  // Promo/kupon state
   const [promoCode, setPromoCode] = useState('');
   const [activePromo, setActivePromo] = useState(null);
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
 
-  // Form State
+  // Form State - Pengirim
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
   const [senderAddress, setSenderAddress] = useState('');
   const [senderNote, setSenderNote] = useState('');
   const [senderCoords, setSenderCoords] = useState(null);
 
+  // Form State - Penerima
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [receiverAddress, setReceiverAddress] = useState('');
   const [receiverNote, setReceiverNote] = useState('');
   const [receiverCoords, setReceiverCoords] = useState(null);
   const [itemNote, setItemNote] = useState('');
-  // "Barang besar (mobil)" (migrations/0128): photos, no price up front.
+
+  // "Barang besar (mobil)" (migrations/0128)
   const [bigDesc, setBigDesc] = useState('');
   const [bigPhotos, setBigPhotos] = useState([]); // File[]
   const [bigHelper, setBigHelper] = useState(false);
 
-  // `name` stays Indonesian on purpose: it is written into the order's
-  // `details`, which the courier reads in the partner app. Only the labels
-  // rendered on this screen are translated.
-  // Fallback until pricing_rules (service_type 'send', edited in Admin ->
-  // Harga) loads. The server prices the order from the same rows:
-  // base_price + ceil(km x per_km_rate) (migrations/0059).
   const FALLBACK_PACKAGES = [
     { id: 'dokumen', name: 'Dokumen', base: 8000, perKm: 0 },
     { id: 'kecil', name: 'Paket Kecil', base: 12000, perKm: 0 },
@@ -109,10 +143,13 @@ export default function SendPage() {
   const [routeMeters, setRouteMeters] = useState(null);
 
   useEffect(() => {
-    supabase.from('pricing_rules').select('*')
-      .eq('service_type', 'send').eq('is_active', true).order('base_price')
+    supabase
+      .from('pricing_rules')
+      .select('*')
+      .eq('service_type', 'send')
+      .eq('is_active', true)
+      .order('base_price')
       .then(({ data }) => {
-        // Titip beli and Barang besar are is_custom rows, not packages.
         const plain = (data || []).filter((r) => !r.is_custom);
         if (plain.length) {
           setRules(plain.map((r) => ({ id: r.code, name: r.name || r.code, base: Number(r.base_price) || 0, perKm: Number(r.per_km_rate) || 0 })));
@@ -121,12 +158,19 @@ export default function SendPage() {
       });
   }, []);
 
-  // Road distance once both points are known (same OSRM route as WiraRide).
+  // Road distance once both points are known
   useEffect(() => {
-    if (!senderCoords || !receiverCoords) { setRouteMeters(null); return; }
+    if (!senderCoords || !receiverCoords) {
+      setRouteMeters(null);
+      return;
+    }
     let cancelled = false;
-    fetchRoute(senderCoords, receiverCoords).then((r) => { if (!cancelled) setRouteMeters(r?.distance ?? null); });
-    return () => { cancelled = true; };
+    fetchRoute(senderCoords, receiverCoords).then((r) => {
+      if (!cancelled) setRouteMeters(r?.distance ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [senderCoords, receiverCoords]);
 
   // Distance prices round up to Rp500, as the server does (migrations/0113).
@@ -166,7 +210,7 @@ export default function SendPage() {
       setCheckingPromo(false);
     }
   };
-  // A code chosen with "Use now" on the home promos (utils/pendingPromo).
+
   usePendingPromo('send', promoCode, setPromoCode, handleCheckPromo);
 
   const handleRemovePromo = () => {
@@ -186,18 +230,48 @@ export default function SendPage() {
     return Math.max(0, basePrice - activePromo.discount);
   };
 
-  const handleOrderSubmit = async (e) => {
+  // Step 1 Validation & Proceed
+  const handleProceedStep1 = (e) => {
     e.preventDefault();
-    if (!senderName || !senderPhone || !senderAddress || !receiverName || !receiverPhone || !receiverAddress) {
+    if (!senderName.trim() || !senderPhone.trim() || !senderAddress.trim() ||
+        !receiverName.trim() || !receiverPhone.trim() || !receiverAddress.trim()) {
       toast.error(t('send.incomplete'));
       return;
     }
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Step 2 Validation & Proceed
+  const handleProceedStep2 = () => {
     if (isBig && bigDesc.trim().length < 10) {
       toast.error(t('send.big_desc_required'));
       return;
     }
     if (isBig && bigPhotos.length === 0) {
       toast.error(t('send.big_photo_required'));
+      return;
+    }
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Final Order Submission (Step 3)
+  const handleOrderSubmit = async (e) => {
+    e.preventDefault();
+    if (!senderName || !senderPhone || !senderAddress || !receiverName || !receiverPhone || !receiverAddress) {
+      toast.error(t('send.incomplete'));
+      setStep(1);
+      return;
+    }
+    if (isBig && bigDesc.trim().length < 10) {
+      toast.error(t('send.big_desc_required'));
+      setStep(2);
+      return;
+    }
+    if (isBig && bigPhotos.length === 0) {
+      toast.error(t('send.big_photo_required'));
+      setStep(2);
       return;
     }
 
@@ -211,13 +285,6 @@ export default function SendPage() {
     try {
       const resi = 'WRS-' + Math.floor(100000 + Math.random() * 900000);
 
-      // Best-effort geocode of the pickup address so nearby couriers can be
-      // notified (mirrors RestaurantPage.jsx geocoding a merchant's address)
-      // - SendPage previously had no coordinates at all, only free-text
-      // addresses. A failed/empty geocode just means no nearby-courier
-      // notification fires below; it must never block the booking itself.
-      // Points picked on the map (search, GPS or dragged pin) win; the text
-      // geocode is only the fallback for an address typed without a pin.
       let pickupLat = senderCoords?.lat ?? null;
       let pickupLng = senderCoords?.lng ?? null;
       let dropoffLat = receiverCoords?.lat ?? null;
@@ -239,22 +306,6 @@ export default function SendPage() {
         console.error('Failed to geocode WiraSend address:', geoErr);
       }
 
-      // Nearest-driver lookup, reused as the notification fan-out target the
-      // same way RidePage.jsx does. NOTE on eligibility: not every driver
-      // can take a Send job (migrations/0033 - requires 'send' in
-      // job_type_preferences, and for a 'mobil' driver additionally
-      // package_size IN ('sedang','besar')). get_nearest_drivers only
-      // filters by vehicle type/online status, not job-type preferences, so
-      // this can notify some drivers who aren't actually eligible to claim
-      // this particular Send job. A proper client-side eligibility filter
-      // was considered (querying users.job_type_preferences for the nearby
-      // ids) but public.users' RLS (migrations/0025/0026) only lets a
-      // customer read a driver's row once that driver is actually assigned
-      // to one of their orders - it can't be read for an unmatched nearby
-      // candidate without a new SECURITY DEFINER RPC, which is out of scope
-      // tonight. Per the task's own guidance this is low-severity noise (an
-      // ineligible driver just can't claim it), so option (a) - notify
-      // plain nearest drivers - is used here, same as Ride.
       let nearbyDrivers = [];
       if (pickupLat != null && pickupLng != null) {
         const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
@@ -297,8 +348,6 @@ export default function SendPage() {
         promoCode: null,
         metadata: { job: { description: bigDesc.trim(), photos: bigPhotoPaths, helper: bigHelper } },
       } : {
-        // WiraPay is charged by create_order_and_pay in the same DB transaction
-        // as the order insert, for the server-computed price (migrations/0070).
         paymentDescription: `WiraSend Paket ke ${receiverName}`,
         service: 'WiraSend',
         serviceType: 'send',
@@ -312,21 +361,16 @@ export default function SendPage() {
         pickupLng,
         dropoffLat,
         dropoffLng,
-        // selectedPackage already holds the exact tier id ('dokumen' |
-        // 'kecil' | 'sedang' | 'besar'), matching pricing_rules.code for
-        // service_type='send' (migrations/0057's seed).
         rateCode: currentPkg.id,
         distanceMeters: routeMeters ?? null,
         promoCode: activePromo?.code || null,
       });
+
       if (paymentMethod === 'WiraPay') refreshWallet();
 
       if (order?.id) navigate(`/active-order/${order.id}`);
 
-      // Best-effort nearby-courier push, fired only after the order exists,
-      // never blocking or surfacing an error to the customer's booking flow.
-
-      handleRemovePromo(); // don't let a used promo silently discount the next Send order
+      handleRemovePromo();
       toast.success(t('send.searching_courier'));
     } catch (err) {
       toast.error(t('send.failed', { message: err.userMessage || friendlyError(err) }), { id: 'order-create-error' });
@@ -335,7 +379,6 @@ export default function SendPage() {
     }
   };
 
-  // ---- display-only helpers (no effect on pricing or booking) ----
   const finalPrice = calculateFinalPrice();
   const insufficientBalance = paymentMethod === 'WiraPay' && balance < finalPrice;
   const PACKAGE_ICONS = { dokumen: FileText, kecil: Package, sedang: Briefcase, besar: Luggage };
@@ -347,14 +390,50 @@ export default function SendPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <PageHeader
-        back="/"
-        backLabel={t('common.back')}
+        back={step === 1 ? '/' : true}
+        onBack={step > 1 ? () => setStep(step - 1) : undefined}
+        backLabel={step === 1 ? t('common.back') : (step === 2 ? t('send.change_route') : t('send.change_package'))}
         title={t('send.title')}
         subtitle={t('send.subtitle')}
         className="mb-0"
       />
 
-      <form onSubmit={handleOrderSubmit} className="flex flex-col gap-4">
+      {/* Step Progress Pill */}
+      <div className="flex items-center justify-between rounded-card border border-line bg-card p-3 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white shadow-sm">
+            {step}
+          </span>
+          <div className="flex flex-col">
+            <span className="text-[12px] font-bold uppercase tracking-wider text-brand-ink">
+              {step === 1 && (t('send.step_1_of_3') || 'Langkah 1: Rute & Kontak')}
+              {step === 2 && (t('send.step_2_of_3') || 'Langkah 2: Pilih Paket & Armada')}
+              {step === 3 && (t('send.step_3_of_3') || 'Langkah 3: Konfirmasi & Bayar')}
+            </span>
+            <span className="text-[11px] text-ink-muted">
+              {step === 1 && (t('send.incomplete') ? 'Isi detail penjemputan dan pengantaran' : 'Langkah 1 dari 3')}
+              {step === 2 && (t('send.package_section') || 'Pilih ukuran atau jenis barang')}
+              {step === 3 && (t('common.payment_method') || 'Periksa rincian dan pilih pembayaran')}
+            </span>
+          </div>
+        </div>
+
+        {step > 1 && (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="rounded-control border border-line px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-sunken hover:text-ink transition-colors"
+          >
+            ← {t('common.back')}
+          </button>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* LANGKAH 1: RUTE & KONTAK (PENGIRIM & PENERIMA)            */}
+      {/* ======================================================== */}
+      {step === 1 && (
+        <form onSubmit={handleProceedStep1} className="flex flex-col gap-4 animate-fadeIn">
           {/* Detail Pengirim */}
           <Card className="flex flex-col gap-4">
             <h2 className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight text-ink">
@@ -369,6 +448,7 @@ export default function SendPage() {
                   autoComplete="name"
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
+                  placeholder="Nama pengirim paket"
                   required
                 />
               </Field>
@@ -399,8 +479,18 @@ export default function SendPage() {
               onPhoneChange={(p) => { if (p) setSenderPhone(p); }}
               markerType="pickup"
               pinLabel={t('send.sender_section')}
+              collapsible={true}
+              defaultExpanded={false}
             />
-            <AddressNoteField id="send-sender-note" address={senderAddress} lat={senderCoords?.lat} lng={senderCoords?.lng} note={senderNote} onNoteChange={setSenderNote} defaultPhone={senderPhone} />
+            <AddressNoteField
+              id="send-sender-note"
+              address={senderAddress}
+              lat={senderCoords?.lat}
+              lng={senderCoords?.lng}
+              note={senderNote}
+              onNoteChange={setSenderNote}
+              defaultPhone={senderPhone}
+            />
           </Card>
 
           {/* Detail Penerima */}
@@ -416,6 +506,7 @@ export default function SendPage() {
                   type="text"
                   value={receiverName}
                   onChange={(e) => setReceiverName(e.target.value)}
+                  placeholder="Nama penerima paket"
                   required
                 />
               </Field>
@@ -446,9 +537,19 @@ export default function SendPage() {
               onPhoneChange={(p) => { if (p) setReceiverPhone(p); }}
               markerType="dropoff"
               pinLabel={t('send.receiver_section')}
+              collapsible={true}
+              defaultExpanded={false}
             />
-            <AddressNoteField id="send-receiver-note" address={receiverAddress} lat={receiverCoords?.lat} lng={receiverCoords?.lng} note={receiverNote} onNoteChange={setReceiverNote} defaultPhone={receiverPhone} />
-            <Field label={t('wallet.transfer_note_label')} htmlFor="send-item-note">
+            <AddressNoteField
+              id="send-receiver-note"
+              address={receiverAddress}
+              lat={receiverCoords?.lat}
+              lng={receiverCoords?.lng}
+              note={receiverNote}
+              onNoteChange={setReceiverNote}
+              defaultPhone={receiverPhone}
+            />
+            <Field label={t('send.item_note_label') || t('wallet.transfer_note_label')} htmlFor="send-item-note">
               <Input
                 id="send-item-note"
                 type="text"
@@ -459,123 +560,355 @@ export default function SendPage() {
             </Field>
           </Card>
 
-          {/* Pilih Ukuran Paket */}
-          <section className="flex flex-col gap-3">
-            <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('send.package_section')}</h2>
-            <div role="radiogroup" aria-label={t('send.package_section')} className="grid grid-cols-2 gap-2.5">
-              {packages.map((p) => {
-                const isSelected = selectedPackage === p.id;
-                const Icon = PACKAGE_ICONS[p.id] || Package;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => setSelectedPackage(p.id)}
-                    className={cx(
-                      'flex h-full min-w-0 flex-col items-start gap-2.5 rounded-tile bg-card text-left transition-colors',
-                      isSelected ? 'border-2 border-brand p-[13px]' : 'border border-line p-3.5 hover:border-line-strong',
-                    )}
-                  >
-                    <IconTile tone="brand" size="sm"><Icon size={18} /></IconTile>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-[14px] font-bold leading-snug text-ink">{packageLabel(p)}</span>
-                      <span className="text-[11.5px] leading-snug text-ink-muted">{packageLabel(p, '_desc')}</span>
-                    </span>
-                    <span className="mt-auto flex flex-col gap-0.5">
-                      <Money value={p.price} className="text-[14px] font-medium text-ink" />
-                      {p.perKm > 0 && (
-                        <span className="text-[11px] text-ink-muted">
-                          {routeMeters ? t('send.distance_km', { km: (routeMeters / 1000).toFixed(1) }) : t('send.per_km', { price: formatRupiah(p.perKm) })}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {hasBigItem && (
-              <button
-                type="button"
-                role="radio"
-                aria-checked={isBig}
-                onClick={() => setSelectedPackage('BESAR')}
-                className={cx(
-                  'flex min-w-0 items-start gap-3 rounded-tile text-left transition-colors',
-                  isBig ? 'border-2 border-brand bg-brand-soft/50 p-[13px]' : 'border border-pay-line bg-pay-soft p-3.5 hover:border-line-strong',
-                )}
-              >
-                <IconTile tone="brand" size="sm"><Truck size={18} /></IconTile>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-[14px] font-bold leading-snug text-ink">{t('send.big_title')}</span>
-                  <span className="text-[12px] leading-snug text-ink-muted">{t('send.big_desc')}</span>
-                  <span className="text-[12px] font-semibold text-ink">{t('send.big_price')}</span>
+          {/* Quick Route Preview Pill */}
+          {senderAddress && receiverAddress && (
+            <div className="flex flex-col gap-1.5 rounded-card border border-brand-line bg-brand-soft/40 p-3.5 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-semibold text-brand-ink">
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-brand" />
+                  {t('send.route_summary') || 'Rute Pengiriman'}
                 </span>
-              </button>
-            )}
-            {isBig && (
-              <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
-                <Field label={t('send.big_desc_label')} htmlFor="send-big-desc" required hint={t('send.big_desc_hint')}>
-                  <Textarea
-                    id="send-big-desc"
-                    rows={3}
-                    maxLength={500}
-                    value={bigDesc}
-                    onChange={(e) => setBigDesc(e.target.value)}
-                    placeholder={t('send.big_desc_placeholder')}
-                    required
-                  />
-                </Field>
-                <JobPhotoPicker files={bigPhotos} onChange={setBigPhotos} />
-                <div className="flex flex-col gap-2">
-                  <span className="text-[13px] font-semibold text-ink">{t('send.big_helper')}</span>
-                  <div role="radiogroup" aria-label={t('send.big_helper')} className="grid grid-cols-2 gap-2">
-                    {[true, false].map((v) => (
-                      <button
-                        key={String(v)}
-                        type="button"
-                        role="radio"
-                        aria-checked={bigHelper === v}
-                        onClick={() => setBigHelper(v)}
-                        className={cx(optionCls(bigHelper === v), 'justify-center text-[13px] font-semibold text-ink')}
-                      >
-                        {v ? t('send.big_helper_yes') : t('send.big_helper_no')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Notice tone="warning">{t('send.big_note')}</Notice>
-                <Link to="/support" className="text-[13px] font-semibold text-brand-ink hover:underline">{t('send.big_truck_cta')}</Link>
+                {routeMeters && (
+                  <span className="font-mono font-bold text-ink">
+                    {(routeMeters / 1000).toFixed(1)} km
+                  </span>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                <span className="truncate max-w-[44%] font-semibold text-ink">{senderAddress.split(',')[0]}</span>
+                <span className="text-ink-muted">➔</span>
+                <span className="truncate max-w-[44%] font-semibold text-ink">{receiverAddress.split(',')[0]}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Proceed Button */}
+          <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-4 shadow-sm">
+            <Button
+              type="submit"
+              size="lg"
+              block
+              className="flex items-center justify-between font-bold"
+            >
+              <span>{t('send.proceed_to_package') || 'Lanjut: Pilih Paket'}</span>
+              <span className="text-lg">→</span>
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* ======================================================== */}
+      {/* LANGKAH 2: PILIH PAKET & ARMADA                           */}
+      {/* ======================================================== */}
+      {step === 2 && (
+        <div className="flex flex-col gap-4 animate-fadeIn">
+          {/* Ringkasan Rute dari Step 1 */}
+          <div className="flex items-center justify-between rounded-card border border-brand-line bg-brand-soft/30 p-3.5">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">
+                {t('send.route_summary') || 'Rute Pengiriman'}
+              </span>
+              <div className="truncate text-[13.5px] font-bold text-ink">
+                {senderAddress.split(',')[0]} ➔ {receiverAddress.split(',')[0]}
+              </div>
+              {routeMeters && (
+                <span className="font-mono text-[12px] font-semibold text-ink-muted">
+                  {t('send.est_distance') || 'Jarak'}: {(routeMeters / 1000).toFixed(1)} km
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="shrink-0 rounded-control bg-card px-3 py-1.5 text-xs font-bold text-brand-ink border border-brand/30 hover:bg-sunken transition-colors"
+            >
+              {t('send.change_route') || 'Ubah Rute'}
+            </button>
+          </div>
+
+          {/* Pilih Kendaraan (Segmented) */}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">
+              {t('send.vehicle_type') || 'Pilih Armada Pengiriman'}
+            </h2>
+            <Segmented
+              ariaLabel={t('send.vehicle_type') || 'Pilih Armada'}
+              value={isBig ? 'mobil' : 'motor'}
+              onChange={(v) => {
+                if (v === 'mobil') {
+                  setSelectedPackage('BESAR');
+                } else {
+                  if (selectedPackage === 'BESAR') setSelectedPackage('kecil');
+                }
+              }}
+              options={[
+                { value: 'motor', label: t('send.vehicle_motor') || 'Motor (Paket Reguler)' },
+                { value: 'mobil', label: t('send.vehicle_car') || 'Mobil (Barang Besar)' },
+              ]}
+              className="w-full"
+            />
           </section>
 
-          {!isBig && <PromoField
-            id="send-promo"
-            activePromo={activePromo}
-            promoCode={promoCode}
-            setPromoCode={setPromoCode}
-            onApply={handleCheckPromo}
-            onRemove={handleRemovePromo}
-            checking={checkingPromo}
-            error={promoError}
-          />}
+          {/* OPSI MOTOR: 4 UKURAN PAKET */}
+          {!isBig && (
+            <section className="flex flex-col gap-3">
+              <div className="flex flex-col gap-0.5">
+                <h3 className="text-[14px] font-bold text-ink">{t('send.package_section')}</h3>
+                <p className="text-[12px] text-ink-muted">Pilih paket sesuai ukuran dan berat barang Anda</p>
+              </div>
+              <div role="radiogroup" aria-label={t('send.package_section')} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {packages.map((p) => {
+                  const isSelected = selectedPackage === p.id;
+                  const Icon = PACKAGE_ICONS[p.id] || Package;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setSelectedPackage(p.id)}
+                      className={cx(
+                        'flex min-h-[92px] min-w-0 items-start gap-3 rounded-card text-left transition-all',
+                        isSelected
+                          ? 'border-2 border-brand bg-brand-soft/25 p-[13px] shadow-sm'
+                          : 'border border-line bg-card p-3.5 hover:border-line-strong',
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          'mt-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2',
+                          isSelected ? 'border-brand' : 'border-line-strong',
+                        )}
+                      >
+                        {isSelected && <span className="h-2 w-2 rounded-full bg-brand" />}
+                      </span>
+
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <Icon size={16} className={isSelected ? 'text-brand-ink' : 'text-ink-muted'} />
+                          <span className="text-[14px] font-bold leading-snug text-ink">{packageLabel(p)}</span>
+                        </div>
+                        <span className="text-[12px] leading-snug text-ink-muted">{packageLabel(p, '_desc')}</span>
+                        <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
+                          <Money value={p.price} className="font-mono text-[14px] font-bold text-ink" />
+                          {p.perKm > 0 && (
+                            <span className="text-[11px] text-ink-muted">
+                              {routeMeters ? `(${(routeMeters / 1000).toFixed(1)} km)` : t('send.per_km', { price: formatRupiah(p.perKm) })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* OPSI MOBIL: BARANG BESAR (PINDAHAN / FURNITUR) */}
+          {isBig && (
+            <Card className="flex flex-col gap-4 border-2 border-brand bg-card shadow-sm">
+              <div className="flex items-start gap-3">
+                <IconTile tone="brand" size="md"><Truck size={22} /></IconTile>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[16px] font-bold text-ink">{t('send.big_title')}</h3>
+                    <Badge tone="brand">Armada Mobil</Badge>
+                  </div>
+                  <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.big_desc')}</p>
+                </div>
+              </div>
+
+              <div className="rounded-control bg-brand-soft/50 p-3 text-[12.5px] leading-relaxed text-brand-ink">
+                <strong>{t('send.big_price')}</strong>: {t('send.big_item_price_note') || 'Tarif disepakati dengan driver melalui penawaran di aplikasi setelah driver melihat foto barang.'}
+              </div>
+
+              <Field label={t('send.big_desc_label')} htmlFor="send-big-desc" required hint={t('send.big_desc_hint')}>
+                <Textarea
+                  id="send-big-desc"
+                  rows={3}
+                  maxLength={500}
+                  value={bigDesc}
+                  onChange={(e) => setBigDesc(e.target.value)}
+                  placeholder={t('send.big_desc_placeholder')}
+                  required
+                />
+              </Field>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-ink">
+                  Foto Barang <span className="text-danger">*</span>
+                </label>
+                <p className="text-[12px] text-ink-muted">Foto membantu driver membawa mobil dan tali pengikat yang sesuai.</p>
+                <JobPhotoPicker files={bigPhotos} onChange={setBigPhotos} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-[13px] font-semibold text-ink">{t('send.big_helper')}</span>
+                <div role="radiogroup" aria-label={t('send.big_helper')} className="grid grid-cols-2 gap-2">
+                  {[true, false].map((v) => (
+                    <button
+                      key={String(v)}
+                      type="button"
+                      role="radio"
+                      aria-checked={bigHelper === v}
+                      onClick={() => setBigHelper(v)}
+                      className={cx(optionCls(bigHelper === v), 'justify-center text-[13px] font-semibold text-ink min-h-[44px]')}
+                    >
+                      {v ? t('send.big_helper_yes') : t('send.big_helper_no')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Notice tone="neutral">{t('send.big_note')}</Notice>
+              <Link to="/support" className="text-[13px] font-semibold text-brand-ink hover:underline">
+                {t('send.big_truck_cta')}
+              </Link>
+            </Card>
+          )}
+
+          {/* Stepper Navigation Buttons */}
+          <div className="flex w-full items-center gap-2 rounded-card border border-line bg-card p-4 shadow-sm">
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                setStep(1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="shrink-0"
+            >
+              ← {t('common.back')}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              block
+              onClick={handleProceedStep2}
+              className="flex-1 flex items-center justify-between font-bold"
+            >
+              <span>{t('send.proceed_to_payment') || 'Lanjut: Pembayaran'}</span>
+              <span className="text-lg">→</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* LANGKAH 3: KONFIRMASI & PEMBAYARAN                       */}
+      {/* ======================================================== */}
+      {step === 3 && (
+        <form onSubmit={handleOrderSubmit} className="flex flex-col gap-4 animate-fadeIn">
+          {/* Ringkasan Lengkap Pesanan */}
+          <Card className="flex flex-col gap-4">
+            <h2 className="text-[15px] font-bold tracking-tight text-ink">
+              {t('send.package_summary') || 'Ringkasan Pesanan'}
+            </h2>
+
+            {/* Rute Info Box */}
+            <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/40 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                  {t('send.route_summary') || 'Rute'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs font-bold text-brand-ink hover:underline"
+                >
+                  {t('send.change_route') || 'Ubah'}
+                </button>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[13px]">
+                <div className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-ink">{senderName} ({senderPhone})</span>
+                    <span className="text-ink-muted">{senderAddress} {senderNote ? `(${senderNote})` : ''}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-[2px] bg-danger" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-ink">{receiverName} ({receiverPhone})</span>
+                    <span className="text-ink-muted">{receiverAddress} {receiverNote ? `(${receiverNote})` : ''}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Paket Info Box */}
+            <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/40 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                  {t('send.package_section') || 'Paket'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="text-xs font-bold text-brand-ink hover:underline"
+                >
+                  {t('send.change_package') || 'Ubah'}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[14px] font-bold text-ink">
+                    {isBig ? t('send.big_title') : packageLabel(currentPkg)}
+                  </span>
+                  <span className="text-[12px] text-ink-muted">
+                    {isBig ? `${bigPhotos.length} foto barang` : packageLabel(currentPkg, '_desc')}
+                  </span>
+                  {itemNote && (
+                    <span className="text-[12px] italic text-ink-muted">
+                      Catatan: &ldquo;{itemNote}&rdquo;
+                    </span>
+                  )}
+                </div>
+                {routeMeters && (
+                  <span className="font-mono text-xs font-semibold text-ink-muted">
+                    {(routeMeters / 1000).toFixed(1)} km
+                  </span>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Kupon Promo (Hanya untuk pengiriman motor) */}
+          {!isBig && (
+            <PromoField
+              id="send-promo"
+              activePromo={activePromo}
+              promoCode={promoCode}
+              setPromoCode={setPromoCode}
+              onApply={handleCheckPromo}
+              onRemove={handleRemovePromo}
+              checking={checkingPromo}
+              error={promoError}
+            />
+          )}
 
           {/* Metode Pembayaran */}
-          <section className="flex flex-col gap-2">
+          <Card className="flex flex-col gap-3">
             <div className="flex flex-col gap-0.5">
               <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('common.payment_method')}</h2>
-              <p className="text-[13px] leading-relaxed text-ink-muted">{t('send.payment_hint')}</p>
+              <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                {isBig
+                  ? 'Pembayaran tunai langsung ke driver setelah kesepakatan harga di aplikasi.'
+                  : t('send.payment_hint')}
+              </p>
             </div>
-            <div role="radiogroup" aria-label={t('common.payment_method')} className={cx('grid gap-2', WALLET_ENABLED ? 'grid-cols-2' : 'grid-cols-1')}>
+            <div role="radiogroup" aria-label={t('common.payment_method')} className={cx('grid gap-2', WALLET_ENABLED && !isBig ? 'grid-cols-2' : 'grid-cols-1')}>
               {WALLET_ENABLED && !isBig && (
                 <button
                   type="button"
                   role="radio"
                   aria-checked={paymentMethod === 'WiraPay'}
                   onClick={() => setPaymentMethod('WiraPay')}
-                  className={cx(optionCls(paymentMethod === 'WiraPay'), 'min-h-[60px]')}
+                  className={cx(optionCls(paymentMethod === 'WiraPay'), 'min-h-[56px]')}
                 >
                   <Wallet size={18} className="shrink-0 text-pay" aria-hidden="true" />
                   <span className="flex min-w-0 flex-col">
@@ -589,38 +922,78 @@ export default function SendPage() {
                 role="radio"
                 aria-checked={paymentMethod === 'Tunai'}
                 onClick={() => setPaymentMethod('Tunai')}
-                className={cx(optionCls(paymentMethod === 'Tunai'), 'min-h-[60px]')}
+                className={cx(optionCls(paymentMethod === 'Tunai'), 'min-h-[56px]')}
               >
                 <Banknote size={18} className="shrink-0 text-success" aria-hidden="true" />
                 <span className="min-w-0 text-[13px] font-semibold leading-snug text-ink">{t('common.pay_cash_cod')}</span>
               </button>
             </div>
-          </section>
+          </Card>
 
-          {/* Booking panel: pinned above the bottom nav so the CTA is always reachable */}
-          <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-4">
-
+          {/* Rincian Harga & Tombol Kirim */}
+          <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-4 shadow-sm">
             {insufficientBalance && (
               <Notice tone="danger">{t('send.insufficient_balance')}</Notice>
             )}
 
-            {activePromo && (
-              <div className="flex items-center justify-between gap-3 text-[13px]">
-                <span className="text-ink-muted">{t('send.package_price')}</span>
-                <Money value={currentPkg.price} tone="muted" className="line-through" />
+            {!isBig && (
+              <div className="flex flex-col gap-1.5 border-b border-line pb-3">
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink-muted">{t('send.delivery_cost') || t('send.package_price')}</span>
+                  <Money value={currentPkg.price} className="font-mono text-ink" />
+                </div>
+
+                {activePromo && (
+                  <div className="flex items-center justify-between text-[13px] text-success">
+                    <span>{t('send.promo_discount') || 'Diskon Promo'}</span>
+                    <span>- <Money value={currentPkg.price - finalPrice} /></span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-1 text-[15px] font-bold">
+                  <span className="text-ink">{t('send.total_payment') || 'Total Bayar'}</span>
+                  <Money value={finalPrice} className="font-mono text-[17px] text-brand-ink" />
+                </div>
               </div>
             )}
 
-            <Button
-              type="submit"
-              size="lg"
-              block
-              isLoading={loading}
-            >
-              {loading ? t('send.booking') : isBig ? t('send.big_submit') : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
-            </Button>
+            {isBig && (
+              <div className="flex flex-col gap-1 border-b border-line pb-3 text-xs text-ink-muted">
+                <span className="font-semibold text-ink">{t('send.big_price')}</span>
+                <span>{t('send.big_note')}</span>
+              </div>
+            )}
+
+            <div className="flex w-full items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={() => {
+                  setStep(2);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="shrink-0"
+              >
+                ← {t('common.back')}
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                block
+                isLoading={loading}
+                className="flex-1 font-bold"
+              >
+                {loading
+                  ? t('send.booking')
+                  : isBig
+                  ? t('send.big_submit')
+                  : t('send.submit', { price: formatRupiah(calculateFinalPrice()) })}
+              </Button>
+            </div>
           </div>
         </form>
+      )}
     </div>
   );
 }

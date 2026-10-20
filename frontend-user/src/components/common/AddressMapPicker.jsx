@@ -24,9 +24,11 @@ const reverseGeocode = async ({ lat, lng }) => {
 export default function AddressMapPicker({
   id, label, placeholder, address, onAddressChange, coords, onCoordsChange,
   onNoteChange, onPhoneChange, markerType = 'dropoff', pinLabel,
+  collapsible = false, defaultExpanded = false,
 }) {
   const { t } = useTranslation();
   const [locating, setLocating] = useState(false);
+  const [mapOpen, setMapOpen] = useState(defaultExpanded);
 
   const setPoint = async (latLng, { fillAddress = true } = {}) => {
     onCoordsChange(latLng);
@@ -108,15 +110,45 @@ export default function AddressMapPicker({
         </button>
       </div>
 
-      <div className="h-44 overflow-hidden rounded-card border border-line">
-        <WiraMap
-          center={pin}
-          zoom={coords ? 17 : 13}
-          markers={[{ ...pin, type: markerType, label: pinLabel }]}
-          onMarkerDragEnd={(_idx, latLng) => setPoint(latLng)}
-        />
-      </div>
-      <p className="text-xs text-ink-muted">{t('common.map_pin_hint')}</p>
+      {collapsible ? (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setMapOpen(!mapOpen)}
+            className="inline-flex w-fit items-center gap-1.5 text-[12.5px] font-semibold text-brand-ink hover:underline"
+          >
+            <MapPin size={14} className={markerType === 'pickup' ? 'text-brand-ink' : 'text-danger'} />
+            {mapOpen
+              ? (t('common.hide_map') || 'Sembunyikan peta')
+              : (coords ? (t('common.adjust_pin') || 'Sesuaikan titik pin di peta') : (t('common.open_map') || 'Atur titik pin di peta'))}
+          </button>
+          {mapOpen && (
+            <div className="flex flex-col gap-1.5">
+              <div className="h-44 overflow-hidden rounded-card border border-line">
+                <WiraMap
+                  center={pin}
+                  zoom={coords ? 17 : 13}
+                  markers={[{ ...pin, type: markerType, label: pinLabel }]}
+                  onMarkerDragEnd={(_idx, latLng) => setPoint(latLng)}
+                />
+              </div>
+              <p className="text-xs text-ink-muted">{t('common.map_pin_hint')}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="h-44 overflow-hidden rounded-card border border-line">
+            <WiraMap
+              center={pin}
+              zoom={coords ? 17 : 13}
+              markers={[{ ...pin, type: markerType, label: pinLabel }]}
+              onMarkerDragEnd={(_idx, latLng) => setPoint(latLng)}
+            />
+          </div>
+          <p className="text-xs text-ink-muted">{t('common.map_pin_hint')}</p>
+        </>
+      )}
     </div>
   );
 }
