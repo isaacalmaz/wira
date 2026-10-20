@@ -28,6 +28,8 @@ import { isPromoExpired } from '../utils/promoDates';
 import { friendlyError } from '../utils/friendlyError';
 import PromoField from '../components/common/PromoField';
 import { WALLET_ENABLED } from '../config/wallet';
+import HourlyDurationCard from '../components/ride/HourlyDurationCard';
+import RideSchedulePicker from '../components/ride/RideSchedulePicker';
 
 const SLOT = '\u0000';
 function withMoney(text, value) {
@@ -697,48 +699,31 @@ export default function RidePage() {
               <div className="h-px bg-line" aria-hidden="true" />
 
               {mode === 'hourly' && (
-                <div className="flex flex-col gap-2.5">
-                  <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.hours_title')}</h2>
-                  <div role="radiogroup" aria-label={t('ride.hours_title')} className="flex flex-wrap gap-2">
-                    {Array.from({ length: limits.maxHours - limits.minHours + 1 }, (_, i) => limits.minHours + i).map((h) => (
-                      <button key={h} type="button" role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={chipCls(hours === h)}>
-                        {t('ride.hours_n', { count: h })}
-                      </button>
-                    ))}
-                  </div>
-                  <div role="radiogroup" aria-label={t('ride.start_label')} className="flex flex-wrap gap-2">
-                    <button type="button" role="radio" aria-checked={startNow} onClick={() => setStartNow(true)} className={chipCls(startNow)}>{t('ride.start_now')}</button>
-                    <button type="button" role="radio" aria-checked={!startNow} onClick={() => setStartNow(false)} className={chipCls(!startNow)}>{t('ride.start_pick')}</button>
-                  </div>
-                </div>
+                <HourlyDurationCard
+                  hours={hours}
+                  onChangeHours={setHours}
+                  limits={limits}
+                  startNow={startNow}
+                  onChangeStartNow={setStartNow}
+                  selectedVehicle={selectedVehicle}
+                  t={t}
+                />
               )}
 
               {needsTime && (
-                <div className="flex flex-col gap-2.5">
-                  <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('ride.when_title')}</h2>
-                  <div role="radiogroup" aria-label={t('ride.when_title')} className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
-                    {dayOptions.map((d, i) => (
-                      <button key={i} type="button" role="radio" aria-checked={schedDay === i} onClick={() => { setSchedDay(i); setSchedTime(''); }} className={cx(chipCls(schedDay === i), 'shrink-0')}>
-                        {dayLabel(d, i)}
-                      </button>
-                    ))}
-                  </div>
-                  {timeOptions.length > 0 ? (
-                    <select
-                      id="ride-time"
-                      aria-label={t('ride.time_label')}
-                      value={schedTime}
-                      onChange={(e) => setSchedTime(e.target.value)}
-                      className="min-h-11 rounded-control border border-line-strong bg-card px-3 font-mono text-[14px] text-ink"
-                    >
-                      <option value="">{t('ride.time_placeholder')}</option>
-                      {timeOptions.map((d) => <option key={timeKey(d)} value={timeKey(d)}>{timeKey(d)}</option>)}
-                    </select>
-                  ) : (
-                    <p className="text-[12.5px] text-ink-muted">{t('ride.no_time_today')}</p>
-                  )}
-                  <p className="text-[12px] leading-relaxed text-ink-muted">{t('ride.schedule_hint', { minutes: limits.minMinutes, days: limits.maxDays })}</p>
-                </div>
+                <RideSchedulePicker
+                  schedDay={schedDay}
+                  setSchedDay={setSchedDay}
+                  schedTime={schedTime}
+                  setSchedTime={setSchedTime}
+                  dayOptions={dayOptions}
+                  timeOptions={timeOptions}
+                  dayLabel={dayLabel}
+                  timeKey={timeKey}
+                  limits={limits}
+                  t={t}
+                  lang={lang}
+                />
               )}
 
               <div className="flex flex-col gap-2.5">
