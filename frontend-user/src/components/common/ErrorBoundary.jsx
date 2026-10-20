@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { translateStatic } from '../../i18n';
 import { Button, Card, IconTile } from '../ui';
+import { captureAppError } from '../../config/sentry';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -15,6 +16,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    captureAppError(error, { componentStack: errorInfo?.componentStack });
     
     // Auto-reload once if the error is a missing chunk (common on Vercel after new deploys)
     const isChunkLoadError = error?.name === 'ChunkLoadError' || 

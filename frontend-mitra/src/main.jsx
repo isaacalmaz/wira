@@ -6,10 +6,15 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
+import { initSentry } from './config/sentry';
 import { startNativeShell } from './native/nativeShell';
 import { checkAppUpdates } from './native/appUpdates';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
+
+// Inisialisasi crash & error monitoring Sentry
+initSentry();
 
 // =========================================
 // 📌 Entry Point Dashboard Mitra Wira
@@ -18,11 +23,13 @@ import { ThemeProvider } from './context/ThemeContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

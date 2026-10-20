@@ -6,8 +6,12 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
+import { initSentry } from './config/sentry';
 import { startNativeShell } from './native/nativeShell';
 import { checkAppUpdates } from './native/appUpdates';
+
+// Inisialisasi crash & error monitoring Sentry
+initSentry();
 
 // =========================================
 // 📌 Entry Point Aplikasi Wira
