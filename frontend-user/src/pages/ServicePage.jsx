@@ -129,6 +129,7 @@ export default function ServicePage() {
   // '' = let Wira pick (every technician with the skill is offered the job)
   const [selectedTechId, setSelectedTechId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState(1); // 1 = Pilih Layanan, 2 = Jadwal & Lokasi
 
   useEffect(() => {
     let cancelled = false;
@@ -229,7 +230,20 @@ export default function ServicePage() {
     setActivePromo(null);
     setPromoCode('');
     setPromoError('');
+    setBookingStep(1);
     setIsModalOpen(true);
+  };
+
+  const handleProceedToSchedule = () => {
+    if (bookingItems.length > 0 && chosenItems.length === 0 && (!customChosen || jobDesc.trim().length < 10)) {
+      toast.error(t('service.pick_item'));
+      return;
+    }
+    if (customChosen && jobDesc.trim().length < 10) {
+      toast.error(t('service.custom_desc_required'));
+      return;
+    }
+    setBookingStep(2);
   };
 
   // Arriving from a technician's profile (/service?tech=…&cat=…): open the
@@ -516,251 +530,401 @@ export default function ServicePage() {
       {/* SHEET BOOKING TEKNISI */}
       <Sheet
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setBookingStep(1);
+        }}
         closeLabel={t('common.close')}
-        title={t('service.booking_title', { service: categoryLabel(selectedService) })}
-        description={selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line')}
+        title={
+          bookingStep === 1
+            ? t('service.booking_title', { service: categoryLabel(selectedService) })
+            : (t('service.step_2_title') || 'Jadwal & Lokasi Servis')
+        }
+        description={
+          bookingStep === 1
+            ? (selectedTech ? t('service.technician_line', { name: selectedTech.name }) : t('service.auto_assign_line'))
+            : (`${categoryLabel(selectedService)} • ${t('service.step_2_of_2') || 'Langkah 2 dari 2'}`)
+        }
         footer={
-          <Button type="submit" form="service-booking-form" size="lg" block disabled={loading || !serviceTime} isLoading={loading}>
-            {loading ? t('common.processing') : t('service.submit')}
-          </Button>
+          bookingStep === 1 ? (
+            <Button
+              type="button"
+              size="lg"
+              block
+              disabled={chosenItems.length === 0 && (!customChosen || jobDesc.trim().length < 10)}
+              onClick={handleProceedToSchedule}
+              className="flex items-center justify-between"
+            >
+              <span>{t('service.proceed_to_schedule') || 'Lanjut ke Jadwal & Alamat'}</span>
+              {itemsTotal > 0 && (
+                <span className="rounded bg-white/20 px-2.5 py-0.5 font-mono text-xs font-bold text-white">
+                  <Money value={itemsTotal} /> →
+                </span>
+              )}
+            </Button>
+          ) : (
+            <div className="flex w-full items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                className="w-1/3"
+                onClick={() => setBookingStep(1)}
+              >
+                {t('common.back')}
+              </Button>
+              <Button
+                type="submit"
+                form="service-booking-form"
+                size="lg"
+                className="w-2/3"
+                disabled={loading || !serviceTime || !address.trim()}
+                isLoading={loading}
+              >
+                {loading ? t('common.processing') : t('service.submit')}
+              </Button>
+            </div>
+          )
         }
       >
-        <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-1.5" aria-label={t('service.trust_label')}>
-            <Badge tone="success"><ShieldCheck size={12} aria-hidden="true" /> {t('service.trust_verified')}</Badge>
-            <Badge tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t('service.trust_price')}</Badge>
-          </div>
-          {selectedService && techsFor(selectedService.id).length > 0 && (
-            <Field label={t('service.tech_label')} htmlFor="service-tech" hint={selectedTech ? t('service.tech_hint_chosen') : t('service.tech_hint_auto')}>
-              <Select id="service-tech" value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}>
-                <option value="">{t('service.auto_assign')}</option>
-                {techsFor(selectedService.id).map((tech) => (
-                  <option key={tech.id} value={tech.id}>{tech.name}</option>
-                ))}
-              </Select>
-            </Field>
-          )}
-
-          {bookingItems.length > 0 && (
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-[13px] font-semibold text-ink">{t('service.items_label')}</legend>
-              {menuItems.length > 0 && (
-              <ul className="flex flex-col divide-y divide-line rounded-card border border-line bg-card">
-                {menuItems.map((item) => {
-                  const n = qty[item.code] || 0;
-                  return (
-                    <li key={item.code} className="flex items-center gap-3 px-3.5 py-3">
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-[14px] font-semibold leading-snug text-ink">{item.name}</span>
-                        {item.description && <span className="text-[12px] leading-snug text-ink-muted">{item.description}</span>}
-                        <span className="text-[12.5px] text-ink">
-                          <Money value={Number(item.base_price)} />
-                          {item.unit_label && <span className="text-ink-muted"> / {item.unit_label}</span>}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label={item.name}>
-                        <button
-                          type="button"
-                          onClick={() => changeQty(item, -1)}
-                          disabled={n === 0}
-                          aria-label={t('service.qty_less', { name: item.name })}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong text-ink transition-colors hover:bg-sunken disabled:opacity-40"
-                        >
-                          <Minus size={16} />
-                        </button>
-                        <span className="w-6 text-center font-mono text-[15px] font-medium text-ink" aria-live="polite">{n}</span>
-                        <button
-                          type="button"
-                          onClick={() => changeQty(item, 1)}
-                          disabled={n >= (item.max_qty || 10)}
-                          aria-label={t('service.qty_more', { name: item.name })}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-40"
-                        >
-                          <Plus size={16} />
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+        {bookingStep === 1 ? (
+          <div className="flex flex-col gap-4">
+            {/* Step Progress Pill */}
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white text-[11px] font-bold">1</span>
+                <span className="text-[12px] font-bold uppercase tracking-wider text-brand-ink">
+                  {t('service.step_1_of_2') || 'Langkah 1: Pilih Layanan'}
+                </span>
+              </div>
+              {chosenItems.length > 0 && (
+                <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[12px] font-bold text-brand-ink">
+                  {chosenItems.reduce((acc, m) => acc + (qty[m.code] || 0), 0)} Unit Dipilih
+                </span>
               )}
-              {customItem && (
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={customChosen}
-                  onClick={toggleCustom}
-                  className={cx(
-                    'flex w-full items-start gap-3 rounded-card text-left transition-colors',
-                    customChosen ? 'border-2 border-brand bg-brand-soft/50 px-[13px] py-[11px]' : 'border border-line bg-card px-3.5 py-3 hover:border-line-strong',
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cx('mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2', customChosen ? 'border-brand' : 'border-line-strong')}
-                  >
-                    {customChosen && <span className="h-2 w-2 rounded-full bg-brand" />}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-[14px] font-semibold text-ink">{t('service.custom_title')}</span>
-                    <span className="text-[12px] leading-snug text-ink-muted">{t('service.custom_desc')}</span>
-                    <span className="text-[12.5px] text-ink">
-                      {menuItems.some((m) => (qty[m.code] || 0) > 0)
-                        ? t('service.custom_price_free')
-                        : withMoney(t('service.custom_price_check', { fee: SLOT }), checkFee)}
-                    </span>
-                  </span>
-                </button>
-              )}
-              {customChosen && (
-                <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
-                  <Field label={t('service.custom_desc_label')} htmlFor="service-job-desc" required hint={t('service.custom_desc_hint')}>
-                    <Textarea
-                      id="service-job-desc"
-                      rows={3}
-                      maxLength={500}
-                      value={jobDesc}
-                      onChange={(e) => setJobDesc(e.target.value)}
-                      placeholder={t('service.custom_desc_placeholder')}
-                      required
-                    />
-                  </Field>
-                  <JobPhotoPicker files={jobPhotos} onChange={setJobPhotos} />
-                  <Notice tone="warning">
-                    {onlyCustom
-                      ? withMoney(t('service.custom_check_note', { fee: SLOT }), checkFee)
-                      : t('service.custom_combined_note')}
-                  </Notice>
-                </div>
-              )}
-              <p className="text-[12px] leading-relaxed text-ink-muted">
-                {withMoney(t('service.extra_note', { fee: SLOT }), checkFee, { className: 'text-ink' })}
-              </p>
-            </fieldset>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t('service.date_label')} htmlFor="service-date" required>
-              <Input
-                id="service-date"
-                type="date"
-                value={serviceDate}
-                min={witaToday()}
-                max={witaDatePlus(7)}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="font-mono"
-                required
-              />
-            </Field>
-            <Field label={t('service.time_label')} htmlFor="service-time">
-              <Select
-                id="service-time"
-                value={serviceTime}
-                onChange={(e) => setServiceTime(e.target.value)}
-                disabled={timeSlots.length === 0}
-              >
-                {timeSlots.length === 0 && <option value="">{t('service.no_slots')}</option>}
-                {timeSlots.map((time) => (
-                  <option key={time} value={time}>
-                    {t('service.time_option', { time })}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-
-          <AddressMapPicker
-            id="service-address"
-            label={t('service.address_label')}
-            placeholder={t('service.address_placeholder')}
-            address={address}
-            onAddressChange={setAddress}
-            coords={addressCoords}
-            onCoordsChange={setAddressCoords}
-            onNoteChange={setAddressNote}
-            markerType="dropoff"
-            pinLabel={t('service.address_label')}
-          />
-          <AddressNoteField
-            id="service-address-note"
-            address={address}
-            lat={addressCoords?.lat}
-            lng={addressCoords?.lng}
-            note={addressNote}
-            onNoteChange={setAddressNote}
-          />
-
-          <Field label={t('service.complaint_label')} htmlFor="service-notes">
-            <Input
-              id="service-notes"
-              type="text"
-              placeholder={t('service.complaint_placeholder')}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </Field>
-
-          {/* Metode Pembayaran */}
-          <div className="flex flex-col gap-2">
-            <GroupLabel>{t('common.payment_method')}</GroupLabel>
-            <div role="radiogroup" aria-label={t('common.payment_method')} className="flex flex-col gap-2.5">
-              {WALLET_ENABLED && (
-                <ChoiceCard
-                  selected={paymentMethod === 'WiraPay'}
-                  onClick={() => setPaymentMethod('WiraPay')}
-                  leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
-                  title="WiraPay"
-                  subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
-                />
-              )}
-              <ChoiceCard
-                selected={paymentMethod === 'Tunai'}
-                onClick={() => setPaymentMethod('Tunai')}
-                leading={<IconTile tone="neutral" size="sm"><Banknote size={18} /></IconTile>}
-                title={t('common.pay_cash')}
-                subtitle={t('common.pay_cash_to_technician')}
-              />
             </div>
-            {paymentMethod === 'WiraPay' && balance < calculateFinalPrice() && (
-              <Notice tone="danger">{t('service.insufficient_balance')}</Notice>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap gap-1.5" aria-label={t('service.trust_label')}>
+              <Badge tone="success"><ShieldCheck size={12} aria-hidden="true" /> {t('service.trust_verified')}</Badge>
+              <Badge tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t('service.trust_price')}</Badge>
+            </div>
+
+            {/* Teknisi Pilihan jika ada */}
+            {selectedService && techsFor(selectedService.id).length > 0 && (
+              <Field label={t('service.tech_label')} htmlFor="service-tech" hint={selectedTech ? t('service.tech_hint_chosen') : t('service.tech_hint_auto')}>
+                <Select id="service-tech" value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}>
+                  <option value="">{t('service.auto_assign')}</option>
+                  {techsFor(selectedService.id).map((tech) => (
+                    <option key={tech.id} value={tech.id}>{tech.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+
+            {/* Daftar Layanan / Pekerjaan (Bebas dari bug legend) */}
+            {bookingItems.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-[14px] font-bold text-ink">
+                    {t('service.how_many_units') || 'Berapa unit yang ingin diservis?'}
+                  </h3>
+                  <p className="text-[12px] text-ink-muted">
+                    {t('service.select_units_hint') || 'Pilih jenis cuci atau perbaikan sesuai kebutuhan Anda'}
+                  </p>
+                </div>
+
+                {menuItems.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {menuItems.map((item) => {
+                      const n = qty[item.code] || 0;
+                      const isSelected = n > 0;
+                      return (
+                        <div
+                          key={item.code}
+                          className={cx(
+                            'flex items-center justify-between gap-3 rounded-card p-3.5 transition-all',
+                            isSelected
+                              ? 'border-2 border-brand bg-brand-soft/25 shadow-sm'
+                              : 'border border-line bg-card hover:border-line-strong'
+                          )}
+                        >
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[14px] font-bold leading-snug text-ink">{item.name}</span>
+                              {isSelected && (
+                                <span className="rounded bg-brand px-1.5 py-0.2 font-mono text-[10.5px] font-bold text-white">
+                                  {n} {item.unit_label || 'Unit'}
+                                </span>
+                              )}
+                            </div>
+                            {item.description && (
+                              <span className="text-[12px] leading-snug text-ink-muted">{item.description}</span>
+                            )}
+                            <span className={cx('font-mono text-[12.5px] font-bold', isSelected ? 'text-brand-ink' : 'text-ink')}>
+                              <Money value={Number(item.base_price)} />
+                              {item.unit_label && <span className="font-normal text-ink-muted"> / {item.unit_label}</span>}
+                            </span>
+                          </div>
+
+                          {/* Stepper Ramah Jempol (Touch target >= 40px) */}
+                          <div className={cx('flex items-center gap-1.5 rounded-control p-1 transition-colors', isSelected ? 'bg-card border border-line-strong shadow-sm' : 'bg-sunken border border-line')}>
+                            <button
+                              type="button"
+                              onClick={() => changeQty(item, -1)}
+                              disabled={n === 0}
+                              aria-label={t('service.qty_less', { name: item.name })}
+                              className={cx(
+                                'flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-ink font-bold transition-all',
+                                n === 0 ? 'opacity-30 cursor-not-allowed' : 'bg-sunken hover:bg-line active:scale-95'
+                              )}
+                            >
+                              <Minus size={18} />
+                            </button>
+                            <span className="w-7 text-center font-mono text-[16px] font-extrabold text-ink" aria-live="polite">
+                              {n}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => changeQty(item, 1)}
+                              disabled={n >= (item.max_qty || 10)}
+                              aria-label={t('service.qty_more', { name: item.name })}
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-brand text-white font-bold hover:bg-brand-hover active:scale-95 shadow-sm transition-all"
+                            >
+                              <Plus size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Pekerjaan Lain */}
+                {customItem && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={customChosen}
+                      onClick={toggleCustom}
+                      className={cx(
+                        'flex w-full items-start gap-3 rounded-card text-left transition-colors',
+                        customChosen ? 'border-2 border-brand bg-brand-soft/50 p-3.5' : 'border border-line bg-card p-3.5 hover:border-line-strong',
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cx('mt-0.5 flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full border-2', customChosen ? 'border-brand' : 'border-line-strong')}
+                      >
+                        {customChosen && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[14px] font-bold text-ink">{t('service.custom_title')}</span>
+                        <span className="text-[12px] leading-snug text-ink-muted">{t('service.custom_desc')}</span>
+                        <span className="text-[12.5px] font-semibold text-brand-ink">
+                          {menuItems.some((m) => (qty[m.code] || 0) > 0)
+                            ? t('service.custom_price_free')
+                            : withMoney(t('service.custom_price_check', { fee: SLOT }), checkFee)}
+                        </span>
+                      </span>
+                    </button>
+
+                    {customChosen && (
+                      <div className="mt-2.5 flex flex-col gap-3 rounded-card border border-line bg-card p-3.5">
+                        <Field label={t('service.custom_desc_label')} htmlFor="service-job-desc" required hint={t('service.custom_desc_hint')}>
+                          <Textarea
+                            id="service-job-desc"
+                            rows={3}
+                            maxLength={500}
+                            value={jobDesc}
+                            onChange={(e) => setJobDesc(e.target.value)}
+                            placeholder={t('service.custom_desc_placeholder')}
+                            required
+                          />
+                        </Field>
+                        <JobPhotoPicker files={jobPhotos} onChange={setJobPhotos} />
+                        <Notice tone="warning">
+                          {onlyCustom
+                            ? withMoney(t('service.custom_check_note', { fee: SLOT }), checkFee)
+                            : t('service.custom_combined_note')}
+                        </Notice>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[12px] leading-relaxed text-ink-muted pt-1">
+                  {withMoney(t('service.extra_note', { fee: SLOT }), checkFee, { className: 'text-ink' })}
+                </p>
+              </div>
             )}
           </div>
+        ) : (
+          /* LANGKAH 2: JADWAL & ALAMAT */
+          <form id="service-booking-form" onSubmit={handleConfirmOrder} className="flex flex-col gap-5">
+            {/* Step Progress Pill */}
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white text-[11px] font-bold">2</span>
+                <span className="text-[12px] font-bold uppercase tracking-wider text-brand-ink">
+                  {t('service.step_2_of_2') || 'Langkah 2: Jadwal & Alamat'}
+                </span>
+              </div>
+            </div>
 
-          {/* Kode Promo (not for an order that is only "Pekerjaan lain", 0123) */}
-          {onlyCustom ? (
-            <p className="text-[12px] text-ink-muted">{t('service.custom_no_promo')}</p>
-          ) : (
-          <PromoField
-            t={t}
-            id="service-promo"
-            activePromo={activePromo}
-            promoCode={promoCode}
-            setPromoCode={setPromoCode}
-            onApply={handleCheckPromo}
-            onRemove={handleRemovePromo}
-            checking={checkingPromo}
-            error={promoError}
-          />
-          )}
+            {/* Ringkasan Layanan yang Dipilih di Step 1 */}
+            <div className="flex items-center justify-between rounded-card border border-brand-line bg-brand-soft/40 p-3.5">
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">
+                  {t('service.selected_summary') || 'Layanan yang Dipesan'}
+                </span>
+                <span className="truncate text-[13.5px] font-bold text-ink">
+                  {chosenItems.map((m) => `${m.name} (${qty[m.code]}x)`).join(', ') || t('service.custom_title')}
+                </span>
+                <span className="font-mono text-[13px] font-extrabold text-brand-ink">
+                  <Money value={itemsTotal} />
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBookingStep(1)}
+                className="shrink-0 rounded-control bg-card px-3 py-1.5 text-xs font-bold text-brand-ink border border-brand/30 hover:bg-sunken transition-colors"
+              >
+                {t('service.change_services') || 'Ubah'}
+              </button>
+            </div>
 
-          <dl className="flex flex-col rounded-card border border-line bg-card p-4 text-[13px]">
-            <SummaryRow label={t('service.estimate_label')} strong className="text-[14px]">
-              <span className="flex flex-col items-end">
-                {activePromo && !onlyCustom && (
-                  <Money value={bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0)} tone="muted" className="text-[12px] line-through" />
+            {/* Tanggal & Jam */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('service.date_label')} htmlFor="service-date" required>
+                <Input
+                  id="service-date"
+                  type="date"
+                  value={serviceDate}
+                  min={witaToday()}
+                  max={witaDatePlus(7)}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="font-mono"
+                  required
+                />
+              </Field>
+              <Field label={t('service.time_label')} htmlFor="service-time">
+                <Select
+                  id="service-time"
+                  value={serviceTime}
+                  onChange={(e) => setServiceTime(e.target.value)}
+                  disabled={timeSlots.length === 0}
+                >
+                  {timeSlots.length === 0 && <option value="">{t('service.no_slots')}</option>}
+                  {timeSlots.map((time) => (
+                    <option key={time} value={time}>
+                      {t('service.time_option', { time })}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+
+            {/* Alamat & Map */}
+            <AddressMapPicker
+              id="service-address"
+              label={t('service.address_label')}
+              placeholder={t('service.address_placeholder')}
+              address={address}
+              onAddressChange={setAddress}
+              coords={addressCoords}
+              onCoordsChange={setAddressCoords}
+              onNoteChange={setAddressNote}
+              markerType="dropoff"
+              pinLabel={t('service.address_label')}
+            />
+            <AddressNoteField
+              id="service-address-note"
+              address={address}
+              lat={addressCoords?.lat}
+              lng={addressCoords?.lng}
+              note={addressNote}
+              onNoteChange={setAddressNote}
+            />
+
+            {/* Catatan / Keluhan */}
+            <Field label={t('service.complaint_label')} htmlFor="service-notes">
+              <Input
+                id="service-notes"
+                type="text"
+                placeholder={t('service.complaint_placeholder')}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
+
+            {/* Metode Pembayaran */}
+            <div className="flex flex-col gap-2">
+              <GroupLabel>{t('common.payment_method')}</GroupLabel>
+              <div role="radiogroup" aria-label={t('common.payment_method')} className="flex flex-col gap-2.5">
+                {WALLET_ENABLED && (
+                  <ChoiceCard
+                    selected={paymentMethod === 'WiraPay'}
+                    onClick={() => setPaymentMethod('WiraPay')}
+                    leading={<IconTile tone="pay" size="sm"><Wallet size={18} /></IconTile>}
+                    title="WiraPay"
+                    subtitle={withMoney(t('common.balance_with_amount', { amount: SLOT }), balance)}
+                  />
                 )}
-                <Money value={calculateFinalPrice()} className="text-[17px] font-medium" />
-              </span>
-            </SummaryRow>
-          </dl>
-          {customChosen && (
-            <p className="text-[12px] text-ink-muted">
-              {t('service.big_job_note')}{' '}
-              <Link to="/support" className="font-semibold text-brand-ink underline-offset-2 hover:underline">{t('service.big_job_cta')}</Link>
-            </p>
-          )}
-        </form>
+                <ChoiceCard
+                  selected={paymentMethod === 'Tunai'}
+                  onClick={() => setPaymentMethod('Tunai')}
+                  leading={<IconTile tone="neutral" size="sm"><Banknote size={18} /></IconTile>}
+                  title={t('common.pay_cash')}
+                  subtitle={t('common.pay_cash_to_technician')}
+                />
+              </div>
+              <div className="flex items-center gap-2 rounded-control border border-line bg-sunken p-2.5 text-xs text-ink-muted">
+                <span>💵</span>
+                <span>{t('service.cash_payment_note') || 'Bayar tunai langsung ke teknisi setelah selesai dan diuji.'}</span>
+              </div>
+              {paymentMethod === 'WiraPay' && balance < calculateFinalPrice() && (
+                <Notice tone="danger">{t('service.insufficient_balance')}</Notice>
+              )}
+            </div>
+
+            {/* Kode Promo */}
+            {onlyCustom ? (
+              <p className="text-[12px] text-ink-muted">{t('service.custom_no_promo')}</p>
+            ) : (
+              <PromoField
+                t={t}
+                id="service-promo"
+                activePromo={activePromo}
+                promoCode={promoCode}
+                setPromoCode={setPromoCode}
+                onApply={handleCheckPromo}
+                onRemove={handleRemovePromo}
+                checking={checkingPromo}
+                error={promoError}
+              />
+            )}
+
+            {/* Ringkasan Estimasi Biaya */}
+            <dl className="flex flex-col rounded-card border border-line bg-card p-4 text-[13px]">
+              <SummaryRow label={t('service.estimate_label')} strong className="text-[14px]">
+                <span className="flex flex-col items-end">
+                  {activePromo && !onlyCustom && (
+                    <Money value={bookingItems.length > 0 ? itemsTotal : (selectedService?.price || 0)} tone="muted" className="text-[12px] line-through" />
+                  )}
+                  <Money value={calculateFinalPrice()} className="text-[17px] font-bold text-ink" />
+                </span>
+              </SummaryRow>
+            </dl>
+            {customChosen && (
+              <p className="text-[12px] text-ink-muted">
+                {t('service.big_job_note')}{' '}
+                <Link to="/support" className="font-semibold text-brand-ink underline-offset-2 hover:underline">{t('service.big_job_cta')}</Link>
+              </p>
+            )}
+          </form>
+        )}
       </Sheet>
     </div>
   );
