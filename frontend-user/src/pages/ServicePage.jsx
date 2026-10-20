@@ -429,18 +429,8 @@ export default function ServicePage() {
               className={cx('flex flex-col items-start gap-3', unavailable && 'opacity-60')}
             >
               <IconTile tone={unavailable ? 'neutral' : 'brand'}><Icon size={20} /></IconTile>
-              <span className="flex flex-col gap-0.5">
-                <span className="text-[14px] font-semibold leading-snug text-ink">
-                  {categoryLabel(c)}
-                </span>
-                <span className="text-[12px] text-ink-muted">
-                  {withMoney(t('service.starting_from', { price: SLOT }), c.price, { className: 'text-ink' })}
-                </span>
-                {techLoaded && (
-                  <span className={cx('text-[12px] font-medium', unavailable ? 'text-ink-muted' : 'text-success-ink')}>
-                    {unavailable ? t('service.unavailable') : (t('service.available_badge') || 'Tersedia')}
-                  </span>
-                )}
+              <span className="text-[14px] font-semibold leading-snug text-ink text-left">
+                {categoryLabel(c)}
               </span>
             </Card>
           );
