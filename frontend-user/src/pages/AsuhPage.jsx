@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -8,6 +8,9 @@ import {
   Trash2,
   ShieldCheck,
   Calendar,
+  Clock,
+  ChevronDown,
+  ChevronRight,
   ArrowRight,
   HeartHandshake,
 } from 'lucide-react';
@@ -18,6 +21,7 @@ import {
   Input,
   Textarea,
   Select,
+  Sheet,
   Money,
   IconTile,
   Notice,
@@ -59,12 +63,14 @@ function SummaryRow({ label, children, strong = false, className = '' }) {
 }
 
 export default function AsuhPage() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
 
   // ALUR 2 JENDELA: Step 1 (Waktu & Data Anak) -> Step 2 (Lokasi & Konfirmasi)
   const [step, setStep] = useState(1);
+  const [showInfoSheet, setShowInfoSheet] = useState(false);
+  const [showTimeSheet, setShowTimeSheet] = useState(false);
 
   const [rates, setRates] = useState(null);
   const [date, setDate] = useState(firstDate);
@@ -147,6 +153,29 @@ export default function AsuhPage() {
     const open = openTimes(d);
     if (!open.includes(time)) setTime(open[0] || TIMES[0]);
   };
+
+  const isSlotClashing = useCallback((slot) => {
+    const slotStart = new Date(witaInstant(date, slot));
+    const slotEnd = new Date(slotStart.getTime() + hours * 3600000);
+    return busy.some((b) => new Date(b.start_at) < slotEnd && new Date(b.end_at) > slotStart);
+  }, [date, hours, busy]);
+
+  const timePeriods = useMemo(() => {
+    const morning = [];
+    const afternoon = [];
+    const evening = [];
+    for (const x of times) {
+      const h = parseInt(x.split(':')[0], 10);
+      if (h < 12) morning.push(x);
+      else if (h < 15) afternoon.push(x);
+      else evening.push(x);
+    }
+    return [
+      { id: 'morning', label: t('asuh.period_morning'), slots: morning },
+      { id: 'afternoon', label: t('asuh.period_afternoon'), slots: afternoon },
+      { id: 'evening', label: t('asuh.period_evening'), slots: evening },
+    ];
+  }, [times, t]);
 
   const setChild = (i, patch) =>
     setChildren((list) => list.map((c, k) => (k === i ? { ...c, ...patch } : c)));
@@ -250,34 +279,6 @@ export default function AsuhPage() {
         />
       )}
 
-      {/* Kartu Informasi & Keamanan WiraAsuh */}
-      {step === 1 && (
-        <Card className="flex items-start gap-3 border-brand-line bg-brand-soft/30 p-4">
-          <IconTile tone="brand" size="md">
-            <Baby size={22} />
-          </IconTile>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[14.5px] font-bold text-ink">{t('asuh.intro_title')}</h2>
-              <Badge tone="success" dot>{t('common.verified') || 'Terverifikasi'}</Badge>
-            </div>
-            <p className="text-[12.5px] leading-relaxed text-ink-muted">{t('asuh.intro_body')}</p>
-            {rates?.hourly != null && (
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[13px] font-bold text-ink">
-                <span>
-                  <Money value={rates.hourly} /> <span className="font-normal text-ink-muted">{t('asuh.per_hour')}</span>
-                </span>
-                {rates.extra > 0 && (
-                  <span className="text-xs font-normal text-ink-muted">
-                    ({t('asuh.extra_child_fee', { amount: <Money value={rates.extra} /> })})
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
       {rates && rates.hourly == null && <Notice tone="warning">{t('asuh.closed')}</Notice>}
 
       {/* ============================================================== */}
@@ -289,30 +290,65 @@ export default function AsuhPage() {
           <Card className="flex flex-col gap-4">
             <SectionHeader title={t('asuh.when')} className="mb-0" />
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label={t('asuh.date')} htmlFor="asuh-date">
-                <Select id="asuh-date" value={date} onChange={(e) => pickDate(e.target.value)}>
-                  {dateOptions.map((d) => (
-                    <option key={d} value={d}>
-                      {new Date(`${d}T12:00:00+08:00`).toLocaleDateString('id-ID', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'short',
-                      })}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            {/* Pilihan Tanggal (Rail Horizontal Taktil) */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-ink flex items-center gap-1.5">
+                <Calendar size={14} className="text-ink-muted" aria-hidden="true" />
+                {t('asuh.date')}
+              </span>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="radiogroup" aria-label={t('asuh.date')}>
+                {dateOptions.map((d) => {
+                  const isSelected = date === d;
+                  const dateObj = new Date(`${d}T12:00:00+08:00`);
+                  const dayName = dateObj.toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', { weekday: 'short' });
+                  const dayNum = dateObj.toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short' });
+                  const isToday = d === witaToday();
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => pickDate(d)}
+                      className={cx(
+                        'flex min-w-[76px] flex-col items-center justify-center rounded-control p-2.5 transition-all text-center select-none',
+                        isSelected
+                          ? 'border-2 border-brand bg-brand-soft font-bold text-brand-ink shadow-sm'
+                          : 'border border-line bg-card text-ink hover:border-line-strong',
+                      )}
+                    >
+                      <span className="text-[11px] uppercase tracking-wider font-semibold opacity-75">
+                        {isToday ? (lang === 'en' ? 'Today' : 'Hari ini') : dayName}
+                      </span>
+                      <span className="font-mono text-[14px] font-bold mt-0.5">
+                        {dayNum}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-              <Field label={t('asuh.start')} htmlFor="asuh-time">
-                <Select id="asuh-time" value={time} onChange={(e) => setTime(e.target.value)}>
-                  {times.map((x) => (
-                    <option key={x} value={x}>
-                      {x} WITA
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+            {/* Pilihan Jam Mulai (Trigger Button -> Sheet) */}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <span className="text-[13px] font-semibold text-ink flex items-center gap-1.5">
+                <Clock size={14} className="text-ink-muted" aria-hidden="true" />
+                {t('asuh.start')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowTimeSheet(true)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-control border border-line-strong bg-card px-3.5 py-2.5 text-left transition-colors hover:border-brand focus:border-brand focus:ring-2 focus:ring-brand/20"
+              >
+                <span className="flex items-center gap-2">
+                  <Clock size={16} className="text-brand-ink" aria-hidden="true" />
+                  <span className="font-mono text-[15px] font-bold text-ink">{time} WITA</span>
+                </span>
+                <span className="text-xs font-semibold text-brand-ink flex items-center gap-1">
+                  <span>{t('asuh.choose_time')}</span>
+                  <ChevronDown size={14} aria-hidden="true" />
+                </span>
+              </button>
             </div>
 
             {/* Stepper Durasi Jam */}
@@ -439,6 +475,29 @@ export default function AsuhPage() {
 
             {under3 > 2 && <Notice tone="danger">{t('asuh.err_under3')}</Notice>}
           </Card>
+
+          {/* Info Ringkas Pengasuh Wira (Compact di bagian bawah, klik untuk penjelasan lengkap) */}
+          <button
+            type="button"
+            onClick={() => setShowInfoSheet(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-control border border-line bg-card p-3 text-left transition-colors hover:border-brand"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <IconTile tone="brand" size="sm">
+                <Baby size={16} />
+              </IconTile>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-bold text-ink truncate">{t('asuh.intro_title')}</span>
+                  <Badge tone="success" dot className="shrink-0">{t('common.verified') || 'Terverifikasi'}</Badge>
+                </div>
+                <span className="text-[12px] text-brand-ink font-semibold">
+                  {rates?.hourly != null && <Money value={rates.hourly} />} {t('asuh.per_hour')} · <span className="underline">{t('asuh.learn_more')}</span>
+                </span>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-ink-muted shrink-0" aria-hidden="true" />
+          </button>
 
           {/* Jaminan Layanan */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-1 text-[12px] text-ink-muted">
@@ -633,6 +692,115 @@ export default function AsuhPage() {
           </div>
         </form>
       )}
+
+      {/* SHEET INFORMASI PENGASUH RESMI WIRA */}
+      <Sheet
+        open={showInfoSheet}
+        onClose={() => setShowInfoSheet(false)}
+        title={t('asuh.info_sheet_title')}
+        description={t('asuh.intro_body')}
+        icon={<Baby size={22} />}
+        footer={
+          <Button variant="primary" block onClick={() => setShowInfoSheet(false)}>
+            {t('asuh.info_sheet_close')}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-3.5 py-1">
+          {rates?.hourly != null && (
+            <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken/60 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-ink">{t('asuh.duration')}</span>
+                <span className="font-bold text-ink">
+                  <Money value={rates.hourly} /> <span className="text-xs font-normal text-ink-muted">{t('asuh.per_hour')}</span>
+                </span>
+              </div>
+              {rates.extra > 0 && (
+                <div className="flex items-center justify-between text-xs text-ink-muted border-t border-line/60 pt-2">
+                  <span>{t('asuh.add_child')}</span>
+                  <span className="font-semibold text-ink">
+                    <Money value={rates.extra} /> / jam per anak tambahan
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-2.5 text-xs text-ink-muted leading-relaxed">
+            <p className="flex items-start gap-2.5">
+              <ShieldCheck size={16} className="text-success shrink-0 mt-0.5" />
+              <span>Pengasuh anak terverifikasi resmi oleh tim Wira, berdomisili lokal di Lombok, dan melewati pemeriksaan latar belakang.</span>
+            </p>
+            <p className="flex items-start gap-2.5">
+              <HeartHandshake size={16} className="text-brand-ink shrink-0 mt-0.5" />
+              <span>{t('asuh.pay_note')}</span>
+            </p>
+          </div>
+        </div>
+      </Sheet>
+
+      {/* SHEET PILIHAN JAM MULAI (TENUN LAUT ERGONOMIS) */}
+      <Sheet
+        open={showTimeSheet}
+        onClose={() => setShowTimeSheet(false)}
+        title={t('asuh.choose_time_sheet_title')}
+        description={new Date(`${date}T12:00:00+08:00`).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}
+        icon={<Clock size={22} />}
+        footer={
+          <Button variant="primary" block onClick={() => setShowTimeSheet(false)}>
+            {t('common.close')}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-4 py-1 max-h-[55vh] overflow-y-auto no-scrollbar">
+          {timePeriods.map((period) => {
+            if (period.slots.length === 0) return null;
+            return (
+              <div key={period.id} className="flex flex-col gap-2">
+                <span className="text-[12px] font-bold uppercase tracking-wider text-ink-muted">
+                  {period.label}
+                </span>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {period.slots.map((slot) => {
+                    const isSelected = time === slot;
+                    const isClash = isSlotClashing(slot);
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => {
+                          setTime(slot);
+                          setShowTimeSheet(false);
+                        }}
+                        className={cx(
+                          'flex min-h-11 flex-col items-center justify-center rounded-control p-2 font-mono transition-all text-center',
+                          isSelected
+                            ? 'border-2 border-brand bg-brand-soft font-bold text-brand-ink shadow-sm'
+                            : isClash
+                              ? 'border border-line bg-sunken/80 text-ink-muted hover:border-line-strong'
+                              : 'border border-line bg-card text-ink hover:border-brand',
+                        )}
+                      >
+                        <span className="text-[14px] font-bold leading-none">{slot}</span>
+                        <span className={cx(
+                          'text-[10px] mt-1 leading-none',
+                          isClash ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-ink-muted'
+                        )}>
+                          {isClash ? t('asuh.slot_booked') : 'WITA'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Sheet>
     </div>
   );
 }

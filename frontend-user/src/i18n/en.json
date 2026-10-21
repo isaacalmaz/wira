@@ -1404,7 +1404,16 @@
     "change_session": "Change Session",
     "session_summary_title": "Babysitting Session Summary",
     "child_number": "Child {{n}}",
-    "extra_child_fee": "+ {{amount}} / hour per additional child"
+    "extra_child_fee": "+ {{amount}} / hour per additional child",
+    "learn_more": "Learn more",
+    "choose_time": "Choose Time",
+    "choose_time_sheet_title": "Choose Start Time",
+    "period_morning": "Morning (06:00 - 11:30)",
+    "period_afternoon": "Afternoon (12:00 - 14:30)",
+    "period_evening": "Evening & Night (15:00 - 21:00)",
+    "slot_booked": "Booked",
+    "info_sheet_title": "About WiraAsuh Babysitters",
+    "info_sheet_close": "Understood"
   },
   "landing": {
     "nav_services": "Services",

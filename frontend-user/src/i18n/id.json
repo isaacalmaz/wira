@@ -1404,7 +1404,16 @@
     "change_session": "Ubah Sesi",
     "session_summary_title": "Ringkasan Sesi Pengasuhan",
     "child_number": "Anak ke-{{n}}",
-    "extra_child_fee": "+ {{amount}} / jam per anak tambahan"
+    "extra_child_fee": "+ {{amount}} / jam per anak tambahan",
+    "learn_more": "Pelajari selengkapnya",
+    "choose_time": "Pilih Jam",
+    "choose_time_sheet_title": "Pilih Jam Mulai Pengasuhan",
+    "period_morning": "Pagi (06:00 - 11:30)",
+    "period_afternoon": "Siang (12:00 - 14:30)",
+    "period_evening": "Sore & Malam (15:00 - 21:00)",
+    "slot_booked": "Sudah terjadwal",
+    "info_sheet_title": "Tentang Pengasuh WiraAsuh",
+    "info_sheet_close": "Mengerti"
   },
   "landing": {
     "nav_services": "Layanan",
