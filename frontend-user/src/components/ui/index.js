@@ -13,4 +13,5 @@ export { default as EmptyState } from './EmptyState';
 export { default as Segmented } from './Segmented';
 export { default as Notice } from './Notice';
 export { default as Spinner } from './Spinner';
+export { default as AnalogClockPicker } from './AnalogClockPicker';
 export { cx } from './cx';

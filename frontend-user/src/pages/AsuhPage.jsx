@@ -22,6 +22,7 @@ import {
   Textarea,
   Select,
   Sheet,
+  AnalogClockPicker,
   Money,
   IconTile,
   Notice,
@@ -43,8 +44,8 @@ import { friendlyError } from '../utils/friendlyError';
 const MIN_HOURS = 2;
 const MAX_HOURS = 12;
 const LEAD_MS = 2 * 60 * 60 * 1000;
-const TIMES = Array.from({ length: 31 }, (_, i) => {
-  const mins = 6 * 60 + i * 30; // 06:00 .. 21:00
+const TIMES = Array.from({ length: 61 }, (_, i) => {
+  const mins = 6 * 60 + i * 15; // 06:00 .. 21:00 (15-min intervals)
   return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 });
 const AGES = Array.from({ length: 13 }, (_, i) => i);
@@ -160,28 +161,17 @@ export default function AsuhPage() {
     return busy.some((b) => new Date(b.start_at) < slotEnd && new Date(b.end_at) > slotStart);
   }, [date, hours, busy]);
 
-  const timePeriods = useMemo(() => {
-    const morning = [];
-    const afternoon = [];
-    const evening = [];
-    for (const x of times) {
-      const h = parseInt(x.split(':')[0], 10);
-      if (h < 12) morning.push(x);
-      else if (h < 15) afternoon.push(x);
-      else evening.push(x);
-    }
-    return [
-      { id: 'morning', label: t('asuh.period_morning'), slots: morning },
-      { id: 'afternoon', label: t('asuh.period_afternoon'), slots: afternoon },
-      { id: 'evening', label: t('asuh.period_evening'), slots: evening },
-    ];
-  }, [times, t]);
-
   const setChild = (i, patch) =>
     setChildren((list) => list.map((c, k) => (k === i ? { ...c, ...patch } : c)));
 
   const handleProceedToStep2 = () => {
-    if (!times.includes(time)) {
+    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+    const [h, m] = (time || '').split(':').map(Number);
+    const mins = h * 60 + m;
+    const isOutOfRange = !timeRegex.test(time) || mins < 6 * 60 || mins > 21 * 60;
+    const isBeforeLead = new Date(witaInstant(date, time)).getTime() < Date.now() + LEAD_MS;
+
+    if (isOutOfRange || isBeforeLead) {
       toast.error(t('asuh.err_time'));
       return;
     }
@@ -738,7 +728,7 @@ export default function AsuhPage() {
         </div>
       </Sheet>
 
-      {/* SHEET PILIHAN JAM MULAI (TENUN LAUT ERGONOMIS) */}
+      {/* SHEET PILIHAN JAM MULAI (JAM ANALOG INTERAKTIF TENUN LAUT) */}
       <Sheet
         open={showTimeSheet}
         onClose={() => setShowTimeSheet(false)}
@@ -750,56 +740,22 @@ export default function AsuhPage() {
           year: 'numeric',
         })}
         icon={<Clock size={22} />}
-        footer={
-          <Button variant="primary" block onClick={() => setShowTimeSheet(false)}>
-            {t('common.close')}
-          </Button>
-        }
+        dismissible={true}
       >
-        <div className="flex flex-col gap-4 py-1 max-h-[55vh] overflow-y-auto no-scrollbar">
-          {timePeriods.map((period) => {
-            if (period.slots.length === 0) return null;
-            return (
-              <div key={period.id} className="flex flex-col gap-2">
-                <span className="text-[12px] font-bold uppercase tracking-wider text-ink-muted">
-                  {period.label}
-                </span>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {period.slots.map((slot) => {
-                    const isSelected = time === slot;
-                    const isClash = isSlotClashing(slot);
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => {
-                          setTime(slot);
-                          setShowTimeSheet(false);
-                        }}
-                        className={cx(
-                          'flex min-h-11 flex-col items-center justify-center rounded-control p-2 font-mono transition-all text-center',
-                          isSelected
-                            ? 'border-2 border-brand bg-brand-soft font-bold text-brand-ink shadow-sm'
-                            : isClash
-                              ? 'border border-line bg-sunken/80 text-ink-muted hover:border-line-strong'
-                              : 'border border-line bg-card text-ink hover:border-brand',
-                        )}
-                      >
-                        <span className="text-[14px] font-bold leading-none">{slot}</span>
-                        <span className={cx(
-                          'text-[10px] mt-1 leading-none',
-                          isClash ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-ink-muted'
-                        )}>
-                          {isClash ? t('asuh.slot_booked') : 'WITA'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AnalogClockPicker
+          value={time}
+          onChange={(newTime) => setTime(newTime)}
+          onConfirm={(confirmedTime) => {
+            setTime(confirmedTime);
+            setShowTimeSheet(false);
+          }}
+          minTime="06:00"
+          maxTime="21:00"
+          stepMinutes={15}
+          isSlotClashing={isSlotClashing}
+          t={t}
+          lang={lang}
+        />
       </Sheet>
     </div>
   );
