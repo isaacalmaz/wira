@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { clearStoredActiveMode } from '../constants/roles';
 
 const AuthContext = createContext();
 
@@ -42,10 +43,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
       if (profile) {
+        let access = Array.isArray(profile.mitra_access) ? profile.mitra_access : [];
+        if (access.length === 0) {
+          const legacyRole = profile.role === 'courier' ? 'driver' : profile.role;
+          if (['driver', 'merchant', 'villa', 'technician', 'nanny'].includes(legacyRole)) {
+            access = [legacyRole];
+          }
+        }
         setUser({ ...session.user, ...profile });
-        setMitraAccess(profile.mitra_access || []);
+        setMitraAccess(access);
         setLoading(false);
-        return profile;
+        return { ...profile, mitra_access: access };
       }
     } catch (err) {
       console.warn('Supabase mitra profile check error:', err);
@@ -82,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await supabase.auth.signOut();
     } catch { /* sign-out failure is ignored; local state is cleared below */ }
+    clearStoredActiveMode();
     setUser(null);
     setMitraAccess([]);
   };

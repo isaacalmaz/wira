@@ -1,20 +1,12 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, Car, Store, Wrench, LogOut, Baby, Bell, CalendarClock } from 'lucide-react';
+import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, LogOut, Bell, CalendarClock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
 import { cx } from '../ui';
-
-// The underlying mitra_access value for the restaurant portal is still the
-// literal string 'merchant' (kept as-is so existing accounts/routes don't
-// break), but it's displayed everywhere else as "Restoran" now that Villa
-// is a separate portal - this keeps the sidebar label consistent with that.
-// 'courier' no longer exists as its own portal (see migrations/0033) - Driver
-// now covers Ride/Kurir/Makanan together via Settings preferences.
-const ROLE_DISPLAY_LABEL = { driver: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi', nanny: 'Pengasuh' };
-const ROLE_ICON = { driver: Car, merchant: Store, villa: Building2, technician: Wrench, nanny: Baby };
+import { RoleSwitcherSheet, RoleSwitcherSidebarButton, RoleSwitcherHeaderBadge } from './RoleSwitcher';
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess, user } = useAuth();
@@ -61,8 +53,14 @@ const MitraLayout = ({ children }) => {
   };
 
   const navItems = getNavItems();
-  const ActiveRoleIcon = ROLE_ICON[activeRole];
-  const roleLabel = ROLE_DISPLAY_LABEL[activeRole] || activeRole;
+
+  // In-dashboard role switcher state and listener
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  useEffect(() => {
+    const handleOpen = () => setIsSwitcherOpen(true);
+    window.addEventListener('wira:open-role-switcher', handleOpen);
+    return () => window.removeEventListener('wira:open-role-switcher', handleOpen);
+  }, []);
 
   // Unread notifications dot on the bell (inbox: /<role>/notifications).
   const [unread, setUnread] = useState(0);
@@ -116,16 +114,12 @@ const MitraLayout = ({ children }) => {
             {wordmark('lg')}
           </NavLink>
 
-          {/* Portal aktif */}
-          <div className="flex items-center gap-3 rounded-card border border-line bg-ground px-3 py-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border border-brand-line bg-brand-soft text-brand-ink">
-              {ActiveRoleIcon ? <ActiveRoleIcon size={19} /> : <User size={19} />}
-            </span>
-            <div className="min-w-0 flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Mitra</span>
-              <span className="font-bold text-[14px] text-ink truncate">{roleLabel}</span>
-            </div>
-          </div>
+          {/* Portal aktif / Role Switcher */}
+          <RoleSwitcherSidebarButton
+            currentRole={activeRole}
+            roles={mitraAccess}
+            onClick={() => setIsSwitcherOpen(true)}
+          />
 
           <nav className="flex flex-col gap-1 overflow-y-auto">
             {navItems.map((item) => (
@@ -164,10 +158,11 @@ const MitraLayout = ({ children }) => {
                 {wordmark('md')}
               </NavLink>
               <div className="flex shrink-0 items-center gap-1.5">
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-line bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-brand-ink">
-                  {ActiveRoleIcon && <ActiveRoleIcon size={14} aria-hidden="true" />}
-                  {roleLabel}
-                </span>
+                <RoleSwitcherHeaderBadge
+                  currentRole={activeRole}
+                  roles={mitraAccess}
+                  onClick={() => setIsSwitcherOpen(true)}
+                />
                 <NavLink
                   to={`/${activeRole}/notifications`}
                   aria-label={unread > 0 ? `Notifikasi, ${unread} belum dibaca` : 'Notifikasi'}
@@ -218,6 +213,13 @@ const MitraLayout = ({ children }) => {
           ))}
         </div>
       </nav>
+
+      <RoleSwitcherSheet
+        open={isSwitcherOpen}
+        onClose={() => setIsSwitcherOpen(false)}
+        currentRole={activeRole}
+        roles={mitraAccess}
+      />
     </div>
   );
 };

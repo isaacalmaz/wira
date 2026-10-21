@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Package, Utensils, Loader2, Wallet, MessageCircle, Check, CheckCircle2, Store } from 'lucide-react';
+import { MapPin, BellRing, Target, Activity, Navigation2, PackageCheck, Car, Package, Utensils, Loader2, Wallet, MessageCircle, Check, CheckCircle2, Store, ArrowLeftRight } from 'lucide-react';
 import { Button, Badge, Sheet, Money, IconTile, Stat, cx } from '../../components/ui';
 import WiraMap from '../../components/common/WiraMap';
 import ChatModal from '../../components/common/ChatModal';
@@ -128,7 +128,7 @@ const RouteStops = ({ from, to }) => (
 const formatKm = (meters) => `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 
 const DriverHomePage = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, mitraAccess, refreshProfile } = useAuth();
   const navigate = useNavigate();
   // One unified Driver portal now (the separate /courier portal is gone) -
   // which incoming orders this driver may actually receive is entirely
@@ -622,7 +622,26 @@ const DriverHomePage = () => {
       <div className="pointer-events-none absolute inset-x-3 top-3 z-10 md:inset-x-4 md:top-4">
         <div className="pointer-events-auto mx-auto flex max-w-2xl items-center gap-3 rounded-card border border-line bg-card py-2.5 pl-4 pr-2 shadow-pop">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
-            <h1 className="line-clamp-2 break-words text-[17px] font-extrabold leading-tight tracking-tight text-ink">Halo, {user?.name || 'Driver'}!</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="line-clamp-1 break-words text-[17px] font-extrabold leading-tight tracking-tight text-ink">Halo, {user?.name || 'Driver'}!</h1>
+              {mitraAccess && mitraAccess.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeOrder && [OrderStatus.ACCEPTED, OrderStatus.PICKING_UP, OrderStatus.IN_TRIP].includes(activeOrder.status)) {
+                      toast.error('Selesaikan atau batalkan perjalanan aktif terlebih dahulu sebelum beralih peran.');
+                      return;
+                    }
+                    window.dispatchEvent(new CustomEvent('wira:open-role-switcher'));
+                  }}
+                  aria-label="Ganti peran mitra"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-brand-line bg-brand-soft px-2.5 py-0.5 text-[11px] font-bold text-brand-ink transition-colors hover:bg-brand-soft/80"
+                >
+                  <ArrowLeftRight size={11} />
+                  <span>Ganti Peran</span>
+                </button>
+              )}
+            </div>
             <p className="text-[13px] leading-snug text-ink-muted">
               {activeOrder
                 ? (activeOrder.status === OrderStatus.ACCEPTED

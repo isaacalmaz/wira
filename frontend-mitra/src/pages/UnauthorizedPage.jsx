@@ -10,7 +10,7 @@ import { supabase } from '../config/supabase';
 // Applying goes through the same /register form as new partners (it reuses
 // the signed-in account), so there is only one application form to maintain.
 
-const ROLE_LABEL = { driver: 'Driver', courier: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi' };
+const ROLE_LABEL = { driver: 'Driver', courier: 'Driver', merchant: 'Restoran', villa: 'Villa', technician: 'Teknisi', nanny: 'Wira Asuh' };
 
 const Brand = () => (
   <div className="flex items-center gap-2.5" aria-hidden="true">
@@ -46,7 +46,7 @@ const UnauthorizedPage = () => {
   const rejected = latest?.status === 'Rejected';
 
   let title = 'Belum Terdaftar sebagai Mitra';
-  let body = 'Akun Anda belum terdaftar sebagai Mitra Wira (Driver, Restoran, Villa, atau Teknisi). Anda bisa mendaftar memakai akun ini, tanpa membuat akun baru.';
+  let body = 'Akun Anda belum terdaftar sebagai Mitra Wira (Driver, Restoran, Villa, Teknisi, atau Wira Asuh). Anda bisa mendaftar memakai akun ini, tanpa membuat akun baru.';
   if (blocked) {
     title = 'Akses Ditolak';
     body = 'Akun ini sedang dinonaktifkan oleh admin. Hubungi tim Wira untuk informasi lebih lanjut.';

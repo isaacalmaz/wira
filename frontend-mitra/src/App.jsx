@@ -1,10 +1,11 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
 import MitraLayout from './components/layout/MitraLayout';
 import Spinner from './components/ui/Spinner';
+import { getStoredActiveMode, setStoredActiveMode } from './constants/roles';
 
 // Eager: LoginPage is the first screen for a logged-out mitra, and MitraLayout
 // wraps every protected route, so both ship in the entry chunk. Every other
@@ -63,6 +64,13 @@ const PageFallback = () => (
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, mitraAccess } = useAuth();
   
+  // Keep stored active mode synchronized with current portal
+  useEffect(() => {
+    if (allowedRole && mitraAccess?.includes(allowedRole)) {
+      setStoredActiveMode(allowedRole);
+    }
+  }, [allowedRole, mitraAccess]);
+
   if (!user) return <Navigate to="/login" replace />;
   // Blocked by an admin: the database already refuses new jobs (0089).
   if (user.status === 'Diblokir') return <Navigate to="/unauthorized" replace />;
@@ -73,8 +81,10 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   
   // Periksa apakah pengguna memiliki hak akses untuk role URL ini
   if (!mitraAccess.includes(allowedRole)) {
-    // Jika tidak punya akses ke halaman ini, arahkan ke akses pertama yang mereka miliki
-    return <Navigate to={`/${mitraAccess[0]}`} replace />;
+    // Jika tidak punya akses ke halaman ini, arahkan ke peran tersimpan atau akses pertama yang mereka miliki
+    const active = getStoredActiveMode();
+    const fallback = (active && mitraAccess.includes(active)) ? active : mitraAccess[0];
+    return <Navigate to={`/${fallback}`} replace />;
   }
   
   // Suspense inside the layout keeps the nav visible while a page chunk loads.
@@ -97,22 +107,46 @@ function App() {
         <Routes>
           <Route path="/" element={
             user ? (
-              mitraAccess && mitraAccess.length > 0 ? <Navigate to={`/${mitraAccess[0]}`} /> :
-              user.status === 'Pending' ? <Navigate to="/pending-verification" /> :
-              <Navigate to="/unauthorized" />
-            ) : <Navigate to="/login" />
+              mitraAccess && mitraAccess.length > 0 ? (
+                mitraAccess.length === 1 ? <Navigate to={`/${mitraAccess[0]}`} replace /> :
+                <Navigate to={
+                  (getStoredActiveMode() && mitraAccess.includes(getStoredActiveMode()))
+                    ? `/${getStoredActiveMode()}`
+                    : '/login'
+                } replace />
+              ) :
+              user.status === 'Pending' ? <Navigate to="/pending-verification" replace /> :
+              <Navigate to="/unauthorized" replace />
+            ) : <Navigate to="/login" replace />
           } />
         
           <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/gabung" element={<Suspense fallback={<PageFallback />}><JoinPage /></Suspense>} />
           <Route path="/pending-verification" element={<PendingVerificationPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           {/* Role-less links from notifications (e.g. "/earnings") open in the partner's own portal. */}
           {['/earnings', '/notifications', '/orders', '/profile', '/settings', '/support'].map((path) => (
-            <Route key={path} path={path} element={user && mitraAccess?.length ? <Navigate to={`/${mitraAccess[0]}${path}`} replace /> : <Navigate to="/" replace />} />
+            <Route
+              key={path}
+              path={path}
+              element={
+                user && mitraAccess?.length ? (
+                  <Navigate
+                    to={`/${
+                      (getStoredActiveMode() && mitraAccess.includes(getStoredActiveMode()))
+                        ? getStoredActiveMode()
+                        : mitraAccess[0]
+                    }${path}`}
+                    replace
+                  />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
           ))}
         
           <Route path="/driver/*" element={

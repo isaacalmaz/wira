@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Settings, User } from 'lucide-react';
 import { StarRating } from './UIComponents';
 import { Badge, Button, Card, IconTile, ListRow } from '../ui';
 import { useAuth } from '../../context/AuthContext';
+import { RoleSwitcherProfileRow } from '../layout/RoleSwitcher';
 
 /** Stars once there are 3 reviews; before that a plain "new" badge. */
 export function RatingLine({ avg, count }) {
@@ -27,7 +28,10 @@ export function RatingLine({ avg, count }) {
  * subtitle, rating), role-specific body, account settings link and logout.
  */
 export default function ProfileShell({ image, fallbackIcon: Fallback = User, name, subtitle, rating, settingsTo, children }) {
-  const { logout } = useAuth();
+  const { logout, mitraAccess } = useAuth();
+  const location = useLocation();
+  const activeRole = location.pathname.split('/').filter(Boolean)[0] || mitraAccess?.[0] || 'driver';
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-20">
       <div className="flex items-center gap-4">
@@ -42,6 +46,12 @@ export default function ProfileShell({ image, fallbackIcon: Fallback = User, nam
       </div>
 
       {children}
+
+      <RoleSwitcherProfileRow
+        currentRole={activeRole}
+        roles={mitraAccess}
+        onOpen={() => window.dispatchEvent(new CustomEvent('wira:open-role-switcher'))}
+      />
 
       <Card padding="none">
         <ListRow
