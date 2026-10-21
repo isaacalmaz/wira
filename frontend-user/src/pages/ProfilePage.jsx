@@ -3,9 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
-import { toast } from "react-hot-toast";
 import DeleteAccountSheet from '../components/account/DeleteAccountSheet';
-import { User, Languages, MessageSquare, LogOut, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
+import { User, Languages, LogOut, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { WALLET_ENABLED } from '../config/wallet';
@@ -131,12 +130,10 @@ export default function ProfilePage() {
             as={Link}
             to="/support"
             className={rowCls}
-            leading={lead(MessageSquare)}
+            leading={lead(Headphones)}
             title={t('profile.support')}
-            trailing={<Badge tone="brand">{t('profile.support_badge')}</Badge>}
             chevron
           />
-          <ListRow as={Link} to="/contact" className={rowCls} leading={lead(Headphones)} title={t('profile.contact')} chevron />
           <ListRow as={Link} to="/terms" className={rowCls} leading={lead(FileText)} title={t('profile.terms')} chevron />
           <ListRow as={Link} to="/refund" className={rowCls} leading={lead(RotateCcw)} title={t('profile.refund')} chevron />
           <ListRow as={Link} to="/privacy" className={rowCls} leading={lead(ShieldCheck)} title={t('profile.privacy')} chevron />

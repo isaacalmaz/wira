@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
-import { MessageSquare, Plus, Clock } from 'lucide-react';
+import { MessageSquare, Plus, Clock, Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, SectionHeader, Sheet, Spinner, Textarea } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Field, IconTile, Input, ListRow, PageHeader, SectionHeader, Sheet, Spinner, Textarea } from '../components/ui';
 import { useTranslation } from '../i18n';
 import { formatDateTime } from '../utils/formatDate';
 
@@ -19,7 +19,7 @@ export default function SupportPage() {
   const [description, setDescription] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -37,11 +37,11 @@ export default function SupportPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, t]);
 
   useEffect(() => {
     fetchTickets();
-  }, [user]);
+  }, [fetchTickets]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -88,23 +88,77 @@ export default function SupportPage() {
     }
   };
 
+  const rowCls = 'min-h-16 px-4 py-3.5';
+
   return (
     <div className="flex flex-col gap-6 pb-6">
-      <PageHeader title={t('support.title')} subtitle={t('support.subtitle')} className="!mb-0" />
+      <PageHeader
+        title={t('support.title')}
+        subtitle={t('support.subtitle')}
+        back
+        backLabel={t('common.back')}
+        className="!mb-0"
+      />
 
-      <Button block leftIcon={<Plus size={18} aria-hidden="true" />} onClick={() => setShowModal(true)}>
-        {t('support.new_report')}
-      </Button>
+      {/* Saluran Kontak Resmi */}
+      <section className="flex flex-col gap-2.5">
+        <SectionHeader title={t('contact.title')} className="!mb-0" />
+        <Card padding="none" className="divide-y divide-line overflow-hidden">
+          <ListRow
+            as="a"
+            href="mailto:halo@wira.one"
+            className={rowCls}
+            leading={<IconTile tone="brand"><Mail size={19} aria-hidden="true" /></IconTile>}
+            title={t('contact.email_label')}
+            subtitle={<span className="font-medium text-brand-ink">halo@wira.one</span>}
+            chevron
+          />
+          <ListRow
+            as="a"
+            href="tel:085975079134"
+            className={rowCls}
+            leading={<IconTile tone="brand"><Phone size={19} aria-hidden="true" /></IconTile>}
+            title={t('contact.phone_label')}
+            subtitle={<span className="font-mono font-medium text-brand-ink">0859 7507 9134</span>}
+            chevron
+          />
+          <ListRow
+            className={rowCls}
+            leading={<IconTile tone="neutral"><MapPin size={19} aria-hidden="true" /></IconTile>}
+            title={t('contact.office_label')}
+            subtitle={t('contact.office_value')}
+          />
+        </Card>
+      </section>
 
-      {loading ? (
-        <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-ink-muted">
-          <Spinner size={18} className="text-brand-ink" /> {t('support.loading')}
+      {/* Tiket Bantuan & Komplain */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <SectionHeader title={t('support.history_title')} className="!mb-0" />
+          <Button
+            size="sm"
+            leftIcon={<Plus size={16} aria-hidden="true" />}
+            onClick={() => setShowModal(true)}
+          >
+            {t('support.new_report')}
+          </Button>
         </div>
-      ) : tickets.length === 0 ? (
-        <EmptyState icon={<MessageSquare size={24} />} title={t('support.empty')} />
-      ) : (
-        <section>
-          <SectionHeader title={t('support.history_title')} />
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-ink-muted">
+            <Spinner size={18} className="text-brand-ink" /> {t('support.loading')}
+          </div>
+        ) : tickets.length === 0 ? (
+          <EmptyState
+            icon={<MessageSquare size={24} />}
+            title={t('support.empty')}
+            action={(
+              <Button size="sm" leftIcon={<Plus size={16} />} onClick={() => setShowModal(true)}>
+                {t('support.new_report')}
+              </Button>
+            )}
+          />
+        ) : (
           <div className="flex flex-col gap-3">
             {tickets.map(ticket => (
               <Card key={ticket.id} className="flex flex-col gap-2.5">
@@ -128,8 +182,8 @@ export default function SupportPage() {
               </Card>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Sheet Laporan Baru */}
       <Sheet

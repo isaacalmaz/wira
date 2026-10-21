@@ -38,7 +38,6 @@ const TechnicianProfilePage = lazy(() => import('./pages/technicians/TechnicianP
 const MyProjectsPage = lazy(() => import('./pages/projects/MyProjectsPage'));
 const NewProjectPage = lazy(() => import('./pages/projects/NewProjectPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
-const ContactPage = lazy(() => import('./pages/legal/ContactPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const RefundPage = lazy(() => import('./pages/legal/RefundPage'));
 const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage'));
@@ -98,7 +97,7 @@ export default function Root() {
                             
                             {/* Legal & Bantuan */}
                             <Route path="/support" element={<SupportPage />} />
-                            <Route path="/contact" element={<ContactPage />} />
+                            <Route path="/contact" element={<Navigate to="/support" replace />} />
                             <Route path="/terms" element={<TermsPage />} />
                             <Route path="/refund" element={<RefundPage />} />
                           </Route>
