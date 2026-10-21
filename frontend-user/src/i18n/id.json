@@ -19,6 +19,7 @@
   "common": {
     "clear": "Bersihkan",
     "login_required": "Silakan masuk ke akun Anda terlebih dahulu.",
+    "optional": "opsional",
     "selected": "Dipilih",
     "verified": "Terverifikasi",
     "retry": "Coba Lagi",
@@ -231,6 +232,8 @@
     "hourly_unavailable": "Sewa per jam belum tersedia untuk kendaraan ini",
     "hourly_summary": "Sewa {{hours}} jam",
     "hours_title": "Berapa lama?",
+    "hours_less": "Kurangi durasi sewa",
+    "hours_more": "Tambah durasi sewa",
     "rental_duration": "Durasi Sewa",
     "quick_hours": "Pilihan Cepat",
     "hours_n": "{{count}} jam",

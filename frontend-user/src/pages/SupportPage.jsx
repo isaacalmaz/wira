@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import { MessageSquare, Plus, Clock, Mail, Phone, MapPin } from 'lucide-react';
@@ -9,6 +10,7 @@ import { formatDateTime } from '../utils/formatDate';
 
 export default function SupportPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,8 +21,20 @@ export default function SupportPage() {
   const [description, setDescription] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  const handleOpenReportModal = () => {
+    if (!user) {
+      toast.error(t('common.login_required'));
+      navigate('/login');
+      return;
+    }
+    setShowModal(true);
+  };
+
   const fetchTickets = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -138,7 +152,7 @@ export default function SupportPage() {
           <Button
             size="sm"
             leftIcon={<Plus size={16} aria-hidden="true" />}
-            onClick={() => setShowModal(true)}
+            onClick={handleOpenReportModal}
           >
             {t('support.new_report')}
           </Button>
@@ -153,7 +167,7 @@ export default function SupportPage() {
             icon={<MessageSquare size={24} />}
             title={t('support.empty')}
             action={(
-              <Button size="sm" leftIcon={<Plus size={16} />} onClick={() => setShowModal(true)}>
+              <Button size="sm" leftIcon={<Plus size={16} />} onClick={handleOpenReportModal}>
                 {t('support.new_report')}
               </Button>
             )}

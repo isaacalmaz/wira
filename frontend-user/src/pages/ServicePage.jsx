@@ -417,18 +417,15 @@ export default function ServicePage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {categories.filter((c) => !techLoaded || techsFor(c.id).length > 0).map((c) => {
           const Icon = c.icon;
-          const count = techsFor(c.id).length;
-          const unavailable = techLoaded && count === 0;
           return (
             <Card
               key={c.id}
               as="button"
               type="button"
-              onClick={() => (unavailable ? toast(t('service.unavailable_toast')) : handleOpenBooking(c))}
-              aria-disabled={unavailable || undefined}
-              className={cx('flex flex-col items-start gap-3', unavailable && 'opacity-60')}
+              onClick={() => handleOpenBooking(c)}
+              className="flex flex-col items-start gap-3"
             >
-              <IconTile tone={unavailable ? 'neutral' : 'brand'}><Icon size={20} /></IconTile>
+              <IconTile tone="brand"><Icon size={20} /></IconTile>
               <span className="text-[14px] font-semibold leading-snug text-ink text-left">
                 {categoryLabel(c)}
               </span>
@@ -569,7 +566,7 @@ export default function ServicePage() {
                             </span>
                           </div>
 
-                          {/* Stepper Ramah Jempol (Touch target >= 40px) */}
+                          {/* Stepper Ramah Jempol (Touch target >= 44px) */}
                           <div className={cx('flex items-center gap-1.5 rounded-control p-1 transition-colors', isSelected ? 'bg-card border border-line-strong' : 'bg-sunken border border-line')}>
                             <button
                               type="button"
@@ -577,7 +574,7 @@ export default function ServicePage() {
                               disabled={n === 0}
                               aria-label={t('service.qty_less', { name: item.name })}
                               className={cx(
-                                'flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-ink font-bold transition-all',
+                                'flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-ink font-bold transition-all',
                                 n === 0 ? 'opacity-30 cursor-not-allowed' : 'bg-sunken hover:bg-line active:scale-95'
                               )}
                             >
@@ -591,7 +588,7 @@ export default function ServicePage() {
                               onClick={() => changeQty(item, 1)}
                               disabled={n >= (item.max_qty || 10)}
                               aria-label={t('service.qty_more', { name: item.name })}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-brand text-white font-bold hover:bg-brand-hover active:scale-95 transition-all"
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-brand text-white font-bold hover:bg-brand-hover active:scale-95 transition-all"
                             >
                               <Plus size={18} />
                             </button>

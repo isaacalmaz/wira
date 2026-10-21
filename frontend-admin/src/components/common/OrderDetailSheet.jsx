@@ -154,56 +154,19 @@ export default function OrderDetailSheet({ orderId, onClose, onChanged }) {
         return;
       }
       const chosenTech = availableTechs.find((t) => t.id === selectedTechId);
-      const { data: updatedRows, error: assignErr } = await supabase
-        .from('orders')
-        .update({
-          status: 'accepted',
-          driver_id: selectedTechId,
-          accepted_at: new Date().toISOString(),
-        })
-        .eq('id', orderId)
-        .select('id, status, driver_id');
+      const { data, error: assignErr } = await supabase.rpc('admin_assign_technician', {
+        p_order_id: orderId,
+        p_technician_id: selectedTechId,
+        p_note: note.trim() || null,
+      });
 
       setBusy(false);
-      if (assignErr) {
-        toast.error(`Gagal menugaskan teknisi: ${assignErr.message}`);
-        return;
-      }
-      if (!updatedRows || updatedRows.length === 0) {
-        toast.error('Gagal menugaskan teknisi: pesanan tidak ditemukan atau sudah berubah status.');
+      if (assignErr || !data?.ok) {
+        toast.error(`Gagal menugaskan teknisi: ${assignErr?.message || 'Terjadi kesalahan'}`);
         return;
       }
 
-      if (note.trim()) {
-        await supabase.from('order_events').insert({
-          order_id: orderId,
-          kind: 'note',
-          actor_id: user?.id,
-          note: `Penugasan teknisi (${chosenTech?.name || 'mitra'}): ${note.trim()}`,
-        });
-      }
-
-      // Beritahu teknisi dan pelanggan via notifikasi (memicu FCM push otomatis)
-      try {
-        await supabase.from('notifications').insert([
-          {
-            user_id: selectedTechId,
-            title: 'Tugas Servis Baru!',
-            description: `Admin menugaskan Anda untuk pesanan ${order?.title || 'servis'}. Silakan cek jadwal di aplikasi Mitra.`,
-            link: `/technician/active-order/${orderId}`,
-          },
-          {
-            user_id: order.user_id,
-            title: 'Teknisi Telah Ditugaskan',
-            description: `Teknisi ${chosenTech?.name || 'Wira'} telah ditugaskan untuk pesanan Anda.`,
-            link: `/active-order/${orderId}`,
-          },
-        ]);
-      } catch (notifErr) {
-        console.warn('Gagal mengirim notifikasi penugasan:', notifErr);
-      }
-
-      toast.success(`Teknisi ${chosenTech?.name || ''} berhasil ditugaskan!`);
+      toast.success(chosenTech?.name ? `Teknisi ${chosenTech.name} berhasil ditugaskan!` : 'Teknisi berhasil ditugaskan!');
       setAction(null);
       await load();
       onChanged?.();

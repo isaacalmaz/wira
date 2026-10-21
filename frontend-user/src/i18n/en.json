@@ -19,6 +19,7 @@
   "common": {
     "clear": "Clear",
     "login_required": "Please sign in to your account first.",
+    "optional": "optional",
     "selected": "Selected",
     "verified": "Verified",
     "retry": "Try Again",
@@ -231,6 +232,8 @@
     "hourly_unavailable": "Hourly hire is not available for this vehicle yet",
     "hourly_summary": "{{hours}}-hour hire",
     "hours_title": "How long?",
+    "hours_less": "Decrease rental hours",
+    "hours_more": "Increase rental hours",
     "rental_duration": "Rental Duration",
     "quick_hours": "Quick Presets",
     "hours_n": "{{count}} h",
