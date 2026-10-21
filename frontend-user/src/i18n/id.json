@@ -1411,6 +1411,8 @@
     "period_morning": "Pagi (06:00 - 11:30)",
     "period_afternoon": "Siang (12:00 - 14:30)",
     "period_evening": "Sore & Malam (15:00 - 21:00)",
+    "period_am": "Pagi",
+    "period_pm": "Malam",
     "slot_booked": "Sudah terjadwal",
     "info_sheet_title": "Tentang Pengasuh WiraAsuh",
     "info_sheet_close": "Mengerti"

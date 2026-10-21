@@ -100,7 +100,7 @@ export default function Sheet({
           </div>
         )}
 
-        <div className={cx('px-5 md:px-6 py-4 overflow-y-auto overscroll-contain flex-1 min-h-0', bodyClassName)}>
+        <div className={cx('px-5 md:px-6 py-4 overflow-y-auto overflow-x-hidden overscroll-contain flex-1 min-h-0', bodyClassName)}>
           {children}
         </div>
 
