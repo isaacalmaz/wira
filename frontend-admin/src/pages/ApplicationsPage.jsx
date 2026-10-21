@@ -8,13 +8,14 @@ import MitraReviewModal from '../components/common/MitraReviewModal';
 import { Badge, Button, Card, EmptyState, PageHeader, Segmented, Spinner, Table } from '../components/ui';
 import { formatDateTime } from '../utils/datetime';
 
-const KINDS = ['driver', 'merchant', 'villa', 'technician'];
+const KINDS = ['driver', 'merchant', 'villa', 'technician', 'nanny'];
 
 const summary = (a) => {
   const kind = applicationKind(a);
   if (kind === 'driver') return [a.vehicle_type === 'mobil' ? 'Mobil' : 'Motor', a.vehicle, a.plate].filter(Boolean).join(' · ');
   if (kind === 'merchant' || kind === 'villa') return [a.restaurant_name, a.address].filter(Boolean).join(' · ');
   if (kind === 'technician') return [Array.isArray(a.skills) ? a.skills.join(', ') : a.specialization, a.experience && `${a.experience} th`].filter(Boolean).join(' · ');
+  if (kind === 'nanny') return [a.specialization, a.experience && `${a.experience} th`, a.address].filter(Boolean).join(' · ');
   return '';
 };
 
@@ -78,7 +79,7 @@ export default function ApplicationsPage() {
       <PageHeader
         className="!mb-0"
         title="Pendaftaran Mitra"
-        subtitle="Satu-satunya jalan menjadi mitra. Cek data dan dokumen, lalu setujui atau tolak dengan alasan. Pengasuh diberi aksesnya dari Profil Akun."
+        subtitle="Satu-satunya jalan menjadi mitra. Cek data dan dokumen, lalu setujui atau tolak dengan alasan."
       />
 
       <Segmented

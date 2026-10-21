@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  BadgeCheck, Banknote, Bike, Building2, CalendarCheck, Camera, Car, ClipboardList, CreditCard, Image as ImageIcon,
+  Baby, BadgeCheck, Banknote, Bike, Building2, CalendarCheck, Camera, Car, ClipboardList, CreditCard, Image as ImageIcon,
   MapPin, Navigation, ShieldCheck, Smartphone, Star, Store, ToggleRight, Utensils, Wallet, Wrench,
 } from 'lucide-react';
 import { Card, IconTile, cx } from '../components/ui';
@@ -112,13 +112,47 @@ const ROLES = {
       { title: 'Mulai terima pekerjaan', text: 'Lengkapi profil dan portofolio, lalu ambil pekerjaan dari menu Pekerjaan.' },
     ],
   },
+  nanny: {
+    key: 'nanny', register: 'nanny', icon: Baby, label: 'Wira Asuh', sub: 'Pengasuh anak & babysitter',
+    headline: 'Jasa asuh anak terpercaya di rumah dan villa keluarga di Lombok.',
+    intro: 'Bantu orang tua menjaga anak dengan aman dan penuh kasih sayang. Dapatkan pesanan babysitting per jam dengan tarif transparan dan pembayaran langsung.',
+    benefits: [
+      { icon: CalendarCheck, title: 'Jadwal terencana', text: 'Pesanan masuk dengan waktu dan durasi yang jelas, baik panggilan ke rumah maupun villa tamu.' },
+      { icon: Banknote, title: 'Tarif per jam yang jelas', text: 'Harga dihitung transparan berdasarkan durasi jam asuh dan jumlah anak yang didampingi.' },
+      { icon: Wallet, title: 'Dibayar langsung oleh orang tua', text: 'Orang tua membayar biaya pengasuhan tunai langsung ke Anda saat sesi selesai.' },
+      { icon: ShieldCheck, title: 'Lingkungan aman & terverifikasi', text: 'Data pemesan dan lokasi terverifikasi di aplikasi Wira untuk kenyamanan dan keamanan Anda.' },
+      { icon: Star, title: 'Reputasi pengasuh bintang 5', text: 'Ulasan positif dari keluarga membangun kepercayaan dan membuat Anda dipesan berulang kali.' },
+      { icon: ToggleRight, title: 'Bebas atur ketersediaan', text: 'Terima pesanan saat Anda luang. Anda memiliki kendali penuh atas jadwal kerja Anda.' },
+    ],
+    needs: [
+      { icon: CreditCard, text: 'KTP untuk difoto, dan foto selfie untuk verifikasi' },
+      { icon: Baby, text: 'Pengalaman dan kepedulian tulus mengasuh anak' },
+      { icon: Smartphone, text: 'HP Android dengan WhatsApp aktif' },
+      { icon: MapPin, text: 'Tinggal atau berdomisili di Lombok' },
+    ],
+    steps: [
+      { title: 'Daftar di aplikasi', text: 'Isi data diri, pengalaman, spesialisasi usia anak, dan unggah KTP serta selfie.' },
+      { title: 'Verifikasi tim Wira', text: 'Kami periksa dokumen identitas dan menghubungi Anda via WhatsApp (1-2 hari kerja).' },
+      { title: 'Mulai terima sesi asuh', text: 'Terima permintaan asuh anak dari orang tua di Lombok melalui aplikasi Wira Mitra.' },
+    ],
+  },
 };
-const ORDER = ['driver', 'merchant', 'villa', 'technician'];
+const ORDER = ['driver', 'merchant', 'villa', 'technician', 'nanny'];
 // Service whose commission applies to a role's example earnings.
-const ROLE_SERVICE = { driver: 'ride', merchant: 'food', villa: 'villa', technician: 'service' };
-// Short words for shareable links: /gabung?jenis=teknisi
-const ALIAS = { driver: 'driver', restoran: 'merchant', merchant: 'merchant', villa: 'villa', teknisi: 'technician', technician: 'technician' };
-const SLUG = { driver: 'driver', merchant: 'restoran', villa: 'villa', technician: 'teknisi' };
+const ROLE_SERVICE = { driver: 'ride', merchant: 'food', villa: 'villa', technician: 'service', nanny: 'babysit' };
+// Short words for shareable links: /gabung?jenis=teknisi | /gabung?jenis=asuh
+const ALIAS = {
+  driver: 'driver',
+  restoran: 'merchant',
+  merchant: 'merchant',
+  villa: 'villa',
+  teknisi: 'technician',
+  technician: 'technician',
+  nanny: 'nanny',
+  asuh: 'nanny',
+  pengasuh: 'nanny',
+};
+const SLUG = { driver: 'driver', merchant: 'restoran', villa: 'villa', technician: 'teknisi', nanny: 'asuh' };
 
 const FAQ = [
   { q: 'Apakah ada biaya pendaftaran?', a: 'Tidak ada. Pendaftaran gratis, tanpa biaya bulanan. Wira hanya mengambil potongan dari pesanan yang selesai.' },
@@ -197,6 +231,13 @@ export default function JoinPage() {
         { label: 'Villa kolam pribadi, 1 malam', price: 1500000 },
       ];
     }
+    if (active === 'nanny') {
+      return [
+        { label: 'Jaga 1 anak, 3 jam', price: 120000, svc: 'babysit' },
+        { label: 'Jaga 1 anak, 5 jam', price: 200000, svc: 'babysit' },
+        { label: 'Jaga 2 anak, 4 jam', price: 220000, svc: 'babysit' },
+      ];
+    }
     return tariffs.service.slice(0, 6).map((r) => ({ label: r.name, price: r.base_price }));
   }, [active, tariffs]);
 
@@ -226,7 +267,7 @@ export default function JoinPage() {
         </section>
 
         {/* Role picker */}
-        <section aria-label="Jenis mitra" className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        <section aria-label="Jenis mitra" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-5">
           {ORDER.map((key) => {
             const r = ROLES[key];
             const Icon = r.icon;
@@ -277,6 +318,7 @@ export default function JoinPage() {
                 {active === 'merchant' && fill('Bagian Anda dari harga makanan setelah potongan {cut:food}. Ongkos kirim untuk driver.')}
                 {active === 'villa' && fill('Bagian Anda dari nilai sewa setelah potongan {cut:villa}.')}
                 {active === 'technician' && fill('Yang Anda terima per pekerjaan setelah potongan {cut:service}. Bahan dibayar terpisah, tanpa potongan.')}
+                {active === 'nanny' && fill('Yang Anda terima per sesi pengasuhan setelah potongan {cut:babysit}. Pelanggan membayar tunai langsung ke Anda.')}
               </p>
             </Card>
           )}

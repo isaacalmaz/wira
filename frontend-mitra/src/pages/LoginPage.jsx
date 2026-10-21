@@ -1,23 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Car, Store, Home, Wrench, Clock } from 'lucide-react';
+import { LogIn, Car, Store, Home, Wrench, Baby, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import WiraMark from '../components/brand/WiraMark';
-import { Button, Card, Field, Input, Segmented } from '../components/ui';
+import { Button, Card, Field, Input, cx } from '../components/ui';
 import { friendlyError } from '../utils/friendlyError';
 import { isEmailNotConfirmed, resendConfirmation } from '../utils/emailConfirm';
 
-// Single source of truth for the 4 mitra portals - label and icon, so
-// adding a role later only means adding one entry here instead of touching
-// every tab/button individually. Driver
-// now covers Ride/Kurir/Makanan jobs together (self-service toggles in
-// Settings, see migrations/0033) - there is no separate Kurir portal anymore.
+// Single source of truth for all 5 mitra portals - label, sub, and icon.
+// Adding or updating a role here keeps the login UX consistent across portals.
 const ROLE_CONFIG = {
-  driver: { label: 'Driver', icon: Car },
-  merchant: { label: 'Restoran', icon: Store },
-  villa: { label: 'Villa', icon: Home },
-  technician: { label: 'Teknisi', icon: Wrench },
+  driver: { label: 'Driver', sub: 'Ojek & Mobil', icon: Car },
+  merchant: { label: 'Restoran', sub: 'WiraFood', icon: Store },
+  villa: { label: 'Villa', sub: 'WiraVilla', icon: Home },
+  technician: { label: 'Teknisi', sub: 'Servis & Tukang', icon: Wrench },
+  nanny: { label: 'Wira Asuh', sub: 'Pengasuh Anak', icon: Baby },
 };
 const ROLES = Object.keys(ROLE_CONFIG);
 
@@ -26,7 +24,12 @@ export default function LoginPage() {
   // Fresh sign-up: email filled in and the "confirm your email" note shown.
   const [email, setEmail] = useState(() => location.state?.email || '');
   const [password, setPassword] = useState('');
-  const [intendedRole, setIntendedRole] = useState('driver');
+  const [intendedRole, setIntendedRole] = useState(() => {
+    const searchRole = new URLSearchParams(location.search).get('role');
+    if (searchRole && ROLES.includes(searchRole)) return searchRole;
+    if (location.state?.role && ROLES.includes(location.state.role)) return location.state.role;
+    return 'driver';
+  });
   const [loading, setLoading] = useState(false);
   const [needsConfirm, setNeedsConfirm] = useState(() => !!location.state?.confirm);
   const [resending, setResending] = useState(false);
@@ -62,7 +65,7 @@ export default function LoginPage() {
       // ke portal yang dipilih - toast dan arah navigasi mengikuti hasil
       // nyata dari mitra_access, bukan cuma status login itu sendiri.
       if (mitraAccess.includes(intendedRole)) {
-        toast.success('Berhasil masuk!');
+        toast.success(`Berhasil masuk ke portal ${ROLE_CONFIG[intendedRole]?.label || intendedRole}!`);
         navigate(`/${intendedRole}`);
       } else if (mitraAccess.length > 0) {
         toast.error(`Akun ini tidak terdaftar sebagai ${ROLE_CONFIG[intendedRole]?.label || intendedRole}. Mengarahkan ke portal Anda...`);
@@ -82,18 +85,7 @@ export default function LoginPage() {
     }
   };
 
-  const current = ROLE_CONFIG[intendedRole];
-  const roleOptions = ROLES.map((role) => {
-    const Icon = ROLE_CONFIG[role].icon;
-    return {
-      value: role,
-      label: (
-        <span className="inline-flex items-center justify-center gap-2">
-          <Icon size={16} aria-hidden="true" /> {ROLE_CONFIG[role].label}
-        </span>
-      ),
-    };
-  });
+  const current = ROLE_CONFIG[intendedRole] || ROLE_CONFIG.driver;
 
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-7 bg-ground px-4 py-10">
@@ -105,21 +97,44 @@ export default function LoginPage() {
         </span>
       </div>
 
-      <Card padding="none" className="w-full max-w-[420px] overflow-hidden">
+      <Card padding="none" className="w-full max-w-[440px] overflow-hidden">
         <div className="h-1.5 tenun-band" aria-hidden="true" />
         <div className="flex flex-col gap-6 p-5 sm:p-7">
           {/* Pilihan Portal */}
-          <div className="flex flex-col gap-3">
-            <h1 className="text-[17px] font-bold leading-snug tracking-tight text-ink text-balance">
-              Pilih portal layanan Anda untuk masuk
+          <div className="flex flex-col gap-2.5">
+            <h1 className="text-[17px] font-bold leading-snug tracking-tight text-ink">
+              Pilih portal layanan untuk masuk
             </h1>
-            <Segmented
-              ariaLabel="Pilih portal layanan"
-              options={roleOptions}
-              value={intendedRole}
-              onChange={setIntendedRole}
-              className="grid w-full grid-cols-2"
-            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ROLES.map((r, idx) => {
+                const config = ROLE_CONFIG[r];
+                const Icon = config.icon;
+                const isSelected = intendedRole === r;
+                const isLastOnTwoCols = idx === ROLES.length - 1;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setIntendedRole(r)}
+                    className={cx(
+                      'flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-control border transition-all text-center min-h-[70px]',
+                      isLastOnTwoCols ? 'col-span-2 sm:col-span-1' : '',
+                      isSelected
+                        ? 'border-brand bg-brand-soft text-brand-ink shadow-sm ring-1 ring-brand font-bold'
+                        : 'border-line bg-sunken/40 text-ink-muted hover:border-line-strong hover:bg-card hover:text-ink font-semibold'
+                    )}
+                  >
+                    <Icon size={19} className={isSelected ? 'text-brand-ink' : 'text-ink-muted'} aria-hidden="true" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-[12.5px] leading-tight">{config.label}</span>
+                      <span className={cx('text-[10.5px] leading-tight mt-0.5', isSelected ? 'text-brand-ink/80' : 'text-ink-muted/70')}>
+                        {config.sub}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {needsConfirm && (
@@ -161,7 +176,7 @@ export default function LoginPage() {
               type="submit"
               size="lg"
               block
-              className="mt-2"
+              className="mt-2 font-bold"
               isLoading={loading}
               leftIcon={<LogIn size={19} />}
             >

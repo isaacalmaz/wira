@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  CheckCircle, XCircle, MessageSquare, Car, Store, Wrench, Package,
+  Baby, CheckCircle, XCircle, MessageSquare, Car, Store, Wrench, Package,
   FileText, ZoomIn, ShieldCheck
 } from 'lucide-react';
 import { Badge, Button, EmptyState, Notice, Sheet, Textarea } from '../ui';
@@ -33,8 +33,9 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   const roleTitle = role === 'driver' ? 'Driver (Ojek / Mobil)'
     : role === 'courier' ? 'Kurir (Antar Barang)'
     : role === 'merchant' ? (isVillaMerchant ? 'Merchant (Villa)' : 'Merchant (Restoran)')
+    : role === 'nanny' ? 'Wira Asuh (Pengasuh Anak)'
     : 'Teknisi & Jasa';
-  const roleIcon = role === 'driver' ? Car : role === 'courier' ? Package : role === 'merchant' ? Store : Wrench;
+  const roleIcon = role === 'driver' ? Car : role === 'courier' ? Package : role === 'merchant' ? Store : role === 'nanny' ? Baby : Wrench;
   const RoleIconComponent = roleIcon;
 
   const cleanPhone = (mitra.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
@@ -168,12 +169,24 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
               <Item label="Pengalaman Kerja"><span><span className="font-mono">{mitra.experience || 1}</span> Tahun</span></Item>
             </div>
           )}
+
+          {role === 'nanny' && (
+            <div className={`${panel} grid grid-cols-1 gap-4 sm:grid-cols-2`}>
+              <Item label="Spesialisasi Usia Anak"><span className="text-[15px] font-bold text-brand-ink">{mitra.specialization || 'Semua Usia'}</span></Item>
+              <Item label="Pengalaman Pengasuhan"><span><span className="font-mono">{mitra.experience || 1}</span> Tahun</span></Item>
+              {mitra.address && (
+                <div className="sm:col-span-2">
+                  <Item label="Alamat Domisili di Lombok"><span className="font-medium">{mitra.address}</span></Item>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Technicians: identity check (KTP + selfie, migrations/0092) */}
-        {role === 'technician' && (
+        {/* Technicians & Nannies: identity check (KTP + selfie, migrations/0092 & 0142) */}
+        {(role === 'technician' || role === 'nanny') && (
           <section className="flex flex-col gap-2.5">
-            <h4 className={eyebrow}>3. Verifikasi Identitas (KTP & Selfie)</h4>
+            <h4 className={eyebrow}>3. Verifikasi Identitas (KTP &amp; Selfie)</h4>
             {mitra.ktp_photo || mitra.selfie_photo ? (
               <div className={`${panel} grid grid-cols-1 gap-3 sm:grid-cols-2`}>
                 {[['KTP', mitra.ktp_photo], ['Selfie', mitra.selfie_photo]].map(([label, src]) => (
@@ -189,17 +202,17 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
                   </figure>
                 ))}
                 <p className="text-[12.5px] leading-relaxed text-ink-muted sm:col-span-2">
-                  Pastikan wajah di selfie sama dengan foto KTP dan nama KTP sama dengan nama pendaftar. Menyetujui pendaftaran ini sekaligus memberi badge Terverifikasi.
+                  Pastikan wajah di selfie sama dengan foto KTP dan nama KTP sama dengan nama pendaftar. Menyetujui pendaftaran ini sekaligus memberikan akses portal {role === 'nanny' ? 'Wira Asuh' : 'Teknisi'}.
                 </p>
               </div>
             ) : (
-              <EmptyState icon={<FileText size={22} />} title="Pendaftar ini belum melampirkan KTP dan selfie." description="Minta lewat WhatsApp, atau setujui tanpa badge Terverifikasi." className="py-7" />
+              <EmptyState icon={<FileText size={22} />} title="Pendaftar ini belum melampirkan KTP dan selfie." description="Minta lewat WhatsApp sebelum menyetujui." className="py-7" />
             )}
           </section>
         )}
 
         {/* Dokumen Lampiran (SIM / STNK / Foto Tempat) */}
-        {role !== 'technician' && <section className="flex flex-col gap-2.5">
+        {role !== 'technician' && role !== 'nanny' && <section className="flex flex-col gap-2.5">
           <h4 className={eyebrow}>3. Berkas Dokumen (Foto SIM / STNK / Legalitas)</h4>
           {mitra.sim_photo ? (
             <div className={`${panel} flex flex-col items-center gap-3`}>

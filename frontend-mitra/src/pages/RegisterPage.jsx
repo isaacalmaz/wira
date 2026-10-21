@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike } from 'lucide-react';
+import { Car, Store, Home, Wrench, Camera, CheckCircle2, Bike, Baby } from 'lucide-react';
 import { Button, Card, Field, Input, Textarea, IconTile, cx } from '../components/ui';
 import WiraMark from '../components/brand/WiraMark';
 import { supabase } from '../config/supabase';
@@ -47,7 +47,13 @@ const compressImage = (file) => {
   });
 };
 
-const ROLE_LABEL = { driver: 'Driver (Ride/Kurir/Makanan)', merchant: 'Restoran / Warung', villa: 'Villa / Penginapan', technician: 'Teknisi & Jasa' };
+const ROLE_LABEL = {
+  driver: 'Driver (Ride/Kurir/Makanan)',
+  merchant: 'Restoran / Warung',
+  villa: 'Villa / Penginapan',
+  technician: 'Teknisi & Jasa',
+  nanny: 'Wira Asuh (Pengasuh Anak)',
+};
 
 // Sensible defaults per vehicle type - motor can do all three job types,
 // mobil never sees 'food' as an option at all (hard restriction, not a
@@ -58,7 +64,7 @@ const DEFAULT_JOB_PREFS_BY_VEHICLE = {
 };
 
 // ---- display-only helpers (markup only, no state of their own) ----
-const ROLE_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench };
+const ROLE_ICON = { driver: Car, merchant: Store, villa: Home, technician: Wrench, nanny: Baby };
 
 // A selectable card wrapping a visually hidden radio, so it stays keyboard
 // reachable (the old `hidden` input was not).
@@ -101,10 +107,10 @@ const SummaryRow = ({ label, children }) => (
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
-  // /register?role=technician (from the /gabung recruitment page) picks the role.
+  // /register?role=technician or /register?role=nanny (from the /gabung recruitment page) picks the role.
   const [searchParams] = useSearchParams();
   const [role, setRole] = useState(() => (
-    ['driver', 'merchant', 'villa', 'technician'].includes(searchParams.get('role')) ? searchParams.get('role') : 'driver'
+    ['driver', 'merchant', 'villa', 'technician', 'nanny'].includes(searchParams.get('role')) ? searchParams.get('role') : 'driver'
   ));
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -133,8 +139,9 @@ const RegisterPage = () => {
     skills: [], // service_skills codes (migrations/0089)
     experience: '1',
     simPhoto: null,
-    ktpPhoto: null, // technicians: identity check (migrations/0092)
+    ktpPhoto: null, // technicians & nannies: identity check (migrations/0092 & 0142)
     selfiePhoto: null,
+    nannyAgeRanges: ['Batita (1–3 tahun)', 'Balita (3–5 tahun)'],
   });
 
   const handleChange = (e) => {
@@ -167,6 +174,18 @@ const RegisterPage = () => {
       ...prev,
       skills: prev.skills.includes(code) ? prev.skills.filter((c) => c !== code) : [...prev.skills, code],
     }));
+  };
+
+  const toggleNannyAgeRange = (range) => {
+    setFormData((prev) => {
+      const has = prev.nannyAgeRanges.includes(range);
+      return {
+        ...prev,
+        nannyAgeRanges: has
+          ? prev.nannyAgeRanges.filter((r) => r !== range)
+          : [...prev.nannyAgeRanges, range],
+      };
+    });
   };
 
   // KTP / selfie for technicians; compressed like the SIM photo.
@@ -226,6 +245,18 @@ const RegisterPage = () => {
       return;
     }
     if (step === 3 && role === 'technician' && (!formData.ktpPhoto || !formData.selfiePhoto)) {
+      toast.error('Lampirkan foto KTP dan foto selfie Anda.');
+      return;
+    }
+    if (step === 3 && role === 'nanny' && (!formData.address || !formData.address.trim())) {
+      toast.error('Isi alamat domisili Anda di Lombok.');
+      return;
+    }
+    if (step === 3 && role === 'nanny' && formData.nannyAgeRanges.length === 0) {
+      toast.error('Pilih minimal satu spesialisasi usia anak.');
+      return;
+    }
+    if (step === 3 && role === 'nanny' && (!formData.ktpPhoto || !formData.selfiePhoto)) {
       toast.error('Lampirkan foto KTP dan foto selfie Anda.');
       return;
     }
@@ -291,14 +322,18 @@ const RegisterPage = () => {
         job_type_preferences: role === 'driver' ? formData.jobTypePreferences : null,
         sim_photo: formData.simPhoto || null,
         restaurant_name: (role === 'merchant' || role === 'villa') ? formData.restaurantName : null,
-        address: (role === 'merchant' || role === 'villa') ? formData.address : null,
-        service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : null,
+        address: (role === 'merchant' || role === 'villa' || role === 'nanny') ? formData.address : null,
+        service_type: role === 'merchant' ? 'food' : role === 'villa' ? 'villa' : role === 'nanny' ? 'babysit' : null,
         // Readable list for admins; the codes go in `skills`.
-        specialization: role === 'technician' ? formData.skills.map(nameOf).join(', ') : null,
+        specialization: role === 'technician'
+          ? formData.skills.map(nameOf).join(', ')
+          : role === 'nanny'
+            ? (formData.nannyAgeRanges.length > 0 ? formData.nannyAgeRanges.join(', ') : 'Semua Usia Anak')
+            : null,
         skills: role === 'technician' ? formData.skills : null,
-        ktp_photo: role === 'technician' ? formData.ktpPhoto : null,
-        selfie_photo: role === 'technician' ? formData.selfiePhoto : null,
-        experience: role === 'technician' ? formData.experience : null,
+        ktp_photo: (role === 'technician' || role === 'nanny') ? formData.ktpPhoto : null,
+        selfie_photo: (role === 'technician' || role === 'nanny') ? formData.selfiePhoto : null,
+        experience: (role === 'technician' || role === 'nanny') ? formData.experience : null,
       };
 
       try {
@@ -319,7 +354,15 @@ const RegisterPage = () => {
     }
   };
 
-  const step3Title = role === 'driver' ? 'Data Kendaraan' : role === 'merchant' ? 'Data Restoran / Warung' : role === 'villa' ? 'Data Villa / Penginapan' : 'Keahlian';
+  const step3Title = role === 'driver'
+    ? 'Data Kendaraan'
+    : role === 'merchant'
+      ? 'Data Restoran / Warung'
+      : role === 'villa'
+        ? 'Data Villa / Penginapan'
+        : role === 'nanny'
+          ? 'Data Pengasuhan Anak'
+          : 'Keahlian';
   const stepTitle = { 1: 'Pilih Jenis Mitra', 2: 'Data Pribadi', 3: step3Title, 4: 'Konfirmasi Pendaftaran' }[step];
 
   return (
@@ -362,6 +405,7 @@ const RegisterPage = () => {
                   { id: 'merchant', title: 'Restoran / Warung', desc: 'Jual makanan khas Lombok di WiraFood' },
                   { id: 'villa', title: 'Villa / Penginapan', desc: 'Sewakan properti di WiraVilla' },
                   { id: 'technician', title: 'Teknisi & Jasa', desc: 'Layanan AC, listrik, tukang, & kolam renang' },
+                  { id: 'nanny', title: 'Wira Asuh (Pengasuh Anak)', desc: 'Layanan babysitting & pendampingan anak di rumah atau villa' },
                 ].map((r) => {
                   const Icon = ROLE_ICON[r.id];
                   const checked = role === r.id;
@@ -713,6 +757,108 @@ const RegisterPage = () => {
                     </fieldset>
                   </>
                 )}
+                {role === 'nanny' && (
+                  <>
+                    <Field label="Alamat Domisili di Lombok" htmlFor="reg-nanny-address" required>
+                      <Textarea
+                        id="reg-nanny-address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        placeholder="Alamat tempat tinggal Anda di Lombok saat ini"
+                        rows={2}
+                        required
+                      />
+                    </Field>
+
+                    <Field label="Pengalaman Mengasuh Anak (Tahun)" htmlFor="reg-nanny-experience" required>
+                      <Input
+                        id="reg-nanny-experience"
+                        type="number"
+                        name="experience"
+                        inputMode="numeric"
+                        min={0}
+                        max={40}
+                        value={formData.experience}
+                        onChange={handleChange}
+                        className="font-mono"
+                        required
+                      />
+                    </Field>
+
+                    <fieldset className="flex flex-col gap-2">
+                      <legend className="text-[13px] font-semibold text-ink">
+                        Spesialisasi Usia Anak <span className="font-normal text-ink-muted">· Usia yang nyaman Anda asuh</span>
+                      </legend>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {[
+                          'Bayi (< 1 tahun)',
+                          'Batita (1–3 tahun)',
+                          'Balita (3–5 tahun)',
+                          'Usia Sekolah (> 5 tahun)',
+                        ].map((range) => {
+                          const on = formData.nannyAgeRanges.includes(range);
+                          return (
+                            <button
+                              key={range}
+                              type="button"
+                              role="checkbox"
+                              aria-checked={on}
+                              onClick={() => toggleNannyAgeRange(range)}
+                              className={cx(
+                                'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
+                                on ? 'border-brand bg-brand text-white' : 'border-line bg-card text-ink hover:border-line-strong',
+                              )}
+                            >
+                              {on && <CheckCircle2 size={15} aria-hidden="true" />}
+                              {range}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+
+                    {/* Identity check: KTP + selfie */}
+                    <fieldset className="flex flex-col gap-2">
+                      <legend className="text-[13px] font-semibold text-ink">
+                        Verifikasi identitas <span className="text-danger">*</span>
+                      </legend>
+                      <p className="text-xs leading-relaxed text-ink-muted">
+                        Keamanan anak adalah prioritas utama. Foto KTP & selfie hanya diperiksa tim verifikasi Wira untuk keselamatan keluarga pemesan.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { field: 'ktpPhoto', id: 'reg-nanny-ktp', label: 'Foto KTP', hint: 'Seluruh kartu terlihat jelas', capture: 'environment' },
+                          { field: 'selfiePhoto', id: 'reg-nanny-selfie', label: 'Foto selfie', hint: 'Wajah jelas memegang KTP', capture: 'user' },
+                        ].map(({ field, id, label, hint, capture }) => (
+                          <div key={field} className="flex flex-col gap-1.5">
+                            <input type="file" id={id} accept="image/*" capture={capture} className="peer sr-only" onChange={pickKycPhoto(field)} />
+                            <label
+                              htmlFor={id}
+                              className={cx(
+                                'relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-card border-2 border-dashed px-2 text-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand/30',
+                                formData[field] ? 'border-success-line' : 'border-line-strong bg-card hover:border-brand hover:bg-brand-soft',
+                              )}
+                            >
+                              {formData[field] ? (
+                                <>
+                                  <img src={formData[field]} alt={label} className="absolute inset-0 h-full w-full object-cover" />
+                                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-ink/70 px-2.5 py-1 text-[11px] font-semibold text-white">Ganti</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Camera size={20} className="text-brand-ink" aria-hidden="true" />
+                                  <span className="text-[13px] font-semibold text-ink">{label}</span>
+                                  <span className="text-[11px] leading-snug text-ink-muted">{hint}</span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </>
+                )}
               </div>
             )}
 
@@ -748,6 +894,14 @@ const RegisterPage = () => {
                   )}
                   {role === 'technician' && (
                     <SummaryRow label="Keahlian">{formData.skills.map(nameOf).join(', ')} (<span className="font-mono font-medium">{formData.experience}</span> thn)</SummaryRow>
+                  )}
+                  {role === 'nanny' && (
+                    <>
+                      <SummaryRow label="Pengalaman"><span className="font-mono font-medium">{formData.experience}</span> tahun</SummaryRow>
+                      <SummaryRow label="Spesialisasi">{formData.nannyAgeRanges.join(', ') || 'Semua usia'}</SummaryRow>
+                      <SummaryRow label="Alamat">{formData.address}</SummaryRow>
+                      <SummaryRow label="Identitas">KTP & selfie terlampir</SummaryRow>
+                    </>
                   )}
                 </div>
                 <CheckRow checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)}>
