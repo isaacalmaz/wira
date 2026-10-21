@@ -54,6 +54,7 @@ export function useOrderDispatch(order, session) {
       isSubscribed = false;
       if (timerId) clearTimeout(timerId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally key on specific order fields to prevent redundant dispatch restart
   }, [order?.id, order?.status, order?.driver_id, order?.service_type, session?.access_token]);
 
   return { pingedCount, totalCandidates };

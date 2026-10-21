@@ -180,7 +180,7 @@ export default function ActiveOrderPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   useEffect(() => {
     fetchOrder();

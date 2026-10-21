@@ -96,7 +96,7 @@ export default function HomePage() {
     };
 
     const fetchGlobalFlags = async () => {
-      const { data, error } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
+      const { data } = await supabase.from('feature_flags').select('features').eq('region', 'features_config').maybeSingle();
       if (data && data.features) {
         setGlobalFlags(data.features);
         updateServices(data.features);

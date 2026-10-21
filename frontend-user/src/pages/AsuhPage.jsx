@@ -8,13 +8,8 @@ import {
   Trash2,
   ShieldCheck,
   Calendar,
-  Clock,
-  MapPin,
-  Phone,
-  FileText,
   ArrowRight,
   HeartHandshake,
-  AlertTriangle,
 } from 'lucide-react';
 import {
   Button,
@@ -121,8 +116,8 @@ export default function AsuhPage() {
             setAddressNote((prev) => (prev ? prev : data.note));
           }
         }
-        if (data.phone && !phone) {
-          setPhone(data.phone);
+        if (data.phone) {
+          setPhone((prev) => (prev ? prev : data.phone));
         }
       });
     return () => {

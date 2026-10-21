@@ -55,6 +55,7 @@ export default function AnimatedMarker({ position, icon, duration = 3000, childr
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPos is animated across frames; omitting it avoids restarting animation loop
   }, [position, duration]);
 
   // Handle marker dragging

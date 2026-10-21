@@ -77,7 +77,9 @@ export async function getAvailableUniqueCode(supabaseClient, baseAmount) {
         if (!rpcErr && Array.isArray(rpcData)) {
           rows = rpcData;
         }
-      } catch (_) {}
+      } catch (_) {
+        // Fallback to direct query below if RPC is not deployed yet
+      }
 
       // 2. Fallback to direct query if RPC is not present
       if (!rows) {

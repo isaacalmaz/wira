@@ -204,9 +204,7 @@ export default function PoolPage() {
   // Layanan yang dipilih (Default: Paket Bulanan)
   const [selectedService, setSelectedService] = useState(monthlyPackage);
   useEffect(() => {
-    if (!selectedService || selectedService.id === 'MONTHLY') {
-      setSelectedService(monthlyPackage);
-    }
+    setSelectedService((prev) => (!prev || prev.id === 'MONTHLY' ? monthlyPackage : prev));
   }, [monthlyPackage]);
 
   const isPackage = selectedService?.id === 'MONTHLY';
@@ -328,7 +326,7 @@ export default function PoolPage() {
     return () => {
       cancelled = true;
     };
-  }, [lastVisit?.id]);
+  }, [lastVisit]);
 
   // Handle URL query parameters /pool?tech=…&svc=…
   const [searchParams, setSearchParams] = useSearchParams();

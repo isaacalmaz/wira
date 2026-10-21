@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { MessageCircle, CheckCircle2, LifeBuoy } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, Field, PageHeader, Segmented, Sheet, Spinner, Table, Textarea } from '../components/ui';
@@ -13,7 +13,7 @@ export default function SupportTicketsPage() {
   const [responseMsg, setResponseMsg] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase.from('support_tickets').select('*, users(name, phone)').order('created_at', { ascending: false });
@@ -30,11 +30,11 @@ export default function SupportTicketsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     fetchTickets();
-  }, [filter]);
+  }, [fetchTickets]);
 
   const handleUpdateStatus = async (id, newStatus, response = null) => {
     setActionLoading(true);

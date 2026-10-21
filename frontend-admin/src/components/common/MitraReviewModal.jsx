@@ -24,7 +24,7 @@ const MitraReviewModal = ({ isOpen, mitra, onClose, onVerify }) => {
   useEffect(() => {
     setAdminNotes(mitra?.admin_notes || '');
     setRejectMode(null);
-  }, [mitra?.id]);
+  }, [mitra?.id, mitra?.admin_notes]);
 
   if (!isOpen || !mitra) return null;
 

@@ -144,7 +144,7 @@ export default function VillaPage() {
       setFetchLoading(false);
     };
     fetchVillas();
-  }, []);
+  }, [t]);
 
   // Alur 2 Jendela: 'catalog' | 'detail' | 'checkout'
   const [view, setView] = useState('catalog');

@@ -33,8 +33,6 @@ const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
 const AsuhPage = lazy(() => import('./pages/AsuhPage'));
-const TechnicianDirectoryPage = lazy(() => import('./pages/technicians/TechnicianDirectoryPage'));
-const TechnicianProfilePage = lazy(() => import('./pages/technicians/TechnicianProfilePage'));
 const MyProjectsPage = lazy(() => import('./pages/projects/MyProjectsPage'));
 const NewProjectPage = lazy(() => import('./pages/projects/NewProjectPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));

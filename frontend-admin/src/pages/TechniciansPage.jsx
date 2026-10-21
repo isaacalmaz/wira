@@ -6,7 +6,6 @@ import ReasonSheet from '../components/common/ReasonSheet';
 import { Link } from 'react-router-dom';
 import { Wrench, Ban, CheckCircle, Inbox, Clock, CheckCircle2, Pencil, Star, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { ConfirmModal } from '../components/common/UIComponents';
 import { Badge, Button, Card, IconTile, PageHeader, Segmented, Sheet, Spinner, Stat, Table, cx } from '../components/ui';
 
 const SKILL_GROUPS = [

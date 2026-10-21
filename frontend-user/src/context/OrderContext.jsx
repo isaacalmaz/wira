@@ -112,6 +112,7 @@ export const OrderProvider = ({ children }) => {
       abortController.abort();
       unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mapDbOrderToUi formats realtime DB payloads
   }, [user, reloadKey]);
 
   const addOrder = async (orderData) => {

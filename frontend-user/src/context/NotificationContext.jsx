@@ -41,6 +41,7 @@ export const NotificationProvider = ({ children }) => {
 
   useEffect(() => {
     fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchNotifications depends on user.id and runs when user changes
   }, [user?.id]);
 
   useEffect(() => {

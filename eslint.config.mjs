@@ -54,7 +54,9 @@ export default [
       ...noisyAsWarnings,
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // react-refresh is disabled because React Contexts export custom hooks
+      // (useAuth, useTheme, etc.) and UI modules export shared SVG/navigation constants.
+      'react-refresh/only-export-components': 'off',
     },
   },
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Wallet,
   ArrowUpRight,
@@ -6,7 +6,6 @@ import {
   QrCode,
   Copy,
   X,
-  Building2,
   PhoneCall,
   Clock,
   Check,
@@ -74,14 +73,14 @@ export default function WalletPage() {
 
   const { user } = useAuth();
 
-  const loadPendingTopUps = async () => {
+  const loadPendingTopUps = useCallback(async () => {
     if (!user?.id) {
       setPendingTopUps([]);
       return;
     }
     const data = await fetchUserTopUpRequests(supabase, user.id);
     setPendingTopUps(data);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadPendingTopUps();
@@ -102,7 +101,7 @@ export default function WalletPage() {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]);
+  }, [user, loadPendingTopUps]);
 
   const handleCancelPending = async (requestId) => {
     if (!requestId || loading) return;
@@ -147,7 +146,9 @@ export default function WalletPage() {
         textArea.select();
         copied = document.execCommand('copy');
         document.body.removeChild(textArea);
-      } catch (_) {}
+      } catch (_) {
+        // Fallback copy failed, handled by copied flag check below
+      }
     }
     if (copied) {
       toast.success(t('wallet.copy_success', { label: copyLabel }));

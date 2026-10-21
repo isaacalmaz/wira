@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
-import { useNavigate } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import { toast } from 'react-hot-toast';
@@ -15,7 +14,6 @@ const DEFAULT_COORDS = { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.de
 
 export default function SavedAddressesPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +36,7 @@ export default function SavedAddressesPage() {
   // menyimpan koordinat default yang belum tentu benar.
   const [hasPickedLocation, setHasPickedLocation] = useState(false);
 
-  const fetchAddresses = async () => {
+  const fetchAddresses = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -56,11 +54,11 @@ export default function SavedAddressesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, t]);
 
   useEffect(() => {
     fetchAddresses();
-  }, [user]);
+  }, [fetchAddresses]);
 
   const handleSave = async (e) => {
     e.preventDefault();

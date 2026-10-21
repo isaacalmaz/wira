@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone, Mail, MessageCircle, Ban, CheckCircle2, Star, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby, Trash2 } from 'lucide-react';
+import { Phone, Mail, MessageCircle, Ban, CheckCircle2, Store, Home, Wrench, Car, ShieldOff, Power, History, FileImage, Baby, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';

@@ -107,7 +107,7 @@ export default function RidePage() {
       }
     };
     fetchVehicles();
-  }, []);
+  }, [t]);
 
   const [mapState, setMapState] = useState({
     center: { lat: APP_CONFIG.defaultLocation.lat, lng: APP_CONFIG.defaultLocation.lng },
@@ -371,7 +371,6 @@ export default function RidePage() {
       // fan-out below can reuse this exact same lookup as its target list -
       // no second nearest-driver query.
       let driverCount = null;
-      let nearbyDrivers = [];
       if (pickupLat != null && pickupLng != null) {
         const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
           user_lat: pickupLat,
@@ -381,7 +380,6 @@ export default function RidePage() {
           max_results: 5
         });
         driverCount = nearby?.length || 0;
-        nearbyDrivers = nearby || [];
       }
 
       const isHourly = mode === 'hourly';
@@ -446,10 +444,6 @@ export default function RidePage() {
   const distanceKm = routeInfo ? (routeInfo.distance / 1000).toFixed(1) : null;
   const etaLabel = routeInfo ? t('ride.eta_minutes', { minutes: Math.ceil(routeInfo.duration / 60) }) : null;
   const vehicleIcon = (id) => (id === 'motor' ? Bike : id === 'mobil' ? Car : CarFront);
-  const chipCls = (active) => cx(
-    'min-h-10 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
-    active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-card text-ink hover:border-brand',
-  );
   const helperBtn = 'inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-1.5 -mx-1.5 text-[12.5px] font-semibold text-brand-ink transition-colors hover:bg-brand-soft';
 
   return (

@@ -91,8 +91,8 @@ export default function SendPage() {
   // Pre-fill sender with logged-in user profile for seamless usability
   useEffect(() => {
     if (userProfile) {
-      if (!senderName && userProfile.name) setSenderName(userProfile.name);
-      if (!senderPhone && userProfile.phone) setSenderPhone(userProfile.phone);
+      if (userProfile.name) setSenderName((prev) => prev || userProfile.name);
+      if (userProfile.phone) setSenderPhone((prev) => prev || userProfile.phone);
     }
   }, [userProfile]);
 
@@ -133,7 +133,6 @@ export default function SendPage() {
     { id: 'besar', name: 'Paket Besar', base: 30000, perKm: 0 },
   ];
   const [rules, setRules] = useState(null);
-  const [hasBigItem, setHasBigItem] = useState(false);
   const [routeMeters, setRouteMeters] = useState(null);
 
   useEffect(() => {
@@ -148,7 +147,6 @@ export default function SendPage() {
         if (plain.length) {
           setRules(plain.map((r) => ({ id: r.code, name: r.name || r.code, base: Number(r.base_price) || 0, perKm: Number(r.per_km_rate) || 0 })));
         }
-        setHasBigItem((data || []).some((r) => r.code === 'BESAR'));
       });
   }, []);
 
@@ -303,18 +301,6 @@ export default function SendPage() {
         }
       } catch (geoErr) {
         console.error('Failed to geocode WiraSend address:', geoErr);
-      }
-
-      let nearbyDrivers = [];
-      if (pickupLat != null && pickupLng != null) {
-        const { data: nearby } = await supabase.rpc('get_nearest_drivers', {
-          user_lat: pickupLat,
-          user_lng: pickupLng,
-          target_vehicle_type: null,
-          only_online: true,
-          max_results: 5,
-        });
-        nearbyDrivers = nearby || [];
       }
 
       let bigPhotoPaths = [];
