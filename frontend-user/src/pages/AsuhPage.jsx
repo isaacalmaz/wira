@@ -324,33 +324,31 @@ export default function AsuhPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between rounded-control border border-line bg-card p-2">
-                <Button
-                  variant="secondary"
-                  size="md"
+              <div className="flex items-center justify-between gap-4 rounded-control border border-line bg-sunken/60 p-2.5">
+                <button
+                  type="button"
                   aria-label={t('asuh.less')}
                   disabled={hours <= MIN_HOURS}
                   onClick={() => setHours((h) => Math.max(MIN_HOURS, h - 1))}
-                  className="h-10 w-12"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
                 >
                   <Minus size={18} />
-                </Button>
-                <div className="flex flex-col items-center">
-                  <span className="font-mono text-[18px] font-extrabold text-ink">
+                </button>
+                <div className="flex flex-col items-center justify-center">
+                  <span className="font-mono text-2xl font-extrabold tracking-tight text-ink">
                     {t('asuh.hours', { n: hours })}
                   </span>
-                  <span className="text-[11px] text-ink-muted">Min {MIN_HOURS} jam • Maks {MAX_HOURS} jam</span>
+                  <span className="text-[11.5px] text-ink-muted">Min {MIN_HOURS} jam • Maks {MAX_HOURS} jam</span>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="md"
+                <button
+                  type="button"
                   aria-label={t('asuh.more')}
                   disabled={hours >= MAX_HOURS}
                   onClick={() => setHours((h) => Math.min(MAX_HOURS, h + 1))}
-                  className="h-10 w-12"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line-strong bg-card text-ink transition-all hover:bg-ground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
                 >
                   <Plus size={18} />
-                </Button>
+                </button>
               </div>
             </div>
 
@@ -454,12 +452,12 @@ export default function AsuhPage() {
 
           {/* STICKY BOTTOM BAR (LANGKAH 1) */}
           <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
-            <div className="mx-auto flex max-w-2xl items-center gap-3 rounded-card bg-brand py-2.5 pl-4 pr-2.5 text-white shadow-pop">
+            <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 rounded-card bg-brand px-4 py-3 text-white shadow-pop">
               <div className="flex min-w-0 flex-1 flex-col">
                 <p className="truncate text-[12px] text-white/80">
-                  {t('asuh.summary', { hours, kids: children.length })}
+                  {t(children.length === 1 ? 'asuh.summary_single' : 'asuh.summary', { hours, kids: children.length })}
                 </p>
-                {total != null && <Money value={total} className="text-[17px] font-medium" />}
+                {total != null && <Money value={total} className="text-[18px] font-bold text-white tracking-tight" />}
               </div>
               <Button
                 variant="on-brand"
@@ -467,6 +465,7 @@ export default function AsuhPage() {
                 disabled={rates?.hourly == null || under3 > 2}
                 rightIcon={<ArrowRight size={16} />}
                 onClick={handleProceedToStep2}
+                className="shrink-0 px-5 font-bold shadow-sm"
               >
                 {t('asuh.proceed_to_location')}
               </Button>

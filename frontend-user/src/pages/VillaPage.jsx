@@ -622,12 +622,12 @@ export default function VillaPage() {
 
           {/* STICKY BOTTOM BAR (DETAIL STEP) */}
           <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
-            <div className="mx-auto flex max-w-2xl items-center gap-3 rounded-card bg-brand py-2.5 pl-4 pr-2.5 text-white shadow-pop">
+            <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 rounded-card bg-brand px-4 py-3 text-white shadow-pop">
               <div className="flex min-w-0 flex-1 flex-col">
                 <p className="truncate text-[12px] text-white/80">
                   {nights > 0 ? `${nights} Malam • ${guests} Tamu` : 'Tentukan tanggal menginap'}
                 </p>
-                <Money value={subtotalPrice || selectedVilla.pricePerNight} className="text-[17px] font-medium" />
+                <Money value={subtotalPrice || selectedVilla.pricePerNight} className="text-[18px] font-bold text-white tracking-tight" />
               </div>
               <Button
                 variant="on-brand"
@@ -638,6 +638,7 @@ export default function VillaPage() {
                   setView('checkout');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
+                className="shrink-0 px-5 font-bold shadow-sm"
               >
                 {t('villa.proceed_to_booking')}
               </Button>
