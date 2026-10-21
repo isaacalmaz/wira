@@ -36,8 +36,7 @@ export const requestForToken = async () => {
       scope: '/firebase-cloud-messaging-push-scope',
     });
     const currentToken = await getToken(messaging, {
-      // Replace with your VAPID key later if you want web push on standard browsers
-      // vapidKey: "YOUR_VAPID_KEY"
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: swReg,
     });
     if (currentToken) {

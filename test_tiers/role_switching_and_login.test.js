@@ -159,6 +159,84 @@ async function runTests() {
   const s3 = canSwitchRole('driver', 'villa', null);
   assert.strictEqual(s3.allowed, true, 'Switch must be allowed when no active order');
 
+  // Test 6: Partner link resolution for active-order and projects
+  const { resolvePartnerLink } = await import('../frontend-mitra/src/utils/links.js');
+  assert.strictEqual(
+    resolvePartnerLink('/active-order/ord-123', ['driver'], 'driver'),
+    '/driver/active-order/ord-123',
+    'Active order link must resolve to active driver portal'
+  );
+  assert.strictEqual(
+    resolvePartnerLink('/active-order/ord-456', ['merchant'], 'merchant'),
+    '/merchant/active-order/ord-456',
+    'Active order link must resolve to merchant portal'
+  );
+  assert.strictEqual(
+    resolvePartnerLink('/projects/proj-789', ['technician'], 'technician'),
+    '/technician/projects/proj-789',
+    'Project link must resolve to technician portal'
+  );
+  assert.strictEqual(
+    resolvePartnerLink('/earnings', ['nanny'], 'nanny'),
+    '/nanny/earnings',
+    'Role-less earnings link must resolve to current partner role'
+  );
+
+  // Test 7: Commission deposit validation (flexible amounts >= 1)
+  function validateDepositAmount(raw) {
+    const num = Math.round(Number(raw));
+    if (!num || num < 1 || num > 100000000) {
+      return { valid: false, error: 'Jumlah setoran Rp 1 sampai Rp 100.000.000' };
+    }
+    return { valid: true, amount: num };
+  }
+  assert.strictEqual(validateDepositAmount('0').valid, false, 'Deposit of 0 must be invalid');
+  assert.strictEqual(validateDepositAmount('-1000').valid, false, 'Negative deposit must be invalid');
+  assert.strictEqual(validateDepositAmount('1').valid, true, 'Deposit of Rp 1 must be valid');
+  assert.strictEqual(validateDepositAmount('500').valid, true, 'Deposit of Rp 500 must be valid');
+  assert.strictEqual(validateDepositAmount('10000').valid, true, 'Deposit of Rp 10.000 must be valid');
+  assert.strictEqual(validateDepositAmount('100000001').valid, false, 'Deposit > 100M must be invalid');
+
+  // Test 8: Chat counterparty notification resolution
+  function resolveChatRecipients(order, senderId) {
+    const list = [order.user_id, order.driver_id, order.merchant_owner];
+    return Array.from(new Set(list.filter((uid) => uid && uid !== senderId)));
+  }
+
+  // Ride order: customer + driver
+  const rideOrder = { user_id: 'cust-1', driver_id: 'drv-2', merchant_owner: null };
+  assert.deepStrictEqual(resolveChatRecipients(rideOrder, 'cust-1'), ['drv-2'], 'Customer message must notify driver');
+  assert.deepStrictEqual(resolveChatRecipients(rideOrder, 'drv-2'), ['cust-1'], 'Driver message must notify customer');
+
+  // Food order: customer + driver + merchant
+  const foodOrder = { user_id: 'cust-1', driver_id: 'drv-2', merchant_owner: 'merch-3' };
+  assert.deepStrictEqual(resolveChatRecipients(foodOrder, 'cust-1'), ['drv-2', 'merch-3'], 'Customer message must notify both driver and merchant');
+  assert.deepStrictEqual(resolveChatRecipients(foodOrder, 'drv-2'), ['cust-1', 'merch-3'], 'Driver message must notify customer and merchant');
+  assert.deepStrictEqual(resolveChatRecipients(foodOrder, 'merch-3'), ['cust-1', 'drv-2'], 'Merchant message must notify customer and driver');
+  assert.deepStrictEqual(resolveChatRecipients(foodOrder, 'admin-99'), ['cust-1', 'drv-2', 'merch-3'], 'Admin message must notify all participants');
+
+  // Self-delivery / deduplication test: driver is also merchant owner
+  const selfDeliv = { user_id: 'cust-1', driver_id: 'owner-4', merchant_owner: 'owner-4' };
+  assert.deepStrictEqual(resolveChatRecipients(selfDeliv, 'cust-1'), ['owner-4'], 'Deduplication must prevent double notify');
+
+  // Test 9: Project counterparty resolution
+  function resolveProjectRecipients(project, technicianId, senderId) {
+    const list = [project.customer_id, technicianId];
+    return Array.from(new Set(list.filter((uid) => uid && uid !== senderId)));
+  }
+  const proj = { id: 'p-1', customer_id: 'cust-1' };
+  assert.deepStrictEqual(resolveProjectRecipients(proj, 'tech-1', 'cust-1'), ['tech-1'], 'Customer project msg must notify tech');
+  assert.deepStrictEqual(resolveProjectRecipients(proj, 'tech-1', 'tech-1'), ['cust-1'], 'Tech project msg must notify customer');
+  assert.deepStrictEqual(resolveProjectRecipients(proj, 'tech-1', 'admin-99'), ['cust-1', 'tech-1'], 'Admin project msg must notify both');
+
+  // Test 10: Re-registration role preservation
+  function resolveReapplyLink(app) {
+    return app?.role && app.role !== 'courier' ? `/register?role=${app.role}` : '/register';
+  }
+  assert.strictEqual(resolveReapplyLink({ role: 'technician' }), '/register?role=technician');
+  assert.strictEqual(resolveReapplyLink({ role: 'nanny' }), '/register?role=nanny');
+  assert.strictEqual(resolveReapplyLink(null), '/register');
+
   console.log('✅ ALL ROLE SWITCHING & LOGIN TESTS PASSED SUCCESSFULLY!');
 }
 

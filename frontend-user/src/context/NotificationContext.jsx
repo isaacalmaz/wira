@@ -40,7 +40,55 @@ export const NotificationProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      return undefined;
+    }
+
     fetchNotifications();
+
+    const channel = supabase
+      .channel(`user-notifs-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotif = payload.new;
+          if (newNotif) {
+            setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
+            const text = newNotif.description ? `${newNotif.title}: ${newNotif.description}` : newNotif.title;
+            toast(text, {
+              icon: '🔔',
+              duration: 5000,
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new;
+          if (updated) {
+            setNotifications((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchNotifications depends on user.id and runs when user changes
   }, [user?.id]);
 

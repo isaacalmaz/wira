@@ -153,8 +153,12 @@ export default function PayoutPanel() {
   const handleDeposit = async (e) => {
     e.preventDefault();
     const numAmount = Math.round(Number(depositAmount));
-    if (!numAmount || numAmount < 10000) {
-      toast.error('Setoran minimal Rp 10.000');
+    if (!numAmount || numAmount < 1) {
+      toast.error('Masukkan nominal setoran yang valid (minimal Rp 1)');
+      return;
+    }
+    if (numAmount > 100000000) {
+      toast.error('Maksimal setoran Rp 100.000.000');
       return;
     }
     if (!proofFile) {
@@ -430,8 +434,9 @@ export default function PayoutPanel() {
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
               className="font-mono"
-              placeholder="Contoh: 50000"
-              min="10000"
+              placeholder="Contoh: 10000"
+              min="1"
+              max="100000000"
               required
             />
           </Field>

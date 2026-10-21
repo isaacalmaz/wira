@@ -1,11 +1,12 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
 import MitraLayout from './components/layout/MitraLayout';
 import Spinner from './components/ui/Spinner';
 import { getStoredActiveMode, setStoredActiveMode } from './constants/roles';
+import { resolvePartnerLink } from './utils/links';
 
 // Eager: LoginPage is the first screen for a logged-out mitra, and MitraLayout
 // wraps every protected route, so both ship in the entry chunk. Every other
@@ -95,6 +96,22 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   );
 };
 
+const ActiveOrderRedirect = () => {
+  const { id } = useParams();
+  const { user, mitraAccess } = useAuth();
+  if (!user || !mitraAccess?.length) return <Navigate to="/" replace />;
+  const target = resolvePartnerLink(`/active-order/${id}`, mitraAccess, getStoredActiveMode());
+  return <Navigate to={target} replace />;
+};
+
+const ProjectRedirect = () => {
+  const { id } = useParams();
+  const { user, mitraAccess } = useAuth();
+  if (!user || !mitraAccess?.length) return <Navigate to="/" replace />;
+  const target = resolvePartnerLink(`/projects/${id}`, mitraAccess, getStoredActiveMode());
+  return <Navigate to={target} replace />;
+};
+
 function App() {
   const { user, mitraAccess, loading } = useAuth();
 
@@ -148,6 +165,8 @@ function App() {
               }
             />
           ))}
+          <Route path="/active-order/:id" element={<ActiveOrderRedirect />} />
+          <Route path="/projects/:id" element={<ProjectRedirect />} />
         
           <Route path="/driver/*" element={
             <ProtectedRoute allowedRole="driver">

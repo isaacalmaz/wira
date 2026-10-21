@@ -3,10 +3,36 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, LogOut, Bell, CalendarClock } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
 import WiraMark from '../brand/WiraMark';
 import { cx } from '../ui';
 import { RoleSwitcherSheet, RoleSwitcherSidebarButton, RoleSwitcherHeaderBadge } from './RoleSwitcher';
+
+const playSensoryAlert = () => {
+  try {
+    if (typeof window !== 'undefined' && 'navigator' in window && navigator.vibrate) {
+      navigator.vibrate([120, 80, 120]);
+    }
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    }
+  } catch {
+    // Autoplay restrictions or audio context errors handled safely
+  }
+};
 
 const MitraLayout = ({ children }) => {
   const { logout, mitraAccess, user } = useAuth();
@@ -74,7 +100,18 @@ const MitraLayout = ({ children }) => {
     };
     count();
     const channel = supabase.channel(`mitra-notifs-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, count)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
+        count();
+        const n = payload.new;
+        if (n) {
+          const text = n.description ? `${n.title}: ${n.description}` : n.title;
+          toast(text, {
+            duration: 6000,
+            icon: '🔔',
+          });
+          playSensoryAlert();
+        }
+      })
       .subscribe();
     const onRead = () => setUnread(0);
     window.addEventListener('wira:notifications-read', onRead);
