@@ -820,8 +820,8 @@ export default function PoolPage() {
           </div>
 
           {/* STICKY BOTTOM BAR (LANGKAH 1) */}
-          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
-            <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 rounded-card bg-brand px-4 py-3 text-white shadow-pop">
+          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-[var(--sidebar-w,16rem)] md:px-8 transition-[left] duration-200 pointer-events-none">
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 rounded-card bg-brand px-4 py-3 text-white shadow-pop pointer-events-auto">
               <div className="flex min-w-0 flex-1 flex-col">
                 <p className="truncate text-[12px] text-white/80">
                   {serviceLabel(selectedService)} • {poolSize.split(' ')[0]}
@@ -1093,8 +1093,8 @@ export default function PoolPage() {
           </Card>
 
           {/* STICKY BOTTOM CONFIRM BAR (LANGKAH 2) */}
-          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-64 md:px-8">
-            <div className="mx-auto flex max-w-2xl items-stretch gap-2.5 rounded-card border border-line bg-card p-2.5 shadow-pop">
+          <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6 md:left-[var(--sidebar-w,16rem)] md:px-8 transition-[left] duration-200 pointer-events-none">
+            <div className="mx-auto flex max-w-3xl items-stretch gap-2.5 rounded-card border border-line bg-card p-2.5 shadow-pop pointer-events-auto">
               <Button
                 type="submit"
                 size="lg"

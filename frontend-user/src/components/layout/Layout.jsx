@@ -62,7 +62,12 @@ export default function Layout() {
   }
 
   return (
-    <div className="relative flex h-[100dvh] overflow-hidden bg-ground">
+    <div
+      className="relative flex h-[100dvh] overflow-hidden bg-ground"
+      style={{
+        '--sidebar-w': collapsed ? '76px' : '256px',
+      }}
+    >
       {!online && (
         <div role="status" className="fixed inset-x-0 top-0 z-[60] bg-warning px-4 py-2 text-center text-[13px] font-semibold text-white">
           {t('common.offline_banner')}
