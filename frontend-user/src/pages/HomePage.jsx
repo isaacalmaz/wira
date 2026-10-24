@@ -4,31 +4,19 @@ import SpotlightCard, { promoService, spotlightPromo } from '../components/home/
 import DownloadSheet from '../components/landing/DownloadSheet';
 import { todayLombok } from '../utils/promoDates';
 import { isNative } from '../native/nativeShell';
-import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { Link } from 'react-router-dom';
-import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package, MapPin } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package, MapPin, Clock, ChevronRight } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
-import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
+import { Button, Card, IconTile, Money, SectionHeader, Sheet, cx } from '../components/ui';
 import { WALLET_ENABLED } from '../config/wallet';
 import useMyProfile from '../hooks/useMyProfile';
 
-// Order status -> Badge tone (DESIGN.md §5): searching/pending = warning,
-// active = brand, completed = success, cancelled = danger.
-const STATUS_TONE = {
-  awaiting_payment: 'warning',
-  pending: 'warning',
-  completed: 'success',
-  cancelled: 'danger',
-};
-const statusTone = (raw) => STATUS_TONE[String(raw || '').toLowerCase()] || 'brand';
-
-// Leading icon for an activity row, from the service catalogue.
-const serviceIcon = (serviceName) => SERVICES.find((s) => s.name_id === serviceName)?.icon || Package;
+const DONE_STATUSES = new Set(['completed', 'cancelled', 'canceled', 'expired', 'rejected']);
 
 // White / outline actions on the always-dark WiraPay card (Button's
 // on-brand variants, applied to router links).
@@ -129,7 +117,7 @@ export default function HomePage() {
     updateServices();
   }, [globalFlags]);
 
-  const recentOrders = orders.slice(0, 3);
+  const activeOrdersCount = orders.filter((o) => o.rawStatus && !DONE_STATUSES.has(String(o.rawStatus).toLowerCase())).length;
 
   // Customer's own order (localStorage) if they arranged one, otherwise the
   // order admins set in Fitur & Wilayah (feature_flags, live); services not
@@ -172,16 +160,28 @@ export default function HomePage() {
     : service.name_en.replace('Wira', ''));
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-6 lg:max-w-none">
-      {/* Greeting */}
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
-        <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words lg:text-[26px]">{displayName}</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 pb-8">
+      {/* Greeting & Quick Activity Shortcut */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[13px] text-ink-muted">{t(greetingKey)}</p>
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink text-balance break-words lg:text-[26px]">{displayName}</h1>
+        </div>
+        <Link
+          to="/activity"
+          className="inline-flex min-h-11 items-center gap-2 self-start rounded-control border border-line bg-card px-3.5 py-2 text-[13px] font-bold text-ink shadow-sm transition-colors hover:border-brand hover:text-brand-ink sm:self-auto"
+        >
+          <Clock size={16} className="shrink-0 text-brand-ink" aria-hidden="true" />
+          <span>{t('nav.activity')}</span>
+          {activeOrdersCount > 0 ? (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">
+              {activeOrdersCount}
+            </span>
+          ) : (
+            <ChevronRight size={15} className="text-ink-muted" aria-hidden="true" />
+          )}
+        </Link>
       </div>
-
-      {/* Desktop: services left, promos and activity right. Phone: one column, same order. */}
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
-      <div className="flex min-w-0 flex-col gap-6">
 
       {/* Kartu Dompet WiraPay (web only, config/wallet) */}
       {WALLET_ENABLED && (
@@ -211,11 +211,11 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Most useful thing right now: running order, notice, promo, order again or a tip */}
+      {/* Spotlight Card: Live order tracker, running orders, notice, promo */}
       <SpotlightCard orders={orders} services={shownServices} promos={promos} />
 
-      {/* Layanan: the focal point. The customer's first two are the big cards. */}
-      <section>
+      {/* Layanan: The Core Hero Showcase */}
+      <section className="flex flex-col gap-3">
         <SectionHeader
           title={t('home.services_title')}
           action={(
@@ -232,7 +232,7 @@ export default function HomePage() {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {shownServices.map((service, index) => {
             const Icon = service.icon || Package;
             const hero = index < 2;
@@ -244,16 +244,16 @@ export default function HomePage() {
                 key={service.id}
                 to={service.path}
                 className={cx(
-                  'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
+                  'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
-                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-brand text-white' : 'bg-pay text-pay-ink')
+                    ? cx('min-h-[160px] flex-col gap-2 p-4 sm:p-5 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-brand text-white shadow-sm' : 'bg-pay text-pay-ink shadow-sm')
                     : cx(
-                        'border border-line bg-card hover:border-brand lg:col-span-1 lg:min-h-[132px] lg:flex-col lg:items-stretch lg:gap-1.5 lg:p-3',
-                        wide ? 'col-span-2 flex items-center gap-3 p-3' : 'col-span-1 flex min-h-[110px] flex-col gap-1.5 p-3',
+                        'border border-line bg-card hover:border-brand hover:shadow-sm lg:col-span-1 lg:min-h-[142px] lg:flex-col lg:items-stretch lg:gap-2 lg:p-4',
+                        wide ? 'col-span-2 flex items-center gap-3.5 p-3.5' : 'col-span-1 flex min-h-[120px] flex-col gap-2 p-3.5',
                       ),
                 )}
               >
-                {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
+                {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-28 w-28 rounded-full border-[12px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
                 {hasPromo && (
                   <span className={cx('absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold', hero ? (index === 0 ? 'bg-white/20 text-white' : 'bg-black/10 text-ink') : 'bg-pay-soft text-pay-ink')}>
                     {t('home.promo_tag')}
@@ -264,13 +264,13 @@ export default function HomePage() {
                     'grid shrink-0 place-items-center',
                     hero
                       ? cx('h-14 w-14 rounded-tile', index === 0 ? 'bg-white/15' : 'bg-black/10')
-                      : 'h-12 w-12 rounded-[14px] bg-brand-soft text-brand-ink',
+                      : 'h-12 w-12 rounded-[14px] bg-brand-soft text-brand-ink group-hover:scale-105 transition-transform',
                   )}
                 >
                   <Icon size={hero ? 32 : 26} aria-hidden="true" />
                 </span>
                 <span className={cx('flex min-w-0 flex-col', hero && 'mt-auto')}>
-                  <span className={cx('break-words font-extrabold tracking-[-0.01em]', hero ? 'text-[19px]' : 'text-[15px] text-ink')}>{serviceLabel(service)}</span>
+                  <span className={cx('break-words font-extrabold tracking-[-0.01em]', hero ? 'text-[19px] sm:text-[20px]' : 'text-[15px] text-ink group-hover:text-brand-ink transition-colors')}>{serviceLabel(service)}</span>
                   <span className={cx('break-words text-[12px] leading-snug', hero ? (index === 0 ? 'text-white/80' : 'text-ink/80') : 'text-ink-muted')}>
                     {t(`home.svc_short_${service.key.replace('wira_', '')}`)}
                   </span>
@@ -281,90 +281,47 @@ export default function HomePage() {
         </div>
       </section>
 
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-6">
-      {/* Desktop only: a shortcut into Ride, so the column never starts empty. */}
+      {/* Desktop Ride Quick Search / Destination Shortcut */}
       {shownServices.some((sv) => sv.path === '/ride') && (
         <Link
           to="/ride"
-          className="hidden flex-col gap-3 rounded-card border border-line bg-card p-4 transition-colors hover:border-brand lg:flex"
+          className="hidden flex-col gap-3 rounded-card border border-line bg-card p-4 sm:p-5 transition-colors hover:border-brand lg:flex"
         >
           <span className="flex flex-col gap-0.5">
             <span className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">{t('home.where_to')}</span>
             <span className="text-[12.5px] text-ink-muted">{t('home.where_to_sub')}</span>
           </span>
-          <span className="flex items-center gap-2.5 rounded-control border border-line-strong bg-ground px-3 py-2.5 text-[14px] text-ink-muted">
-            <MapPin size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
-            {t('home.where_to_placeholder')}
-          </span>
-          <span className="inline-flex min-h-10 items-center justify-center rounded-control bg-brand px-3 text-[13.5px] font-semibold text-white">{t('home.book_ride')}</span>
+          <div className="flex items-center gap-3">
+            <span className="flex flex-1 items-center gap-2.5 rounded-control border border-line-strong bg-ground px-3.5 py-2.5 text-[14px] text-ink-muted">
+              <MapPin size={17} className="shrink-0 text-brand-ink" aria-hidden="true" />
+              {t('home.where_to_placeholder')}
+            </span>
+            <span className="inline-flex min-h-11 items-center justify-center rounded-control bg-brand px-5 text-[13.5px] font-bold text-white transition-colors hover:bg-brand-hover">
+              {t('home.book_ride')}
+            </span>
+          </div>
         </Link>
       )}
 
-      <PromoCarousel services={availableServices} excludeId={spotPromoId} stacked />
+      {/* Promos Carousel */}
+      <PromoCarousel services={availableServices} excludeId={spotPromoId} />
 
-      {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
-      
-      {/* Banner Download */}
-      {!isNative() && <section className="md:hidden">
-        <button type="button" onClick={() => setDownloadOpen(true)} className="flex w-full items-center justify-between gap-3 rounded-card border border-brand-line bg-brand-soft px-4 py-3 text-left text-brand-ink transition-colors hover:bg-brand-soft/80">
-          <span className="flex min-w-0 flex-col">
-            <span className="text-[13.5px] font-bold">{t('download.banner_title')}</span>
-            <span className="text-[12px] opacity-90">{t('download.banner_sub')}</span>
-          </span>
-          <span className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
-        </button>
-      </section>}
-
-      {recentOrders.length === 0 && (
-        <section className="hidden lg:block">
-          <SectionHeader title={t('home.recent')} />
-          <p className="rounded-card border border-dashed border-line-strong px-4 py-6 text-center text-[13px] leading-relaxed text-ink-muted">{t('home.recent_empty')}</p>
+      {/* Mobile Download Banner */}
+      {!isNative() && (
+        <section className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setDownloadOpen(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-card border border-brand-line bg-brand-soft px-4 py-3 text-left text-brand-ink transition-colors hover:bg-brand-soft/80"
+          >
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[13.5px] font-bold">{t('download.banner_title')}</span>
+              <span className="text-[12px] opacity-90">{t('download.banner_sub')}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
+          </button>
         </section>
       )}
-
-      {recentOrders.length > 0 && (
-      <section>
-        <SectionHeader
-          title={t('home.recent')}
-          action={<Link to="/activity" className="hover:underline">{t('common.see_all')}</Link>}
-        />
-
-        {recentOrders.length === 0 ? (
-          null
-        ) : (
-          <div className="flex flex-col gap-2">
-            {recentOrders.map((ord) => {
-              const OrderIcon = serviceIcon(ord.service);
-              return (
-                <ListRow
-                  key={ord.id}
-                  as={Link}
-                  to={`/active-order/${ord.id}`}
-                  className="rounded-card border border-line bg-card px-3.5 py-3 hover:border-line-strong"
-                  leading={(
-                    <IconTile size="sm" tone="brand">
-                      <OrderIcon size={17} aria-hidden="true" />
-                    </IconTile>
-                  )}
-                  title={localizeOrderTitle(ord, t)}
-                  subtitle={<span className="font-mono">{ord.date}</span>}
-                  trailing={(
-                    <span className="flex flex-col items-end gap-1">
-                      <Money value={ord.price} className="text-[13px] font-medium text-ink" />
-                      <Badge tone={statusTone(ord.rawStatus)} dot>{t(ord.statusKey)}</Badge>
-                    </span>
-                  )}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
-      )}
-      </div>
-      </div>
 
       {/* Menu Customization Sheet */}
       <Sheet
