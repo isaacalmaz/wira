@@ -42,6 +42,7 @@ const PromosPage = lazy(() => import('./pages/PromosPage'));
 const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const SupportTicketsPage = lazy(() => import('./pages/SupportTicketsPage'));
+const BersihAdminPage = lazy(() => import('./pages/BersihAdminPage'));
 
 // Komponen untuk rute yang dilindungi
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -178,6 +179,11 @@ function App() {
             <Route path="projects" element={
               <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
                 <ProjectsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="bersih" element={
+              <ProtectedRoute allowedRoles={CORE_ADMIN_ROLES}>
+                <BersihAdminPage />
               </ProtectedRoute>
             } />
             <Route path="reviews" element={

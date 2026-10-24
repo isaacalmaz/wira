@@ -26,6 +26,7 @@ import {
   Inbox,
   Baby,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { fetchPendingApplications, subscribeToApplications } from '../../services/mitraApplicationService';
 import { supabase } from '../../config/supabase';
@@ -42,6 +43,7 @@ export const MENU_ITEMS = [
   { name: 'Pesanan', icon: ShoppingBag, path: '/orders', roles: CS_ADMIN_ROLES, group: 'operasional' },
   { name: 'Proyek', icon: ClipboardList, path: '/projects', roles: CORE_ADMIN_ROLES, group: 'operasional' },
   { name: 'Pelanggan', icon: Users, path: '/customers', roles: ADMIN_ROLES, group: 'operasional' },
+  { name: 'Wira Bersih', icon: Sparkles, path: '/bersih', roles: CORE_ADMIN_ROLES, countKey: 'bersih', group: 'operasional' },
   // Pendaftaran is the only way in for new partners (one queue, all kinds).
   { name: 'Pendaftaran', icon: Inbox, path: '/applications', roles: CORE_ADMIN_ROLES, countKey: 'applications', group: 'mitra' },
   { name: 'Driver', icon: Car, path: '/drivers', roles: CORE_ADMIN_ROLES, group: 'mitra' },
@@ -81,18 +83,19 @@ const AdminSidebar = ({ isCollapsed, mobileOpen = false, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [pendingCounts, setPendingCounts] = useState({ applications: 0, villa: 0, testers: 0 });
+  const [pendingCounts, setPendingCounts] = useState({ applications: 0, villa: 0, testers: 0, bersih: 0 });
 
   const fetchPendingCounts = async () => {
     try {
       const list = await fetchPendingApplications(null, 'id, role');
       // Villa: properties existing hosts added that wait for review (0097);
       // new hosts themselves are in Pendaftaran.
-      const [{ count: listings }, { count: testers }] = await Promise.all([
+      const [{ count: listings }, { count: testers }, { count: pendingBersih }] = await Promise.all([
         supabase.from('merchants').select('id', { count: 'exact', head: true }).eq('listing_status', 'pending'),
         supabase.from('tester_signups').select('id', { count: 'exact', head: true }).eq('added', false),
+        supabase.from('waste_subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       ]);
-      setPendingCounts({ applications: list.length, villa: listings || 0, testers: testers || 0 });
+      setPendingCounts({ applications: list.length, villa: listings || 0, testers: testers || 0, bersih: pendingBersih || 0 });
     } catch { /* best-effort; ignore */ }
   };
 

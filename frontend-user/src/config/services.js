@@ -5,7 +5,7 @@
 
 import {
   Car, UtensilsCrossed, Package, Wallet,
-  Home, Wrench, Waves, Baby
+  Home, Wrench, Waves, Baby, Sparkles
 } from 'lucide-react';
 
 // Daftar semua layanan yang tersedia
@@ -105,6 +105,18 @@ const SERVICES = [
     icon: Baby,
     path: '/asuh',
     color: '#C4912F',       // Emas
+    enabled: true,
+  },
+  {
+    id: 'wira_bersih',
+    key: 'wira_bersih',
+    name_id: 'WiraBersih',
+    name_en: 'WiraBersih',
+    description_id: 'Kebersihan villa & angkut sampah',
+    description_en: 'Villa housekeeping & waste management',
+    icon: Sparkles,
+    path: '/bersih',
+    color: '#0B4F5E',       // Laut 700
     enabled: true,
   },
 ];

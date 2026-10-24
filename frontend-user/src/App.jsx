@@ -38,6 +38,7 @@ const VillaPage = lazy(() => import('./pages/VillaPage'));
 const ServicePage = lazy(() => import('./pages/ServicePage'));
 const PoolPage = lazy(() => import('./pages/PoolPage'));
 const AsuhPage = lazy(() => import('./pages/AsuhPage'));
+const BersihPage = lazy(() => import('./pages/BersihPage'));
 const MyProjectsPage = lazy(() => import('./pages/projects/MyProjectsPage'));
 const NewProjectPage = lazy(() => import('./pages/projects/NewProjectPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
@@ -92,6 +93,7 @@ export default function Root() {
                             <Route path="/service" element={<ServicePage />} />
                             <Route path="/pool" element={<PoolPage />} />
                             <Route path="/asuh" element={<AsuhPage />} />
+                            <Route path="/bersih" element={<BersihPage />} />
                             <Route path="/technicians" element={<Navigate to="/service" replace />} />
                             <Route path="/technicians/:id" element={<TechnicianRedirect />} />
                             <Route path="/projects" element={WALLET_ENABLED ? <MyProjectsPage /> : <Navigate to="/" replace />} />
