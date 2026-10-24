@@ -1,78 +1,84 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
-import { Save, BellRing } from 'lucide-react';
-import { Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
+import { BellRing, ShieldCheck, KeyRound } from 'lucide-react';
+import { Button, Card, Field, IconTile, Input, PageHeader, Segmented } from '../components/ui';
 import toast from 'react-hot-toast';
 
 // Backend (FCM credentials live there). Same host the partner and customer apps call.
 const BACKEND_URL = 'https://api.wira.one/api';
 
 const SettingsPage = () => {
-  const [, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [pushTesting, setPushTesting] = useState(false);
 
-  // App Settings
-  const [appName, setAppName] = useState('Wira Super App');
-  const [tagline, setTagline] = useState('Semua Kebutuhan Pulau Lombok');
-  const [defaultRegion, setDefaultRegion] = useState('Kota Mataram');
-  const [csPhone, setCsPhone] = useState('081234567890');
+  // Active platform setting: service_dispatch_mode (public.app_settings)
+  const [dispatchMode, setDispatchMode] = useState('admin_only');
+  const [savingMode, setSavingMode] = useState(false);
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('feature_flags')
-        .select('*')
-        .eq('region', 'platform_settings')
-        .maybeSingle();
+  // Account security: password change
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data && data.features) {
-        const s = data.features;
-        if (s.appName) setAppName(s.appName);
-        if (s.tagline) setTagline(s.tagline);
-        if (s.defaultRegion) setDefaultRegion(s.defaultRegion);
-        if (s.csPhone) setCsPhone(s.csPhone);
+  useEffect(() => {
+    const fetchDispatchMode = async () => {
+      try {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'service_dispatch_mode')
+          .maybeSingle();
+        if (data?.value) {
+          setDispatchMode(typeof data.value === 'string' ? data.value : 'admin_only');
+        }
+      } catch (err) {
+        console.error('Error fetching service_dispatch_mode:', err);
       }
+    };
+    fetchDispatchMode();
+  }, []);
+
+  const handleUpdateDispatchMode = async (newMode) => {
+    setSavingMode(true);
+    try {
+      const { error } = await supabase.rpc('admin_set_app_setting', {
+        p_key: 'service_dispatch_mode',
+        p_value: newMode,
+      });
+      if (error) throw error;
+      setDispatchMode(newMode);
+      toast.success(
+        newMode === 'admin_only'
+          ? 'Mode diubah: 100% Penugasan oleh Admin'
+          : 'Mode diubah: Keduanya (Admin & Teknisi Mandiri)'
+      );
     } catch (err) {
-      console.error('Error fetching settings:', err);
+      toast.error(`Gagal menyimpan mode penugasan: ${err.message}`);
     } finally {
-      setLoading(false);
+      setSavingMode(false);
     }
   };
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const saveSettingsToCloud = async () => {
-    setSaving(true);
-    const settingsPayload = {
-      appName,
-      tagline,
-      defaultRegion,
-      csPhone,
-    };
-
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error('Kata sandi baru minimal 6 karakter.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+    setSavingPassword(true);
     try {
-      const { error } = await supabase
-        .from('feature_flags')
-        .upsert({
-          region: 'platform_settings',
-          features: settingsPayload,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'region' });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast.success('Pengaturan sistem berhasil disimpan ke cloud');
+      toast.success('Kata sandi berhasil diperbarui.');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
-      // Never report a failed save as saved: the apps read the cloud copy only.
-      console.warn('Settings save failed:', err);
-      toast.error('Pengaturan belum tersimpan. Periksa koneksi, lalu klik Simpan lagi.');
+      toast.error(err.message || 'Gagal memperbarui kata sandi.');
     } finally {
-      setSaving(false);
+      setSavingPassword(false);
     }
   };
 
@@ -98,17 +104,8 @@ const SettingsPage = () => {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengaturan"
-        subtitle="Konfigurasi parameter operasional dan tarif platform Wira"
+        subtitle="Konfigurasi parameter operasional dan keamanan akun Wira Admin"
         className="!mb-0"
-        actions={(
-          <Button
-            onClick={() => saveSettingsToCloud()}
-            disabled={saving}
-            leftIcon={<Save size={17} />}
-          >
-            {saving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
-          </Button>
-        )}
       />
 
       {/* Push check: e.g. after rotating the Firebase key (backend self-test). */}
@@ -123,58 +120,71 @@ const SettingsPage = () => {
       </Card>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* App Settings */}
+        {/* Service Dispatch Mode */}
         <Card padding="none" className="min-w-0">
-          <div className="border-b border-line px-5 py-4">
-            <h2 className="text-[15px] font-bold tracking-tight text-ink">Pengaturan Dasar Aplikasi</h2>
+          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+            <IconTile tone="brand" size="sm"><ShieldCheck size={18} /></IconTile>
+            <div>
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Mode Penugasan Servis</h2>
+              <p className="text-xs text-ink-muted">Kontrol penugasan pesanan WiraService & WiraPool</p>
+            </div>
           </div>
           <div className="flex flex-col gap-4 p-5">
-            <Field label="Nama Aplikasi" htmlFor="set-app-name">
-              <Input
-                id="set-app-name"
-                type="text"
-                value={appName}
-                onChange={(e) => setAppName(e.target.value)}
-                className="!text-sm"
-              />
-            </Field>
-            <Field label="Tagline Slogan" htmlFor="set-tagline">
-              <Input
-                id="set-tagline"
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                className="!text-sm"
-              />
-            </Field>
-            <Field label="Nomor WhatsApp Customer Service (CS)" htmlFor="set-cs-phone">
-              <Input
-                id="set-cs-phone"
-                type="text"
-                value={csPhone}
-                onChange={(e) => setCsPhone(e.target.value)}
-                className="font-mono !text-sm"
-              />
-            </Field>
-            <Field label="Wilayah Operasional Utama" htmlFor="set-region">
-              <Select
-                id="set-region"
-                value={defaultRegion}
-                onChange={(e) => setDefaultRegion(e.target.value)}
-                className="!text-sm"
-              >
-                <option value="Kota Mataram">Kota Mataram</option>
-                <option value="Lombok Barat (Senggigi)">Lombok Barat (Senggigi)</option>
-                <option value="Lombok Tengah (Mandalika/Kuta)">Lombok Tengah (Mandalika/Kuta)</option>
-                <option value="Lombok Timur">Lombok Timur</option>
-                <option value="Lombok Utara (Gili)">Lombok Utara (Gili)</option>
-              </Select>
-            </Field>
+            <p className="text-[13px] leading-relaxed text-ink-muted">
+              {dispatchMode === 'admin_only'
+                ? 'Saat ini: 100% Ditugaskan oleh Admin. Teknisi tidak dapat klaim mandiri dari bursa; admin memilih teknisi dari halaman Pesanan.'
+                : 'Saat ini: Mode Keduanya (Hybrid). Teknisi dapat mengambil pesanan terbuka secara mandiri atau ditugaskan oleh admin.'}
+            </p>
+            <Segmented
+              value={dispatchMode}
+              onChange={handleUpdateDispatchMode}
+              disabled={savingMode}
+              options={[
+                { value: 'admin_only', label: '100% Admin' },
+                { value: 'hybrid', label: 'Keduanya (Hybrid)' },
+              ]}
+            />
           </div>
         </Card>
-      </div>
 
-      {/* Staff: real accounts and roles (migrations/0102) */}
+        {/* Account Security */}
+        <Card padding="none" className="min-w-0">
+          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+            <IconTile tone="neutral" size="sm"><KeyRound size={18} /></IconTile>
+            <div>
+              <h2 className="text-[15px] font-bold tracking-tight text-ink">Keamanan Akun</h2>
+              <p className="text-xs text-ink-muted">Perbarui kata sandi akun administrator Anda</p>
+            </div>
+          </div>
+          <form onSubmit={handlePasswordUpdate} className="flex flex-col gap-4 p-5">
+            <Field label="Kata Sandi Baru" htmlFor="set-new-password">
+              <Input
+                id="set-new-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Minimal 6 karakter"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Konfirmasi Kata Sandi Baru" htmlFor="set-confirm-password">
+              <Input
+                id="set-confirm-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Ulangi kata sandi baru"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </Field>
+            <Button type="submit" isLoading={savingPassword} className="self-start">
+              Simpan Kata Sandi Baru
+            </Button>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 };

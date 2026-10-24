@@ -100,7 +100,7 @@ export const OrderProvider = ({ children }) => {
     // Subscribe to cross-portal ecosystem events
     const unsubscribe = subscribeEcosystemEvent((event) => {
       if (event.type === 'ORDER_CREATED') {
-        setOrders((prev) => [mapDbOrderToUi(event.payload), ...prev]);
+        setOrders((prev) => [mapDbOrderToUi(event.payload), ...prev.filter((o) => o.id !== event.payload.id)]);
       } else if (event.type === 'ORDER_UPDATED') {
         setOrders((prev) =>
           prev.map((o) => (o.id === event.payload.id ? mapDbOrderToUi(event.payload) : o))
@@ -108,9 +108,63 @@ export const OrderProvider = ({ children }) => {
       }
     });
 
+    let channel = null;
+    if (user?.id) {
+      channel = supabase
+        .channel(`user-orders-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new) {
+              setOrders((prev) => [mapDbOrderToUi(payload.new), ...prev.filter((o) => o.id !== payload.new.id)]);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new) {
+              setOrders((prev) =>
+                prev.map((o) => (o.id === payload.new.id ? mapDbOrderToUi(payload.new) : o))
+              );
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.old) {
+              setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+            }
+          }
+        )
+        .subscribe();
+    }
+
     return () => {
       abortController.abort();
       unsubscribe();
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mapDbOrderToUi formats realtime DB payloads
   }, [user, reloadKey]);
@@ -179,6 +233,7 @@ export const OrderProvider = ({ children }) => {
         ({ data, error } = await supabase.from('orders').insert([
           {
             ...pricingInputs,
+            preferred_partner_id: orderData.preferred_partner_id || orderData.preferredPartnerId || null,
             user_id: session?.user?.id || user?.id || null,
             status: 'pending',
             payment_method: dbPaymentMethod,
@@ -249,3 +304,4 @@ export const OrderProvider = ({ children }) => {
 };
 
 export const useOrders = () => useContext(OrderContext);
+export const useOrder = useOrders;

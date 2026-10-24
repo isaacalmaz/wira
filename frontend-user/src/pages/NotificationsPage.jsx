@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CheckCheck, ChevronRight } from 'lucide-react';
 import { Button, Card, EmptyState, IconTile, PageHeader, Spinner, cx } from '../components/ui';
-import { supabase } from '../config/supabase';
 import { toast } from 'react-hot-toast';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,10 @@ import { friendlyError } from '../utils/friendlyError';
 import { formatDateTime, localizeDbDates } from '../utils/formatDate';
 
 export default function NotificationsPage() {
-  const { notifications: notifs, setNotifications } = useNotification();
+  const { notifications: notifs, markRead, markAllRead } = useNotification();
   const { user } = useAuth();
   const { t, lang } = useTranslation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,25 +29,11 @@ export default function NotificationsPage() {
       return;
     }
 
-    // Scoped to the current user - previously this updated is_read=true on
-    // EVERY unread row in public.notifications, not just this user's own
-    // (RLS - migrations/0053 - now also enforces auth.uid() = user_id on
-    // UPDATE, but this client-side filter stays as the honest, explicit
-    // query rather than relying on RLS alone).
-    const { data, error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('is_read', false)
-      .eq('user_id', user.id)
-      .select();
-
-    if (error) {
-      toast.error(t('notifications.mark_all_failed', { message: friendlyError(error) }));
-    } else if (!data || data.length === 0) {
-      toast.error(t('notifications.mark_all_denied'));
-    } else {
-      setNotifications(notifs.map(n => ({ ...n, is_read: true })));
+    try {
+      await markAllRead();
       toast.success(t('notifications.mark_all_success'));
+    } catch (error) {
+      toast.error(t('notifications.mark_all_failed', { message: friendlyError(error) }));
     }
   };
 
@@ -74,7 +61,23 @@ export default function NotificationsPage() {
       ) : (
         <Card padding="none" className="divide-y divide-line overflow-hidden">
           {notifs.map(n => (
-            <div key={n.id} className={cx('flex gap-3 px-4 py-3.5', !n.is_read && 'bg-brand-soft/50')}>
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => {
+                if (!n.is_read) {
+                  markRead(n.id);
+                }
+                if (n.link) {
+                  navigate(n.link);
+                }
+              }}
+              className={cx(
+                'flex w-full min-h-11 items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-sunken/60',
+                !n.is_read && 'bg-brand-soft/50',
+                n.link && 'cursor-pointer'
+              )}
+            >
               <IconTile size="sm" tone={n.is_read ? 'neutral' : 'brand'}>
                 <Bell size={17} aria-hidden="true" />
               </IconTile>
@@ -86,7 +89,10 @@ export default function NotificationsPage() {
                 <p className="break-words text-[13px] leading-relaxed text-ink-muted">{localizeDbDates(n.description)}</p>
                 <p className="font-mono text-[11.5px] text-ink-muted">{formatDateTime(n.created_at, lang === 'en' ? 'en-GB' : 'id-ID')}</p>
               </div>
-            </div>
+              {n.link && (
+                <ChevronRight size={17} className="mt-1 shrink-0 text-ink-muted" aria-hidden="true" />
+              )}
+            </button>
           ))}
         </Card>
       )}

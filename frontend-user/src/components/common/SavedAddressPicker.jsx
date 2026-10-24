@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../config/supabase';
-import { Bookmark, Home, Briefcase, MapPin, ChevronDown } from 'lucide-react';
+import { Bookmark, Home, Briefcase, MapPin, ChevronDown, Smartphone } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { cx } from '../ui';
 
@@ -94,7 +94,12 @@ export default function SavedAddressPicker({ onSelect, className = '', requireCo
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-[13.5px] font-semibold text-ink">{a.label}</span>
                   <span className="truncate text-xs text-ink-muted">{a.address}</span>
-                  {a.phone && <span className="truncate font-mono text-[11px] text-ink-muted">📱 {a.phone}</span>}
+                  {a.phone && (
+                    <span className="inline-flex items-center gap-1 truncate font-mono text-[11px] text-ink-muted">
+                      <Smartphone size={12} className="shrink-0" aria-hidden="true" />
+                      {a.phone}
+                    </span>
+                  )}
                   {a.note && <span className="truncate text-xs text-ink-muted">{t('address_note.landmark')}: {a.note}</span>}
                 </span>
               </button>

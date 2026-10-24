@@ -25,16 +25,40 @@ export async function startNativeShell({ color, darkIcons = false }) {
   setTimeout(() => SplashScreen.hide().catch(() => {}), 300);
 }
 
+let regListener = null;
+let regErrListener = null;
+let actionListener = null;
+let recvListener = null;
+
 /** Registers for native push and calls onToken(token). */
-export async function registerNativePush(onToken) {
+export async function registerNativePush(onToken, onNotificationReceived) {
   if (!Capacitor.isNativePlatform() || import.meta.env.VITE_NATIVE_PUSH === '0') return;
   const { PushNotifications } = await import('@capacitor/push-notifications');
   const perm = await PushNotifications.requestPermissions();
   if (perm.receive !== 'granted') return;
+
+  // Remove existing listeners to avoid duplicate callbacks on re-registration
+  if (regListener?.remove) {
+    try { await regListener.remove(); } catch (err) { void err; }
+    regListener = null;
+  }
+  if (regErrListener?.remove) {
+    try { await regErrListener.remove(); } catch (err) { void err; }
+    regErrListener = null;
+  }
+  if (actionListener?.remove) {
+    try { await actionListener.remove(); } catch (err) { void err; }
+    actionListener = null;
+  }
+  if (recvListener?.remove) {
+    try { await recvListener.remove(); } catch (err) { void err; }
+    recvListener = null;
+  }
+
   // onToken returns a Supabase query, which only runs when awaited: the
   // un-awaited call here saved no Android token at all from 2026-10-02 to
   // 2026-10-13 (so no app user got a push). Await it and log failures.
-  PushNotifications.addListener('registration', async ({ value }) => {
+  regListener = await PushNotifications.addListener('registration', async ({ value }) => {
     try {
       const res = await onToken(value);
       if (res?.error) console.error('Saving push token failed:', res.error.message);
@@ -42,13 +66,18 @@ export async function registerNativePush(onToken) {
       console.error('Saving push token failed:', err);
     }
   });
-  PushNotifications.addListener('registrationError', (err) => console.error('Push registration failed:', err?.error || err));
-  PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+  regErrListener = await PushNotifications.addListener('registrationError', (err) => console.error('Push registration failed:', err?.error || err));
+  actionListener = await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
     // Role-less or customer links are resolved by the router's aliases
     // (App.jsx); anything unknown lands on the portal home.
     const url = notification?.data?.url;
     if (url && url.startsWith('/')) window.location.assign(url);
   });
+  if (typeof onNotificationReceived === 'function') {
+    recvListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      onNotificationReceived(notification);
+    });
+  }
   await PushNotifications.register();
 }
 

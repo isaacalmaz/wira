@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, Lock, ShieldCheck, Bike, Package, UtensilsCrossed, Wrench, Building2, Route, Waves, CalendarClock, MapPin, MessageSquareText, Undo2, Baby, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Geolocation } from '@capacitor/geolocation';
-import { updateOrderStatus, sendDriverLocation } from '../../services/orderService';
+import { updateOrderStatus, sendDriverLocation, notifyOrderReady } from '../../services/orderService';
+import { parseOrderAddresses } from '../../utils/orders';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../../components/ui';
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { formatVisitTime, releaseJob, visitInfo } from '../../services/technicianService';
@@ -395,6 +396,9 @@ export default function ActiveOrderPage() {
       const updated = await updateOrderStatus(supabase, order.id, info.next, partnerId, mode);
       if (updated) setOrder(updated);
       toast.success(`Status: ${getDisplayStatus(info.next, order.service_type)}`);
+      if (info.next === 'ready' && (order.service_type === 'food' || order.type === 'food')) {
+        notifyOrderReady(updated || order, supabase);
+      }
     } catch (e) {
       console.error(e);
       toast.error('Gagal update status');
@@ -513,6 +517,86 @@ export default function ActiveOrderPage() {
           </Card>
         );
       })()}
+
+      {['ride', 'send', 'food'].includes(order.service_type || order.type) && (() => {
+        const { pickup, dropoff } = parseOrderAddresses(order);
+        if (!pickup && !dropoff) return null;
+        return (
+          <Card className="flex flex-col gap-3 text-[13.5px] text-ink">
+            {pickup && (
+              <div className="flex items-start gap-2.5">
+                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                    {order.service_type === 'food' || order.type === 'food' ? 'Restoran / Penjemputan' : 'Titik Jemput'}
+                  </span>
+                  <p className="font-medium text-ink break-words">{pickup}</p>
+                </div>
+              </div>
+            )}
+            {dropoff && (
+              <div className="flex items-start gap-2.5">
+                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-danger" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-muted">
+                    {order.service_type === 'food' || order.type === 'food' ? 'Tujuan Pengantaran' : 'Titik Antar'}
+                  </span>
+                  <p className="font-medium text-ink break-words">{dropoff}</p>
+                </div>
+              </div>
+            )}
+            {((order.pickup_lat && order.pickup_lng) || (order.dropoff_lat && order.dropoff_lng)) && (
+              <div className="flex flex-wrap gap-2 pt-1 border-t border-line">
+                {order.pickup_lat && order.pickup_lng && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${order.pickup_lat},${order.pickup_lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-control border border-line-strong px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken"
+                  >
+                    <Route size={15} aria-hidden="true" /> Rute Jemput
+                  </a>
+                )}
+                {order.dropoff_lat && order.dropoff_lng && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${order.dropoff_lat},${order.dropoff_lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-control border border-line-strong px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-sunken"
+                  >
+                    <Route size={15} aria-hidden="true" /> Rute Antar
+                  </a>
+                )}
+              </div>
+            )}
+          </Card>
+        );
+      })()}
+
+      {(order.service_type === 'villa' || order.type === 'villa') && (
+        <Card className="flex flex-col gap-2.5 text-[13.5px] text-ink">
+          <p className="flex items-start gap-2.5 font-semibold">
+            <Building2 size={16} className="mt-0.5 shrink-0 text-brand-ink" aria-hidden="true" />
+            <span>Detail Reservasi Villa</span>
+          </p>
+          {(order.check_in || order.check_out) && (
+            <p className="flex items-start gap-2.5">
+              <CalendarClock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
+              <span>
+                {order.check_in ? new Date(`${order.check_in}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                {' → '}
+                {order.check_out ? new Date(`${order.check_out}T00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                {order.nights ? ` (${order.nights} malam)` : ''}
+              </span>
+            </p>
+          )}
+          {order.metadata?.guests && (
+            <p className="flex items-start gap-2.5 text-ink-muted">
+              <span>Jumlah tamu: {order.metadata.guests} orang</span>
+            </p>
+          )}
+        </Card>
+      )}
 
       {(isVisit || isBabysit) && (() => {
         const v = visitInfo(order);
@@ -776,7 +860,7 @@ export default function ActiveOrderPage() {
         size="sm"
         icon={<Lock size={22} />}
         title="Masukkan PIN Pesanan"
-        description={isBabysit ? 'Minta 4 digit PIN dari orang tua saat Anda tiba, untuk memulai sesi.' : isVisit ? 'Minta 4 digit PIN dari pelanggan saat Anda tiba, untuk mulai bekerja.' : 'Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.'}
+        description={isBabysit ? 'Minta 4 digit PIN dari orang tua saat Anda tiba, untuk memulai sesi.' : isVisit ? 'Minta 4 digit PIN dari pelanggan saat Anda tiba, untuk mulai bekerja.' : (order.type === 'food' || order.service_type === 'food') ? 'Minta 4-digit PIN dari pihak restoran saat mengambil pesanan untuk memulai pengantaran.' : 'Minta 4 digit PIN dari pelanggan untuk memulai perjalanan.'}
         footer={(
           <>
             <Button variant="secondary" size="lg" onClick={closePinModal} disabled={isVerifying}>

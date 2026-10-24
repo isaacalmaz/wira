@@ -159,7 +159,7 @@ const AdminLayout = () => {
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
 
             <a
-              href="https://wira-pied.vercel.app/"
+              href={import.meta.env.VITE_USER_APP_URL || 'https://wira-user.vercel.app'}
               target="_blank"
               rel="noreferrer"
               className="mr-1 hidden min-h-10 items-center gap-1.5 rounded-control px-3 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-brand-ink sm:inline-flex"
@@ -329,7 +329,7 @@ const AdminLayout = () => {
           >
             <span className="relative">
               <Menu size={20} aria-hidden="true" />
-              {notifications.length > 0 && <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-danger" aria-hidden="true" />}
+              {unreadCount > 0 && <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-danger" aria-hidden="true" />}
             </span>
             Menu
           </button>

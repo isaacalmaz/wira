@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Clock, ChevronRight, LogOut } from 'lucide-react';
+import { LogIn, Clock, ChevronRight, LogOut, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import WiraMark from '../components/brand/WiraMark';
 import { Button, Card, Field, Input, Badge, cx } from '../components/ui';
@@ -164,7 +164,7 @@ export default function LoginPage() {
         }
 
         // Gracefully redirect brand new customer applying as partner
-        toast('Akun Anda belum terdaftar sebagai mitra. Silakan lengkapi pendaftaran.', { icon: 'ℹ️' });
+        toast('Akun Anda belum terdaftar sebagai mitra. Silakan lengkapi pendaftaran.', { icon: <Info size={18} /> });
         navigate('/register', { replace: true });
       }
     } catch (error) {

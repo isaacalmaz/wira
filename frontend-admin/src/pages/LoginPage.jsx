@@ -66,9 +66,9 @@ const LoginPage = () => {
                 <label htmlFor="login-password" className="text-[13px] font-semibold text-ink">
                   Kata Sandi
                 </label>
-                <a href="#" className="text-[13px] font-semibold text-brand-ink hover:underline">
+                <Link to="/forgot-password" className="text-[13px] font-semibold text-brand-ink hover:underline">
                   Lupa password?
-                </a>
+                </Link>
               </div>
               <Input
                 id="login-password"
@@ -81,9 +81,6 @@ const LoginPage = () => {
               />
             </div>
 
-            <div className="text-right mt-[-8px] mb-2">
-              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline">Lupa Password?</Link>
-            </div>
             <Button type="submit" size="lg" block isLoading={isLoggingIn} className="mt-1">
               {isLoggingIn ? 'Memverifikasi...' : 'Masuk ke Dashboard'}
             </Button>

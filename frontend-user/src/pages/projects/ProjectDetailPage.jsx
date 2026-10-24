@@ -342,7 +342,7 @@ export default function ProjectDetailPage() {
         )}
       >
         <Field label={t('projects.object_reason')} htmlFor="dispute-reason">
-          <Textarea id="dispute-reason" rows={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Textarea id="dispute-reason" aria-label={t('projects.object_reason')} rows={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </Sheet>
 
@@ -363,7 +363,7 @@ export default function ProjectDetailPage() {
         )}
       >
         <Field label={t('projects.cancel_reason')} htmlFor="cancel-reason">
-          <Textarea id="cancel-reason" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Textarea id="cancel-reason" aria-label={t('projects.cancel_reason')} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </Sheet>
     </div>

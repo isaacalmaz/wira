@@ -388,6 +388,8 @@ const PromosPage = () => {
               <option value="send">WiraSend</option>
               <option value="villa">WiraVilla</option>
               <option value="service">WiraService</option>
+              <option value="pool">Wira Pool</option>
+              <option value="babysit">Wira Asuh</option>
             </Select>
           </Field>
 

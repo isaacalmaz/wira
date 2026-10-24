@@ -8,7 +8,7 @@ import { Badge, Card, EmptyState, Money, PageHeader, Segmented, Spinner, Table }
 
 const SUBTITLE = {
   driver: 'Ojek, mobil, kirim barang, dan antar makanan. Klik nama untuk Profil Akun.',
-  nanny: 'Pengasuh WiraAsuh. Akses Pengasuh diberikan dari Profil Akun (tidak lewat pendaftaran umum).',
+  nanny: 'Pengasuh WiraAsuh. Klik nama untuk Profil Akun.',
   technician: 'Teknisi jasa servis dan kolam.',
 };
 
@@ -30,7 +30,7 @@ export default function PartnersPage({ kind }) {
   useEffect(() => {
     setRows(null);
     fetchPartnerList(kind).then(setRows).catch((err) => { toast.error(`Gagal memuat ${meta.label}: ${err.message}`); setRows([]); });
-    if (kind !== 'nanny') {
+    if (['driver', 'technician', 'nanny'].includes(kind)) {
       fetchPendingApplications(kind === 'driver' ? ['driver', 'courier'] : [kind], 'id').then((l) => setPending(l.length)).catch(() => {});
     }
   }, [kind, meta.label]);

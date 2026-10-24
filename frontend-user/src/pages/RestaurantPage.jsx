@@ -40,6 +40,7 @@ import {
   MessageSquarePlus,
   Trash2,
   Check,
+  FileText,
 } from 'lucide-react';
 import { fetchRoute, fetchCoordinates } from '../utils/osmHelpers';
 import { toast } from 'react-hot-toast';
@@ -149,6 +150,7 @@ function CheckoutItemCard({ item, onUpdateQty, onRemove, onUpdateNote, t }) {
           <Input
             size="sm"
             autoFocus
+            aria-label={t('restaurant.item_note_placeholder') || 'Catatan menu'}
             maxLength={120}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
@@ -359,6 +361,32 @@ export default function RestaurantPage() {
   const applyPromoRef = useRef(null);
   usePendingPromo('food', promoCode, setPromoCode, () => applyPromoRef.current?.(), !!rest);
 
+  // Recalculate discount against appliedPromo whenever subtotal or activePromo changes
+  useEffect(() => {
+    if (!activePromo) {
+      setDiscount(0);
+      return;
+    }
+    const minOrder = Number(activePromo.min_order_amount || activePromo.min_order || 0);
+    if (minOrder > 0 && subtotal < minOrder) {
+      setActivePromo(null);
+      setDiscount(0);
+      toast(t('promo.min_order_not_met') || `Minimal pesanan untuk promo ini Rp ${minOrder.toLocaleString('id-ID')}`, {
+        duration: 4000,
+      });
+      return;
+    }
+    let promoDiscount;
+    if (activePromo.type === 'Percentage') {
+      const pctDiscount = Math.round((subtotal * Number(activePromo.discount)) / 100);
+      const maxDiscount = Number(activePromo.max_discount_amount || activePromo.max_discount || 0);
+      promoDiscount = maxDiscount > 0 && pctDiscount > maxDiscount ? maxDiscount : pctDiscount;
+    } else {
+      promoDiscount = Number(activePromo.discount) || 0;
+    }
+    setDiscount(Math.max(0, Math.min(promoDiscount, subtotal)));
+  }, [subtotal, activePromo, t]);
+
   // Kategori menu unik dari item restoran
   const categories = useMemo(() => {
     if (!rest?.menuItems || rest.menuItems.length === 0) return [];
@@ -452,11 +480,20 @@ export default function RestaurantPage() {
       if (isPromoExpired(data.validUntil)) throw new Error(t('promo.expired'));
       if (data.service_type && data.service_type !== 'food') throw new Error(t('promo.wrong_service'));
 
+      const minOrder = Number(data.min_order_amount || data.min_order || 0);
+      if (minOrder > 0 && subtotal < minOrder) {
+        throw new Error(t('promo.min_order_not_met') || `Minimal pesanan Rp ${minOrder.toLocaleString('id-ID')}`);
+      }
+
       setActivePromo(data);
-      const promoDiscount =
+      let promoDiscount =
         data.type === 'Percentage'
           ? Math.round((subtotal * Number(data.discount)) / 100)
           : Number(data.discount) || 0;
+      const maxDiscount = Number(data.max_discount_amount || data.max_discount || 0);
+      if (data.type === 'Percentage' && maxDiscount > 0 && promoDiscount > maxDiscount) {
+        promoDiscount = maxDiscount;
+      }
       setDiscount(Math.max(0, Math.min(promoDiscount, subtotal)));
       toast.success(t('promo.success'));
     } catch (err) {
@@ -729,8 +766,9 @@ export default function RestaurantPage() {
                                 </button>
                               </div>
                               {inCart.note && (
-                                <span className="max-w-[130px] truncate text-[11px] text-ink-muted" title={inCart.note}>
-                                  📝 {inCart.note}
+                                <span className="inline-flex max-w-[130px] items-center gap-1 truncate text-[11px] text-ink-muted" title={inCart.note}>
+                                  <FileText size={12} className="shrink-0" aria-hidden="true" />
+                                  <span className="truncate">{inCart.note}</span>
                                 </span>
                               )}
                             </div>

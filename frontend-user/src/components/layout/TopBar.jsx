@@ -5,7 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import WiraMark from '../brand/WiraMark';
 
-const iconBtn = 'relative inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] border border-line bg-card px-2 text-ink transition-colors hover:bg-sunken';
+const iconBtn = 'relative inline-flex h-11 min-w-11 items-center justify-center rounded-[10px] border border-line bg-card px-2 text-ink transition-colors hover:bg-sunken';
 
 export default function TopBar() {
   const { t, lang, toggleLang } = useTranslation();

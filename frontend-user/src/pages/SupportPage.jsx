@@ -220,6 +220,7 @@ export default function SupportPage() {
           <Field label={t('support.subject_label')} htmlFor="support-subject">
             <Input
               id="support-subject"
+              aria-label={t('support.subject_label')}
               type="text"
               placeholder={t('support.subject_placeholder')}
               value={subject}
@@ -230,6 +231,7 @@ export default function SupportPage() {
           <Field label={t('support.description_label')} htmlFor="support-description">
             <Textarea
               id="support-description"
+              aria-label={t('support.description_label')}
               rows={4}
               placeholder={t('support.description_placeholder')}
               value={description}

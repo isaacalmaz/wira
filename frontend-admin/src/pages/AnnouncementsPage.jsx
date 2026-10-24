@@ -14,6 +14,7 @@ const SEGMENTS = [
   { value: 'merchant', label: 'Restoran' },
   { value: 'villa', label: 'Pemilik villa' },
   { value: 'technician', label: 'Teknisi' },
+  { value: 'nanny', label: 'Mitra Wira Asuh' },
   { value: 'everyone', label: 'Semua pelanggan dan mitra' },
 ];
 const segLabel = (v) => SEGMENTS.find((s) => s.value === v)?.label || v;
@@ -108,7 +109,7 @@ export default function AnnouncementsPage() {
               <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">Pratinjau di HP</p>
               <div className="rounded-[28px] border border-line bg-sunken p-3">
                 <div className="flex gap-3 rounded-2xl bg-card p-3 shadow-sm">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-[15px] font-black text-white">w</span>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-[15px] font-bold text-white">w</span>
                   <div className="min-w-0">
                     <p className="flex items-baseline justify-between gap-2 text-[12px] text-ink-muted">
                       <span>{['customers', 'everyone'].includes(segment) ? 'Wira' : 'Wira Mitra'}</span><span>sekarang</span>

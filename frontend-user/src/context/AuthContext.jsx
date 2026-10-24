@@ -68,6 +68,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    if (user?.id) {
+      try {
+        await supabase.from('users').update({ fcm_token: null }).eq('id', user.id);
+      } catch (err) {
+        console.error('Failed to clear FCM token on logout:', err);
+      }
+    }
     setUser(null);
     setSession(null);
     setIsAuthenticated(false);

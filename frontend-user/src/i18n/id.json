@@ -132,8 +132,22 @@
     "resend_confirmation": "Kirim ulang email konfirmasi",
     "resend_sent": "Email konfirmasi dikirim ulang ke {{email}}.",
     "resend_failed": "Belum bisa mengirim ulang. Tunggu beberapa menit, lalu coba lagi.",
-    "register_success_now": "Akun Anda berhasil dibuat. Selamat datang di Wira!",
-    "forgot_password": "Lupa kata sandi?"
+    "forgot_password": "Lupa kata sandi?",
+    "forgot_password_title": "Lupa Kata Sandi",
+    "forgot_password_desc": "Masukkan email Anda untuk menerima tautan reset password.",
+    "email_label": "Email",
+    "send_link": "Kirim Tautan",
+    "back_to_login": "Kembali ke Login",
+    "reset_link_sent": "Tautan reset password telah dikirim ke email Anda.",
+    "reset_link_failed": "Gagal mengirim tautan reset password.",
+    "session_invalid": "Sesi tidak valid atau telah kedaluwarsa.",
+    "password_min_length": "Password minimal 6 karakter.",
+    "password_updated": "Password berhasil diubah!",
+    "password_update_failed": "Gagal mengubah password.",
+    "reset_password_title": "Buat Password Baru",
+    "reset_password_desc": "Silakan masukkan password baru Anda.",
+    "new_password_label": "Password Baru",
+    "save_password": "Simpan Password"
   },
   "home": {
     "wallet_balance": "Saldo WiraPay",
@@ -383,6 +397,9 @@
     "step_1_of_3": "Langkah 1: Rute & Kontak",
     "step_2_of_3": "Langkah 2: Pilih Paket & Armada",
     "step_3_of_3": "Langkah 3: Konfirmasi & Bayar",
+    "step_1_desc": "Isi detail penjemputan dan pengantaran",
+    "step_2_desc": "Pilih ukuran atau jenis barang",
+    "step_3_desc": "Periksa rincian dan pilih pembayaran",
     "proceed_to_package": "Lanjut: Pilih Paket",
     "proceed_to_payment": "Lanjut: Pembayaran",
     "change_route": "Ubah Rute",
@@ -399,7 +416,12 @@
     "delivery_cost": "Ongkos Kirim",
     "promo_discount": "Diskon Promo",
     "total_payment": "Total Pembayaran",
-    "big_item_price_note": "Tarif disepakati dengan driver melalui penawaran di aplikasi setelah driver melihat foto barang."
+    "big_item_price_note": "Tarif disepakati dengan driver melalui penawaran di aplikasi setelah driver melihat foto barang.",
+    "sender_name_placeholder": "Nama pengirim paket",
+    "receiver_name_placeholder": "Nama penerima paket",
+    "big_payment_hint": "Pembayaran tunai langsung ke driver setelah kesepakatan harga di aplikasi.",
+    "photos_count": "foto barang",
+    "note_prefix": "Catatan"
   },
   "villa": {
     "title": "WiraVilla — Sewa Villa & Penginapan",
@@ -516,6 +538,7 @@
     "selected_summary": "Layanan yang Dipesan",
     "units_selected": "{{count}} unit dipilih",
     "cash_payment_note": "Bayar tunai langsung ke teknisi setelah selesai dan diuji.",
+    "preferred_tech": "Teknisi pilihan",
     "qty_less": "Kurangi {{name}}",
     "qty_more": "Tambah {{name}}",
     "pick_item": "Pilih minimal satu pekerjaan.",
@@ -805,7 +828,8 @@
     "route_dropoff": "Tujuan",
     "order_again": "Pesan lagi",
     "order_again_tech": "Pesan lagi teknisi ini",
-    "order_again_driver": "Pesan lagi rute ini"
+    "order_again_driver": "Pesan lagi rute ini",
+    "view_detail_and_warranty": "Lihat Detail & Garansi"
   },
   "order": {
     "cancel_desc_villa_full": "Dibatalkan paling lambat 3 hari sebelum check-in: pembayaran dikembalikan penuh. Admin Wira mentransfernya ke rekening Anda.",
@@ -1415,7 +1439,9 @@
     "period_pm": "Malam",
     "slot_booked": "Sudah terjadwal",
     "info_sheet_title": "Tentang Pengasuh WiraAsuh",
-    "info_sheet_close": "Mengerti"
+    "info_sheet_close": "Mengerti",
+    "hours_min_max": "Min {{min}} jam • Maks {{max}} jam",
+    "child_unit": "Anak"
   },
   "landing": {
     "nav_services": "Layanan",

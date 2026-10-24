@@ -6,10 +6,9 @@ import { Card, Badge, Button, EmptyState, PageHeader, Segmented, Notice, Money, 
 import { Clock, RefreshCw, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
-import { updateOrderStatus, orderErrorMessage } from '../../services/orderService';
+import { updateOrderStatus, orderErrorMessage, notifyOrderReady } from '../../services/orderService';
 import { parseOrderDetails } from '../../utils/formatters';
 import ChatModal from '../../components/common/ChatModal';
-import API_BASE_URL from '../../config/api';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import { friendlyError } from '../../utils/friendlyError';
 import { formatDateTime } from '../../utils/datetime';
@@ -138,35 +137,13 @@ const MerchantOrdersPage = () => {
   // isn't assigned yet). Best-effort: a failure here (no fcm_token saved yet,
   // no VAPID key configured client-side, network hiccup) must never block or
   // roll back the actual order-status update above it.
-  const notifyOrderReady = async (order) => {
-    if (!order?.user_id) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-      await fetch(`${API_BASE_URL}/notifications/order-alert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          userId: order.user_id,
-          title: 'Pesanan Anda Siap!',
-          body: 'Pesanan WiraFood Anda sudah siap dan sedang menunggu kurir untuk diantar.',
-          data: { orderId: order.id, type: 'order_ready' },
-        }),
-      });
-    } catch (err) {
-      console.error('notifyOrderReady failed:', err);
-    }
-  };
 
   const updateStatus = async (order, newStatus) => {
     try {
       await updateOrderStatus(supabase, order.id, newStatus, order.merchant_id, 'merchant');
       toast.success('Status pesanan diperbarui');
       if (newStatus === OrderStatus.READY) {
-        notifyOrderReady(order);
+        notifyOrderReady(order, supabase);
       }
       fetchOrders();
     } catch (err) {

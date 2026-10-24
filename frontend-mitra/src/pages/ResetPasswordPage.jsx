@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
                 required
               />
             </Field>
-            <Button type="submit" block size="lg" isLoading={loading} className="mt-2 bg-primary text-white hover:bg-primary/90">
+            <Button type="submit" block size="lg" isLoading={loading} className="mt-2">
               Simpan Password
             </Button>
           </form>

@@ -20,11 +20,11 @@ export function resolvePartnerLink(link, mitraAccess = [], currentRole = null) {
   if (['earnings', 'orders', 'notifications', 'profile', 'settings', 'support'].includes(first)) {
     return `/${home}/${first}`;
   }
-  if (first === 'active-order') {
+  if (first === 'active-order' || first === 'order') {
     return `/${home}/active-order${rest.length ? '/' + rest.join('/') : ''}`;
   }
   if (first === 'projects') {
-    return `/${home}/projects${rest.length ? '/' + rest.join('/') : ''}`;
+    return `/technician/projects${rest.length ? '/' + rest.join('/') : ''}`;
   }
   return `/${home}`;
 }

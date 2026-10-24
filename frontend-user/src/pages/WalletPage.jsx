@@ -260,14 +260,14 @@ export default function WalletPage() {
     setLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 800));
-      await transfer(amt, transferPhone);
+      await transfer(amt, transferPhone, transferNote.trim());
       toast.success(t('wallet.transfer_success', { amount: formatRupiah(amt), phone: transferPhone }));
       setModalType(null);
       setTransferPhone('');
       setTransferAmount('');
       setTransferNote('');
-    } catch (err) {
-      toast.error(t('wallet.transfer_failed', { message: friendlyError(err) }));
+    } catch {
+      // WalletContext.transfer already toasts friendly error message
     } finally {
       setLoading(false);
     }

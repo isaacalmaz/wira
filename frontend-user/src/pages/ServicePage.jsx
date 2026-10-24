@@ -251,12 +251,22 @@ export default function ServicePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const techId = searchParams.get('tech');
-    const cat = categories.find((c) => c.id === searchParams.get('cat'));
-    if (!techId || !cat || !techLoaded || menu.length === 0) return;
-    handleOpenBooking(cat, technicians.find((x) => x.id === techId) || null);
-    setSearchParams({}, { replace: true });
+    if (!techId || !techLoaded || categories.length === 0) return;
+    const tech = technicians.find((x) => x.id === techId) || null;
+    let cat = categories.find((c) => c.id === searchParams.get('cat'));
+    if (!cat && tech) {
+      cat = categories.find((c) => tech.skills?.includes(c.id) || tech.services?.includes(c.id)) || categories[0];
+    }
+    if (!cat && categories.length > 0) {
+      cat = categories[0];
+    }
+    if (cat) {
+      handleOpenBooking(cat, tech || { id: techId });
+      setSelectedTechId(techId);
+      setSearchParams({}, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, techLoaded, menu.length]);
+  }, [searchParams, techLoaded, categories.length, technicians]);
 
   const handleDateChange = (date) => {
     setServiceDate(date);
@@ -365,17 +375,19 @@ export default function ServicePage() {
       const order = await addOrder({
         pickupLat: point?.lat ?? null,
         pickupLng: point?.lng ?? null,
-        // WiraPay is charged by create_order_and_pay in the same DB transaction
-        // as the order insert, for the server-computed price (migrations/0070).
+        preferred_partner_id: selectedTechId || null,
+        preferredPartnerId: selectedTechId || null,
         paymentDescription: `WiraService - ${selectedService.name}`,
         service: 'WiraService',
         serviceType: 'service',
         title: selectedService.name,
         details: `Jadwal: ${serviceDate} pukul ${serviceTime} • Lokasi: ${withAddressNote(address, addressNote)}`
+          + (selectedTechId ? ` • Teknisi pilihan: ${technicians.find((t) => t.id === selectedTechId)?.name || selectedTechId}` : '')
           + (notes.trim() ? ` • Keluhan: ${notes.trim()}` : '')
           + (customChosen ? ` • Pekerjaan lain: ${jobDesc.trim()}` : ''),
         metadata: {
           scheduled_at: witaInstant(serviceDate, serviceTime),
+          ...(selectedTechId ? { preferred_partner_id: selectedTechId, preferred_tech_id: selectedTechId } : {}),
           ...(chosenItems.length > 0 ? { items: chosenItems.map((m) => ({ code: m.code, qty: qty[m.code] })) } : {}),
           ...(customChosen ? { job: { description: jobDesc.trim(), photos: photoPaths } } : {}),
         },
@@ -767,6 +779,11 @@ export default function ServicePage() {
                     )
                     .join(', ') || t('service.custom_title')}
                 </span>
+                {selectedTech && (
+                  <span className="text-[12px] font-semibold text-brand-ink">
+                    {t('service.preferred_tech') || 'Teknisi pilihan'}: {selectedTech.name}
+                  </span>
+                )}
                 <span className="font-mono text-[13px] font-extrabold text-brand-ink">
                   <Money value={itemsTotal} />
                 </span>
@@ -866,7 +883,7 @@ export default function ServicePage() {
                 />
               </div>
               <div className="flex items-center gap-2 rounded-control border border-line bg-sunken p-2.5 text-xs text-ink-muted">
-                <span>💵</span>
+                <Banknote size={15} className="shrink-0 text-ink-muted" aria-hidden="true" />
                 <span>{t('service.cash_payment_note') || 'Bayar tunai langsung ke teknisi setelah selesai dan diuji.'}</span>
               </div>
               {paymentMethod === 'WiraPay' && balance < calculateFinalPrice() && (

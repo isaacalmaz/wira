@@ -143,6 +143,7 @@ const SettingsPage = () => {
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Akses ditolak atau profil tidak ditemukan.');
       setAvatarUrl(url);
+      await refreshProfile();
       toast.success('Foto profil berhasil diperbarui');
     } catch (err) {
       toast.error('Gagal mengunggah foto: ' + friendlyError(err));
@@ -188,6 +189,7 @@ const SettingsPage = () => {
 
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Akses ditolak atau akun tidak ditemukan.');
+      await refreshProfile();
       toast.success('Profil berhasil diperbarui!');
     } catch (error) {
       const msg = String(error.message || '');

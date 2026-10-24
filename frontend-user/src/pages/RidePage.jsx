@@ -101,7 +101,6 @@ export default function RidePage() {
           perKmRate: v.per_km_rate,
           hourlyRate: Number(v.hourly_rate) || 0,
           time: v.duration,
-          icon: v.type === 'motor' ? '🛵' : (v.type === 'mobil' ? '🚗' : '🚙'),
           desc: t('ride.capacity', { count: v.capacity })
         })));
       }
@@ -215,8 +214,8 @@ export default function RidePage() {
   // Fallback fleet, used only until the `vehicles` table loads. Names match
   // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
   const defaultVehicles = [
-    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, icon: '🛵', desc: t('ride.capacity_motor') },
-    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, icon: '🚗', desc: t('ride.capacity_car') }
+    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, desc: t('ride.capacity_motor') },
+    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, desc: t('ride.capacity_car') }
   ];
 
   const sourceVehicles = vehicles.length > 0 ? vehicles : defaultVehicles;

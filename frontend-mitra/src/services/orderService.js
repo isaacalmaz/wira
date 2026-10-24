@@ -5,6 +5,8 @@
  */
 import { OrderStatus } from '../constants/orderStatus';
 import { withNetworkRetry, isNetworkError } from '../utils/retry';
+import API_BASE_URL from '../config/api';
+import { isHourlyRide } from '../utils/orders';
 
 const MERCHANT_SERVICE_TYPES = ['food', 'villa', 'WiraFood', 'WiraVilla'];
 const TECHNICIAN_SERVICE_TYPES = ['service', 'pool', 'WiraService', 'WiraPool'];
@@ -775,3 +777,52 @@ export function sendDriverLocation(supabaseClient, driverId, lat, lng) {
   flushDriverLocation();
 }
 export const setDriverOffline = withNetworkRetry(setDriverOfflineOnce);
+export { isHourlyRide };
+
+/**
+ * Fires the push notification pipeline to notify the customer (and online drivers)
+ * that a food order is ready.
+ */
+export async function notifyOrderReady(order, supabaseClient) {
+  if (!order) return;
+  try {
+    const client = supabaseClient || (await import('../config/supabase')).supabase;
+    const { data: { session } } = await client.auth.getSession();
+    if (!session?.access_token) return;
+
+    if (order.user_id) {
+      await fetch(`${API_BASE_URL}/notifications/order-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: order.user_id,
+          title: 'Pesanan Anda Siap!',
+          body: 'Pesanan WiraFood Anda sudah siap dan sedang menunggu kurir untuk diantar.',
+          data: { orderId: order.id, type: 'order_ready' },
+        }),
+      }).catch((e) => console.warn('notifyOrderReady customer alert failed:', e));
+    }
+
+    if (order.driver_id) {
+      await fetch(`${API_BASE_URL}/notifications/order-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: order.driver_id,
+          title: 'Pesanan Siap Diambil!',
+          body: 'Pesanan makanan sudah siap diambil di resto.',
+          data: { orderId: order.id, type: 'order_ready' },
+        }),
+      }).catch((e) => console.warn('notifyOrderReady driver alert failed:', e));
+    }
+  } catch (err) {
+    console.error('notifyOrderReady failed:', err);
+  }
+}
+

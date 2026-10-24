@@ -192,7 +192,7 @@ export default function VillaEditPage() {
             <div key={url} className={cx('relative aspect-square overflow-hidden rounded-control border', i === 0 ? 'border-2 border-brand' : 'border-line')}>
               <img src={url} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
               {i === 0 && <span className="absolute left-1.5 top-1.5"><Badge tone="brand">Sampul</Badge></span>}
-              <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+              <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-black/40 p-1.5">
                 {i !== 0 && (
                   <button type="button" onClick={() => makeCover(i)} aria-label={`Jadikan foto ${i + 1} sampul`} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-ink">
                     <Star size={15} />

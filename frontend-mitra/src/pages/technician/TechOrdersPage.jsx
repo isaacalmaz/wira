@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Inbox, Wrench, History, ClipboardList } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { Badge, Card, EmptyState, Money, PageHeader, Segmented, Spinner } from '../../components/ui';
+import { Badge, Card, EmptyState, Money, Notice, PageHeader, Segmented, Spinner } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -13,6 +13,7 @@ import useSkills, { orderSkill } from '../../hooks/useSkills';
 import { friendlyError } from '../../utils/friendlyError';
 
 const byVisitTime = (a, b) => (visitInfo(a).when?.getTime() ?? Infinity) - (visitInfo(b).when?.getTime() ?? Infinity);
+const normalizeDispatchMode = (val) => (typeof val === 'string' ? val.replace(/^"|"$/g, '') : (val || 'admin_only'));
 
 /**
  * Pekerjaan: open visits the technician can take (skill match and the
@@ -29,6 +30,7 @@ const TechOrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [takingId, setTakingId] = useState(null);
   const [projects, setProjects] = useState([]); // migrations/0093
+  const [dispatchMode, setDispatchMode] = useState('admin_only');
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -39,10 +41,11 @@ const TechOrdersPage = () => {
         supabase.rpc('get_technician_projects'),
         supabase.from('app_settings').select('value').eq('key', 'service_dispatch_mode').maybeSingle(),
       ]);
-      const dispatchMode = modeRow?.data?.value || 'admin_only';
+      const currentMode = normalizeDispatchMode(modeRow?.data?.value);
+      setDispatchMode(currentMode);
       // Jika mode admin_only, servis ditugaskan eksklusif oleh admin Wira
       // (hanya muncul di tab Pekerjaan Saya setelah ditugaskan).
-      const filteredOpen = dispatchMode === 'hybrid'
+      const filteredOpen = currentMode === 'hybrid'
         ? open
         : open.filter((job) => job.service_type !== 'service');
       setOpenJobs(filteredOpen);
@@ -59,15 +62,37 @@ const TechOrdersPage = () => {
   useEffect(() => {
     if (!user) return undefined;
     load();
-    return subscribeToVisitChanges(supabase, user.id, load);
+    const unsub = subscribeToVisitChanges(supabase, user.id, load);
+    const channel = supabase
+      .channel('tech-orders-dispatch-mode')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_settings', filter: 'key=eq.service_dispatch_mode' },
+        (payload) => {
+          if (payload.new && payload.new.value) {
+            setDispatchMode(normalizeDispatchMode(payload.new.value));
+            load();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      unsub();
+      supabase.removeChannel(channel);
+    };
   }, [user, load]);
 
   const handleTakePackage = async (job) => {
+    if (dispatchMode === 'admin_only' && (job.service_type === 'service' || !job.service_type)) {
+      toast.error('Pekerjaan servis ditugaskan langsung oleh Admin Wira.');
+      return;
+    }
     setTakingId(job.id);
     try {
       const n = await takePackage(supabase, job.package_id);
       toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
-      navigate(`/technician/active-order/${job.id}`);
+      navigate(`/order/${job.id}`);
     } catch (err) {
       toast.error(friendlyError(err) || 'Gagal mengambil paket');
       load();
@@ -77,11 +102,15 @@ const TechOrdersPage = () => {
   };
 
   const handleTake = async (job) => {
+    if (dispatchMode === 'admin_only' && (job.service_type === 'service' || !job.service_type)) {
+      toast.error('Pekerjaan servis ditugaskan langsung oleh Admin Wira.');
+      return;
+    }
     setTakingId(job.id);
     try {
       await takeJob(supabase, job.id, user.id);
       toast.success('Pekerjaan diambil. Datang sesuai jadwal ya!');
-      navigate(`/technician/active-order/${job.id}`);
+      navigate(`/order/${job.id}`);
     } catch (err) {
       toast.error(friendlyError(err) || 'Gagal mengambil pekerjaan');
       load();
@@ -94,7 +123,7 @@ const TechOrdersPage = () => {
   const history = myJobs.filter((o) => ['completed', 'cancelled'].includes(o.status));
   const lists = { open: openJobs, active, history };
   const list = lists[tab];
-  const openPage = (job) => navigate(`/technician/active-order/${job.id}`);
+  const openPage = (job) => navigate(`/order/${job.id}`);
 
   const empty = {
     open: { icon: <Inbox size={24} />, title: 'Belum ada pekerjaan baru', description: 'Pekerjaan sesuai keahlian Anda muncul di sini begitu pelanggan memesan.' },
@@ -112,7 +141,7 @@ const TechOrdersPage = () => {
         scroll
         className="w-full"
         options={[
-          { value: 'open', label: `Tersedia${openJobs.length ? ` (${openJobs.length})` : ''}` },
+          { value: 'open', label: `Tersedia${dispatchMode !== 'admin_only' && openJobs.length ? ` (${openJobs.length})` : ''}` },
           { value: 'active', label: `Aktif${active.length ? ` (${active.length})` : ''}` },
           { value: 'projects', label: `Proyek${projects.filter((p) => p.status === 'open' && !p.my_quote_id).length ? ` (${projects.filter((p) => p.status === 'open' && !p.my_quote_id).length})` : ''}` },
           { value: 'history', label: 'Riwayat' },
@@ -149,24 +178,31 @@ const TechOrdersPage = () => {
         )
       ) : loading ? (
         <div className="flex justify-center py-12 text-brand-ink"><Spinner size={24} label="Memuat pekerjaan" /></div>
-      ) : list.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {(tab === 'open' ? groupOpenJobs(list) : list.map((job) => ({ job, packageCount: 0 }))).map(({ job, packageCount }) => (
-            <VisitJobCard
-              key={job.id}
-              order={job}
-              mode={tab === 'open' ? 'open' : 'own'}
-              skillName={nameOf(orderSkill(job))}
-              taking={takingId === job.id}
-              packageCount={packageCount}
-              onTake={handleTake}
-              onTakePackage={handleTakePackage}
-              onOpen={openPage}
-            />
-          ))}
-        </div>
       ) : (
-        <EmptyState {...empty} />
+        <>
+          {tab === 'open' && dispatchMode === 'admin_only' && (
+            <Notice tone="brand">Pekerjaan servis ditugaskan langsung oleh Admin Wira.</Notice>
+          )}
+          {list.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {(tab === 'open' ? groupOpenJobs(list) : list.map((job) => ({ job, packageCount: 0 }))).map(({ job, packageCount }) => (
+                <VisitJobCard
+                  key={job.id}
+                  order={job}
+                  mode={tab === 'open' ? 'open' : 'own'}
+                  skillName={nameOf(orderSkill(job))}
+                  taking={takingId === job.id}
+                  packageCount={packageCount}
+                  onTake={handleTake}
+                  onTakePackage={handleTakePackage}
+                  onOpen={openPage}
+                />
+              ))}
+            </div>
+          ) : tab === 'open' && dispatchMode === 'admin_only' ? null : (
+            <EmptyState {...empty} />
+          )}
+        </>
       )}
     </div>
   );

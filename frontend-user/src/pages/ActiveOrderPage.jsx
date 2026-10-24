@@ -931,7 +931,12 @@ export default function ActiveOrderPage() {
             </div>
             <div className="flex items-center gap-3 py-3">
               <span className="flex-1 text-[13px] font-semibold text-ink">{t('ledger.refund')}</span>
-              <Money value={order.total_price} sign="plus" tone="in" className="text-[15px] font-medium" />
+              <Money
+                value={isVilla ? Math.round(Number(order.total_price || 0) * villaRatio()) : (order.total_price || 0)}
+                sign="plus"
+                tone="in"
+                className="text-[15px] font-medium"
+              />
             </div>
           </div>
         ) : (

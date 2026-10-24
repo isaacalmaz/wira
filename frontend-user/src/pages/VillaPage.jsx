@@ -32,7 +32,6 @@ import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabase';
-import API_BASE_URL from '../config/api';
 import StayCalendar, { nightsBetween } from '../components/villa/StayCalendar';
 import { useTranslation } from '../i18n';
 import { usePendingPromo } from '../utils/pendingPromo';
@@ -295,26 +294,6 @@ export default function VillaPage() {
       if (paymentMethod === 'WiraPay') refreshWallet();
 
       navigate(`/active-order/${order.id}`);
-
-      // Alert pemilik villa via backend
-      if (paymentMethod !== 'QRIS' && selectedVilla.ownerId && order?.id) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session?.access_token) return;
-          fetch(`${API_BASE_URL}/notifications/order-alert`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              userId: selectedVilla.ownerId,
-              title: 'Reservasi WiraVilla Baru!',
-              body: `${selectedVilla.name} dipesan untuk ${nights} malam mulai ${checkIn}.`,
-              data: { orderId: order.id, type: 'new_villa_order' },
-            }),
-          }).catch((err) => console.error('order-alert (villa owner) failed:', err));
-        });
-      }
 
       handleRemovePromo();
       if (paymentMethod !== 'QRIS') toast.success(t('villa.success'));
@@ -716,6 +695,7 @@ export default function VillaPage() {
                   <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-[13.5px] text-ink">
                     <input
                       type="checkbox"
+                      aria-label={t(`villareq.code_${code}`)}
                       checked={code in requests}
                       onChange={() => toggleRequest(code)}
                       className="h-[18px] w-[18px] rounded border-line-strong accent-[rgb(var(--brand))]"

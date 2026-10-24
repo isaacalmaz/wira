@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Card, IconTile, ListRow } from '../../components/ui';
 import { Store, MapPin, Clock, CreditCard, UtensilsCrossed, Home } from 'lucide-react';
+import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import useMyMerchants from '../../hooks/useMyMerchants';
 import ProfileShell from '../../components/shared/ProfileShell';
@@ -18,6 +20,22 @@ const MerchantProfilePage = () => {
   const merchant = merchants[0] || null;
   const rated = merchants.filter((m) => m.rating);
   const avg = rated.length ? rated.reduce((s, m) => s + Number(m.rating), 0) / rated.length : null;
+  const [reviewCount, setReviewCount] = useState(0);
+
+  useEffect(() => {
+    if (!merchants.length) return;
+    const merchantIds = merchants.map((m) => m.id);
+    supabase
+      .from('reviews')
+      .select('id', { count: 'exact', head: true })
+      .in('merchant_id', merchantIds)
+      .eq('is_hidden', false)
+      .then(({ count, error }) => {
+        if (!error && typeof count === 'number') {
+          setReviewCount(count);
+        }
+      });
+  }, [merchants]);
 
   const infoRows = [
     isVilla
@@ -33,9 +51,7 @@ const MerchantProfilePage = () => {
       fallbackIcon={Store}
       name={isVilla ? (user?.name || 'Tuan Rumah') : (merchant?.name || 'Toko Anda')}
       subtitle={isVilla ? `Tuan rumah WiraVilla · ${merchants.length} properti` : 'Wira Food & Mart'}
-      // merchants.rating has no review count next to it, so the stars show
-      // whenever a rating is set (as before).
-      rating={avg != null ? { avg, count: 3 } : { avg: null, count: 0 }}
+      rating={avg != null ? { avg, count: reviewCount } : { avg: null, count: 0 }}
       settingsTo={`${basePath}/settings`}
     >
       <Card padding="none" className="divide-y divide-line overflow-hidden">

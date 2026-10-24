@@ -46,6 +46,8 @@ const MerchantMenuPage = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -215,17 +217,24 @@ const MerchantMenuPage = () => {
   };
 
   // Hapus Menu dari Supabase
-  const handleDelete = async (id, itemName) => {
-    if (window.confirm(`Hapus menu "${itemName}" dari daftar restoran Anda?`)) {
-      try {
-        const { error, data } = await supabase.from('products').delete().eq('id', id).select();
-        if (error) throw error;
-        if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
-        toast.success(`Menu "${itemName}" telah dihapus`);
-        fetchMenu();
-      } catch (err) {
-        toast.error('Gagal menghapus: ' + friendlyError(err));
-      }
+  const handleDelete = (id, itemName) => {
+    setDeleteTarget({ id, name: itemName });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const { error, data } = await supabase.from('products').delete().eq('id', deleteTarget.id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Akses ditolak atau menu tidak ditemukan.');
+      toast.success(`Menu "${deleteTarget.name}" telah dihapus`);
+      setDeleteTarget(null);
+      fetchMenu();
+    } catch (err) {
+      toast.error('Gagal menghapus: ' + friendlyError(err));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -488,6 +497,28 @@ const MerchantMenuPage = () => {
             </label>
           </Field>
         </form>
+      </Sheet>
+
+      <Sheet
+        open={!!deleteTarget}
+        onClose={() => { if (!isDeleting) setDeleteTarget(null); }}
+        title="Hapus Menu?"
+        size="sm"
+        tone="danger"
+        footer={(
+          <>
+            <Button variant="secondary" size="lg" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+              Batal
+            </Button>
+            <Button variant="danger" size="lg" onClick={confirmDelete} isLoading={isDeleting}>
+              Hapus Menu
+            </Button>
+          </>
+        )}
+      >
+        <p className="text-sm leading-relaxed text-ink-muted">
+          Apakah Anda yakin ingin menghapus menu <strong className="text-ink">{deleteTarget?.name}</strong> dari daftar restoran Anda? Menu yang dihapus tidak dapat dipulihkan.
+        </p>
       </Sheet>
     </div>
   );

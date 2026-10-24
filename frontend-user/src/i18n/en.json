@@ -132,8 +132,22 @@
     "resend_confirmation": "Resend confirmation email",
     "resend_sent": "Confirmation email sent again to {{email}}.",
     "resend_failed": "Could not resend yet. Wait a few minutes, then try again.",
-    "register_success_now": "Your account is ready. Welcome to Wira!",
-    "forgot_password": "Forgot password?"
+    "forgot_password": "Forgot password?",
+    "forgot_password_title": "Forgot Password",
+    "forgot_password_desc": "Enter your email to receive a password reset link.",
+    "email_label": "Email",
+    "send_link": "Send Link",
+    "back_to_login": "Back to Login",
+    "reset_link_sent": "Password reset link has been sent to your email.",
+    "reset_link_failed": "Failed to send password reset link.",
+    "session_invalid": "Invalid or expired session.",
+    "password_min_length": "Password must be at least 6 characters.",
+    "password_updated": "Password updated successfully!",
+    "password_update_failed": "Failed to update password.",
+    "reset_password_title": "Set New Password",
+    "reset_password_desc": "Please enter your new password.",
+    "new_password_label": "New Password",
+    "save_password": "Save Password"
   },
   "home": {
     "wallet_balance": "WiraPay Balance",
@@ -383,6 +397,9 @@
     "step_1_of_3": "Step 1: Route & Contacts",
     "step_2_of_3": "Step 2: Package & Vehicle",
     "step_3_of_3": "Step 3: Confirm & Pay",
+    "step_1_desc": "Fill in pickup and delivery details",
+    "step_2_desc": "Choose package size or vehicle",
+    "step_3_desc": "Review order details and choose payment",
     "proceed_to_package": "Continue: Choose Package",
     "proceed_to_payment": "Continue: Payment",
     "change_route": "Change Route",
@@ -399,7 +416,12 @@
     "delivery_cost": "Delivery Fee",
     "promo_discount": "Promo Discount",
     "total_payment": "Total Payment",
-    "big_item_price_note": "Price is agreed upon with the driver in the app after the driver inspects the item photos."
+    "big_item_price_note": "Price is agreed upon with the driver in the app after the driver inspects the item photos.",
+    "sender_name_placeholder": "Sender name",
+    "receiver_name_placeholder": "Receiver name",
+    "big_payment_hint": "Cash payment directly to the driver after price agreement in the app.",
+    "photos_count": "item photos",
+    "note_prefix": "Note"
   },
   "villa": {
     "title": "WiraVilla — Villas & Stays",
@@ -516,6 +538,7 @@
     "selected_summary": "Selected Services",
     "units_selected": "{{count}} units selected",
     "cash_payment_note": "Pay cash directly to technician after work is completed and tested.",
+    "preferred_tech": "Preferred technician",
     "qty_less": "Fewer {{name}}",
     "qty_more": "More {{name}}",
     "pick_item": "Choose at least one job.",
@@ -805,7 +828,8 @@
     "route_dropoff": "Destination",
     "order_again": "Order again",
     "order_again_tech": "Book this technician again",
-    "order_again_driver": "Ride this route again"
+    "order_again_driver": "Ride this route again",
+    "view_detail_and_warranty": "View Details & Warranty"
   },
   "order": {
     "cancel_desc_villa_full": "At least 3 days before check-in: you get a full refund, transferred to your account by the Wira admin.",
@@ -1415,7 +1439,9 @@
     "period_pm": "PM",
     "slot_booked": "Booked",
     "info_sheet_title": "About WiraAsuh Babysitters",
-    "info_sheet_close": "Understood"
+    "info_sheet_close": "Understood",
+    "hours_min_max": "Min {{min}} hrs • Max {{max}} hrs",
+    "child_unit": "Children"
   },
   "landing": {
     "nav_services": "Services",

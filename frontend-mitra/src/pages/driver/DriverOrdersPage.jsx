@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Badge, EmptyState, PageHeader, SectionHeader, Money, IconTile, Button, Spinner } from '../../components/ui';
 import StatusUpdater from '../../components/shared/StatusUpdater';
 import OrderPinSheet from '../../components/shared/OrderPinSheet';
-import { User, Package, RefreshCw, History } from 'lucide-react';
+import { User, Package, RefreshCw, History, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { OrderStatus, getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { updateOrderStatus, driverIncome, loadCommissionRates } from '../../services/orderService';
@@ -12,6 +13,7 @@ import { fetchCounterpartyProfiles } from '../../services/profileService';
 import { friendlyError } from '../../utils/friendlyError';
 import { serviceIcon, serviceLabel } from '../../constants/services';
 import { formatDateTime } from '../../utils/datetime';
+import { parseOrderAddresses, isHourlyRide } from '../../utils/orders';
 
 // ---- Presentational helpers (Tenun Laut) ----
 
@@ -26,6 +28,7 @@ const EarnedMoney = ({ value, className = '' }) => {
 
 const DriverOrdersPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   // One unified Driver portal - shows every order ever assigned to this
   // driver regardless of service type, not scoped by any URL basePath
   // anymore (see DriverHomePage.jsx's identical rationale).
@@ -73,7 +76,11 @@ const DriverOrdersPage = () => {
       setPinOpen(true);
       return;
     }
-    if(activeOrder) {
+    if (newStatus === OrderStatus.COMPLETED || isHourlyRide(activeOrder)) {
+      navigate(`/order/${activeOrder.id}`);
+      return;
+    }
+    if (activeOrder) {
       try {
         await updateOrderStatus(supabase, activeOrder.id, newStatus, user.id, 'driver');
         fetchOrders();
@@ -116,6 +123,41 @@ const DriverOrdersPage = () => {
                 <p className="text-xs text-ink-muted">Bayar: <span className="font-semibold text-ink">{activeOrder.payment_method === 'cash' ? 'Tunai, tagih ke pelanggan' : 'Lunas via WiraPay, jangan ditagih'}</span></p>
               </div>
             </div>
+
+            {(() => {
+              const addr = parseOrderAddresses(activeOrder);
+              if (!addr.pickup && !addr.dropoff) return null;
+              return (
+                <div className="flex flex-col gap-2 rounded-control border border-line bg-sunken p-3 text-[13px]">
+                  {addr.pickup && (
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-semibold uppercase text-ink-muted">Jemput: </span>
+                        <span className="font-medium text-ink break-words">{addr.pickup}</span>
+                      </div>
+                    </div>
+                  )}
+                  {addr.dropoff && (
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-danger" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-semibold uppercase text-ink-muted">Tujuan: </span>
+                        <span className="font-medium text-ink break-words">{addr.dropoff}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <Button
+              variant="secondary"
+              rightIcon={<ChevronRight size={16} />}
+              onClick={() => navigate(`/order/${activeOrder.id}`)}
+            >
+              Lihat Detail & Navigasi
+            </Button>
 
             <StatusUpdater currentStatus={activeOrder.status} role="driver" onUpdate={updateStatus} isFoodDelivery={!!activeOrder.merchant_id} />
             <OrderPinSheet

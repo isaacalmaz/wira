@@ -881,7 +881,7 @@ export default function PoolPage() {
           {isCustom && (
             <Card className="flex flex-col gap-3">
               <SectionHeader title={t('service.custom_desc_label')} className="mb-0" />
-              <Field htmlFor="pool-job-desc" required hint={t('service.custom_desc_hint')}>
+              <Field label={t('service.custom_desc_label')} htmlFor="pool-job-desc" required hint={t('service.custom_desc_hint')}>
                 <Textarea
                   id="pool-job-desc"
                   rows={3}

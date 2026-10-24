@@ -2,9 +2,10 @@ import useOnlineStatus from '../../hooks/useOnlineStatus';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Home, ListOrdered, Wallet, User, Menu as MenuIcon, Building2, LogOut, Bell, CalendarClock } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabase';
+import { onMessageListener } from '../../config/firebase';
 import WiraMark from '../brand/WiraMark';
 import { cx } from '../ui';
 import { RoleSwitcherSheet, RoleSwitcherSidebarButton, RoleSwitcherHeaderBadge } from './RoleSwitcher';
@@ -61,7 +62,7 @@ const MitraLayout = ({ children }) => {
     }
 
     if (activeRole === 'technician') {
-      base.push({ to: `/technician/schedule`, icon: MenuIcon, label: 'Jadwal' });
+      base.push({ to: `/technician/schedule`, icon: CalendarClock, label: 'Jadwal' });
     }
 
     // WiraRide bookings for later (migrations/0132) are taken ahead of time
@@ -90,6 +91,8 @@ const MitraLayout = ({ children }) => {
 
   // Unread notifications dot on the bell (inbox: /<role>/notifications).
   const [unread, setUnread] = useState(0);
+  const recentToastsRef = useRef(new Set());
+
   useEffect(() => {
     if (!user?.id) return undefined;
     let alive = true;
@@ -105,18 +108,55 @@ const MitraLayout = ({ children }) => {
         const n = payload.new;
         if (n) {
           const text = n.description ? `${n.title}: ${n.description}` : n.title;
-          toast(text, {
-            duration: 6000,
-            icon: '🔔',
-          });
-          playSensoryAlert();
+          const key = `rt:${n.id || text}`;
+          if (!recentToastsRef.current.has(key)) {
+            recentToastsRef.current.add(key);
+            setTimeout(() => recentToastsRef.current.delete(key), 8000);
+            toast(text, { duration: 6000 });
+            playSensoryAlert();
+          }
         }
       })
       .subscribe();
+
+    // Foreground FCM web push listener
+    let isFcmActive = true;
+    const listenFcm = () => {
+      onMessageListener()
+        .then((payload) => {
+          if (!isFcmActive) return;
+          if (payload) {
+            const title = payload.notification?.title || payload.data?.title || '';
+            const body = payload.notification?.body || payload.data?.body || payload.data?.description || '';
+            const notifId = payload.data?.id || payload.data?.notification_id || '';
+            const text = body ? `${title}: ${body}` : title;
+            const key = `fcm:${notifId}:${text}`;
+            if (title && !recentToastsRef.current.has(key)) {
+              recentToastsRef.current.add(key);
+              setTimeout(() => recentToastsRef.current.delete(key), 8000);
+              toast(text, { duration: 6000 });
+              playSensoryAlert();
+              count();
+            }
+          }
+          listenFcm();
+        })
+        .catch((err) => {
+          console.warn('FCM foreground listener error:', err);
+        });
+    };
+    listenFcm();
+
     const onRead = () => setUnread(0);
     window.addEventListener('wira:notifications-read', onRead);
     const t = setInterval(count, 60000);
-    return () => { alive = false; supabase.removeChannel(channel); window.removeEventListener('wira:notifications-read', onRead); clearInterval(t); };
+    return () => {
+      alive = false;
+      isFcmActive = false;
+      supabase.removeChannel(channel);
+      window.removeEventListener('wira:notifications-read', onRead);
+      clearInterval(t);
+    };
   }, [user?.id]);
 
   // Display only: the driver home draws its own full-height map
@@ -170,6 +210,24 @@ const MitraLayout = ({ children }) => {
                 <span>{item.label}</span>
               </NavLink>
             ))}
+            <NavLink
+              to={`/${activeRole}/notifications`}
+              className={sideLinkCls}
+              aria-label={unread > 0 ? `Notifikasi, ${unread} belum dibaca` : 'Notifikasi'}
+            >
+              <div className="relative">
+                <Bell size={19} />
+                {unread > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-danger" aria-hidden="true" />
+                )}
+              </div>
+              <span className="flex-1">Notifikasi</span>
+              {unread > 0 && (
+                <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </NavLink>
           </nav>
         </div>
 

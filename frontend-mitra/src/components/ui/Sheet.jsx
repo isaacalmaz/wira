@@ -92,7 +92,7 @@ export default function Sheet({
                 data-sheet-close
                 onClick={onClose}
                 aria-label={closeLabel}
-                className="-mr-1.5 -mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-sunken"
+                className="-mr-1.5 -mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-sunken"
               >
                 <X size={18} />
               </button>

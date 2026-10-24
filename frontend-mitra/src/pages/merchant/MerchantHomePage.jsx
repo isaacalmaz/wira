@@ -7,7 +7,7 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { parseOrderDetails } from '../../utils/formatters';
-import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantIncome, loadCommissionRates, orderErrorMessage } from '../../services/orderService';
+import { fetchPendingOrders, acceptOrder, completeOrder, updateOrderStatus, subscribeToMerchantOrders, merchantIncome, loadCommissionRates, orderErrorMessage, notifyOrderReady } from '../../services/orderService';
 import { OrderStatus } from '../../constants/orderStatus';
 import { EARNINGS_COLUMNS, startOfTodayISO } from '../../utils/earnings';
 import useMyMerchants from '../../hooks/useMyMerchants';
@@ -245,6 +245,7 @@ const MerchantHomePage = () => {
         // the driver leg entirely.
         await updateOrderStatus(supabase, activeOrder.id, OrderStatus.PREPARING, activeOrder.merchant_id, 'merchant');
         await updateOrderStatus(supabase, activeOrder.id, OrderStatus.READY, activeOrder.merchant_id, 'merchant');
+        notifyOrderReady(activeOrder, supabase);
         setActiveOrder(null);
         toast.success('Pesanan Siap! Menunggu driver mengambil.');
         setTodayOrders(prev => prev + 1);

@@ -251,14 +251,14 @@ export default function HomePage() {
                 className={cx(
                   'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
-                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-laut-700 text-[#F7F6F3]' : 'bg-emas-400 text-[#1E1A10]')
+                    ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-brand text-white' : 'bg-pay text-pay-ink')
                     : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3 lg:min-h-[132px]',
                       LG_SPAN[lgSpan], lgSpan > 1 && !wide && 'lg:min-h-0 lg:flex-row lg:items-center lg:gap-3'),
                 )}
               >
                 {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}
                 {hasPromo && (
-                  <span className={cx('absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold', hero ? (index === 0 ? 'bg-white/20 text-[#F7F6F3]' : 'bg-black/10 text-[#1E1A10]') : 'bg-emas-100 text-emas-700')}>
+                  <span className={cx('absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold', hero ? (index === 0 ? 'bg-white/20 text-white' : 'bg-black/10 text-ink') : 'bg-pay-soft text-pay-ink')}>
                     {t('home.promo_tag')}
                   </span>
                 )}
@@ -274,7 +274,7 @@ export default function HomePage() {
                 </span>
                 <span className={cx('flex min-w-0 flex-col', hero && 'mt-auto')}>
                   <span className={cx('break-words font-extrabold tracking-[-0.01em]', hero ? 'text-[19px]' : 'text-[15px] text-ink')}>{serviceLabel(service)}</span>
-                  <span className={cx('break-words text-[12px] leading-snug', hero ? (index === 0 ? 'text-[#F7F6F3]/80' : 'text-[#1E1A10]/75') : 'text-ink-muted')}>
+                  <span className={cx('break-words text-[12px] leading-snug', hero ? (index === 0 ? 'text-white/80' : 'text-ink/80') : 'text-ink-muted')}>
                     {t(`home.svc_short_${service.key.replace('wira_', '')}`)}
                   </span>
                 </span>
@@ -344,7 +344,7 @@ export default function HomePage() {
                 <ListRow
                   key={ord.id}
                   as={Link}
-                  to="/activity"
+                  to={`/active-order/${ord.id}`}
                   className="rounded-card border border-line bg-card px-3.5 py-3 hover:border-line-strong"
                   leading={(
                     <IconTile size="sm" tone="brand">

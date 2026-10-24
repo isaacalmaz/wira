@@ -28,13 +28,13 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-slate-50 px-4 py-10">
-      <Card padding="none" className="w-full max-w-[400px] overflow-hidden shadow-lg border-0">
-        <div className="h-1.5 bg-primary" />
-        <div className="p-6 sm:p-7 flex flex-col gap-6">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-ground px-4 py-10">
+      <Card padding="none" className="w-full max-w-[400px] overflow-hidden border border-line bg-card">
+        <div className="h-1.5 bg-brand" />
+        <div className="flex flex-col gap-6 p-6 sm:p-7">
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-2xl font-bold text-slate-900">Lupa Password</h1>
-            <p className="text-sm text-slate-500">Masukkan email Anda untuk menerima tautan reset password.</p>
+            <h1 className="text-2xl font-bold text-ink">Lupa Password</h1>
+            <p className="text-sm text-ink-muted">Masukkan email Anda untuk menerima tautan reset password.</p>
           </div>
           <form onSubmit={handleReset} className="flex flex-col gap-4">
             <Field label="Email" htmlFor="reset-email">
@@ -47,14 +47,14 @@ export default function ForgotPasswordPage() {
                 required
               />
             </Field>
-            <Button type="submit" block size="lg" isLoading={loading} className="mt-2 bg-primary text-white hover:bg-primary/90">
+            <Button type="submit" block size="lg" isLoading={loading} className="mt-2">
               Kirim Tautan
             </Button>
           </form>
         </div>
       </Card>
       <div className="mt-6 text-center text-sm">
-        <Link to="/login" className="text-primary hover:underline font-medium">
+        <Link to="/login" className="font-semibold text-brand-ink hover:underline">
           Kembali ke Login
         </Link>
       </div>

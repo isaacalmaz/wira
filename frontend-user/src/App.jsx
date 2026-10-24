@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LangProvider } from './i18n';
 import { ThemeProvider } from './context/ThemeContext';
@@ -10,6 +10,11 @@ import { OrderProvider } from './context/OrderContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { Suspense, lazy } from 'react';
 import { WALLET_ENABLED } from './config/wallet';
+
+function TechnicianRedirect() {
+  const { id } = useParams();
+  return <Navigate to={id ? `/service?tech=${id}` : '/service'} replace />;
+}
 
 const Layout = lazy(() => import('./components/layout/Layout'));
 const DownloadPage = lazy(() => import('./pages/DownloadPage'));
@@ -88,7 +93,7 @@ export default function Root() {
                             <Route path="/pool" element={<PoolPage />} />
                             <Route path="/asuh" element={<AsuhPage />} />
                             <Route path="/technicians" element={<Navigate to="/service" replace />} />
-                            <Route path="/technicians/:id" element={<Navigate to="/service" replace />} />
+                            <Route path="/technicians/:id" element={<TechnicianRedirect />} />
                             <Route path="/projects" element={WALLET_ENABLED ? <MyProjectsPage /> : <Navigate to="/" replace />} />
                             <Route path="/projects/new" element={WALLET_ENABLED ? <NewProjectPage /> : <Navigate to="/" replace />} />
                             <Route path="/projects/:id" element={WALLET_ENABLED ? <ProjectDetailPage /> : <Navigate to="/" replace />} />

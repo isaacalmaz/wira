@@ -10,6 +10,7 @@ import { useTranslation } from '../i18n';
 import { localizeOrderTitle, localizeOrderDetails, localizePaymentMethod } from '../utils/localizeDbText';
 import PaymentCheckCard from '../components/common/PaymentCheckCard';
 import VisitReportCard from '../components/common/VisitReportCard';
+import WarrantyCard from '../components/common/WarrantyCard';
 import {
   ShoppingBag,
   Bike,
@@ -21,6 +22,7 @@ import {
   Receipt,
   Star,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 
 // Statuses that mean an order/ride is still actually "live" (not yet
@@ -249,6 +251,21 @@ export default function ActivityPage() {
             </div>
             <PaymentCheckCard order={selectedOrder} />
             <VisitReportCard order={selectedOrder} />
+            {['service', 'pool'].includes(selectedOrder.service_type) && (
+              <WarrantyCard order={selectedOrder} />
+            )}
+            <Button
+              variant="secondary"
+              block
+              leftIcon={<ShieldCheck size={17} />}
+              onClick={() => {
+                const id = selectedOrder.id;
+                setSelectedOrder(null);
+                navigate(`/active-order/${id}`);
+              }}
+            >
+              {t('activity.view_detail_and_warranty') || 'Lihat Detail & Garansi'}
+            </Button>
             {orderAgainTarget(selectedOrder) && (
               <Button
                 variant="secondary"

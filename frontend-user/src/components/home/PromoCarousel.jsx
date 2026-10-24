@@ -107,9 +107,9 @@ export default function PromoCarousel({ services, excludeId, stacked = false }) 
               key={promo.id}
               className={cx('flex min-h-[120px] flex-none snap-start overflow-hidden rounded-card border border-line bg-card', visible.length > 1 ? 'w-[90%] sm:w-[360px]' : 'w-full sm:w-[380px]', stacked && 'lg:w-full')}
             >
-              <div className="flex w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 border-r-2 border-dashed border-ground bg-laut-700 px-1 text-white">
+              <div className="flex w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 border-r-2 border-dashed border-ground bg-brand px-1 text-white">
                 <span className="font-mono text-[20px] font-medium leading-none tracking-tight">{discountLabel(promo)}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-laut-300">{t('home_promo.off')}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/80">{t('home_promo.off')}</span>
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-2 p-2.5 pl-3">
                 <div className="flex min-w-0 flex-col gap-0.5">

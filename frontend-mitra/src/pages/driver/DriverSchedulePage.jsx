@@ -8,20 +8,17 @@ import { useAuth } from '../../context/AuthContext';
 import { getDisplayStatus, statusTone } from '../../constants/orderStatus';
 import { fetchMyScheduledRides, fetchOpenScheduledRides, takeScheduledRide } from '../../services/stage4Service';
 import { friendlyError } from '../../utils/friendlyError';
+import { parseOrderAddresses } from '../../utils/orders';
 
 const fmtWhen = (iso) => new Date(iso).toLocaleString('id-ID', {
   weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar',
 });
 
 function routeText(order) {
-  try {
-    const d = JSON.parse(order.details || '{}');
-    const from = String(d.pickup?.name || '').split(' (')[0];
-    if (order.metadata?.hourly) return from;
-    return [from, d.dropoff?.name].filter(Boolean).join(' → ');
-  } catch {
-    return order.title || '';
-  }
+  const { pickup, dropoff, summary } = parseOrderAddresses(order);
+  if (order.metadata?.hourly) return pickup || summary || order.title || '';
+  if (pickup && dropoff) return `${pickup} → ${dropoff}`;
+  return summary || pickup || dropoff || order.title || '';
 }
 
 function RideRow({ order, action }) {
@@ -107,7 +104,7 @@ export default function DriverSchedulePage() {
           <RideRow
             key={o.id}
             order={o}
-            action={<Button variant="secondary" onClick={() => navigate(`/driver/active-order/${o.id}`)}>Buka pesanan</Button>}
+            action={<Button variant="secondary" onClick={() => navigate(`/order/${o.id}`)}>Buka pesanan</Button>}
           />
         ))}
       </section>

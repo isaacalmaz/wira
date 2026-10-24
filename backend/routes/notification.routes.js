@@ -37,8 +37,8 @@ router.use(auth);
 // `get_nearest_drivers` and `list_technicians` RPCs use), and only when the
 // caller is that order's own customer. This keeps every currently-working
 // flow above intact while removing the arbitrary-third-party case.
-const DRIVER_SERVICE_TYPES = ['ride', 'send'];
-const TECHNICIAN_SERVICE_TYPES = ['pool', 'service'];
+const DRIVER_SERVICE_TYPES = ['ride', 'send', 'wiraride', 'wirasend'];
+const TECHNICIAN_SERVICE_TYPES = ['pool', 'service', 'wirapool', 'wiraservice'];
 
 router.post('/order-alert', userFacingLimiter, async (req, res) => {
   try {
@@ -95,6 +95,8 @@ router.post('/order-alert', userFacingLimiter, async (req, res) => {
     const targetIsAssignedDriver = !!order.driver_id && userId === order.driver_id;
     const targetIsMerchantOwner = !!merchantOwnerId && userId === merchantOwnerId;
 
+    const serviceType = String(order.service_type || req.body.type || data?.type || '').toLowerCase();
+
     let targetIsEligibleProfessional = false;
     if (!targetIsCustomer && !targetIsAssignedDriver && !targetIsMerchantOwner && callerIsCustomer) {
       // Broadcast case: the order's own customer notifying a not-yet-assigned
@@ -103,7 +105,7 @@ router.post('/order-alert', userFacingLimiter, async (req, res) => {
       // the matching professional role for this order's service_type - this
       // is what stops an attacker from using their own order to reach an
       // arbitrary victim account.
-      if (DRIVER_SERVICE_TYPES.includes(order.service_type)) {
+      if (DRIVER_SERVICE_TYPES.includes(serviceType)) {
         // Matches get_nearest_drivers (migrations/0014), which sources
         // candidates from public.drivers.
         const { data: driverRow, error: driverErr } = await supabase
@@ -116,7 +118,27 @@ router.post('/order-alert', userFacingLimiter, async (req, res) => {
           return response.error(res, 'Internal server error', 500);
         }
         targetIsEligibleProfessional = !!driverRow;
-      } else if (TECHNICIAN_SERVICE_TYPES.includes(order.service_type)) {
+      } else if (TECHNICIAN_SERVICE_TYPES.includes(serviceType)) {
+        // Respect service_dispatch_mode: when 'admin_only', do not broadcast
+        // open service/pool jobs to all online technicians.
+        const { data: settingRow } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'service_dispatch_mode')
+          .maybeSingle();
+        let dispatchMode = settingRow?.value;
+        if (!dispatchMode) {
+          const { data: flagRow } = await supabase
+            .from('feature_flags')
+            .select('value, features')
+            .eq('key', 'service_dispatch_mode')
+            .maybeSingle();
+          dispatchMode = flagRow?.value || flagRow?.features?.service_dispatch_mode;
+        }
+        if (dispatchMode === 'admin_only') {
+          return res.status(200).json({ success: true, skipped: 'admin_only' });
+        }
+
         // Matches list_technicians (migrations/0025), which sources
         // candidates via users.mitra_access containing 'technician'.
         const { data: targetProfile, error: profileErr } = await supabase

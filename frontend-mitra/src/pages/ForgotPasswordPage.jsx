@@ -48,14 +48,14 @@ export default function ForgotPasswordPage() {
                 required
               />
             </Field>
-            <Button type="submit" block size="lg" isLoading={loading} className="mt-2 bg-primary text-white hover:bg-primary/90">
+            <Button type="submit" block size="lg" isLoading={loading} className="mt-2">
               Kirim Tautan
             </Button>
           </form>
         </div>
       </Card>
       <div className="mt-6 text-center text-sm">
-        <Link to="/login" className="text-primary hover:underline font-medium">
+        <Link to="/login" className="text-brand-ink hover:underline font-medium">
           Kembali ke Login
         </Link>
       </div>

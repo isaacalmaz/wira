@@ -50,7 +50,52 @@ export default function NotificationsPage() {
     }
   }, [user?.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    if (!user?.id) return undefined;
+
+    const channel = supabase
+      .channel(`partner-inbox-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newItem = payload.new;
+            setRows((prev) => {
+              if (!prev) return [newItem];
+              if (prev.some((n) => n.id === newItem.id)) return prev;
+              return [newItem, ...prev];
+            });
+            // Auto mark read if viewing notifications page
+            supabase
+              .from('notifications')
+              .update({ is_read: true })
+              .eq('id', newItem.id)
+              .select('id')
+              .then(() => {
+                window.dispatchEvent(new Event('wira:notifications-read'));
+              });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new;
+            setRows((prev) => {
+              if (!prev) return prev;
+              return prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n));
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, load]);
 
   return (
     <div className="flex flex-col gap-4 pb-20">
@@ -60,7 +105,7 @@ export default function NotificationsPage() {
       ) : error && rows.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 py-10 text-center text-[13.5px] text-ink-muted">
           Notifikasi belum bisa dimuat. Periksa koneksi, lalu coba lagi.
-          <button type="button" onClick={load} className="min-h-11 rounded-control border border-line-strong px-4 font-semibold text-ink">Coba lagi</button>
+          <button type="button" onClick={load} className="min-h-11 rounded-control bg-danger/10 px-4 font-semibold text-danger hover:bg-danger/15 transition-colors">Coba lagi</button>
         </Card>
       ) : rows.length === 0 ? (
         <EmptyState icon={<Bell size={24} />} title="Belum ada notifikasi" description="Pesanan baru, tagihan komisi dan kabar dari admin muncul di sini." />

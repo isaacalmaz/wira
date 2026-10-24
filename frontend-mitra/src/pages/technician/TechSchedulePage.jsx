@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Badge, EmptyState, PageHeader, SectionHeader, Spinner, cx } from '../../components/ui';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +31,7 @@ const scheduleOf = (order) => {
 
 const TechSchedulePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const today = useMemo(() => new Date(), []);
@@ -153,13 +155,19 @@ const TechSchedulePage = () => {
           <Card padding="none">
             <ul className="divide-y divide-line">
               {agenda.map((s) => (
-                <li key={s.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <span className="w-12 shrink-0 pt-0.5 font-mono text-[13px] font-medium text-brand-ink">{s.time || '—'}</span>
-                  <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-                    <p className="break-words text-[14px] font-semibold leading-snug text-ink">{s.task}</p>
-                    {s.location && <p className="line-clamp-2 break-words text-[12.5px] leading-snug text-ink-muted">{s.location}</p>}
-                    <Badge tone={statusTone(s.status)} dot className="mt-1">{getDisplayStatus(s.status)}</Badge>
-                  </div>
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/order/${s.id}`)}
+                    className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-sunken/50"
+                  >
+                    <span className="w-12 shrink-0 pt-0.5 font-mono text-[13px] font-medium text-brand-ink">{s.time || '—'}</span>
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <p className="break-words text-[14px] font-semibold leading-snug text-ink">{s.task}</p>
+                      {s.location && <p className="line-clamp-2 break-words text-[12.5px] leading-snug text-ink-muted">{s.location}</p>}
+                      <Badge tone={statusTone(s.status)} dot className="mt-1">{getDisplayStatus(s.status)}</Badge>
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>

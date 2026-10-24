@@ -3,10 +3,13 @@ import { supabase } from '../config/supabase';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Field, Input } from '../components/ui';
 import toast from 'react-hot-toast';
+import { useTranslation } from '../i18n';
+import { friendlyError } from '../utils/friendlyError';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,27 +17,27 @@ export default function ResetPasswordPage() {
     // If there is no session, redirect to login.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session && !window.location.hash.includes('type=recovery')) {
-        toast.error('Sesi tidak valid atau telah kedaluwarsa.');
+        toast.error(t('auth.session_invalid') || 'Sesi tidak valid atau telah kedaluwarsa.');
         navigate('/login');
       }
     });
-  }, [navigate]);
+  }, [navigate, t]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (password.length < 6) {
-      toast.error('Password minimal 6 karakter.');
+      toast.error(t('auth.password_min_length') || 'Password minimal 6 karakter.');
       return;
     }
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      toast.success('Password berhasil diubah!');
+      toast.success(t('auth.password_updated') || 'Password berhasil diubah!');
       navigate('/');
     } catch (err) {
       console.error(err);
-      toast.error('Gagal mengubah password.');
+      toast.error(friendlyError(err) || t('auth.password_update_failed') || 'Gagal mengubah password.');
     } finally {
       setLoading(false);
     }
@@ -46,11 +49,11 @@ export default function ResetPasswordPage() {
         <div className="h-2.5 tenun-band" />
         <div className="p-6 sm:p-7 flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-2xl font-bold text-ink">Buat Password Baru</h1>
-            <p className="text-sm text-ink-muted">Silakan masukkan password baru Anda.</p>
+            <h1 className="text-2xl font-bold text-ink">{t('auth.reset_password_title') || 'Buat Password Baru'}</h1>
+            <p className="text-sm text-ink-muted">{t('auth.reset_password_desc') || 'Silakan masukkan password baru Anda.'}</p>
           </div>
           <form onSubmit={handleUpdate} className="flex flex-col gap-4">
-            <Field label="Password Baru" htmlFor="new-password">
+            <Field label={t('auth.new_password_label') || 'Password Baru'} htmlFor="new-password">
               <Input
                 id="new-password"
                 type="password"
@@ -60,8 +63,8 @@ export default function ResetPasswordPage() {
                 required
               />
             </Field>
-            <Button type="submit" block size="lg" isLoading={loading} className="mt-2 bg-primary text-white hover:bg-primary/90">
-              Simpan Password
+            <Button type="submit" block size="lg" isLoading={loading} className="mt-2">
+              {t('auth.save_password') || 'Simpan Password'}
             </Button>
           </form>
         </div>

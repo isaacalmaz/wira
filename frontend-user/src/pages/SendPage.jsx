@@ -314,12 +314,21 @@ export default function SendPage() {
         }
       }
 
+      const bigWeightLabel = `Barang besar (mobil)${bigHelper ? ' • Perlu bantu angkat' : ''}`;
+      const bigSummary = `Pengirim: ${senderName} (${senderPhone || '-'}) | Penerima: ${receiverName} (${receiverPhone}) | Barang: ${bigWeightLabel}${itemNote ? ` (${itemNote})` : ''}`;
+      const bigDetails = `No. Resi: ${resi} • ${bigSummary} • Dari: ${withAddressNote(senderAddress, senderNote)} ➔ Ke: ${withAddressNote(receiverAddress, receiverNote)}`;
+
+      const pkgWeightLabel = currentPkg?.weight ? `${currentPkg.name} (${currentPkg.weight})` : (currentPkg?.name || selectedPackage);
+      const pkgSummary = `Pengirim: ${senderName} (${senderPhone || '-'}) | Penerima: ${receiverName} (${receiverPhone}) | Barang: ${pkgWeightLabel}${itemNote ? ` (${itemNote})` : ''}`;
+      const pkgDetails = `No. Resi: ${resi} • ${pkgSummary} • Dari: ${withAddressNote(senderAddress, senderNote)} ➔ Ke: ${withAddressNote(receiverAddress, receiverNote)}`;
+
       const order = await addOrder(isBig ? {
         paymentDescription: `WiraSend Barang besar ke ${receiverName}`,
         service: 'WiraSend',
         serviceType: 'send',
         title: `Barang besar ke ${receiverName}`,
-        details: `No. Resi: ${resi} • Barang besar (mobil)${bigHelper ? ' • Perlu bantu angkat' : ''} (${withAddressNote(senderAddress, senderNote)} ➔ ${withAddressNote(receiverAddress, receiverNote)})`,
+        details: bigDetails,
+        notes: bigSummary,
         price: 0,
         status: 'pending',
         paymentMethod: 'Tunai',
@@ -331,13 +340,25 @@ export default function SendPage() {
         rateCode: 'BESAR',
         distanceMeters: routeMeters ?? null,
         promoCode: null,
-        metadata: { job: { description: bigDesc.trim(), photos: bigPhotoPaths, helper: bigHelper } },
+        metadata: {
+          sender_name: senderName,
+          sender_phone: senderPhone,
+          receiver_name: receiverName,
+          receiver_phone: receiverPhone,
+          item_note: itemNote || null,
+          sender_address: senderAddress,
+          receiver_address: receiverAddress,
+          sender_note: senderNote || null,
+          receiver_note: receiverNote || null,
+          job: { description: bigDesc.trim(), photos: bigPhotoPaths, helper: bigHelper },
+        },
       } : {
         paymentDescription: `WiraSend Paket ke ${receiverName}`,
         service: 'WiraSend',
         serviceType: 'send',
         title: `Kirim Paket ke ${receiverName}`,
-        details: `No. Resi: ${resi} • ${currentPkg.name} (${withAddressNote(senderAddress, senderNote)} ➔ ${withAddressNote(receiverAddress, receiverNote)})`,
+        details: pkgDetails,
+        notes: pkgSummary,
         price: finalPrice,
         status: 'pending',
         paymentMethod: paymentMethod,
@@ -349,6 +370,19 @@ export default function SendPage() {
         rateCode: currentPkg.id,
         distanceMeters: routeMeters ?? null,
         promoCode: activePromo?.code || null,
+        metadata: {
+          sender_name: senderName,
+          sender_phone: senderPhone,
+          receiver_name: receiverName,
+          receiver_phone: receiverPhone,
+          item_note: itemNote || null,
+          package_size: selectedPackage,
+          package_name: currentPkg?.name,
+          sender_address: senderAddress,
+          receiver_address: receiverAddress,
+          sender_note: senderNote || null,
+          receiver_note: receiverNote || null,
+        },
       });
 
       if (paymentMethod === 'WiraPay') refreshWallet();
@@ -396,9 +430,9 @@ export default function SendPage() {
               {step === 3 && (t('send.step_3_of_3') || 'Langkah 3: Konfirmasi & Bayar')}
             </span>
             <span className="text-[11px] text-ink-muted">
-              {step === 1 && (t('send.incomplete') ? 'Isi detail penjemputan dan pengantaran' : 'Langkah 1 dari 3')}
-              {step === 2 && (t('send.package_section') || 'Pilih ukuran atau jenis barang')}
-              {step === 3 && (t('common.payment_method') || 'Periksa rincian dan pilih pembayaran')}
+              {step === 1 && (t('send.step_1_desc') || 'Isi detail penjemputan dan pengantaran')}
+              {step === 2 && (t('send.step_2_desc') || 'Pilih ukuran atau jenis barang')}
+              {step === 3 && (t('send.step_3_desc') || 'Periksa rincian dan pilih pembayaran')}
             </span>
           </div>
         </div>
@@ -433,7 +467,7 @@ export default function SendPage() {
                   autoComplete="name"
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="Nama pengirim paket"
+                  placeholder={t('send.sender_name_placeholder') || 'Nama pengirim paket'}
                   required
                 />
               </Field>
@@ -491,7 +525,7 @@ export default function SendPage() {
                   type="text"
                   value={receiverName}
                   onChange={(e) => setReceiverName(e.target.value)}
-                  placeholder="Nama penerima paket"
+                  placeholder={t('send.receiver_name_placeholder') || 'Nama penerima paket'}
                   required
                 />
               </Field>
@@ -845,11 +879,11 @@ export default function SendPage() {
                     {isBig ? t('send.big_title') : packageLabel(currentPkg)}
                   </span>
                   <span className="text-[12px] text-ink-muted">
-                    {isBig ? `${bigPhotos.length} foto barang` : packageLabel(currentPkg, '_desc')}
+                    {isBig ? `${bigPhotos.length} ${t('send.photos_count') || 'foto barang'}` : packageLabel(currentPkg, '_desc')}
                   </span>
                   {itemNote && (
                     <span className="text-[12px] italic text-ink-muted">
-                      Catatan: &ldquo;{itemNote}&rdquo;
+                      {t('send.note_prefix') || 'Catatan'}: &ldquo;{itemNote}&rdquo;
                     </span>
                   )}
                 </div>
@@ -882,7 +916,7 @@ export default function SendPage() {
               <h2 className="text-[15px] font-bold tracking-tight text-ink">{t('common.payment_method')}</h2>
               <p className="text-[12.5px] leading-relaxed text-ink-muted">
                 {isBig
-                  ? 'Pembayaran tunai langsung ke driver setelah kesepakatan harga di aplikasi.'
+                  ? (t('send.big_payment_hint') || 'Pembayaran tunai langsung ke driver setelah kesepakatan harga di aplikasi.')
                   : t('send.payment_hint')}
               </p>
             </div>

@@ -49,22 +49,57 @@ export const WalletProvider = ({ children }) => {
   }, [user, lang]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.id) {
       setBalance(0);
       setTransactions([]);
-      return;
+      return undefined;
     }
     const abortController = new AbortController();
     fetchWallet(abortController.signal);
-    return () => abortController.abort();
-  }, [user, fetchWallet]);
 
-  const transfer = async (amount, recipientPhone) => {
+    const channel = supabase
+      .channel(`user-wallet-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new && payload.new.wallet_balance !== undefined) {
+            setBalance(Number(payload.new.wallet_balance) || 0);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchWallet();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      abortController.abort();
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchWallet]);
+
+  const transfer = async (amount, recipientPhone, note = null) => {
     const numAmount = Number(amount);
     try {
       const { data, error } = await supabase.rpc('wallet_transfer', {
         p_amount: numAmount,
         p_recipient_phone: recipientPhone,
+        p_note: note || null,
       });
 
       if (error) {

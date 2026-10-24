@@ -24,6 +24,7 @@ import {
   orderErrorMessage,
 } from '../../services/orderService';
 import { friendlyError } from '../../utils/friendlyError';
+import { parseOrderAddresses, isHourlyRide } from '../../utils/orders';
 
 /** JSON.parse that never throws - ride/send's `details` is a JSON blob,
  * but food/villa/service's is a plain string, and a driver's incoming-order
@@ -475,6 +476,10 @@ const DriverHomePage = () => {
       setPinOpen(true);
       return;
     }
+    if (step.next === OrderStatus.COMPLETED || isHourlyRide(activeOrder)) {
+      navigate(`/order/${activeOrder.id}`);
+      return;
+    }
     try {
       const updated = await updateOrderStatus(supabase, activeOrder.id, step.next, user.id, 'driver');
       if (step.next === OrderStatus.COMPLETED) {
@@ -546,6 +551,7 @@ const DriverHomePage = () => {
   };
 
   const orderDetails = activeOrder ? tryParseJson(activeOrder.details) : null;
+  const activeAddresses = activeOrder ? parseOrderAddresses(activeOrder) : null;
   const isFoodDelivery = !!activeOrder?.merchant_id;
 
   // Food orders' `details` is a plain string, not JSON (see tryParseJson's
@@ -585,6 +591,7 @@ const DriverHomePage = () => {
   // Incoming-order prompt: parsed route + straight-line trip distance
   // (display only, from the same coordinates the order already carries).
   const incomingDetails = incomingOrder?.details ? tryParseJson(incomingOrder.details) : null;
+  const incomingAddresses = incomingOrder ? parseOrderAddresses(incomingOrder) : null;
   // Same road distance the customer saw (orders.distance_meters); a straight
   // line only when the order has none.
   const incomingTripMeters = Number(incomingOrder?.distance_meters) > 0 ? Number(incomingOrder.distance_meters)
@@ -776,10 +783,21 @@ const DriverHomePage = () => {
                     <p className="font-semibold text-ink">
                       {activeOrder.status === OrderStatus.PICKING_UP ? `Ambil di: ${activeOrder.title || 'Restoran'}` : 'Menuju alamat pelanggan'}
                     </p>
-                    <p className="break-words leading-relaxed text-ink-muted">{prettySchedule(activeOrder.details)}</p>
+                    <p className="break-words leading-relaxed text-ink-muted">
+                      {activeAddresses?.summary || activeAddresses?.dropoff || prettySchedule(activeOrder.details)}
+                    </p>
                   </div>
                 </div>
               ) : null}
+
+              {activeAddresses && (activeAddresses.pickup || activeAddresses.dropoff) && !isFoodDelivery && (
+                <div className="rounded-control border border-line bg-sunken px-3.5 py-3">
+                  <RouteStops
+                    from={activeAddresses.pickup || 'Lokasi Jemput'}
+                    to={activeAddresses.dropoff || 'Tujuan'}
+                  />
+                </div>
+              )}
 
               {/* Next step first: the one action the driver takes now */}
               {currentStep && (
@@ -880,21 +898,19 @@ const DriverHomePage = () => {
               </div>
             </div>
 
-            {incomingOrder.details && (
-              incomingDetails ? (
-                <div className="flex items-start gap-3">
-                  <RouteStops
-                    from={incomingDetails.pickup?.name || 'Lokasi Jemput'}
-                    to={incomingDetails.dropoff?.name || 'Tujuan'}
-                  />
-                  {incomingTripMeters != null && (
-                    <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-[13px] font-medium text-ink-muted">{formatKm(incomingTripMeters)}</span>
-                  )}
-                </div>
-              ) : (
-                <p className="break-words text-sm leading-relaxed text-ink">{prettySchedule(incomingOrder.details)}</p>
-              )
-            )}
+            {incomingAddresses && (incomingAddresses.pickup || incomingAddresses.dropoff) ? (
+              <div className="flex items-start gap-3">
+                <RouteStops
+                  from={incomingAddresses.pickup || 'Lokasi Jemput'}
+                  to={incomingAddresses.dropoff || 'Tujuan'}
+                />
+                {incomingTripMeters != null && (
+                  <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-[13px] font-medium text-ink-muted">{formatKm(incomingTripMeters)}</span>
+                )}
+              </div>
+            ) : (incomingAddresses?.summary || incomingOrder.details) ? (
+              <p className="break-words text-sm leading-relaxed text-ink">{incomingAddresses?.summary || prettySchedule(incomingOrder.details)}</p>
+            ) : null}
 
             {cashFoodSplit(incomingOrder) && <CashFoodNote split={cashFoodSplit(incomingOrder)} compact />}
 

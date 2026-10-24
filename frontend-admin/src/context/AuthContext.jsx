@@ -134,6 +134,11 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      if (user?.id) {
+        await supabase.from('users').update({ fcm_token: null }).eq('id', user.id);
+      }
+    } catch { /* ignore FCM token cleanup failure */ }
+    try {
       localStorage.removeItem('wira_admin_demo_user');
       await supabase.auth.signOut();
     } catch { /* sign-out failure is ignored; local state is cleared below */ }

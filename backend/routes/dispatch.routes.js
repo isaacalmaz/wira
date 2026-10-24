@@ -28,6 +28,18 @@ async function dispatchOrder(orderId) {
   if (!result) return { active: false, pingedCount: 0, totalCandidates: 0 };
 
   if (result.driver_id) {
+    const isVisit = ['service', 'pool'].includes(String(result.service_type || '').toLowerCase());
+    if (isVisit) {
+      const { data: settingRow } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'service_dispatch_mode')
+        .maybeSingle();
+      if (settingRow?.value === 'admin_only') {
+        return { active: false, pingedCount: 0, totalCandidates: 0 };
+      }
+    }
+
     const { data: target, error: targetErr } = await supabase
       .from('users')
       .select('fcm_token')
@@ -39,7 +51,6 @@ async function dispatchOrder(orderId) {
       // A failed push is logged but not retried for this driver - the next
       // tick moves on to the next candidate, same as the old client loop.
       // Technician visits are matched by skill, not distance (0089).
-      const isVisit = ['service', 'pool'].includes(result.service_type);
       await sendPushNotification(
         target.fcm_token,
         isVisit

@@ -33,6 +33,7 @@ import {
 } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useOrder } from '../context/OrderContext';
 import { useTranslation } from '../i18n';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 import AddressNoteField from '../components/common/AddressNoteField';
@@ -44,14 +45,17 @@ import { friendlyError } from '../utils/friendlyError';
 const MIN_HOURS = 2;
 const MAX_HOURS = 12;
 const LEAD_MS = 2 * 60 * 60 * 1000;
+const SLOT_MS = 15 * 60 * 1000;
 const TIMES = Array.from({ length: 61 }, (_, i) => {
   const mins = 6 * 60 + i * 15; // 06:00 .. 21:00 (15-min intervals)
   return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 });
 const AGES = Array.from({ length: 13 }, (_, i) => i);
 
-const openTimes = (date) =>
-  TIMES.filter((time) => new Date(witaInstant(date, time)).getTime() >= Date.now() + LEAD_MS);
+const openTimes = (date, graceMs = 0) => {
+  const cutoff = Math.floor(Date.now() / SLOT_MS) * SLOT_MS + LEAD_MS - graceMs;
+  return TIMES.filter((time) => new Date(witaInstant(date, time)).getTime() >= cutoff);
+};
 const firstDate = () => (openTimes(witaToday()).length ? witaToday() : witaDatePlus(1));
 
 function SummaryRow({ label, children, strong = false, className = '' }) {
@@ -67,6 +71,7 @@ export default function AsuhPage() {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshOrders } = useOrder();
 
   // ALUR 2 JENDELA: Step 1 (Waktu & Data Anak) -> Step 2 (Lokasi & Konfirmasi)
   const [step, setStep] = useState(1);
@@ -139,7 +144,6 @@ export default function AsuhPage() {
     supabase.rpc('get_babysit_busy', { p_from: from, p_to: to }).then(({ data }) => setBusy(data || []));
   }, [date]);
 
-  const times = openTimes(date);
   const start = new Date(witaInstant(date, time));
   const end = new Date(start.getTime() + hours * 3600000);
   const clash = busy.some((b) => new Date(b.start_at) < end && new Date(b.end_at) > start);
@@ -169,9 +173,9 @@ export default function AsuhPage() {
     const [h, m] = (time || '').split(':').map(Number);
     const mins = h * 60 + m;
     const isOutOfRange = !timeRegex.test(time) || mins < 6 * 60 || mins > 21 * 60;
-    const isBeforeLead = new Date(witaInstant(date, time)).getTime() < Date.now() + LEAD_MS;
+    const isInvalidSlot = !openTimes(date, SLOT_MS).includes(time);
 
-    if (isOutOfRange || isBeforeLead) {
+    if (isOutOfRange || isInvalidSlot) {
       toast.error(t('asuh.err_time'));
       return;
     }
@@ -189,7 +193,7 @@ export default function AsuhPage() {
       navigate('/login', { state: { from: '/asuh' } });
       return;
     }
-    if (!times.includes(time)) {
+    if (!openTimes(date, SLOT_MS).includes(time)) {
       toast.error(t('asuh.err_time'));
       return;
     }
@@ -231,6 +235,7 @@ export default function AsuhPage() {
         p_emergency_phone: phone.trim(),
       });
       if (error) throw error;
+      await refreshOrders?.();
       toast.success(t('asuh.sent'));
       navigate(`/active-order/${data}`);
     } catch (err) {
@@ -364,7 +369,9 @@ export default function AsuhPage() {
                   <span className="font-mono text-2xl font-extrabold tracking-tight text-ink">
                     {t('asuh.hours', { n: hours })}
                   </span>
-                  <span className="text-[11.5px] text-ink-muted">Min {MIN_HOURS} jam • Maks {MAX_HOURS} jam</span>
+                  <span className="text-[11.5px] text-ink-muted">
+                    {t('asuh.hours_min_max', { min: MIN_HOURS, max: MAX_HOURS }) || `Min ${MIN_HOURS} jam • Maks ${MAX_HOURS} jam`}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -391,7 +398,7 @@ export default function AsuhPage() {
           <Card className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <SectionHeader title={t('asuh.children')} className="mb-0" />
-              <Badge tone="neutral">{children.length} Anak</Badge>
+              <Badge tone="neutral">{children.length} {t('asuh.child_unit') || 'Anak'}</Badge>
             </div>
 
             <div className="flex flex-col gap-3">

@@ -52,6 +52,8 @@ const OnlineSwitch = ({ isOnline, onChange, disabled }) => (
 );
 
 
+const normalizeDispatchMode = (val) => (typeof val === 'string' ? val.replace(/^"|"$/g, '') : (val || 'admin_only'));
+
 const TechHomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +62,7 @@ const TechHomePage = () => {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [openJobs, setOpenJobs] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
+  const [dispatchMode, setDispatchMode] = useState('admin_only');
   const [takingId, setTakingId] = useState(null);
   const [savingSwitch, setSavingSwitch] = useState(false);
   const knownOpen = useRef(null);
@@ -68,7 +71,13 @@ const TechHomePage = () => {
     if (!user) return;
     try {
       await loadCommissionRates(supabase);
-      const [open, mine] = await Promise.all([fetchOpenJobs(supabase), fetchMyJobs(supabase, user.id)]);
+      const [open, mine, modeRow] = await Promise.all([
+        fetchOpenJobs(supabase),
+        fetchMyJobs(supabase, user.id),
+        supabase.from('app_settings').select('value').eq('key', 'service_dispatch_mode').maybeSingle(),
+      ]);
+      const currentMode = normalizeDispatchMode(modeRow?.data?.value);
+      setDispatchMode(currentMode);
       // A new job appeared since the last refresh: say so.
       if (knownOpen.current && open.some((j) => !knownOpen.current.has(j.id))) {
         toast.success('Ada pekerjaan baru untuk Anda');
@@ -88,7 +97,24 @@ const TechHomePage = () => {
       .catch((err) => console.error('Technician profile load failed:', err))
       .finally(() => setProfileLoaded(true));
     load();
-    return subscribeToVisitChanges(supabase, user.id, load);
+    const unsubVisits = subscribeToVisitChanges(supabase, user.id, load);
+    const channel = supabase
+      .channel('tech-dispatch-mode')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_settings', filter: 'key=eq.service_dispatch_mode' },
+        (payload) => {
+          if (payload.new && payload.new.value) {
+            setDispatchMode(normalizeDispatchMode(payload.new.value));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      unsubVisits();
+      supabase.removeChannel(channel);
+    };
   }, [user, load]);
 
   const toggleAccepting = async (next) => {
@@ -106,11 +132,15 @@ const TechHomePage = () => {
   };
 
   const handleTakePackage = async (job) => {
+    if (dispatchMode === 'admin_only') {
+      toast.error('Pekerjaan servis ditugaskan langsung oleh Admin Wira.');
+      return;
+    }
     setTakingId(job.id);
     try {
       const n = await takePackage(supabase, job.package_id);
       toast.success(`${n} kunjungan paket diambil. Cek jadwalnya di menu Jadwal.`);
-      navigate(`/technician/active-order/${job.id}`);
+      navigate(`/order/${job.id}`);
     } catch (err) {
       toast.error(friendlyError(err) || 'Gagal mengambil paket');
       load();
@@ -121,11 +151,15 @@ const TechHomePage = () => {
 
   const handleTake = async (job) => {
     if (!user) return;
+    if (dispatchMode === 'admin_only') {
+      toast.error('Pekerjaan servis ditugaskan langsung oleh Admin Wira.');
+      return;
+    }
     setTakingId(job.id);
     try {
       await takeJob(supabase, job.id, user.id);
       toast.success('Pekerjaan diambil. Datang sesuai jadwal ya!');
-      navigate(`/technician/active-order/${job.id}`);
+      navigate(`/order/${job.id}`);
     } catch (err) {
       toast.error(friendlyError(err) || 'Gagal mengambil pekerjaan');
       load();
@@ -194,13 +228,15 @@ const TechHomePage = () => {
       <section>
         <SectionHeader
           title={<span className="inline-flex items-center gap-2"><BellRing size={18} className="text-brand-ink" aria-hidden="true" /> Pekerjaan Tersedia</span>}
-          action={openJobs.length > 3 ? (
+          action={openJobs.length > 3 && dispatchMode !== 'admin_only' ? (
             <Button variant="ghost" size="sm" rightIcon={<ChevronRight size={16} />} onClick={() => navigate('/technician/orders')}>
               Semua ({openJobs.length})
             </Button>
           ) : null}
         />
-        {openJobs.length > 0 ? (
+        {dispatchMode === 'admin_only' ? (
+          <Notice tone="brand">Pekerjaan servis ditugaskan langsung oleh Admin Wira.</Notice>
+        ) : openJobs.length > 0 ? (
           <div className="flex flex-col gap-3">
             {groupOpenJobs(openJobs).slice(0, 3).map(({ job, packageCount }) => (
               <VisitJobCard
@@ -233,7 +269,7 @@ const TechHomePage = () => {
                 key={job.id}
                 order={job}
                 skillName={nameOf(orderSkill(job))}
-                onOpen={() => navigate(`/technician/active-order/${job.id}`)}
+                onOpen={() => navigate(`/order/${job.id}`)}
               />
             ))}
           </div>

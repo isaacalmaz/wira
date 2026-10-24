@@ -166,6 +166,7 @@ function App() {
             />
           ))}
           <Route path="/active-order/:id" element={<ActiveOrderRedirect />} />
+          <Route path="/order/:id" element={<ActiveOrderRedirect />} />
           <Route path="/projects/:id" element={<ProjectRedirect />} />
         
           <Route path="/driver/*" element={
