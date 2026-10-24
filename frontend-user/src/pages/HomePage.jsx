@@ -25,8 +25,6 @@ const STATUS_TONE = {
   completed: 'success',
   cancelled: 'danger',
 };
-// Static class names so Tailwind keeps them.
-const LG_SPAN = { 1: 'lg:col-span-1', 2: 'lg:col-span-2', 3: 'lg:col-span-3', 4: 'lg:col-span-4' };
 const statusTone = (raw) => STATUS_TONE[String(raw || '').toLowerCase()] || 'brand';
 
 // Leading icon for an activity row, from the service catalogue.
@@ -240,9 +238,6 @@ export default function HomePage() {
             const hero = index < 2;
             const last = index === shownServices.length - 1;
             const wide = !hero && last && (shownServices.length - 2) % 2 === 1;
-            // Four columns on desktop: the two favourites take two each (one
-            // row), the rest one each, and the last card fills its row.
-            const lgSpan = !hero && last ? 4 - ((shownServices.length - 3) % 4) : 1;
             const hasPromo = promoKeys.has(service.key);
             return (
               <Link
@@ -252,8 +247,10 @@ export default function HomePage() {
                   'group relative flex min-w-0 overflow-hidden rounded-[18px] transition-[filter,border-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
                   hero
                     ? cx('min-h-[150px] flex-col gap-1.5 p-4 hover:brightness-105 lg:col-span-2', index === 0 ? 'bg-brand text-white' : 'bg-pay text-pay-ink')
-                    : cx('border border-line bg-card hover:border-brand', wide ? 'col-span-2 items-center gap-3 p-3' : 'min-h-[110px] flex-col gap-1.5 p-3 lg:min-h-[132px]',
-                      LG_SPAN[lgSpan], lgSpan > 1 && !wide && 'lg:min-h-0 lg:flex-row lg:items-center lg:gap-3'),
+                    : cx(
+                        'border border-line bg-card hover:border-brand lg:col-span-1 lg:min-h-[132px] lg:flex-col lg:items-stretch lg:gap-1.5 lg:p-3',
+                        wide ? 'col-span-2 flex items-center gap-3 p-3' : 'col-span-1 flex min-h-[110px] flex-col gap-1.5 p-3',
+                      ),
                 )}
               >
                 {hero && <span aria-hidden="true" className={cx('pointer-events-none absolute -bottom-5 -right-5 h-24 w-24 rounded-full border-[10px]', index === 0 ? 'border-white/10' : 'border-black/[0.07]')} />}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Car, UtensilsCrossed, Package, Home, Wrench, Waves, Baby, KeyRound, ReceiptText, LifeBuoy } from 'lucide-react';
+import { Car, UtensilsCrossed, Package, Home, Wrench, Waves, Baby, Sparkles, KeyRound, ReceiptText, LifeBuoy } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import DownloadSheet from '../components/landing/DownloadSheet';
 
@@ -28,6 +28,7 @@ const SERVICES = [
   { icon: Wrench, name: 'WiraService', key: 'svc_service' },
   { icon: Waves, name: 'WiraPool', key: 'svc_pool' },
   { icon: Baby, name: 'WiraAsuh', key: 'svc_asuh' },
+  { icon: Sparkles, name: 'WiraBersih', key: 'svc_bersih' },
 ];
 
 const STEPS = ['step1', 'step2', 'step3'];
