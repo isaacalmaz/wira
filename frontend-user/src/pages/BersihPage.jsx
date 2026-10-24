@@ -14,6 +14,7 @@ import {
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../i18n';
 import {
   Card,
   Badge,
@@ -30,6 +31,7 @@ import AddressMapPicker from '../components/common/AddressMapPicker';
 export default function BersihPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, lang } = useTranslation();
 
   const [activeTab, setActiveTab] = useState('services'); // 'services' | 'history'
   const [submitting, setSubmitting] = useState(false);
@@ -124,11 +126,11 @@ export default function BersihPage() {
   const handleSubscribeSubmit = async (e) => {
     e.preventDefault();
     if (!subProperty.trim()) {
-      toast.error('Masukkan nama vila / properti Anda');
+      toast.error(t('bersih.toast_sub_prop_req'));
       return;
     }
     if (!subAddress.trim()) {
-      toast.error('Tentukan titik peta dan alamat lengkap');
+      toast.error(t('bersih.toast_sub_addr_req'));
       return;
     }
 
@@ -147,12 +149,12 @@ export default function BersihPage() {
       });
 
       if (error) throw error;
-      toast.success('Pendaftaran langganan berhasil dikirim!');
+      toast.success(t('bersih.toast_sub_success'));
       setActiveForm('none');
       setActiveTab('history');
       loadUserHistory();
     } catch (err) {
-      toast.error('Gagal mendaftar: ' + err.message);
+      toast.error(t('bersih.toast_sub_failed', { message: err.message }));
     } finally {
       setSubmitting(false);
     }
@@ -161,11 +163,11 @@ export default function BersihPage() {
   const handleHousekeepingSubmit = async (e) => {
     e.preventDefault();
     if (!hkProperty.trim()) {
-      toast.error('Masukkan nama vila');
+      toast.error(t('bersih.toast_hk_prop_req'));
       return;
     }
     if (!hkAddress.trim()) {
-      toast.error('Tentukan alamat penugasan');
+      toast.error(t('bersih.toast_hk_addr_req'));
       return;
     }
 
@@ -188,12 +190,12 @@ export default function BersihPage() {
       });
 
       if (error) throw error;
-      toast.success('Pesanan housekeeping berhasil dibuat!');
+      toast.success(t('bersih.toast_hk_success'));
       setActiveForm('none');
       setActiveTab('history');
       loadUserHistory();
     } catch (err) {
-      toast.error('Gagal memesan: ' + err.message);
+      toast.error(t('bersih.toast_hk_failed', { message: err.message }));
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +204,7 @@ export default function BersihPage() {
   const handleQuoteSubmit = async (e) => {
     e.preventDefault();
     if (!quoteAddress.trim()) {
-      toast.error('Tentukan alamat penjemputan borongan');
+      toast.error(t('bersih.toast_bulk_addr_req'));
       return;
     }
 
@@ -221,12 +223,12 @@ export default function BersihPage() {
       });
 
       if (error) throw error;
-      toast.success('Permohonan borongan terkirim! Admin akan segera menghubungi Anda.');
+      toast.success(t('bersih.toast_bulk_success'));
       setActiveForm('none');
       setActiveTab('history');
       loadUserHistory();
     } catch (err) {
-      toast.error('Gagal mengajukan: ' + err.message);
+      toast.error(t('bersih.toast_bulk_failed', { message: err.message }));
     } finally {
       setSubmitting(false);
     }
@@ -241,18 +243,18 @@ export default function BersihPage() {
             type="button"
             onClick={() => (activeForm !== 'none' ? setActiveForm('none') : navigate('/'))}
             className="flex h-10 w-10 items-center justify-center rounded-control bg-card text-ink border border-line hover:bg-sunken transition"
-            aria-label="Kembali"
+            aria-label={t('bersih.back')}
           >
             <ArrowLeft size={18} />
           </button>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-[17px] font-bold text-ink leading-none">Wira Bersih</h1>
+              <h1 className="text-[17px] font-bold text-ink leading-none">{t('bersih.title')}</h1>
               <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-ink">
-                by Sampun Bersih
+                {t('bersih.by_partner')}
               </span>
             </div>
-            <p className="text-[11.5px] text-ink-muted">Kebersihan Villa & Angkut Sampah Kuta Lombok</p>
+            <p className="text-[11.5px] text-ink-muted">{t('bersih.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -264,8 +266,8 @@ export default function BersihPage() {
             value={activeTab}
             onChange={setActiveTab}
             options={[
-              { value: 'services', label: 'Pilihan Layanan' },
-              { value: 'history', label: 'Tagihan & Riwayat' },
+              { value: 'services', label: t('bersih.tab_services') },
+              { value: 'history', label: t('bersih.tab_history') },
             ]}
           />
         )}
@@ -275,17 +277,6 @@ export default function BersihPage() {
         {/* ============================================================== */}
         {activeTab === 'services' && activeForm === 'none' && (
           <div className="space-y-3">
-            {/* Banner Info Kuta */}
-            <div className="p-3.5 rounded-card bg-brand-soft border border-brand-line flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Sparkles size={18} className="text-brand-ink shrink-0" />
-                <div>
-                  <span className="text-[13px] font-bold text-brand-ink block">Operasional Sampun Bersih</span>
-                  <span className="text-[11px] text-ink-muted">Rute rutin: Minggu, Selasa, Jumat • Wilayah Kuta Lombok</span>
-                </div>
-              </div>
-            </div>
-
             {/* Service 1: Sampah Rutin Villa */}
             <Card
               className="cursor-pointer hover:border-brand transition"
@@ -298,15 +289,15 @@ export default function BersihPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">Sampah Rutin Villa</h3>
-                      <Badge tone="brand">Sampun Bersih</Badge>
+                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_waste_title')}</h3>
+                      <Badge tone="brand">{t('bersih.svc_waste_badge')}</Badge>
                     </div>
                     <p className="text-[12px] text-ink-muted mt-1">
-                      Pengangkutan rutin terjadwal untuk villa, homestay, atau bisnis Anda.
+                      {t('bersih.svc_waste_desc')}
                     </p>
                     <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-brand-ink">
                       <Clock size={12} />
-                      <span>Rute: Min, Sel, Jum (1x, 2x, atau 3x seminggu)</span>
+                      <span>{t('bersih.svc_waste_route')}</span>
                     </div>
                   </div>
                 </div>
@@ -326,15 +317,15 @@ export default function BersihPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">Housekeeping Villa</h3>
-                      <Badge tone="warning">Mitra Terverifikasi</Badge>
+                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_hk_title')}</h3>
+                      <Badge tone="warning">{t('bersih.svc_hk_badge')}</Badge>
                     </div>
                     <p className="text-[12px] text-ink-muted mt-1">
-                      Turnover tamu (check-out/in), ganti linen/sprei, sanitasi toilet, dan deep clean.
+                      {t('bersih.svc_hk_desc')}
                     </p>
                     <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-ink-muted">
                       <CheckCircle2 size={12} className="text-success" />
-                      <span>Standar kebersihan perhotelan villa</span>
+                      <span>{t('bersih.svc_hk_std')}</span>
                     </div>
                   </div>
                 </div>
@@ -354,15 +345,15 @@ export default function BersihPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">Angkut Borongan</h3>
-                      <Badge tone="neutral">Sekali Angkut</Badge>
+                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_bulk_title')}</h3>
+                      <Badge tone="neutral">{t('bersih.svc_bulk_badge')}</Badge>
                     </div>
                     <p className="text-[12px] text-ink-muted mt-1">
-                      Pembersihan sisa pangkas kebun, renovasi, atau sampah hajatan villa.
+                      {t('bersih.svc_bulk_desc')}
                     </p>
                     <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-ink-muted">
                       <Truck size={12} />
-                      <span>Armada Tossa & Truk Pickup</span>
+                      <span>{t('bersih.svc_bulk_fleet')}</span>
                     </div>
                   </div>
                 </div>
@@ -378,19 +369,19 @@ export default function BersihPage() {
         {activeForm === 'subscribe' && (
           <form onSubmit={handleSubscribeSubmit} className="space-y-4">
             <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">Form Langganan Sampun Bersih</h2>
+              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_sub_title')}</h2>
               <button
                 type="button"
                 onClick={() => setActiveForm('none')}
                 className="text-[12px] font-semibold text-ink-muted hover:text-ink"
               >
-                Tutup
+                {t('bersih.close')}
               </button>
             </div>
 
-            <Field label="Nama Villa / Bisnis" required>
+            <Field label={t('bersih.form_sub_property')} required>
               <Input
-                placeholder="Contoh: Villa Asri Kuta"
+                placeholder={t('bersih.form_sub_property_ph')}
                 value={subProperty}
                 onChange={e => setSubProperty(e.target.value)}
               />
@@ -399,29 +390,29 @@ export default function BersihPage() {
             {/* Titik Koordinat Peta (DI ATAS ALAMAT LENGKAP) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[12px] font-semibold text-ink">Titik Koordinat Peta</label>
-                <span className="text-[11px] font-semibold text-brand-ink">GPS Gerbang Masuk</span>
+                <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_map_title')}</label>
+                <span className="text-[11px] font-semibold text-brand-ink">{t('bersih.form_sub_map_gate')}</span>
               </div>
               <AddressMapPicker
                 id="sub-map"
-                placeholder="Cari lokasi villa di Kuta Lombok..."
+                placeholder={t('bersih.form_sub_map_ph')}
                 address={subAddress}
                 onAddressChange={setSubAddress}
                 coords={subCoords}
                 onCoordsChange={setSubCoords}
-                pinLabel="Titik Gerbang"
+                pinLabel={t('bersih.form_sub_map_pin')}
               />
             </div>
 
             {/* Tipe Properti */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-ink">Tipe Properti</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_type')}</label>
               <div className="grid grid-cols-2 gap-2 text-[12px]">
                 {[
-                  { id: 'villa', label: 'Villa (1–3 Kamar)' },
-                  { id: 'villa_complex', label: 'Villa Kompleks' },
-                  { id: 'homestay', label: 'Homestay' },
-                  { id: 'restaurant', label: 'Resto / Cafe' },
+                  { id: 'villa', label: t('bersih.form_sub_type_villa') },
+                  { id: 'villa_complex', label: t('bersih.form_sub_type_complex') },
+                  { id: 'homestay', label: t('bersih.form_sub_type_homestay') },
+                  { id: 'restaurant', label: t('bersih.form_sub_type_restaurant') },
                 ].map(item => (
                   <button
                     key={item.id}
@@ -437,29 +428,29 @@ export default function BersihPage() {
 
             {/* Pilihan Frekuensi (1x, 2x, 3x) */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-ink">Frekuensi Angkut (Rute: Min, Sel, Jum)</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_freq')}</label>
               <div className="space-y-2">
                 {[
                   {
                     id: '3x',
-                    label: '3x Seminggu',
-                    days: 'Minggu, Selasa & Jumat',
+                    label: t('bersih.form_sub_freq_3x'),
+                    days: t('bersih.form_sub_freq_3x_days'),
                     daysArr: ['Sunday', 'Tuesday', 'Friday'],
-                    desc: 'Semua hari operasional armada',
+                    desc: t('bersih.form_sub_freq_3x_desc'),
                   },
                   {
                     id: '2x',
-                    label: '2x Seminggu',
-                    days: 'Selasa & Jumat',
+                    label: t('bersih.form_sub_freq_2x'),
+                    days: t('bersih.form_sub_freq_2x_days'),
                     daysArr: ['Tuesday', 'Friday'],
-                    desc: 'Pilihan 2 hari rutin',
+                    desc: t('bersih.form_sub_freq_2x_desc'),
                   },
                   {
                     id: '1x',
-                    label: '1x Seminggu',
-                    days: 'Jumat',
+                    label: t('bersih.form_sub_freq_1x'),
+                    days: t('bersih.form_sub_freq_1x_days'),
                     daysArr: ['Friday'],
-                    desc: 'Pilihan 1 hari rutin',
+                    desc: t('bersih.form_sub_freq_1x_desc'),
                   },
                 ].map(f => (
                   <div
@@ -484,7 +475,7 @@ export default function BersihPage() {
             </div>
 
             <p className="text-[11.5px] text-ink-muted text-center leading-snug">
-              Tarif bulanan resmi dikonfirmasi sebelum penagihan invoice pertama.
+              {t('bersih.form_sub_notice')}
             </p>
 
             <Button
@@ -493,7 +484,7 @@ export default function BersihPage() {
               className="w-full min-h-11 font-bold"
               disabled={submitting}
             >
-              {submitting ? 'Mengirim Pendaftaran...' : 'Ajukan Langganan Rutin'}
+              {submitting ? t('bersih.form_sub_btn_submitting') : t('bersih.form_sub_btn')}
             </Button>
           </form>
         )}
@@ -504,19 +495,19 @@ export default function BersihPage() {
         {activeForm === 'housekeeping' && (
           <form onSubmit={handleHousekeepingSubmit} className="space-y-4">
             <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">Pesan Housekeeping Villa</h2>
+              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_hk_title')}</h2>
               <button
                 type="button"
                 onClick={() => setActiveForm('none')}
                 className="text-[12px] font-semibold text-ink-muted hover:text-ink"
               >
-                Tutup
+                {t('bersih.close')}
               </button>
             </div>
 
-            <Field label="Nama Villa" required>
+            <Field label={t('bersih.form_hk_property')} required>
               <Input
-                placeholder="Contoh: Villa Kuta Sunset"
+                placeholder={t('bersih.form_hk_property_ph')}
                 value={hkProperty}
                 onChange={e => setHkProperty(e.target.value)}
               />
@@ -524,42 +515,42 @@ export default function BersihPage() {
 
             {/* Titik Peta & Alamat */}
             <div className="space-y-2">
-              <label className="text-[12px] font-semibold text-ink">Lokasi Villa & Alamat</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_map_title')}</label>
               <AddressMapPicker
                 id="hk-map"
-                placeholder="Cari lokasi villa..."
+                placeholder={t('bersih.form_hk_map_ph')}
                 address={hkAddress}
                 onAddressChange={setHkAddress}
                 coords={hkCoords}
                 onCoordsChange={setHkCoords}
-                pinLabel="Titik Villa"
+                pinLabel={t('bersih.form_hk_map_pin')}
               />
             </div>
 
             {/* Tipe Pembersihan */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-ink">Tipe Pembersihan</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_type')}</label>
               <div className="grid grid-cols-2 gap-2 text-[12px]">
                 <button
                   type="button"
                   onClick={() => setHkType('turnover')}
                   className={`min-h-11 p-2 rounded-control border text-center transition ${hkType === 'turnover' ? 'border-brand bg-brand-soft text-brand-ink font-bold' : 'border-line bg-card text-ink'}`}
                 >
-                  Turnover (Check-Out)
+                  {t('bersih.form_hk_type_turnover')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setHkType('deep_clean')}
                   className={`min-h-11 p-2 rounded-control border text-center transition ${hkType === 'deep_clean' ? 'border-brand bg-brand-soft text-brand-ink font-bold' : 'border-line bg-card text-ink'}`}
                 >
-                  Deep Cleaning
+                  {t('bersih.form_hk_type_deep')}
                 </button>
               </div>
             </div>
 
             {/* Jumlah Kamar Tidur */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-ink">Jumlah Kamar Tidur</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_bedrooms')}</label>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map(num => (
                   <button
@@ -568,7 +559,7 @@ export default function BersihPage() {
                     onClick={() => setHkBedrooms(num)}
                     className={`min-h-11 rounded-control border font-bold text-[13px] transition ${hkBedrooms === num ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line bg-card text-ink'}`}
                   >
-                    {num === 4 ? '4+ Kamar' : `${num} Kamar`}
+                    {num === 4 ? t('bersih.form_hk_bedroom_4plus') : t('bersih.form_hk_bedroom_n', { count: num })}
                   </button>
                 ))}
               </div>
@@ -576,7 +567,7 @@ export default function BersihPage() {
 
             {/* Tanggal & Jam */}
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Tanggal Kedatangan">
+              <Field label={t('bersih.form_hk_date')}>
                 <input
                   type="date"
                   value={hkDate}
@@ -584,7 +575,7 @@ export default function BersihPage() {
                   className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono"
                 />
               </Field>
-              <Field label="Jam Kedatangan">
+              <Field label={t('bersih.form_hk_time')}>
                 <input
                   type="time"
                   value={hkTime}
@@ -594,9 +585,9 @@ export default function BersihPage() {
               </Field>
             </div>
 
-            <Field label="Catatan Tambahan (Opsional)">
+            <Field label={t('bersih.form_hk_notes')}>
               <Input
-                placeholder="Misal: kunci ada di lockbox kode 1234, linen di lemari"
+                placeholder={t('bersih.form_hk_notes_ph')}
                 value={hkNotes}
                 onChange={e => setHkNotes(e.target.value)}
               />
@@ -608,7 +599,7 @@ export default function BersihPage() {
               className="w-full min-h-11 font-bold"
               disabled={submitting}
             >
-              {submitting ? 'Memproses...' : 'Pesan Housekeeping'}
+              {submitting ? t('bersih.processing') : t('bersih.form_hk_btn')}
             </Button>
           </form>
         )}
@@ -619,31 +610,31 @@ export default function BersihPage() {
         {activeForm === 'quote' && (
           <form onSubmit={handleQuoteSubmit} className="space-y-4">
             <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">Pengajuan Angkut Borongan</h2>
+              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_bulk_title')}</h2>
               <button
                 type="button"
                 onClick={() => setActiveForm('none')}
                 className="text-[12px] font-semibold text-ink-muted hover:text-ink"
               >
-                Tutup
+                {t('bersih.close')}
               </button>
             </div>
 
             {/* Titik Peta & Alamat */}
             <div className="space-y-2">
-              <label className="text-[12px] font-semibold text-ink">Titik Penjemputan & Alamat</label>
+              <label className="text-[12px] font-semibold text-ink">{t('bersih.form_bulk_map_title')}</label>
               <AddressMapPicker
                 id="quote-map"
-                placeholder="Cari lokasi penjemputan sampah..."
+                placeholder={t('bersih.form_bulk_map_ph')}
                 address={quoteAddress}
                 onAddressChange={setQuoteAddress}
                 coords={quoteCoords}
                 onCoordsChange={setQuoteCoords}
-                pinLabel="Titik Tumpukan"
+                pinLabel={t('bersih.form_bulk_map_pin')}
               />
             </div>
 
-            <Field label="Rencana Tanggal Penjemputan">
+            <Field label={t('bersih.form_bulk_date')}>
               <input
                 type="date"
                 value={quoteDate}
@@ -652,16 +643,16 @@ export default function BersihPage() {
               />
             </Field>
 
-            <Field label="Catatan Tumpukan Sampah">
+            <Field label={t('bersih.form_bulk_notes')}>
               <Input
-                placeholder="Misal: tebang pohon kelapa 3 karung, butuh tossa"
+                placeholder={t('bersih.form_bulk_notes_ph')}
                 value={quoteNotes}
                 onChange={e => setQuoteNotes(e.target.value)}
               />
             </Field>
 
             <p className="text-[11.5px] text-ink-muted text-center leading-snug">
-              Admin akan mengirim penawaran harga resmi via notifikasi dan WhatsApp.
+              {t('bersih.form_bulk_notice')}
             </p>
 
             <Button
@@ -670,7 +661,7 @@ export default function BersihPage() {
               className="w-full min-h-11 font-bold"
               disabled={submitting}
             >
-              {submitting ? 'Mengirim...' : 'Minta Penawaran Harga'}
+              {submitting ? t('bersih.submitting') : t('bersih.form_bulk_btn')}
             </Button>
           </form>
         )}
@@ -687,16 +678,18 @@ export default function BersihPage() {
                 {/* Active Subscriptions Section */}
                 {mySubscriptions.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-[13.5px] font-bold text-ink">Langganan Properti Saya</h3>
+                    <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_subs_title')}</h3>
                     {mySubscriptions.map(s => (
                       <Card key={s.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <h4 className="text-[14px] font-bold text-ink">{s.property_name}</h4>
-                          <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge>
+                          <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>
+                            {s.status === 'active' ? (lang === 'id' ? 'Aktif' : 'Active') : (lang === 'id' ? 'Menunggu' : 'Pending')}
+                          </Badge>
                         </div>
                         <p className="text-[12px] text-ink-muted truncate">{s.address}</p>
                         <div className="flex items-center justify-between text-[11.5px] pt-1 border-t border-line">
-                          <span className="font-semibold text-brand-ink">{s.frequency} Seminggu (Min, Sel, Jum)</span>
+                          <span className="font-semibold text-brand-ink">{t('bersih.my_subs_freq', { freq: s.frequency })}</span>
                           {s.monthly_price > 0 && <Money amount={s.monthly_price} className="font-bold text-ink" />}
                         </div>
                       </Card>
@@ -706,10 +699,10 @@ export default function BersihPage() {
 
                 {/* Active Invoices Section */}
                 <div className="space-y-2">
-                  <h3 className="text-[13.5px] font-bold text-ink">Tagihan Langganan</h3>
+                  <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_invoices_title')}</h3>
                   {myInvoices.length === 0 ? (
                     <Card className="text-center py-6">
-                      <p className="text-[12px] text-ink-muted">Belum ada tagihan aktif untuk akun Anda.</p>
+                      <p className="text-[12px] text-ink-muted">{t('bersih.my_invoices_empty')}</p>
                     </Card>
                   ) : (
                     myInvoices.map(inv => (
@@ -719,16 +712,16 @@ export default function BersihPage() {
                             <span className="text-[11px] font-mono text-ink-muted block">{inv.invoice_no}</span>
                             <h4 className="text-[14px] font-bold text-ink">{inv.client_name}</h4>
                           </div>
-                          {inv.status === 'paid' && <Badge tone="success">Lunas</Badge>}
+                          {inv.status === 'paid' && <Badge tone="success">{t('bersih.inv_paid')}</Badge>}
                           {inv.status === 'collected_by_driver' && (
-                            <Badge tone="warning">Diterima Driver</Badge>
+                            <Badge tone="warning">{t('bersih.inv_driver')}</Badge>
                           )}
-                          {inv.status === 'pending' && <Badge tone="neutral">Menunggu Pembayaran</Badge>}
+                          {inv.status === 'pending' && <Badge tone="neutral">{t('bersih.inv_pending')}</Badge>}
                         </div>
 
                         <div className="p-3 bg-sunken rounded-control flex items-center justify-between">
                           <div>
-                            <span className="text-[11px] text-ink-muted block">Bulan {inv.month}</span>
+                            <span className="text-[11px] text-ink-muted block">{t('bersih.inv_month', { month: inv.month })}</span>
                             <Money amount={inv.amount} className="text-[17px] font-mono font-extrabold text-ink" />
                           </div>
                           {inv.status === 'pending' && (
@@ -739,7 +732,7 @@ export default function BersihPage() {
                                 onClick={() => setQrisModalInvoice(inv)}
                                 icon={<QrCode size={14} />}
                               >
-                                Bayar QRIS
+                                {t('bersih.inv_pay_qris')}
                               </Button>
                             </div>
                           )}
@@ -747,7 +740,7 @@ export default function BersihPage() {
 
                         {inv.status === 'collected_by_driver' && (
                           <p className="text-[11.5px] text-warning-ink bg-warning-soft p-2 rounded-control">
-                            Pembayaran tunai telah diserahkan ke driver lapangan dan sedang dalam proses verifikasi kasir.
+                            {t('bersih.inv_driver_notice')}
                           </p>
                         )}
                       </Card>
@@ -757,10 +750,10 @@ export default function BersihPage() {
 
                 {/* Pickup Logs Checklist Feed */}
                 <div className="space-y-2 pt-2">
-                  <h3 className="text-[13.5px] font-bold text-ink">Riwayat Pengangkutan Terakhir</h3>
+                  <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_pickups_title')}</h3>
                   {myPickups.length === 0 ? (
                     <Card className="text-center py-6">
-                      <p className="text-[12px] text-ink-muted">Belum ada riwayat pengangkutan tercatat.</p>
+                      <p className="text-[12px] text-ink-muted">{t('bersih.my_pickups_empty')}</p>
                     </Card>
                   ) : (
                     <div className="space-y-2">
@@ -775,14 +768,14 @@ export default function BersihPage() {
                             </div>
                             <div>
                               <span className="text-[12.5px] font-bold text-ink block">
-                                {p.completed ? 'Sudah Diangkut' : 'Jadwal Hari Ini'}
+                                {p.completed ? t('bersih.pickup_done') : t('bersih.pickup_today')}
                               </span>
                               <span className="text-[11px] text-ink-muted">
-                                {p.pickup_date} {p.completed_at ? `• ${new Date(p.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                                {p.pickup_date} {p.completed_at ? `• ${new Date(p.completed_at).toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
                               </span>
                             </div>
                           </div>
-                          <span className="text-[11px] text-ink-muted font-mono">Armada Tossa</span>
+                          <span className="text-[11px] text-ink-muted font-mono">{t('bersih.pickup_fleet')}</span>
                         </div>
                       ))}
                     </div>
@@ -798,12 +791,12 @@ export default function BersihPage() {
       <Sheet
         open={Boolean(qrisModalInvoice)}
         onClose={() => setQrisModalInvoice(null)}
-        title="Pembayaran QRIS Dinamis"
+        title={t('bersih.qris_title')}
       >
         {qrisModalInvoice && (
           <div className="space-y-4 text-center">
             <p className="text-[12px] text-ink-muted">
-              Wira Bersih • {qrisModalInvoice.invoice_no} ({qrisModalInvoice.client_name})
+              {t('bersih.title')} • {qrisModalInvoice.invoice_no} ({qrisModalInvoice.client_name})
             </p>
 
             {/* QR Code Container */}
@@ -829,13 +822,13 @@ export default function BersihPage() {
                 <rect x="66" y="80" width="24" height="10" fill="black" />
               </svg>
               <div>
-                <span className="text-[12px] text-gray-500 block">Total Pembayaran:</span>
+                <span className="text-[12px] text-gray-500 block">{t('bersih.qris_total')}</span>
                 <Money amount={qrisModalInvoice.amount} className="font-mono text-[22px] font-extrabold text-black" />
               </div>
             </div>
 
             <p className="text-[12px] text-ink-muted">
-              Pindai QRIS ini dengan GoPay, OVO, Dana, BCA Mobile, Livin', atau aplikasi mobile banking apa pun.
+              {t('bersih.qris_instructions')}
             </p>
 
             <Button
@@ -843,7 +836,7 @@ export default function BersihPage() {
               className="w-full min-h-11"
               onClick={() => setQrisModalInvoice(null)}
             >
-              Selesai & Tutup
+              {t('bersih.qris_done')}
             </Button>
           </div>
         )}
