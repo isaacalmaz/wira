@@ -492,7 +492,8 @@
       "CCTV": "CCTV & Networking",
       "Las": "Welding, Steel & Canopies",
       "Waterproofing": "Leak Repair & Waterproofing",
-      "SumurBor": "Bore Wells & Pumps"
+      "SumurBor": "Bore Wells & Pumps",
+      "AlatBerat": "Excavator & Heavy Equipment"
     },
     "booking_title": "Book {{service}}",
     "technician_line": "Technician: {{name}}",

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, Minus, Plus, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Snowflake, Zap, Droplets, Hammer, Wallet, Banknote, Minus, Plus, ClipboardList, Cctv, Flame, Umbrella, ArrowDownToLine, Wrench, Sparkles, CheckCircle2, Tractor } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -85,9 +85,11 @@ function ChoiceCard({ selected, onClick, leading, title, subtitle, trailing }) {
 const CATEGORY_ICONS = {
   AC: Snowflake, Listrik: Zap, Plumbing: Droplets, Tukang: Hammer,
   CCTV: Cctv, Las: Flame, Waterproofing: Umbrella, SumurBor: ArrowDownToLine,
+  AlatBerat: Tractor,
 };
 const LEGACY_TITLES = {
   AC: 'Service AC & Cuci', Listrik: 'Instalasi Listrik', Plumbing: 'Pipa & Pompa Air', Tukang: 'Tukang Bangunan',
+  AlatBerat: 'Excavator & Alat Berat',
 };
 
 function GroupLabel({ children }) {
@@ -427,7 +429,7 @@ export default function ServicePage() {
 
       {/* Grid Kategori Jasa */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {categories.filter((c) => !techLoaded || techsFor(c.id).length > 0).map((c) => {
+        {categories.filter((c) => !techLoaded || techsFor(c.id).length > 0 || c.id === 'AlatBerat').map((c) => {
           const Icon = c.icon;
           return (
             <Card

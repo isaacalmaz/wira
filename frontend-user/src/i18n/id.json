@@ -492,7 +492,8 @@
       "CCTV": "CCTV & Jaringan",
       "Las": "Las, Besi & Kanopi",
       "Waterproofing": "Anti Bocor & Waterproofing",
-      "SumurBor": "Sumur Bor & Pompa"
+      "SumurBor": "Sumur Bor & Pompa",
+      "AlatBerat": "Excavator & Alat Berat"
     },
     "booking_title": "Pesan {{service}}",
     "technician_line": "Teknisi: {{name}}",

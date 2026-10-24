@@ -39,6 +39,7 @@ const SERVICE_NAME_KEYS = {
   'Las, Besi & Kanopi': 'service.categories.Las',
   'Anti Bocor & Waterproofing': 'service.categories.Waterproofing',
   'Sumur Bor & Pompa': 'service.categories.SumurBor',
+  'Excavator & Alat Berat': 'service.categories.AlatBerat',
 };
 
 // PoolPage `services[].name` and `monthlyPackage.name`
