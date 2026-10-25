@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -7,6 +7,9 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
+  Mic,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../../i18n';
@@ -14,6 +17,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useOrders } from '../../context/OrderContext';
 import { sendAssistantMessage, confirmAssistantBooking } from '../../services/aiAssistantService';
 import { Sheet, Money, Badge } from '../ui';
+import {
+  speakText,
+  cancelSpeech,
+  getSpeechRecognitionClass,
+  primeSpeechSynthesis,
+} from './speechUtils';
 
 function BookingDraftCard({
   draft,
@@ -276,9 +285,86 @@ export default function AIAssistantSheet({ open, onClose }) {
 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wira_ai_voice_enabled');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const lastCapturedTextRef = useRef('');
+  const isAbortedRef = useRef(false);
+  const openRef = useRef(open);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  const stopListening = useCallback((abort = true) => {
+    isAbortedRef.current = abort;
+    if (abort) {
+      lastCapturedTextRef.current = '';
+    }
+    if (recognitionRef.current) {
+      try {
+        if (abort) {
+          recognitionRef.current.abort();
+        } else {
+          recognitionRef.current.stop();
+        }
+      } catch { /* ignore */ }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  const stopAllVoice = useCallback(() => {
+    stopListening(true);
+    cancelSpeech();
+    setIsSpeaking(false);
+  }, [stopListening]);
+
+  const speakAssistantReply = useCallback((text) => {
+    cancelSpeech();
+    const utt = speakText(text, {
+      lang: isEn ? 'en-US' : 'id-ID',
+      isEn,
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+    if (!utt) {
+      setIsSpeaking(false);
+    }
+  }, [isEn]);
+
+  const toggleVoiceEnabled = () => {
+    setVoiceEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('wira_ai_voice_enabled', String(next));
+      } catch { /* ignore */ }
+      if (!next) {
+        cancelSpeech();
+        setIsSpeaking(false);
+      } else {
+        primeSpeechSynthesis();
+      }
+      toast.success(
+        next
+          ? (isEn ? 'Voice replies enabled' : 'Suara asisten diaktifkan')
+          : (isEn ? 'Voice replies muted' : 'Suara asisten dimatikan')
+      );
+      return next;
+    });
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -333,16 +419,30 @@ export default function AIAssistantSheet({ open, onClose }) {
         scrollToBottom();
         inputRef.current?.focus();
       }, 200);
+    } else {
+      stopAllVoice();
     }
-  }, [open]);
+  }, [open, stopAllVoice]);
+
+  useEffect(() => {
+    return () => {
+      stopAllVoice();
+    };
+  }, [stopAllVoice]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading, draftStates]);
 
-  const handleSend = async (queryText) => {
+  const handleSend = async (queryText, isVoiceTriggered = false) => {
+    stopListening(true);
+    cancelSpeech();
+    setIsSpeaking(false);
+
     const textToSend = (queryText || inputText).trim();
     if (!textToSend || isLoading) return;
+
+    const shouldSpeak = voiceEnabled || isVoiceTriggered;
 
     const userMsgId = `user-${Date.now()}`;
     const newMessages = [
@@ -361,41 +461,43 @@ export default function AIAssistantSheet({ open, onClose }) {
         activeOrders: orders,
       });
 
-      if (res && res.reply) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `bot-${Date.now()}`,
-            sender: 'bot',
-            text: res.reply,
-            widgets: res.widgets || [],
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `bot-${Date.now()}`,
-            sender: 'bot',
-            text: isEn
-              ? 'I received your request! You can explore our services directly from the menu.'
-              : 'Permintaan Anda telah kami terima! Anda dapat melihat katalog layanan langsung dari menu.',
-            widgets: [],
-          },
-        ]);
-      }
-    } catch {
+      const replyText = (res && res.reply)
+        ? res.reply
+        : (isEn
+            ? 'I received your request! You can explore our services directly from the menu.'
+            : 'Permintaan Anda telah kami terima! Anda dapat melihat katalog layanan langsung dari menu.');
+
       setMessages((prev) => [
         ...prev,
         {
           id: `bot-${Date.now()}`,
           sender: 'bot',
-          text: isEn
-            ? 'Sorry, I had trouble processing that. Please try again or tap one of the quick suggestions below.'
-            : 'Maaf, terjadi kendala saat memproses jawaban. Silakan coba lagi atau pilih pertanyaan cepat di bawah.',
+          text: replyText,
+          widgets: res?.widgets || [],
+        },
+      ]);
+
+      if (shouldSpeak && openRef.current) {
+        speakAssistantReply(replyText);
+      }
+    } catch {
+      const errorText = isEn
+        ? 'Sorry, I had trouble processing that. Please try again or tap one of the quick suggestions below.'
+        : 'Maaf, terjadi kendala saat memproses jawaban. Silakan coba lagi atau pilih pertanyaan cepat di bawah.';
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          sender: 'bot',
+          text: errorText,
           widgets: [],
         },
       ]);
+
+      if (shouldSpeak && openRef.current) {
+        speakAssistantReply(errorText);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -477,6 +579,7 @@ export default function AIAssistantSheet({ open, onClose }) {
   };
 
   const handleReset = () => {
+    stopAllVoice();
     try {
       localStorage.removeItem(storageKey);
       localStorage.removeItem(draftsStorageKey);
@@ -492,6 +595,134 @@ export default function AIAssistantSheet({ open, onClose }) {
     ]);
     setDraftStates({});
     toast.success(isEn ? 'Conversation history cleared.' : 'Riwayat percakapan telah dibersihkan.');
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      // User tapped to finish speaking
+      stopListening(false);
+      return;
+    }
+
+    primeSpeechSynthesis();
+
+    const SpeechRecognition = getSpeechRecognitionClass();
+
+    if (!SpeechRecognition) {
+      toast.error(
+        isEn
+          ? 'Voice recognition is not supported in this browser.'
+          : 'Pengenalan suara tidak didukung di browser ini.'
+      );
+      return;
+    }
+
+    cancelSpeech();
+    setIsSpeaking(false);
+
+    try {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch { /* ignore */ }
+        recognitionRef.current = null;
+      }
+
+      isAbortedRef.current = false;
+      lastCapturedTextRef.current = '';
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = isEn ? 'en-US' : 'id-ID';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            final += item[0].transcript;
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+        const text = (final + interim).trim();
+        if (text) {
+          lastCapturedTextRef.current = text;
+          setInputText(text);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+        recognitionRef.current = null;
+        isAbortedRef.current = true;
+        lastCapturedTextRef.current = '';
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          toast.error(
+            isEn
+              ? 'Microphone access denied. Please allow microphone permissions.'
+              : 'Akses mikrofon ditolak. Izinkan izin mikrofon di pengaturan browser.'
+          );
+        } else if (event.error === 'audio-capture') {
+          toast.error(
+            isEn
+              ? 'No microphone found. Please connect a microphone.'
+              : 'Mikrofon tidak ditemukan. Sambungkan mikrofon Anda.'
+          );
+        } else if (event.error === 'network') {
+          toast.error(
+            isEn
+              ? 'Speech recognition network error. Check connection.'
+              : 'Gangguan jaringan pada pengenalan suara. Periksa koneksi.'
+          );
+        } else if (event.error === 'no-speech') {
+          // Silent or benign timeout, do not display alarming error
+        } else if (event.error !== 'aborted') {
+          toast.error(
+            isEn
+              ? 'Voice recognition error. Please try again.'
+              : 'Kendala pengenalan suara. Silakan coba lagi.'
+          );
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+
+        if (isAbortedRef.current) {
+          isAbortedRef.current = false;
+          return;
+        }
+
+        const textToSubmit = lastCapturedTextRef.current.trim();
+        lastCapturedTextRef.current = '';
+        if (textToSubmit) {
+          handleSend(textToSubmit, true);
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (err) {
+      console.warn('Failed to start speech recognition:', err);
+      setIsListening(false);
+      recognitionRef.current = null;
+      toast.error(
+        isEn
+          ? 'Failed to start voice recognition.'
+          : 'Gagal mengaktifkan mikrofon.'
+      );
+    }
   };
 
   // Clean, minimal text chips without emojis
@@ -526,9 +757,46 @@ export default function AIAssistantSheet({ open, onClose }) {
             <span className="text-[11.5px] text-ink-muted ml-1">
               {isEn ? 'Assistant' : 'Asisten'}
             </span>
+            {isSpeaking && (
+              <button
+                type="button"
+                onClick={() => {
+                  cancelSpeech();
+                  setIsSpeaking(false);
+                }}
+                title={isEn ? 'Stop speaking' : 'Hentikan suara'}
+                aria-label={isEn ? 'Stop speaking' : 'Hentikan suara'}
+                className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand transition hover:bg-brand hover:text-white"
+              >
+                <Volume2 size={11} aria-hidden="true" className="animate-pulse shrink-0" />
+                <span>{isEn ? 'Speaking' : 'Berbicara'}</span>
+                <span className="text-[9px] opacity-75 font-normal ml-0.5">✕</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleVoiceEnabled}
+              title={
+                voiceEnabled
+                  ? (isEn ? 'Mute voice replies' : 'Matikan suara asisten')
+                  : (isEn ? 'Enable voice replies' : 'Aktifkan suara asisten')
+              }
+              aria-label={voiceEnabled ? 'Mute voice replies' : 'Enable voice replies'}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-control transition ${
+                voiceEnabled
+                  ? 'text-brand hover:bg-brand-soft'
+                  : 'text-ink-muted hover:bg-sunken hover:text-ink'
+              }`}
+            >
+              {voiceEnabled ? (
+                <Volume2 size={15} aria-hidden="true" />
+              ) : (
+                <VolumeX size={15} aria-hidden="true" />
+              )}
+            </button>
             <button
               type="button"
               onClick={handleReset}
@@ -781,19 +1049,62 @@ export default function AIAssistantSheet({ open, onClose }) {
             }}
             className="flex items-center gap-2"
           >
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={isEn ? 'Ask or instruct: "Book ride to Kuta", "Clean pool"...' : 'Ketik pertanyaan atau perintah pemesanan...'}
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={
+                  isListening
+                    ? (isEn ? 'Listening... Speak now' : 'Mendengarkan... Silakan bicara')
+                    : (isEn ? 'Ask or instruct: "Book ride to Kuta", "Clean pool"...' : 'Ketik pertanyaan atau perintah pemesanan...')
+                }
+                disabled={isLoading}
+                className={`w-full min-h-11 rounded-control border bg-ground px-3.5 py-2.5 text-[13px] text-ink placeholder:text-ink-muted focus:outline-none transition disabled:opacity-50 ${
+                  isListening
+                    ? 'border-danger ring-2 ring-danger/20'
+                    : 'border-line focus:border-brand'
+                }`}
+              />
+              {isListening && (
+                <span
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex h-2 w-2"
+                  aria-hidden="true"
+                >
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-danger opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleListening}
               disabled={isLoading}
-              className="flex-1 min-h-11 rounded-control border border-line bg-ground px-3.5 py-2.5 text-[13px] text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none transition disabled:opacity-50"
-            />
+              title={
+                isListening
+                  ? (isEn ? 'Stop listening' : 'Berhenti mendengarkan')
+                  : (isEn ? 'Voice command / Speak' : 'Perintah suara / Bicara')
+              }
+              aria-label={
+                isListening
+                  ? (isEn ? 'Stop listening' : 'Perintah suara')
+                  : (isEn ? 'Voice command' : 'Perintah suara')
+              }
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border transition shrink-0 disabled:opacity-50 ${
+                isListening
+                  ? 'border-danger bg-danger text-white animate-pulse shadow-sm'
+                  : 'border-line bg-card text-ink-muted hover:bg-sunken hover:text-ink'
+              }`}
+            >
+              <Mic size={17} />
+            </button>
+
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control bg-brand px-4 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-50"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control bg-brand px-4 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-50 shrink-0"
             >
               <Send size={15} />
               <span className="hidden sm:inline">{isEn ? 'Send' : 'Kirim'}</span>
