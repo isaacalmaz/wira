@@ -188,6 +188,9 @@ export function isSpeechSynthesisSupported() {
 export function primeSpeechSynthesis() {
   if (!isSpeechSynthesisSupported()) return;
   try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     const silent = new window.SpeechSynthesisUtterance('');
     silent.volume = 0;
     silent.text = '';
@@ -282,7 +285,21 @@ export function speakText(
   };
 
   try {
-    window.speechSynthesis.speak(utterance);
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    // Chromium race condition workaround: brief flush after cancel()
+    setTimeout(() => {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        activeUtterance = null;
+        if (onError) onError(err);
+      }
+    }, 25);
     return utterance;
   } catch (err) {
     activeUtterance = null;

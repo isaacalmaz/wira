@@ -45,10 +45,24 @@ public class MainActivity extends BridgeActivity {
         if (intent == null) return;
         boolean openAi = intent.getBooleanExtra("open_ai", false);
         boolean autoListen = intent.getBooleanExtra("auto_listen", false);
+        if (autoListen) {
+            checkAndRequestAudioPermission();
+        }
         if ((openAi || autoListen) && intent.getData() == null) {
             String uriStr = "wira://ai?open_ai=" + openAi + "&auto_listen=" + autoListen;
             intent.setData(Uri.parse(uriStr));
             intent.setAction(Intent.ACTION_VIEW);
+        }
+    }
+
+    private void checkAndRequestAudioPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                        android.Manifest.permission.RECORD_AUDIO,
+                        android.Manifest.permission.MODIFY_AUDIO_SETTINGS
+                }, 102);
+            }
         }
     }
 }

@@ -290,9 +290,10 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem('wira_ai_voice_enabled');
-      return saved === 'true';
+      // Default to true (voice-first enabled) unless user explicitly muted it ('false')
+      return saved === null ? true : saved === 'true';
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -597,7 +598,21 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
     toast.success(isEn ? 'Conversation history cleared.' : 'Riwayat percakapan telah dibersihkan.');
   };
 
-  const toggleListening = () => {
+  const ensureMicrophonePermission = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        return true;
+      }
+    } catch (err) {
+      console.warn('getUserMedia audio permission check:', err);
+      return false;
+    }
+    return true;
+  };
+
+  const toggleListening = async () => {
     if (isListening) {
       // User tapped to finish speaking
       stopListening(false);
@@ -613,6 +628,17 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
         isEn
           ? 'Voice recognition is not supported in this browser.'
           : 'Pengenalan suara tidak didukung di browser ini.'
+      );
+      return;
+    }
+
+    // Trigger Android / Browser OS permission prompt if not yet granted
+    const hasPerm = await ensureMicrophonePermission();
+    if (!hasPerm) {
+      toast.error(
+        isEn
+          ? 'Microphone access denied. Please allow microphone permissions.'
+          : 'Akses mikrofon ditolak. Izinkan izin mikrofon di pengaturan aplikasi.'
       );
       return;
     }
@@ -840,7 +866,10 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
             <button
               key={chip.label}
               type="button"
-              onClick={() => handleSend(chip.query)}
+              onClick={() => {
+                primeSpeechSynthesis();
+                handleSend(chip.query);
+              }}
               disabled={isLoading}
               className="inline-flex shrink-0 items-center rounded-full border border-line bg-card px-2.5 py-1 text-[11px] font-medium text-ink transition hover:border-brand hover:text-brand-ink disabled:opacity-50"
             >
@@ -1063,6 +1092,7 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              primeSpeechSynthesis();
               handleSend();
             }}
             className="flex items-center gap-2"
