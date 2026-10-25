@@ -46,7 +46,9 @@ export async function sendAssistantMessage({
       if (data && data.success && data.reply) {
         return {
           reply: data.reply,
-          widgets: data.widgets || [],
+          widgets: Array.isArray(data.widgets)
+            ? data.widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type))
+            : [],
         };
       }
     }

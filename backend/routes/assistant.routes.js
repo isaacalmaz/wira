@@ -1258,7 +1258,7 @@ function buildWidgets(queryLower, dbContext, detectedIntents) {
     });
   }
 
-  return widgets;
+  return widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type));
 }
 
 // Local smart generator for fallback when Gemini is unavailable
@@ -1295,7 +1295,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1b. WiraFood
@@ -1324,7 +1324,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         deliveryAddress: 'Kuta Lombok',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1c. WiraSend
@@ -1349,7 +1349,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         packageSize: 'kecil',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1d. WiraVilla
@@ -1377,7 +1377,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         checkInDate: 'Besok',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1e. WiraBersih
@@ -1389,7 +1389,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         date: 'Besok pagi',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1f. WiraPool
@@ -1400,7 +1400,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         date: 'Hari ini',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1g. WiraService
@@ -1426,7 +1426,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         date: 'Besok pagi',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
 
     // 1h. WiraAsuh
@@ -1441,7 +1441,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         date: 'Hari ini',
       }, dbContext, lang);
 
-      return { reply: draftReply, widgets: [draft] };
+      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
     }
   }
 

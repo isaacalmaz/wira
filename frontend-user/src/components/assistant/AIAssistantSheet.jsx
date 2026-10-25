@@ -256,7 +256,12 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((m) => ({
+            ...m,
+            widgets: Array.isArray(m?.widgets)
+              ? m.widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type))
+              : [],
+          }));
         }
       }
     } catch { /* ignore */ }
@@ -421,7 +426,13 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
+          const cleaned = parsed.map((m) => ({
+            ...m,
+            widgets: Array.isArray(m?.widgets)
+              ? m.widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type))
+              : [],
+          }));
+          setMessages(cleaned);
           const savedDrafts = localStorage.getItem(draftsStorageKey);
           if (savedDrafts) {
             setDraftStates(JSON.parse(savedDrafts) || {});
@@ -513,13 +524,17 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
             ? 'I received your request! You can explore our services directly from the menu.'
             : 'Permintaan Anda telah kami terima! Anda dapat melihat katalog layanan langsung dari menu.');
 
+      const safeWidgets = Array.isArray(res?.widgets)
+        ? res.widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type))
+        : [];
+
       setMessages((prev) => [
         ...prev,
         {
           id: `bot-${Date.now()}`,
           sender: 'bot',
           text: replyText,
-          widgets: res?.widgets || [],
+          widgets: safeWidgets,
         },
       ]);
 
@@ -942,9 +957,11 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                   <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
 
                   {/* Render Rich Action Widgets if attached */}
-                  {!isUser && msg.widgets && msg.widgets.length > 0 && (
+                  {!isUser && Array.isArray(msg.widgets) && msg.widgets.length > 0 && (
                     <div className="flex flex-col gap-2.5 pt-1">
-                      {msg.widgets.map((widget, widx) => {
+                      {msg.widgets
+                        .filter((widget) => Boolean(widget && typeof widget === 'object' && widget.type))
+                        .map((widget, widx) => {
                         // 1. Direct Booking Draft Card Widget
                         if (widget.type === 'booking_draft') {
                           return (
