@@ -7,7 +7,14 @@ import { supabase } from '../config/supabase';
  * and falls back gracefully to direct client-side Supabase contextual resolution
  * if the backend is unreachable.
  */
-export async function sendAssistantMessage({ message, userId, lang = 'id', activeOrders = [] }) {
+export async function sendAssistantMessage({
+  message,
+  userId,
+  lang = 'id',
+  activeOrders = [],
+  userLocation = null,
+  savedAddresses = [],
+}) {
   if (!message || !message.trim()) return null;
 
   const query = message.trim();
@@ -22,7 +29,13 @@ export async function sendAssistantMessage({ message, userId, lang = 'id', activ
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message: query, userId, lang }),
+      body: JSON.stringify({
+        message: query,
+        userId,
+        lang,
+        userLocation,
+        savedAddresses,
+      }),
       signal: controller.signal,
     });
 
@@ -42,7 +55,7 @@ export async function sendAssistantMessage({ message, userId, lang = 'id', activ
   }
 
   // Client-side fallback with real Supabase data & local semantic parsing
-  return await resolveClientAssistant({ query, queryLower, lang, activeOrders });
+  return await resolveClientAssistant({ query, queryLower, lang, activeOrders, userLocation, savedAddresses });
 }
 
 function resolveIsoDate(text, offsetDays = 1) {
@@ -239,8 +252,97 @@ function detectIntents(queryLower) {
   return scores;
 }
 
+// Known Lombok landmark coordinate mappings
+const LOMBOK_LOCATIONS = {
+  bandara: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  lop: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  airport: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  'social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
+  kuta: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
+  'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 },
+  praya: { name: 'Praya, Lombok Tengah', lat: -8.7067, lng: 116.2800 },
+  mataram: { name: 'Kota Mataram', lat: -8.5833, lng: 116.1167 },
+  rektorat: { name: 'Rektorat Universitas Mataram, Jl. Majapahit, Mataram', lat: -8.5901, lng: 116.0964 },
+  unram: { name: 'Universitas Mataram, Mataram', lat: -8.5901, lng: 116.0964 },
+  epicentrum: { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  senggigi: { name: 'Pantai Senggigi', lat: -8.5042, lng: 116.0505 },
+  'selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
+  'tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9080, lng: 116.3210 },
+  mandalika: { name: 'Pertamina Mandalika International Circuit', lat: -8.8920, lng: 116.3050 },
+  'villa talas': { name: 'Villa Talas, Kuta Lombok', lat: -8.8970, lng: 116.2840 },
+  ashtari: { name: 'Ashtari Lounge, Kuta Lombok', lat: -8.9012, lng: 116.2731 },
+  kenza: { name: 'Kenza Cafe, Jl. Raya Kuta, Lombok', lat: -8.8925, lng: 116.2805 },
+  gerupuk: { name: 'Pantai Gerupuk (Surfing Spot), Lombok Tengah', lat: -8.9220, lng: 116.3350 },
+  'batu payung': { name: 'Batu Payung, Lombok Tengah', lat: -8.9150, lng: 116.3280 },
+  'bukit merese': { name: 'Bukit Merese, Pujut, Lombok Tengah', lat: -8.9120, lng: 116.3190 },
+  default: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
+};
+
+function isSelfLocationQuery(text) {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+  return /^(tempat saya|lokasi saya|posisi saya|titik saya|sini|di sini|dari sini|rumah saya|kost saya|villa saya|my location|my place|here)$/i.test(t) ||
+    t === 'tempat saya' || t === 'lokasi saya' || t === 'sini' || t === 'posisi saya' || t === 'rumah saya';
+}
+
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 5;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.max(1, R * c);
+}
+
+function calculateRideFare(distKm, isCar = false) {
+  if (isCar) {
+    const fare = distKm <= 3 ? 35000 : 35000 + Math.ceil(distKm - 3) * 6000;
+    return Math.ceil(fare / 5000) * 5000;
+  }
+  const fare = distKm <= 2 ? 12000 : 12000 + Math.ceil(distKm - 2) * 2500;
+  return Math.ceil(fare / 1000) * 1000;
+}
+
+function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
+  if (!text || typeof text !== 'string') return null;
+  const lower = text.toLowerCase().trim();
+
+  // If user references their own location ("tempat saya", "lokasi saya", "sini")
+  if (isSelfLocationQuery(lower)) {
+    if (userLocation && userLocation.address) {
+      return {
+        name: `${userLocation.address} (Lokasi Anda)`,
+        lat: userLocation.lat || -8.8955,
+        lng: userLocation.lng || 116.2780,
+        isUserLocation: true,
+      };
+    }
+    if (savedAddresses && savedAddresses.length > 0) {
+      const primary = savedAddresses.find((a) => a.is_primary) || savedAddresses[0];
+      return {
+        name: `${primary.address} (${primary.label || 'Alamat Tersimpan'})`,
+        lat: primary.lat || -8.8955,
+        lng: primary.lng || 116.2780,
+        isUserLocation: true,
+      };
+    }
+    // Location is completely unknown, return null so conversational slot-filling asks the user
+    return null;
+  }
+
+  for (const [key, loc] of Object.entries(LOMBOK_LOCATIONS)) {
+    if (key !== 'default' && lower.includes(key)) {
+      return { name: loc.name, lat: loc.lat, lng: loc.lng };
+    }
+  }
+  return { name: text.trim(), lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
+}
+
 // Client-side fallback handler
-async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
+async function resolveClientAssistant({ queryLower, lang, activeOrders = [], userLocation = null, savedAddresses = [] }) {
   const isEn = lang === 'en';
   let reply;
   const widgets = [];
@@ -260,35 +362,54 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
       const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
       const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);
 
-      if (!keMatch && !dariMatch && !/kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika/i.test(queryLower)) {
+      if (!keMatch && !dariMatch && !/kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika|social/i.test(queryLower)) {
         reply = isEn
           ? 'Where would you like to be picked up and where are you going? (e.g. "Order a motorbike ride to Kuta Beach pickup at Airport now")'
           : 'Mau dijemput di mana dan tujuannya ke mana? Beri tahu lokasi jemput dan tujuan Anda (contoh: "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang").';
         return { reply, widgets };
       }
 
-      let origin = 'Bandara Internasional Lombok (LOP)';
-      let destination = 'Pantai Kuta Lombok';
-      if (keMatch && keMatch[1]?.trim()) destination = keMatch[1].trim();
-      if (dariMatch && dariMatch[1]?.trim()) origin = dariMatch[1].trim();
+      let rawOrigin = null;
+      let rawDest = null;
+      if (keMatch && keMatch[1]?.trim()) rawDest = keMatch[1].trim();
+      if (dariMatch && dariMatch[1]?.trim()) rawOrigin = dariMatch[1].trim();
 
-      const price = isCar ? 85000 : 25000;
-      const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : 'WiraRide (Motor)';
+      // If user said "ke social yard kuta" without specifying origin, assume they want to be picked up at their current place
+      if (rawDest && !rawOrigin) {
+        rawOrigin = 'tempat saya';
+      }
+
+      const originLoc = resolveLombokLocation(rawOrigin, { userLocation, savedAddresses });
+      const destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses });
+
+      if (!originLoc || !destLoc) {
+        reply = isEn
+          ? 'Where would you like to be picked up? Please specify your pickup spot or villa in Lombok (or enable GPS) so our driver can reach you.'
+          : 'Mau dijemput di mana? Beri tahu nama jalan, villa, atau titik jemput Anda di Lombok (atau aktifkan GPS) agar driver kami dapat menjemput tepat ke lokasi Anda.';
+        return { reply, widgets };
+      }
+
+      const distKm = calculateDistanceKm(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
+      const price = calculateRideFare(distKm, isCar);
+      const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)');
 
       widgets.push({
         type: 'booking_draft',
         draftId,
         serviceType: 'ride',
         serviceName: vName,
-        title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${origin} ➔ ${destination}`,
-        subtitle: isEn ? 'Verified local driver pickup in Lombok' : 'Mitra driver lokal terdekat siap menjemput di Lombok',
+        title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${originLoc.name} ➔ ${destLoc.name}`,
+        subtitle: isEn ? `Verified local driver pickup (${distKm.toFixed(1)} km)` : `Mitra driver lokal terdekat siap menjemput (${distKm.toFixed(1)} km)`,
         details: {
-          origin,
-          destination,
+          origin: originLoc.name,
+          destination: destLoc.name,
           vehicleType: isCar ? 'car' : 'motor',
+          distanceKm: parseFloat(distKm.toFixed(1)),
           date: isEn ? 'Today' : 'Hari ini',
           time: isEn ? 'Now' : 'Sekarang',
           notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
+          originCoords: { lat: originLoc.lat, lng: originLoc.lng },
+          destCoords: { lat: destLoc.lat, lng: destLoc.lng },
         },
         priceEstimate: price,
         paymentMethod: 'cash',
@@ -296,8 +417,8 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
       });
 
       reply = isEn
-        ? `I have prepared your ${vName} booking from ${origin} to ${destination} with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
-        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${origin} menuju ${destination} dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah untuk memesan langsung!`;
+        ? `I have prepared your ${vName} booking from ${originLoc.name} to ${destLoc.name} (${distKm.toFixed(1)} km) with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
+        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm.toFixed(1)} km) dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
 
       return { reply, widgets };
     }

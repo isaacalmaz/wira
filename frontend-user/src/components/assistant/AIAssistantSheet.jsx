@@ -287,6 +287,8 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [currentGps, setCurrentGps] = useState(null);
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem('wira_ai_voice_enabled');
@@ -296,6 +298,47 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
       return true;
     }
   });
+
+  // Pre-load saved addresses & current GPS for contextual resolution
+  useEffect(() => {
+    if (!user?.id) return;
+    import('../../config/supabase').then(({ supabase }) => {
+      supabase
+        .from('saved_addresses')
+        .select('id, label, address, lat, lng, is_primary, note')
+        .eq('user_id', user.id)
+        .order('is_primary', { ascending: false })
+        .then(({ data }) => {
+          if (data && data.length > 0) setSavedAddresses(data);
+        });
+    });
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+            if (data && data.display_name) {
+              const parts = data.display_name.split(',');
+              const shortName = parts.slice(0, 3).join(',').trim();
+              setCurrentGps({ lat, lng, address: shortName });
+            } else {
+              setCurrentGps({ lat, lng, address: 'Lokasi Anda Saat Ini' });
+            }
+          } catch {
+            setCurrentGps({ lat, lng, address: 'Lokasi Anda Saat Ini' });
+          }
+        },
+        () => { /* silent fallback */ },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+      );
+    }
+  }, []);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -460,6 +503,8 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
         userId: user?.id,
         lang,
         activeOrders: orders,
+        userLocation: currentGps,
+        savedAddresses,
       });
 
       const replyText = (res && res.reply)
