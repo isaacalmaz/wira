@@ -874,12 +874,14 @@ router.post('/confirm-booking', assistantLimiter, async (req, res) => {
     if (!merchantId && (serviceType === 'food' || serviceType === 'villa')) {
       const nameToMatch = detailsObj.merchantName || detailsObj.restaurantName || detailsObj.villaName;
       if (nameToMatch) {
-        const firstWord = nameToMatch.split(/\s+/)[0];
+        const specificWords = nameToMatch.split(/\s+/).filter(w => !['villa', 'vila', 'warung', 'resto', 'restoran', 'rm', 'hotel', 'resort'].includes(w.toLowerCase()));
+        const searchTerm = specificWords[0] || nameToMatch.split(/\s+/)[0];
         const { data: matchedM } = await supabase
           .from('merchants')
           .select('id')
           .eq('service_type', serviceType)
-          .ilike('name', `%${firstWord}%`)
+          .eq('listing_status', 'approved')
+          .ilike('name', `%${searchTerm}%`)
           .limit(1)
           .maybeSingle();
         if (matchedM?.id) merchantId = matchedM.id;
