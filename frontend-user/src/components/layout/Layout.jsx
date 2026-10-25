@@ -9,6 +9,8 @@ import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 import Spinner from '../ui/Spinner';
 import useMyProfile from '../../hooks/useMyProfile';
+import AIAssistantFAB from '../assistant/AIAssistantFAB';
+import AIAssistantSheet from '../assistant/AIAssistantSheet';
 
 const LandingPage = lazy(() => import('../../pages/LandingPage'));
 
@@ -33,6 +35,7 @@ export default function Layout() {
   });
   // Home uses the screen width on desktop (two columns); other pages stay a reading column.
   const isHome = location.pathname === '/';
+  const [isAIOpen, setIsAIOpen] = useState(false);
 
   if (loading) {
     return (
@@ -95,6 +98,14 @@ export default function Layout() {
         <div className="md:hidden">
           <BottomNav />
         </div>
+
+        {/* Wira AI Assistant Floating Action Button & Interactive Sheet */}
+        {!isFullScreenPage && (
+          <>
+            <AIAssistantFAB onClick={() => setIsAIOpen(true)} />
+            <AIAssistantSheet open={isAIOpen} onClose={() => setIsAIOpen(false)} />
+          </>
+        )}
       </div>
     </div>
   );

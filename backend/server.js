@@ -83,6 +83,7 @@ app.use('/api/mutasiku', require('./routes/mutasiku'));
 app.use('/api/dispatch', require('./routes/dispatch.routes'));
 app.use('/api/push', require('./routes/push.routes'));
 app.use('/api/places', require('./routes/places.routes'));
+app.use('/api/assistant', require('./routes/assistant.routes'));
 
 // Handler untuk rute yang tidak ditemukan
 app.use((req, res) => {
