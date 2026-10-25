@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Activity, Wallet, User, Settings, LogOut, PanelLeftClose, PanelLeftOpen, Smartphone } from 'lucide-react';
+import { Home, Activity, Wallet, User, Settings, LogOut, PanelLeftClose, PanelLeftOpen, Smartphone, Sparkles } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import WiraMark from '../brand/WiraMark';
@@ -13,7 +13,7 @@ import useMyProfile from '../../hooks/useMyProfile';
  * Desktop sidebar. `collapsed` shrinks it to an icon strip (Layout keeps the
  * choice in localStorage); labels then live in title/aria-label.
  */
-export default function Sidebar({ collapsed = false, onToggle }) {
+export default function Sidebar({ collapsed = false, onToggle, onOpenAI, isAIOpen = false }) {
   const location = useLocation();
   const { t } = useTranslation();
   const { user, logout } = useAuth();
@@ -25,12 +25,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
     navigate('/login');
   };
 
-  const navItems = [
-    { to: '/', icon: Home, label: 'nav.home' },
-    ...(WALLET_ENABLED ? [{ to: '/wallet', icon: Wallet, label: 'nav.wallet' }] : []),
-    { to: '/activity', icon: Activity, label: 'nav.activity' },
-  ];
-  const linkCls = (active) => `flex items-center gap-3 rounded-control py-2.5 text-[14px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${active ? 'bg-brand-soft text-brand-ink font-bold' : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink'}`;
+  const linkCls = (active) => `flex items-center min-h-11 gap-3 rounded-control py-2.5 text-[14px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${active ? 'bg-brand-soft text-brand-ink font-bold' : 'text-ink-muted font-semibold hover:bg-sunken hover:text-ink'}`;
   const profile = useMyProfile();
   const name = profile?.name || user?.user_metadata?.name || t('nav.guest_name');
   const phone = profile?.phone || user?.user_metadata?.phone || user?.phone;
@@ -75,22 +70,53 @@ export default function Sidebar({ collapsed = false, onToggle }) {
         </Link>
 
         <nav className="flex flex-col gap-1">
-          {navItems.map(({ to, icon: Icon, label }) => {
-            const active = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={linkCls(active)}
-                aria-current={active ? 'page' : undefined}
-                title={collapsed ? t(label) : undefined}
-                aria-label={collapsed ? t(label) : undefined}
-              >
-                <Icon size={19} aria-hidden="true" />
-                {!collapsed && <span>{t(label)}</span>}
-              </Link>
-            );
-          })}
+          <Link
+            to="/"
+            className={linkCls(location.pathname === '/' && !isAIOpen)}
+            aria-current={location.pathname === '/' && !isAIOpen ? 'page' : undefined}
+            title={collapsed ? t('nav.home') : undefined}
+            aria-label={collapsed ? t('nav.home') : undefined}
+          >
+            <Home size={19} aria-hidden="true" />
+            {!collapsed && <span>{t('nav.home')}</span>}
+          </Link>
+
+          <button
+            type="button"
+            onClick={onOpenAI}
+            className={`${linkCls(isAIOpen)} w-full`}
+            aria-haspopup="dialog"
+            aria-expanded={isAIOpen}
+            title={collapsed ? t('nav.ai') : undefined}
+            aria-label={collapsed ? t('nav.ai') : undefined}
+          >
+            <Sparkles size={19} aria-hidden="true" />
+            {!collapsed && <span>{t('nav.ai')}</span>}
+          </button>
+
+          {WALLET_ENABLED && (
+            <Link
+              to="/wallet"
+              className={linkCls(location.pathname.startsWith('/wallet') && !isAIOpen)}
+              aria-current={location.pathname.startsWith('/wallet') && !isAIOpen ? 'page' : undefined}
+              title={collapsed ? t('nav.wallet') : undefined}
+              aria-label={collapsed ? t('nav.wallet') : undefined}
+            >
+              <Wallet size={19} aria-hidden="true" />
+              {!collapsed && <span>{t('nav.wallet')}</span>}
+            </Link>
+          )}
+
+          <Link
+            to="/activity"
+            className={linkCls(location.pathname.startsWith('/activity') && !isAIOpen)}
+            aria-current={location.pathname.startsWith('/activity') && !isAIOpen ? 'page' : undefined}
+            title={collapsed ? t('nav.activity') : undefined}
+            aria-label={collapsed ? t('nav.activity') : undefined}
+          >
+            <Activity size={19} aria-hidden="true" />
+            {!collapsed && <span>{t('nav.activity')}</span>}
+          </Link>
         </nav>
       </div>
 

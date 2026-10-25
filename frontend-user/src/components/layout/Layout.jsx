@@ -1,5 +1,5 @@
 import useOnlineStatus from '../../hooks/useOnlineStatus';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +36,11 @@ export default function Layout() {
   // Home uses the screen width on desktop (two columns); other pages stay a reading column.
   const isHome = location.pathname === '/';
   const [isAIOpen, setIsAIOpen] = useState(false);
+
+  // Close AI Assistant Sheet upon page navigation so overlay never lingers
+  useEffect(() => {
+    setIsAIOpen(false);
+  }, [location.pathname]);
 
   if (loading) {
     return (
@@ -78,7 +83,7 @@ export default function Layout() {
       )}
       {/* Desktop sidebar */}
       <div className={`hidden md:block flex-shrink-0 transition-[width] duration-200 ${collapsed ? 'w-[76px]' : 'w-64'}`}>
-        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} onOpenAI={() => setIsAIOpen(true)} isAIOpen={isAIOpen} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -96,16 +101,14 @@ export default function Layout() {
         </main>
         {/* Mobile bottom nav */}
         <div className="md:hidden">
-          <BottomNav />
+          <BottomNav onOpenAI={() => setIsAIOpen(true)} isAIOpen={isAIOpen} />
         </div>
 
         {/* Wira AI Assistant Floating Action Button & Interactive Sheet */}
         {!isFullScreenPage && (
-          <>
-            <AIAssistantFAB onClick={() => setIsAIOpen(true)} />
-            <AIAssistantSheet open={isAIOpen} onClose={() => setIsAIOpen(false)} />
-          </>
+          <AIAssistantFAB onClick={() => setIsAIOpen(true)} />
         )}
+        <AIAssistantSheet open={isAIOpen} onClose={() => setIsAIOpen(false)} />
       </div>
     </div>
   );

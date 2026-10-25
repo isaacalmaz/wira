@@ -1,6 +1,7 @@
 {
   "nav": {
     "home": "Beranda",
+    "ai": "Wira AI",
     "activity": "Aktivitas",
     "wallet": "Dompet",
     "profile": "Profil",
@@ -996,6 +997,9 @@
   "profile": {
     "loading_name": "Memuat...",
     "edit": "Edit Profil",
+    "activity_portal": "Pesanan & Aktivitas Saya",
+    "activity_portal_sub": "Riwayat pesanan & rincian transaksi",
+    "active_orders_count": "{{count}} aktif",
     "saved_items": "Favorit Saya",
     "saved_addresses": "Alamat Tersimpan",
     "dark_mode": "Tampilan Gelap",

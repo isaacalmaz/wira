@@ -4,10 +4,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { Link, useNavigate } from 'react-router-dom';
 import DeleteAccountSheet from '../components/account/DeleteAccountSheet';
-import { User, Languages, LogOut, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck } from 'lucide-react';
+import { User, Languages, LogOut, MapPin, Moon, Sun, Headphones, FileText, RotateCcw, Pencil, ClipboardList, ShieldCheck, Clock } from 'lucide-react';
 import { Badge, Button, Card, IconTile, ListRow, cx } from '../components/ui';
 import { supabase } from '../config/supabase';
 import { WALLET_ENABLED } from '../config/wallet';
+import { useOrders } from '../context/OrderContext';
+
+// Statuses where an order is finished and no longer running (matches SpotlightCard).
+const DONE_STATUSES = new Set(['completed', 'cancelled', 'canceled', 'expired', 'rejected']);
 
 export default function ProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -50,6 +54,12 @@ export default function ProfilePage() {
     </IconTile>
   );
 
+  const { orders = [] } = useOrders() || {};
+  const activeOrdersCount = orders.filter((o) => {
+    const s = String(o?.rawStatus || o?.status || '').toLowerCase();
+    return s && !DONE_STATUSES.has(s);
+  }).length;
+
   return (
     <div className="flex flex-col gap-6 pb-6">
       {/* Profile header */}
@@ -83,6 +93,29 @@ export default function ProfilePage() {
       </Card>
 
       <div className="flex flex-col gap-3">
+        {/* Portal Aktivitas */}
+        <Card padding="none" className="overflow-hidden">
+          <ListRow
+            as={Link}
+            to="/activity"
+            className={rowCls}
+            leading={
+              <IconTile size="sm" tone="brand">
+                <Clock size={18} aria-hidden="true" />
+              </IconTile>
+            }
+            title={t('profile.activity_portal')}
+            subtitle={t('profile.activity_portal_sub')}
+            chevron
+            trailing={
+              activeOrdersCount > 0 ? (
+                <Badge tone="brand" dot>
+                  {t('profile.active_orders_count', { count: activeOrdersCount })}
+                </Badge>
+              ) : null
+            }
+          />
+        </Card>
         <Card padding="none" className="divide-y divide-line overflow-hidden">
           <ListRow
             className={rowCls}

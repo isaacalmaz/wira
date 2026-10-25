@@ -1,6 +1,7 @@
 {
   "nav": {
     "home": "Home",
+    "ai": "Wira AI",
     "activity": "Activity",
     "wallet": "Wallet",
     "profile": "Profile",
@@ -996,6 +997,9 @@
   "profile": {
     "loading_name": "Loading...",
     "edit": "Edit Profile",
+    "activity_portal": "My Orders & Activity",
+    "activity_portal_sub": "Order history & transaction details",
+    "active_orders_count": "{{count}} active",
     "saved_items": "My Favourites",
     "saved_addresses": "Saved Addresses",
     "dark_mode": "Dark Mode",

@@ -4,7 +4,6 @@ import SpotlightCard, { promoService, spotlightPromo } from '../components/home/
 import DownloadSheet from '../components/landing/DownloadSheet';
 import { todayLombok } from '../utils/promoDates';
 import { isNative } from '../native/nativeShell';
-import { localizeOrderTitle } from '../utils/localizeDbText';
 import { SERVICES } from '../config/services';
 import { Link } from 'react-router-dom';
 import { Wallet, Plus, ArrowUpRight, Settings2, ChevronUp, ChevronDown, Package, MapPin } from 'lucide-react';
@@ -13,22 +12,9 @@ import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useState, useEffect } from 'react';
-import { Badge, Button, Card, IconTile, ListRow, Money, SectionHeader, Sheet, cx } from '../components/ui';
+import { Button, Card, IconTile, Money, SectionHeader, Sheet, cx } from '../components/ui';
 import { WALLET_ENABLED } from '../config/wallet';
 import useMyProfile from '../hooks/useMyProfile';
-
-// Order status -> Badge tone (DESIGN.md §5): searching/pending = warning,
-// active = brand, completed = success, cancelled = danger.
-const STATUS_TONE = {
-  awaiting_payment: 'warning',
-  pending: 'warning',
-  completed: 'success',
-  cancelled: 'danger',
-};
-const statusTone = (raw) => STATUS_TONE[String(raw || '').toLowerCase()] || 'brand';
-
-// Leading icon for an activity row, from the service catalogue.
-const serviceIcon = (serviceName) => SERVICES.find((s) => s.name_id === serviceName)?.icon || Package;
 
 // White / outline actions on the always-dark WiraPay card (Button's
 // on-brand variants, applied to router links).
@@ -128,8 +114,6 @@ export default function HomePage() {
     };
     updateServices();
   }, [globalFlags]);
-
-  const recentOrders = orders.slice(0, 3);
 
   // Customer's own order (localStorage) if they arranged one, otherwise the
   // order admins set in Fitur & Wilayah (feature_flags, live); services not
@@ -304,8 +288,6 @@ export default function HomePage() {
 
       <PromoCarousel services={availableServices} excludeId={spotPromoId} stacked />
 
-      {/* Aktivitas Terkini (Real-time dari Pesanan User) */}
-      
       {/* Banner Download */}
       {!isNative() && <section className="md:hidden">
         <button type="button" onClick={() => setDownloadOpen(true)} className="flex w-full items-center justify-between gap-3 rounded-card border border-brand-line bg-brand-soft px-4 py-3 text-left text-brand-ink transition-colors hover:bg-brand-soft/80">
@@ -316,53 +298,6 @@ export default function HomePage() {
           <span className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-[11px] font-bold text-white">{t('download.banner_cta')}</span>
         </button>
       </section>}
-
-      {recentOrders.length === 0 && (
-        <section className="hidden lg:block">
-          <SectionHeader title={t('home.recent')} />
-          <p className="rounded-card border border-dashed border-line-strong px-4 py-6 text-center text-[13px] leading-relaxed text-ink-muted">{t('home.recent_empty')}</p>
-        </section>
-      )}
-
-      {recentOrders.length > 0 && (
-      <section>
-        <SectionHeader
-          title={t('home.recent')}
-          action={<Link to="/activity" className="hover:underline">{t('common.see_all')}</Link>}
-        />
-
-        {recentOrders.length === 0 ? (
-          null
-        ) : (
-          <div className="flex flex-col gap-2">
-            {recentOrders.map((ord) => {
-              const OrderIcon = serviceIcon(ord.service);
-              return (
-                <ListRow
-                  key={ord.id}
-                  as={Link}
-                  to={`/active-order/${ord.id}`}
-                  className="rounded-card border border-line bg-card px-3.5 py-3 hover:border-line-strong"
-                  leading={(
-                    <IconTile size="sm" tone="brand">
-                      <OrderIcon size={17} aria-hidden="true" />
-                    </IconTile>
-                  )}
-                  title={localizeOrderTitle(ord, t)}
-                  subtitle={<span className="font-mono">{ord.date}</span>}
-                  trailing={(
-                    <span className="flex flex-col items-end gap-1">
-                      <Money value={ord.price} className="text-[13px] font-medium text-ink" />
-                      <Badge tone={statusTone(ord.rawStatus)} dot>{t(ord.statusKey)}</Badge>
-                    </span>
-                  )}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
-      )}
       </div>
       </div>
 

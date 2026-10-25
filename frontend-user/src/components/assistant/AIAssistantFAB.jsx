@@ -6,7 +6,7 @@ export default function AIAssistantFAB({ onClick }) {
   const isEn = lang === 'en';
 
   return (
-    <div className="fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6">
+    <div className="hidden md:flex fixed bottom-6 right-6 z-40">
       <button
         type="button"
         onClick={onClick}

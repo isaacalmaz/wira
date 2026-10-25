@@ -131,7 +131,20 @@ export default function ActivityPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 pb-4">
-      <PageHeader title={t('activity.title')} subtitle={t('activity.subtitle')} className="mb-0" />
+      <PageHeader
+        title={t('activity.title')}
+        subtitle={t('activity.subtitle')}
+        back
+        backLabel={t('common.back')}
+        onBack={() => {
+          if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+          } else {
+            navigate('/profile');
+          }
+        }}
+        className="mb-0"
+      />
 
       {/* Tabs Filter */}
       <Segmented scroll options={filterOptions} value={tab} onChange={setTab} ariaLabel={t('activity.service_label')} />
