@@ -293,7 +293,14 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
-  const [currentGps, setCurrentGps] = useState(null);
+  const [currentGps, setCurrentGps] = useState(() => {
+    try {
+      const cached = localStorage.getItem('wira_user_last_gps');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem('wira_ai_voice_enabled');
@@ -319,7 +326,7 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
     });
   }, [user?.id]);
 
-  useEffect(() => {
+  const refreshGps = useCallback(() => {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -331,19 +338,41 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
             if (data && data.display_name) {
               const parts = data.display_name.split(',');
               const shortName = parts.slice(0, 3).join(',').trim();
-              setCurrentGps({ lat, lng, address: shortName });
+              const gpsObj = { lat, lng, address: shortName };
+              setCurrentGps(gpsObj);
+              try {
+                localStorage.setItem('wira_user_last_gps', JSON.stringify(gpsObj));
+              } catch (_) {}
             } else {
-              setCurrentGps({ lat, lng, address: 'Lokasi Anda Saat Ini' });
+              const gpsObj = { lat, lng, address: 'Lokasi Anda Saat Ini' };
+              setCurrentGps(gpsObj);
+              try {
+                localStorage.setItem('wira_user_last_gps', JSON.stringify(gpsObj));
+              } catch (_) {}
             }
           } catch {
-            setCurrentGps({ lat, lng, address: 'Lokasi Anda Saat Ini' });
+            const fallbackGps = { lat, lng, address: 'Lokasi Anda Saat Ini' };
+            setCurrentGps((prev) => prev || fallbackGps);
+            try {
+              localStorage.setItem('wira_user_last_gps', JSON.stringify(fallbackGps));
+            } catch (_) {}
           }
         },
         () => { /* silent fallback */ },
-        { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
       );
     }
   }, []);
+
+  useEffect(() => {
+    refreshGps();
+  }, [refreshGps]);
+
+  useEffect(() => {
+    if (open && !currentGps) {
+      refreshGps();
+    }
+  }, [open, currentGps, refreshGps]);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);

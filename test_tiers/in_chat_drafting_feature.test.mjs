@@ -100,6 +100,22 @@ async function runTestSuite() {
       expectedService: 'babysit',
       checkDetails: (d) => d.durationHours === 4 && d.address,
     },
+    {
+      name: 'WiraRide: User GPS in Pengembur to Bandara calculates faithful ~7 km (NOT 15 km)',
+      query: 'pesankan saya ride sekarang, jemput di tempat saya menuju bandara',
+      userLocation: {
+        address: 'gang pengmbur Bencot, Dusun Batu Samban, Pengembur',
+        lat: -8.8212,
+        lng: 116.2594,
+      },
+      expectedService: 'ride',
+      checkDetails: (d) => {
+        const isNearAirport = d.distanceKm >= 5 && d.distanceKm <= 9;
+        const hasBandaraDest = d.destination.toLowerCase().includes('bandara') || d.destination.toLowerCase().includes('lop');
+        const hasUserOrigin = d.origin.toLowerCase().includes('pengmbur') || d.origin.toLowerCase().includes('pengembur') || d.origin.toLowerCase().includes('lokasi anda');
+        return isNearAirport && hasBandaraDest && hasUserOrigin;
+      },
+    },
   ];
 
   try {
@@ -107,7 +123,10 @@ async function runTestSuite() {
       const res = await fetch(`${baseUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: tc.query }),
+        body: JSON.stringify({
+          message: tc.query,
+          userLocation: tc.userLocation || null,
+        }),
       });
 
       if (!res.ok) {

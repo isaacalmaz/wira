@@ -63,20 +63,49 @@ const INTENT_PATTERNS = {
 
 // Known Lombok landmark coordinate mappings
 const LOMBOK_LOCATIONS = {
+  'bandara internasional lombok': { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  'bandara lombok': { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
   bandara: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
   lop: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
   airport: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  bil: { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 },
+  'batu samban': { name: 'Dusun Batu Samban, Pengembur, Pujut, Lombok Tengah', lat: -8.8180, lng: 116.2620 },
+  bencot: { name: 'Pengembur Bencot, Pujut, Lombok Tengah', lat: -8.8160, lng: 116.2640 },
+  pengembur: { name: 'Desa Pengembur, Pujut, Lombok Tengah', lat: -8.8150, lng: 116.2650 },
+  pujut: { name: 'Pujut, Lombok Tengah', lat: -8.8250, lng: 116.2750 },
+  sade: { name: 'Desa Sade, Pujut, Lombok Tengah', lat: -8.8392, lng: 116.2922 },
+  rembitan: { name: 'Rembitan, Pujut, Lombok Tengah', lat: -8.8390, lng: 116.2920 },
+  sengkol: { name: 'Sengkol, Pujut, Lombok Tengah', lat: -8.8050, lng: 116.2900 },
+  'tanak awu': { name: 'Tanak Awu, Pujut (Area Bandara LOP)', lat: -8.7615, lng: 116.2755 },
+  penujak: { name: 'Penujak, Praya Barat, Lombok Tengah', lat: -8.7350, lng: 116.2350 },
+  praya: { name: 'Praya, Lombok Tengah', lat: -8.7067, lng: 116.2800 },
+  'praya barat': { name: 'Praya Barat, Lombok Tengah', lat: -8.7800, lng: 116.1800 },
+  'praya timur': { name: 'Praya Timur, Lombok Tengah', lat: -8.7300, lng: 116.3500 },
+  kopang: { name: 'Kopang, Lombok Tengah', lat: -8.6350, lng: 116.3550 },
+  jonggat: { name: 'Jonggat, Lombok Tengah', lat: -8.6850, lng: 116.2350 },
+  mataram: { name: 'Kota Mataram', lat: -8.5833, lng: 116.1167 },
+  ampenan: { name: 'Ampenan, Kota Mataram', lat: -8.5750, lng: 116.0850 },
+  cakranegara: { name: 'Cakranegara, Kota Mataram', lat: -8.5900, lng: 116.1300 },
+  gerung: { name: 'Gerung, Lombok Barat', lat: -8.6850, lng: 116.1250 },
+  lembar: { name: 'Pelabuhan Lembar, Lombok Barat', lat: -8.7280, lng: 116.0720 },
+  kediri: { name: 'Kediri, Lombok Barat', lat: -8.6450, lng: 116.1650 },
+  narmada: { name: 'Narmada, Lombok Barat', lat: -8.6015, lng: 116.2050 },
+  senggigi: { name: 'Pantai Senggigi, Lombok Barat', lat: -8.5042, lng: 116.0505 },
+  bangsal: { name: 'Pelabuhan Bangsal, Pemenang, Lombok Utara', lat: -8.4010, lng: 116.1040 },
+  pemenang: { name: 'Pemenang, Lombok Utara', lat: -8.4050, lng: 116.1050 },
+  tanjung: { name: 'Tanjung, Lombok Utara', lat: -8.3550, lng: 116.1550 },
+  senaru: { name: 'Senaru, Gunung Rinjani, Lombok Utara', lat: -8.2980, lng: 116.4050 },
+  sembalun: { name: 'Sembalun, Lombok Timur', lat: -8.3600, lng: 116.5250 },
+  selong: { name: 'Selong, Lombok Timur', lat: -8.6500, lng: 116.5350 },
+  masbagik: { name: 'Masbagik, Lombok Timur', lat: -8.6250, lng: 116.4750 },
+  aikmel: { name: 'Aikmel, Lombok Timur', lat: -8.5650, lng: 116.5350 },
+  sekotong: { name: 'Sekotong, Lombok Barat', lat: -8.7650, lng: 116.0150 },
+  tawun: { name: 'Pelabuhan Tawun, Sekotong', lat: -8.7450, lng: 115.9950 },
+  'selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
+  mawun: { name: 'Pantai Mawun, Lombok Tengah', lat: -8.9030, lng: 116.2280 },
   'social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
   kuta: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
   'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 },
-  praya: { name: 'Praya, Lombok Tengah', lat: -8.7067, lng: 116.2800 },
-  mataram: { name: 'Kota Mataram', lat: -8.5833, lng: 116.1167 },
-  rektorat: { name: 'Rektorat Universitas Mataram, Jl. Majapahit, Mataram', lat: -8.5901, lng: 116.0964 },
-  unram: { name: 'Universitas Mataram, Mataram', lat: -8.5901, lng: 116.0964 },
-  epicentrum: { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
-  senggigi: { name: 'Pantai Senggigi', lat: -8.5042, lng: 116.0505 },
-  'selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
-  'tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9080, lng: 116.3210 },
   mandalika: { name: 'Pertamina Mandalika International Circuit', lat: -8.8920, lng: 116.3050 },
   'villa talas': { name: 'Villa Talas, Kuta Lombok', lat: -8.8970, lng: 116.2840 },
   ashtari: { name: 'Ashtari Lounge, Kuta Lombok', lat: -8.9012, lng: 116.2731 },
@@ -84,14 +113,19 @@ const LOMBOK_LOCATIONS = {
   gerupuk: { name: 'Pantai Gerupuk (Surfing Spot), Lombok Tengah', lat: -8.9220, lng: 116.3350 },
   'batu payung': { name: 'Batu Payung, Lombok Tengah', lat: -8.9150, lng: 116.3280 },
   'bukit merese': { name: 'Bukit Merese, Pujut, Lombok Tengah', lat: -8.9120, lng: 116.3190 },
+  'gili trawangan': { name: 'Gili Trawangan, Lombok Utara', lat: -8.3500, lng: 116.0380 },
+  'gili air': { name: 'Gili Air, Lombok Utara', lat: -8.3600, lng: 116.0820 },
+  'gili meno': { name: 'Gili Meno, Lombok Utara', lat: -8.3520, lng: 116.0580 },
+  rektorat: { name: 'Rektorat Universitas Mataram, Jl. Majapahit, Mataram', lat: -8.5901, lng: 116.0964 },
+  unram: { name: 'Universitas Mataram, Mataram', lat: -8.5901, lng: 116.0964 },
+  epicentrum: { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
   default: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
 };
 
 function isSelfLocationQuery(text) {
-  if (!text) return false;
+  if (!text || typeof text !== 'string') return false;
   const t = text.trim().toLowerCase();
-  return /^(tempat saya|lokasi saya|posisi saya|titik saya|sini|di sini|dari sini|rumah saya|kost saya|villa saya|my location|my place|here)$/i.test(t) ||
-    t === 'tempat saya' || t === 'lokasi saya' || t === 'sini' || t === 'posisi saya' || t === 'rumah saya';
+  return /tempat saya|lokasi saya|posisi saya|titik saya|posisi saat ini|lokasi saat ini|lokasi sekarang|posisi sekarang|lokasi terkini|titik jemput|rumah saya|^rumah$|kost saya|^kost$|villa saya|jemput saya|di sini|dari sini|^sini$|my location|current location|my place|^here$|from here|pickup here/i.test(t);
 }
 
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
@@ -118,36 +152,72 @@ function calculateRideFare(distKm, isCar = false) {
 function resolveLombokLocation(text, dbContext = {}) {
   if (!text || typeof text !== 'string') return null;
   const lower = text.toLowerCase().trim();
+  const userLoc = dbContext.userCurrentLocation || dbContext.userLocation;
+  const savedAddrs = dbContext.savedAddresses || [];
 
-  // If user references their own location ("tempat saya", "lokasi saya", "sini")
+  // 1. Direct self-location reference ("tempat saya", "lokasi saya", "sini", etc.)
   if (isSelfLocationQuery(lower)) {
-    if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.address) {
+    if (userLoc && userLoc.lat && userLoc.lng) {
       return {
-        name: `${dbContext.userCurrentLocation.address} (Lokasi Anda)`,
-        lat: dbContext.userCurrentLocation.lat || -8.8955,
-        lng: dbContext.userCurrentLocation.lng || 116.2780,
+        name: userLoc.address ? userLoc.address : 'Lokasi Anda Saat Ini',
+        lat: Number(userLoc.lat),
+        lng: Number(userLoc.lng),
         isUserLocation: true,
       };
     }
-    if (dbContext.savedAddresses && dbContext.savedAddresses.length > 0) {
-      const primary = dbContext.savedAddresses.find((a) => a.is_primary) || dbContext.savedAddresses[0];
+    if (savedAddrs.length > 0) {
+      const primary = savedAddrs.find((a) => a.is_primary) || savedAddrs[0];
       return {
-        name: `${primary.address} (${primary.label || 'Alamat Tersimpan'})`,
-        lat: primary.lat || -8.8955,
-        lng: primary.lng || 116.2780,
+        name: primary.address,
+        lat: Number(primary.lat || -8.8955),
+        lng: Number(primary.lng || 116.2780),
         isUserLocation: true,
       };
     }
-    // Location is completely unknown, return null so conversational slot-filling asks the user
     return null;
   }
 
+  // 2. Check if text matches current GPS location address
+  if (userLoc && userLoc.address && userLoc.lat && userLoc.lng) {
+    const uAddr = userLoc.address.toLowerCase();
+    if (lower === uAddr || lower.includes(uAddr) || uAddr.includes(lower)) {
+      return {
+        name: userLoc.address,
+        lat: Number(userLoc.lat),
+        lng: Number(userLoc.lng),
+        isUserLocation: true,
+      };
+    }
+  }
+
+  // 3. Check if text matches any saved addresses (by label or address substring)
+  for (const s of savedAddrs) {
+    const sAddr = (s.address || '').toLowerCase();
+    const sLabel = (s.label || '').toLowerCase();
+    if ((sAddr && (lower === sAddr || lower.includes(sAddr) || sAddr.includes(lower))) ||
+        (sLabel && (lower === sLabel || lower.includes(sLabel)))) {
+      return {
+        name: s.address,
+        lat: Number(s.lat || -8.8955),
+        lng: Number(s.lng || 116.2780),
+        isSavedAddress: true,
+      };
+    }
+  }
+
+  // 4. Check known Lombok landmarks & subdistricts (longest match first)
   const sortedEntries = Object.entries(LOMBOK_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
   for (const [key, loc] of sortedEntries) {
     if (key !== 'default' && lower.includes(key)) {
       return { name: loc.name, lat: loc.lat, lng: loc.lng };
     }
   }
+
+  // 5. If unknown, but user location is present, baseline coordinates near user
+  if (userLoc && userLoc.lat && userLoc.lng) {
+    return { name: text.trim(), lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
+  }
+
   return { name: text.trim(), lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
 }
 
@@ -480,12 +550,25 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
       let destRaw = (args.destination || '').trim();
       const isPlaceholder = /belum|unknown|tbd|tidak tahu|tidak ada/i.test(originRaw + ' ' + destRaw);
 
+      let originLoc = null;
       if (!originRaw || isPlaceholder || isSelfLocationQuery(originRaw)) {
-        if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.address) {
-          originRaw = dbContext.userCurrentLocation.address;
+        if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.lat && dbContext.userCurrentLocation.lng) {
+          originLoc = {
+            name: dbContext.userCurrentLocation.address || 'Lokasi Anda Saat Ini',
+            lat: Number(dbContext.userCurrentLocation.lat),
+            lng: Number(dbContext.userCurrentLocation.lng),
+            isUserLocation: true,
+          };
+          originRaw = originLoc.name;
         } else if (dbContext.savedAddresses && dbContext.savedAddresses.length > 0) {
           const primary = dbContext.savedAddresses.find((a) => a.is_primary) || dbContext.savedAddresses[0];
-          originRaw = primary.address;
+          originLoc = {
+            name: primary.address,
+            lat: Number(primary.lat || -8.8955),
+            lng: Number(primary.lng || 116.2780),
+            isUserLocation: true,
+          };
+          originRaw = originLoc.name;
         } else {
           originRaw = 'Bandara Internasional Lombok (LOP)';
         }
@@ -497,21 +580,32 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
           : 'Pantai Kuta Lombok';
       }
 
-      let originLoc = resolveLombokLocation(originRaw, dbContext);
+      if (!originLoc) {
+        originLoc = resolveLombokLocation(originRaw, dbContext);
+      }
       let destLoc = resolveLombokLocation(destRaw, dbContext);
 
       if (!originLoc) {
-        originLoc = { name: originRaw, lat: -8.8955, lng: 116.2780 };
+        if (dbContext.userCurrentLocation?.lat && dbContext.userCurrentLocation?.lng) {
+          originLoc = {
+            name: originRaw || dbContext.userCurrentLocation.address || 'Lokasi Anda Saat Ini',
+            lat: Number(dbContext.userCurrentLocation.lat),
+            lng: Number(dbContext.userCurrentLocation.lng),
+            isUserLocation: true,
+          };
+        } else {
+          originLoc = { name: originRaw, lat: -8.8955, lng: 116.2780 };
+        }
       }
       if (!destLoc) {
-        destLoc = { name: destRaw, lat: -8.7600, lng: 116.2760 };
+        destLoc = { name: destRaw, lat: -8.7615, lng: 116.2755 };
       }
 
       if (originLoc.name === destLoc.name || (originLoc.lat === destLoc.lat && originLoc.lng === destLoc.lng)) {
-        if (destLoc.name.toLowerCase().includes('kuta') || destLoc.name.toLowerCase().includes('pantai')) {
-          originLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
-        } else {
+        if (destLoc.name.toLowerCase().includes('bandara') || destLoc.name.toLowerCase().includes('lop')) {
           destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 };
+        } else {
+          destLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
         }
       }
 
@@ -873,6 +967,7 @@ CRITICAL INSTRUCTIONS ON INSTANT IN-CHAT DRAFTING:
 - Fill in sensible, top-rated defaults from Lombok and dbContext for any unspecified parameters (e.g. default food: Ayam Taliwang Bu Mirah, default villa: Villa Segara Kuta Lombok, default ride: pickup from user location/GPS to requested destination or Pantai Kuta, default clean: Sampun Bersih, default pool: Kuras & Perawatan Kolam, default service: Servis AC / Excavator, default nanny: 4 jam Kuta Lombok).
 - If the user says "dari tempat saya", "lokasi saya", "sini", "ke rumah saya":
   * Check dbContext.userCurrentLocation or dbContext.savedAddresses. If available, use the real address string.
+  * Note geographic reality: user location coordinates in dbContext determine exact geodesic and road distance. For instance, Pengembur / Pujut / Praya is only ~7 km from Bandara Internasional Lombok (LOP), NOT 15 km. Keep origin and destination faithful to user GPS and saved addresses.
 - Never tell the user to open other app pages or fill manual forms. Always output the draft so they can confirm with 1 tap.
 - Always be warm, friendly, concise, and helpful.
 
