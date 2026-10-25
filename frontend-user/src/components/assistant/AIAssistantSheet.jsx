@@ -1007,17 +1007,27 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                                     <span className="block text-[10px] text-ink-muted">{isEn ? '/night' : '/malam'}</span>
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onClose();
-                                    navigate(widget.ctaPath || '/villa');
-                                  }}
-                                  className="min-h-10 inline-flex w-full items-center justify-center gap-1 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
-                                >
-                                  <span>{widget.ctaText || (isEn ? 'View Villa' : 'Lihat Villa')}</span>
-                                  <ExternalLink size={12} />
-                                </button>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSend(isEn ? `Book ${widget.title} for 2 nights now` : `Pesan sewa ${widget.title} sekarang`);
+                                    }}
+                                    className="min-h-10 inline-flex w-full items-center justify-center gap-1.5 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover shadow-sm"
+                                  >
+                                    <span>{isEn ? 'Draft Booking in Chat' : 'Pesan Langsung di Sini'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onClose();
+                                      navigate(widget.ctaPath || '/villa');
+                                    }}
+                                    className="inline-flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-ink-muted hover:text-brand"
+                                  >
+                                    <span>{widget.ctaText || (isEn ? 'View Villa in Catalog →' : 'Lihat Detail di Katalog →')}</span>
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1038,17 +1048,27 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                                     <p className="text-[11px] text-ink-muted truncate">{widget.address || widget.category}</p>
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onClose();
-                                    navigate(widget.ctaPath || '/food');
-                                  }}
-                                  className="min-h-10 inline-flex w-full items-center justify-center gap-1 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
-                                >
-                                  <span>{widget.ctaText || (isEn ? 'Explore Menu' : 'Buka Menu')}</span>
-                                  <ExternalLink size={12} />
-                                </button>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSend(isEn ? `Order food from ${widget.title} now` : `Pesan makanan dari ${widget.title} sekarang`);
+                                    }}
+                                    className="min-h-10 inline-flex w-full items-center justify-center gap-1.5 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover shadow-sm"
+                                  >
+                                    <span>{isEn ? 'Order Directly in Chat' : 'Pesan Menu di Sini'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onClose();
+                                      navigate(widget.ctaPath || '/food');
+                                    }}
+                                    className="inline-flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-ink-muted hover:text-brand"
+                                  >
+                                    <span>{widget.ctaText || (isEn ? 'Browse Full Menu →' : 'Buka Menu Lengkap →')}</span>
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1091,17 +1111,27 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                                     </div>
                                   )}
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onClose();
-                                    navigate(widget.ctaPath || '/service');
-                                  }}
-                                  className="min-h-10 inline-flex w-full items-center justify-center gap-1 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
-                                >
-                                  <span>{widget.ctaText || (isEn ? 'Order Service' : 'Pesan Layanan')}</span>
-                                  <ExternalLink size={12} />
-                                </button>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSend(isEn ? `Book ${widget.title} now` : `Pesan layanan ${widget.title} sekarang`);
+                                    }}
+                                    className="min-h-10 inline-flex w-full items-center justify-center gap-1.5 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover shadow-sm"
+                                  >
+                                    <span>{isEn ? 'Book Directly in Chat' : 'Pesan Layanan di Sini'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onClose();
+                                      navigate(widget.ctaPath || '/service');
+                                    }}
+                                    className="inline-flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-ink-muted hover:text-brand"
+                                  >
+                                    <span>{widget.ctaText || (isEn ? 'View Service Details →' : 'Lihat Detail Layanan →')}</span>
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1112,17 +1142,27 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                                   <h4 className="text-[13px] font-extrabold text-ink">{widget.title}</h4>
                                   <p className="text-[11px] text-ink-muted">{widget.subtitle}</p>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onClose();
-                                    navigate('/ride');
-                                  }}
-                                  className="min-h-10 inline-flex w-full items-center justify-center gap-1 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
-                                >
-                                  <span>{widget.ctaText || 'Buka WiraRide →'}</span>
-                                  <ExternalLink size={12} />
-                                </button>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSend(isEn ? 'Book ride now' : 'Pesan ojek motor sekarang');
+                                    }}
+                                    className="min-h-10 inline-flex w-full items-center justify-center gap-1.5 rounded-control bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-hover shadow-sm"
+                                  >
+                                    <span>{isEn ? 'Book Ride Directly in Chat' : 'Pesan Ojek Langsung di Sini'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onClose();
+                                      navigate('/ride');
+                                    }}
+                                    className="inline-flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-ink-muted hover:text-brand"
+                                  >
+                                    <span>{widget.ctaText || (isEn ? 'Open Ride Map →' : 'Buka Peta Ride →')}</span>
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>

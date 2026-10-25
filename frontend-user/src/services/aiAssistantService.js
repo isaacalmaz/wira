@@ -335,7 +335,8 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
     return null;
   }
 
-  for (const [key, loc] of Object.entries(LOMBOK_LOCATIONS)) {
+  const sortedEntries = Object.entries(LOMBOK_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, loc] of sortedEntries) {
     if (key !== 'default' && lower.includes(key)) {
       return { name: loc.name, lat: loc.lat, lng: loc.lng };
     }
@@ -352,43 +353,39 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
   const sortedIntents = Object.entries(detectedIntents).sort((a, b) => b[1] - a[1]);
   const primaryIntent = sortedIntents[0]?.[0];
 
-  const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim/i.test(queryLower);
+  const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim|mau|butuh|tolong|carikan|antar|jemput|makan|lapar|laper|nginep|inap|servis|service|bego|kolam|bersih|sampah|nanny|babysitter/i.test(queryLower);
+  const hasServiceIntent = Boolean(
+    detectedIntents.ride || detectedIntents.food || detectedIntents.send ||
+    detectedIntents.villa || detectedIntents.bersih || detectedIntents.pool ||
+    detectedIntents.service || detectedIntents.excavator || detectedIntents.asuh
+  );
 
   // Direct Booking Draft synthesis in local client fallback
-  if (isBookingQuery) {
+  if (hasServiceIntent || isBookingQuery) {
     const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. WiraRide
-    if (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar/i.test(queryLower)) {
+    if (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport/i.test(queryLower)) {
       const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
       const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
       const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);
 
-      if (!keMatch && !dariMatch && !/kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika|social/i.test(queryLower)) {
-        reply = isEn
-          ? 'Where would you like to be picked up and where are you going? (e.g. "Order a motorbike ride to Kuta Beach pickup at Airport now")'
-          : 'Mau dijemput di mana dan tujuannya ke mana? Beri tahu lokasi jemput dan tujuan Anda (contoh: "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang").';
-        return { reply, widgets };
+      let rawOrigin = dariMatch ? dariMatch[1].trim() : (userLocation?.address || savedAddresses?.[0]?.address || 'Bandara Internasional Lombok (LOP)');
+      let rawDest = keMatch ? keMatch[1].trim() : 'Pantai Kuta Lombok';
+
+      if (rawOrigin.toLowerCase() === rawDest.toLowerCase() || (rawDest.toLowerCase().includes('kuta') && rawOrigin.toLowerCase().includes('kuta'))) {
+        rawDest = 'Bandara Internasional Lombok (LOP)';
       }
 
-      let rawOrigin = null;
-      let rawDest = null;
-      if (keMatch && keMatch[1]?.trim()) rawDest = keMatch[1].trim();
-      if (dariMatch && dariMatch[1]?.trim()) rawOrigin = dariMatch[1].trim();
+      let originLoc = resolveLombokLocation(rawOrigin, { userLocation, savedAddresses }) || { name: rawOrigin, lat: -8.8955, lng: 116.2780 };
+      let destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses }) || { name: rawDest, lat: -8.7600, lng: 116.2760 };
 
-      // If user said "ke social yard kuta" without specifying origin, assume they want to be picked up at their current place
-      if (rawDest && !rawOrigin) {
-        rawOrigin = 'tempat saya';
-      }
-
-      const originLoc = resolveLombokLocation(rawOrigin, { userLocation, savedAddresses });
-      const destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses });
-
-      if (!originLoc || !destLoc) {
-        reply = isEn
-          ? 'Where would you like to be picked up? Please specify your pickup spot or villa in Lombok (or enable GPS) so our driver can reach you.'
-          : 'Mau dijemput di mana? Beri tahu nama jalan, villa, atau titik jemput Anda di Lombok (atau aktifkan GPS) agar driver kami dapat menjemput tepat ke lokasi Anda.';
-        return { reply, widgets };
+      if (originLoc.name === destLoc.name || (originLoc.lat === destLoc.lat && originLoc.lng === destLoc.lng)) {
+        if (destLoc.name.toLowerCase().includes('kuta') || destLoc.name.toLowerCase().includes('pantai')) {
+          originLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
+        } else {
+          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 };
+        }
       }
 
       const distKm = calculateDistanceKm(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
@@ -426,14 +423,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     }
 
     // 2. WiraFood
-    if (detectedIntents.food || /makan|taliwang|puyung|ayam|porsi/i.test(queryLower)) {
-      if (!/taliwang|puyung|ayam|ikan|nasi|sate|plecing|porsi|resto|warung/i.test(queryLower)) {
-        reply = isEn
-          ? 'What would you like to order? You can tell me the dish or restaurant (e.g. "Order Ayam Taliwang Bu Mirah 2 portions").'
-          : 'Ingin memesan makanan apa? Beri tahu menu atau restoran yang Anda inginkan (contoh: "pesen Ayam Taliwang Bu Mirah 2 porsi").';
-        return { reply, widgets };
-      }
-
+    if (detectedIntents.food || /makan|taliwang|puyung|ayam|porsi|lapar|laper|kuliner|resto|restoran|warung/i.test(queryLower)) {
       let restoName = 'Ayam Taliwang Bu Mirah';
       let items = '2 porsi Ayam Taliwang Bu Mirah';
       if (/puyung|nasi balap/i.test(queryLower)) {
@@ -443,6 +433,8 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         const pMatch = queryLower.match(/(\d+)\s*porsi/i);
         items = pMatch ? `${pMatch[1]} porsi Ayam Taliwang Bu Mirah` : '2 porsi Ayam Taliwang Bu Mirah';
       }
+
+      const destAddr = userLocation?.address || savedAddresses?.[0]?.address || 'Kuta Lombok';
 
       widgets.push({
         type: 'booking_draft',
@@ -454,7 +446,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         details: {
           merchantName: restoName,
           items,
-          destination: 'Kuta Lombok',
+          destination: destAddr,
           notes: 'Antar hangat',
         },
         priceEstimate: 55000,
@@ -470,18 +462,11 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     }
 
     // 3. WiraSend
-    if (detectedIntents.send || /kirim|paket|dokumen|barang/i.test(queryLower)) {
+    if (detectedIntents.send || /kirim|paket|dokumen|barang|kurir/i.test(queryLower)) {
       const sendKe = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:dari|jemput|sekarang)|$)/i);
       const sendDari = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
 
-      if (!sendKe && !sendDari && !/kuta|bandara|praya|mataram|senggigi/i.test(queryLower)) {
-        reply = isEn
-          ? 'What would you like to send and where should it go? (e.g. "Send package from Kuta to Mataram")'
-          : 'Mau kirim barang apa dan dari mana ke mana? Beri tahu lokasi jemput dan tujuan paket (contoh: "kirim paket dari Kuta ke Mataram").';
-        return { reply, widgets };
-      }
-
-      const origin = sendDari ? sendDari[1].trim() : 'Kuta Lombok';
+      const origin = sendDari ? sendDari[1].trim() : (userLocation?.address || savedAddresses?.[0]?.address || 'Kuta Lombok');
       const destination = sendKe ? sendKe[1].trim() : 'Kota Mataram';
 
       widgets.push({
@@ -512,14 +497,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     }
 
     // 4. WiraVilla
-    if (detectedIntents.villa || /kamar|villa|vila|nginep/i.test(queryLower)) {
-      if (!/talas|segara|kuta|malam|inap/i.test(queryLower) && !queryLower.match(/(?:villa|vila)\s+([a-zA-Z0-9\s]+)/i)) {
-        reply = isEn
-          ? 'Which villa would you like to book and for how many nights? (e.g. "Book a room at Villa Talas for 2 nights")'
-          : 'Mau sewa villa apa dan untuk berapa malam? Beri tahu nama villa dan durasi menginap Anda (contoh: "sewa kamar di Villa Talas buat 2 malam").';
-        return { reply, widgets };
-      }
-
+    if (detectedIntents.villa || /kamar|villa|vila|nginep|hotel|homestay/i.test(queryLower)) {
       const nightsMatch = queryLower.match(/(\d+)\s*malam/i);
       const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 2;
 
@@ -564,6 +542,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
       const isHk = /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
       const price = isHk ? 150000 : 45000;
       const label = isHk ? 'Housekeeping Villa' : 'Pengangkutan Sampah (Sampun Bersih)';
+      const address = userLocation?.address || savedAddresses?.[0]?.address || 'Kuta Lombok';
 
       widgets.push({
         type: 'booking_draft',
@@ -574,7 +553,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         subtitle: isEn ? 'Eco-friendly waste management & villa cleaning' : 'Pengangkutan sampah rutin & kebersihan villa ramah lingkungan Kuta Lombok',
         details: {
           subType: isHk ? 'housekeeping' : 'sampah',
-          address: 'Kuta Lombok',
+          address,
           date: 'Besok pagi',
           time: 'Pagi / Jam kerja',
           notes: 'Sampun Bersih Kuta Lombok',
@@ -593,6 +572,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
 
     // 6. WiraPool
     if (detectedIntents.pool || /kolam|kuras/i.test(queryLower)) {
+      const address = userLocation?.address || savedAddresses?.[0]?.address || 'Villa Kuta Lombok';
       widgets.push({
         type: 'booking_draft',
         draftId,
@@ -602,7 +582,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         subtitle: isEn ? 'Water testing, tile vacuum, & chemical balancing' : 'Pembersihan lumut, vacuum, dan penyeimbangan kadar air & kaporit/pH',
         details: {
           serviceCategory: 'Perawatan Kolam Villa Rutin & Kuras',
-          address: 'Villa Kuta Lombok',
+          address,
           date: 'Hari ini',
           notes: 'Pengecekan kualitas air dan vacuum kolam',
         },
@@ -622,14 +602,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     if (detectedIntents.service || detectedIntents.excavator || /ac|teknisi|tukang|excavator|bego|pipa|listrik/i.test(queryLower)) {
       const isExcavator = /excavator|ekskavator|bego|alat berat/i.test(queryLower);
 
-      if (!isExcavator && !/ac|listrik|pipa|kulkas|pompa|bego|alat berat/i.test(queryLower)) {
-        reply = isEn
-          ? 'What kind of repair or service do you need? We provide AC servicing, electrical, plumbing, and mini excavator rental (e.g. "Call AC technician tomorrow morning").'
-          : 'Butuh teknisi atau alat apa? Kami melayani servis AC, perbaikan pipa/listrik, hingga sewa excavator mini di Lombok (contoh: "panggil tukang AC besok pagi" atau "sewa excavator mini di Praya").';
-        return { reply, widgets };
-      }
-
-      let addr = isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok';
+      let addr = userLocation?.address || savedAddresses?.[0]?.address || (isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok');
       if (/praya/i.test(queryLower)) addr = 'Praya, Lombok Tengah';
       else if (/kuta/i.test(queryLower)) addr = 'Kuta Lombok';
       else if (/mataram/i.test(queryLower)) addr = 'Kota Mataram';
@@ -670,6 +643,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
       const hoursMatch = queryLower.match(/(\d+)\s*jam/i);
       const durationHours = hoursMatch ? parseInt(hoursMatch[1], 10) : 4;
       const price = durationHours * 50000;
+      const address = userLocation?.address || savedAddresses?.[0]?.address || 'Kuta Lombok';
 
       widgets.push({
         type: 'booking_draft',
@@ -679,12 +653,12 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         title: `Pesan WiraAsuh: Babysitter & Pengasuh Anak (${durationHours} Jam)`,
         subtitle: isEn ? 'Verified caring nanny directly to your villa or home' : 'Pengasuh anak terpercaya dan tersertifikasi datang langsung ke villa/rumah',
         details: {
-          careType: 'Pengasuh Balita / Babysitter Harian',
+          careType: 'Pengasuh Balita & Anak',
           durationHours,
           childrenCount: 1,
-          address: 'Kuta Lombok',
+          address,
           date: 'Hari ini',
-          notes: 'Pengasuh ramah dan berpengalaman',
+          notes: 'Pengasuh terverifikasi',
         },
         priceEstimate: price,
         paymentMethod: 'cash',
@@ -692,8 +666,8 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
       });
 
       reply = isEn
-        ? `WiraAsuh childcare draft ready for ${durationHours} hours. Estimated fee: Rp ${price.toLocaleString('id-ID')}. Confirm below to book!`
-        : `Draf pemesanan WiraAsuh untuk ${durationHours} jam telah siap dengan tarif Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah!`;
+        ? `WiraAsuh childcare draft created (${durationHours} hours). Total fee: Rp ${price.toLocaleString('id-ID')}. Tap confirm below!`
+        : `Draf pemesanan WiraAsuh untuk ${durationHours} jam telah siap dengan total Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah!`;
 
       return { reply, widgets };
     }

@@ -142,7 +142,8 @@ function resolveLombokLocation(text, dbContext = {}) {
     return null;
   }
 
-  for (const [key, loc] of Object.entries(LOMBOK_LOCATIONS)) {
+  const sortedEntries = Object.entries(LOMBOK_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, loc] of sortedEntries) {
     if (key !== 'default' && lower.includes(key)) {
       return { name: loc.name, lat: loc.lat, lng: loc.lng };
     }
@@ -173,15 +174,32 @@ function detectIntents(queryLower) {
   }
 
   // Domain priority disambiguation:
-  if (scores.pool && scores.villa) {
-    if (queryLower.match(/kuras|keruh|hijau|lumut|kaporit|chlorine|vacuum|perawatan kolam/i)) {
-      scores.pool += 5;
-    }
+  if (queryLower.match(/kuras|keruh|hijau|lumut|kaporit|chlorine|vacuum|kolam/i)) {
+    scores.pool = (scores.pool || 0) + 10;
   }
-  if (scores.bersih && scores.villa) {
-    if (queryLower.match(/sampah|buang|angkut|kotor|bersih|housekeeping/i)) {
-      scores.bersih += 5;
-    }
+  if (queryLower.match(/sampah|buang sampah|angkut sampah|sampun|bersih villa|housekeeping/i)) {
+    scores.bersih = (scores.bersih || 0) + 10;
+  }
+  if (queryLower.match(/excavator|ekskavator|bego|alat berat/i)) {
+    scores.excavator = (scores.excavator || 0) + 10;
+  }
+  if (queryLower.match(/baby\s*sitter|babysitter|asuh|balita|nanny/i)) {
+    scores.asuh = (scores.asuh || 0) + 10;
+  }
+  if (queryLower.match(/cuci ac|servis ac|servis|service|pipa|listrik|teknisi|tukang/i)) {
+    scores.service = (scores.service || 0) + 10;
+  }
+  if (queryLower.match(/kirim|paket|dokumen|ekspedisi|kurir/i)) {
+    scores.send = (scores.send || 0) + 10;
+  }
+  if (queryLower.match(/makan|lapar|laper|taliwang|puyung|kuliner|resto|restoran/i)) {
+    scores.food = (scores.food || 0) + 10;
+  }
+  if (queryLower.match(/villa|vila|nginep|hotel|homestay|staycation/i) && !scores.pool && !scores.bersih) {
+    scores.villa = (scores.villa || 0) + 10;
+  }
+  if (queryLower.match(/ojek|taksi|motor|mobil|jemput|antar/i) && !scores.send && !scores.food) {
+    scores.ride = (scores.ride || 0) + 10;
   }
 
   return scores;
@@ -300,8 +318,10 @@ async function fetchDbContext(queryLower, userId, detectedIntents) {
       if (orders && orders.length > 0) {
         context.activeOrders = orders;
       }
+    }
 
-      // 4. Fetch User Saved Addresses (Rumah, Kantor, Kost, Villa)
+    // 4. Fetch User Saved Addresses (Rumah, Kantor, Kost, Villa) for address resolution
+    if (userId) {
       const { data: addresses } = await supabase
         .from('saved_addresses')
         .select('id, label, address, lat, lng, is_primary, note')
@@ -456,32 +476,43 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
   switch (toolName) {
     case 'draftRideBooking': {
       const isCar = args.vehicleType === 'car' || args.vehicleType === 'mobil';
-      const originRaw = (args.origin || '').trim();
-      const destRaw = (args.destination || '').trim();
-      const isPlaceholder = /belum|unknown|tbd|tidak tahu|tidak ada/i.test(originRaw + destRaw);
-      const hasRideLocations = queryLower.match(/(?:ke|tujuan|menuju|dari|jemput)/i) ||
-        /kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika/i.test(queryLower);
+      let originRaw = (args.origin || '').trim();
+      let destRaw = (args.destination || '').trim();
+      const isPlaceholder = /belum|unknown|tbd|tidak tahu|tidak ada/i.test(originRaw + ' ' + destRaw);
 
-      if (!originRaw || !destRaw || isPlaceholder || (!hasRideLocations && originRaw.toLowerCase() === destRaw.toLowerCase())) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'Where would you like to be picked up and where are you going in Lombok? (e.g. "Order a motorbike ride to Kuta Beach pickup at Airport now")'
-            : 'Mau dijemput di mana dan tujuannya ke mana? Beri tahu lokasi jemput dan tujuan Anda (contoh: "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang").',
-        };
+      if (!originRaw || isPlaceholder || isSelfLocationQuery(originRaw)) {
+        if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.address) {
+          originRaw = dbContext.userCurrentLocation.address;
+        } else if (dbContext.savedAddresses && dbContext.savedAddresses.length > 0) {
+          const primary = dbContext.savedAddresses.find((a) => a.is_primary) || dbContext.savedAddresses[0];
+          originRaw = primary.address;
+        } else {
+          originRaw = 'Bandara Internasional Lombok (LOP)';
+        }
       }
 
-      const originLoc = resolveLombokLocation(originRaw, dbContext);
-      const destLoc = resolveLombokLocation(destRaw, dbContext);
+      if (!destRaw || isPlaceholder || destRaw.toLowerCase() === originRaw.toLowerCase()) {
+        destRaw = originRaw.toLowerCase().includes('kuta')
+          ? 'Bandara Internasional Lombok (LOP)'
+          : 'Pantai Kuta Lombok';
+      }
 
-      // If user referenced relative location ("tempat saya", "sini") but GPS / saved address is not known
-      if (!originLoc || !destLoc) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'Where would you like to be picked up? Please specify your pickup spot or villa in Lombok (or enable GPS) so our driver can reach you.'
-            : 'Mau dijemput di mana? Beri tahu nama jalan, villa, atau titik jemput Anda di Lombok (atau aktifkan GPS) agar driver dapat menjemput tepat ke lokasi Anda.',
-        };
+      let originLoc = resolveLombokLocation(originRaw, dbContext);
+      let destLoc = resolveLombokLocation(destRaw, dbContext);
+
+      if (!originLoc) {
+        originLoc = { name: originRaw, lat: -8.8955, lng: 116.2780 };
+      }
+      if (!destLoc) {
+        destLoc = { name: destRaw, lat: -8.7600, lng: 116.2760 };
+      }
+
+      if (originLoc.name === destLoc.name || (originLoc.lat === destLoc.lat && originLoc.lng === destLoc.lng)) {
+        if (destLoc.name.toLowerCase().includes('kuta') || destLoc.name.toLowerCase().includes('pantai')) {
+          originLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
+        } else {
+          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 };
+        }
       }
 
       const distKm = calculateDistanceKm(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
@@ -518,17 +549,10 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
     }
 
     case 'draftFoodOrder': {
-      const itemsRaw = (args.items || '').trim();
+      let itemsRaw = (args.items || '').trim();
       const isPlaceholder = !itemsRaw || /belum|unknown|tbd|pilihan/i.test(itemsRaw);
-      const hasFoodTerms = /makan|taliwang|puyung|ayam|ikan|nasi|sate|plecing|porsi|resto|warung/i.test(queryLower);
-
-      if (isPlaceholder && !hasFoodTerms && !args.restaurantName) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'What would you like to eat today? You can tell me the dish or restaurant (e.g. "Order Ayam Taliwang Bu Mirah 2 portions").'
-            : 'Ingin memesan makanan apa? Beri tahu menu atau restoran yang Anda inginkan (contoh: "pesen Ayam Taliwang Bu Mirah 2 porsi").',
-        };
+      if (isPlaceholder) {
+        itemsRaw = '2 Porsi Ayam Taliwang Bakar + Plecing Kangkung';
       }
 
       const restoName = args.restaurantName || (dbContext.restaurants?.[0]?.name || 'Ayam Taliwang Bu Mirah');
@@ -537,8 +561,20 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         restoName.toLowerCase().includes(r.name.toLowerCase())
       ) || dbContext.restaurants?.[0];
       const merchantId = matchedResto?.id || null;
-      const deliveryAddress = args.deliveryAddress || 'Kuta Lombok';
-      const destLoc = resolveLombokLocation(deliveryAddress);
+
+      let deliveryAddress = args.deliveryAddress || '';
+      if (!deliveryAddress) {
+        if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.address) {
+          deliveryAddress = dbContext.userCurrentLocation.address;
+        } else if (dbContext.savedAddresses && dbContext.savedAddresses.length > 0) {
+          const primary = dbContext.savedAddresses.find((a) => a.is_primary) || dbContext.savedAddresses[0];
+          deliveryAddress = primary.address;
+        } else {
+          deliveryAddress = 'Kuta Lombok';
+        }
+      }
+
+      const destLoc = resolveLombokLocation(deliveryAddress, dbContext) || { name: deliveryAddress, lat: -8.8955, lng: 116.2780 };
       const priceEstimate = 55000;
 
       draft = {
@@ -552,7 +588,7 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         details: {
           merchantId,
           merchantName: restoName,
-          items: args.items || 'Menu Rekomendasi Pilihan',
+          items: itemsRaw,
           destination: destLoc.name,
           notes: args.notes || 'Antar hangat',
           destCoords: { lat: destLoc.lat, lng: destLoc.lng },
@@ -563,29 +599,23 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
       };
 
       reply = isEn
-        ? `I drafted your WiraFood order from ${restoName} (${args.items || 'Food items'}). Estimated total is Rp ${priceEstimate.toLocaleString('id-ID')}. Check the draft below and confirm to dispatch!`
-        : `Draf pesanan WiraFood Anda dari ${restoName} (${args.items || 'Menu pilihan'}) telah siap dengan estimasi total Rp ${priceEstimate.toLocaleString('id-ID')}. Silakan konfirmasi di bawah untuk langsung memesan!`;
+        ? `I drafted your WiraFood order from ${restoName} (${itemsRaw}). Estimated total is Rp ${priceEstimate.toLocaleString('id-ID')}. Check the draft below and confirm to dispatch!`
+        : `Draf pesanan WiraFood Anda dari ${restoName} (${itemsRaw}) telah siap dengan estimasi total Rp ${priceEstimate.toLocaleString('id-ID')}. Silakan konfirmasi di bawah untuk langsung memesan!`;
       break;
     }
 
     case 'draftSendBooking': {
-      const originRaw = (args.origin || '').trim();
-      const destRaw = (args.destination || '').trim();
-      const isPlaceholder = /belum|unknown|tbd|tidak tahu|tidak ada/i.test(originRaw + destRaw);
-      const hasSpecifics = queryLower.match(/(?:ke|tujuan|menuju|dari|jemput)/i) ||
-        /kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika/i.test(queryLower);
-
-      if (!originRaw || !destRaw || isPlaceholder || (!hasSpecifics && originRaw.toLowerCase() === destRaw.toLowerCase())) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'What would you like to send and where should it go? (e.g. "Send package from Kuta to Mataram")'
-            : 'Mau kirim barang apa dan dari mana ke mana? Beri tahu lokasi jemput dan tujuan paket (contoh: "kirim paket dari Kuta ke Mataram").',
-        };
+      let originRaw = (args.origin || '').trim();
+      let destRaw = (args.destination || '').trim();
+      if (!originRaw) {
+        originRaw = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
+      }
+      if (!destRaw || destRaw.toLowerCase() === originRaw.toLowerCase()) {
+        destRaw = 'Kota Mataram';
       }
 
-      const originLoc = resolveLombokLocation(originRaw);
-      const destLoc = resolveLombokLocation(destRaw);
+      const originLoc = resolveLombokLocation(originRaw, dbContext) || { name: originRaw, lat: -8.8955, lng: 116.2780 };
+      const destLoc = resolveLombokLocation(destRaw, dbContext) || { name: destRaw, lat: -8.5833, lng: 116.1167 };
       const validSizes = ['dokumen', 'kecil', 'sedang', 'besar', 'mobil'];
       const rawSize = (args.packageSize || 'kecil').toLowerCase();
       const size = validSizes.includes(rawSize) ? rawSize : 'kecil';
@@ -601,7 +631,7 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         details: {
           origin: originLoc.name,
           destination: destLoc.name,
-          packageType: args.packageType || 'Paket / Dokumen',
+          packageType: args.packageType || 'Dokumen / Paket Kilat',
           packageSize: size,
           recipientName: args.recipientName || 'Penerima di lokasi',
           notes: args.notes || 'Hati-hati bawa paket',
@@ -620,20 +650,6 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
     }
 
     case 'draftVillaBooking': {
-      const vRaw = (args.villaName || '').trim();
-      const isPlaceholder = !vRaw || /belum|unknown|tbd|villa apa/i.test(vRaw);
-      const hasVillaSpecifics = queryLower.match(/(?:villa|vila)\s+([a-zA-Z0-9\s]+)/i) ||
-        /talas|segara|malam|inap|nginep/i.test(queryLower);
-
-      if (isPlaceholder && !hasVillaSpecifics) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'Which villa would you like to book and for how many nights? (e.g. "Book a room at Villa Talas for 2 nights")'
-            : 'Mau sewa villa apa dan untuk berapa malam? Beri tahu nama villa dan durasi menginap Anda (contoh: "sewa kamar di Villa Talas buat 2 malam").',
-        };
-      }
-
       const villaName = args.villaName || (dbContext.villas?.[0]?.name || 'Villa Segara Kuta Lombok');
       const matchedVilla = dbContext.villas?.find((v) =>
         v.name.toLowerCase().includes(villaName.toLowerCase()) ||
@@ -676,9 +692,9 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
     }
 
     case 'draftBersihBooking': {
-      const isHousekeeping = args.subType === 'housekeeping';
-      const addr = args.address || 'Kuta Lombok';
-      const loc = resolveLombokLocation(addr);
+      const isHousekeeping = args.subType === 'housekeeping' || /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
+      const addr = args.address || dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
+      const loc = resolveLombokLocation(addr, dbContext) || { name: addr, lat: -8.8955, lng: 116.2780 };
       const priceEstimate = isHousekeeping ? 150000 : 45000;
       const label = isHousekeeping ? 'Housekeeping Villa (Turnover)' : 'Pengangkutan Sampah (Sampun Bersih)';
 
@@ -690,9 +706,9 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         title: `Layanan WiraBersih: ${label}`,
         subtitle: isEn ? 'Eco-friendly waste management & villa cleaning' : 'Pengangkutan sampah rutin & kebersihan villa ramah lingkungan Kuta Lombok',
         details: {
-          subType: args.subType || 'sampah',
+          subType: isHousekeeping ? 'housekeeping' : 'sampah',
           address: loc.name,
-          date: args.date || (isEn ? 'Scheduled as requested' : 'Sesuai jadwal'),
+          date: args.date || (isEn ? 'Scheduled as requested' : 'Besok pagi'),
           time: args.time || 'Pagi / Jam kerja',
           notes: args.notes || 'Layanan terverifikasi Sampun Bersih',
           destCoords: { lat: loc.lat, lng: loc.lng },
@@ -703,14 +719,14 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
       };
 
       reply = isEn
-        ? `Draf for WiraBersih (${label}) has been prepared at ${loc.name}. Cost: Rp ${priceEstimate.toLocaleString('id-ID')}. Confirm below to lock in the schedule!`
+        ? `Draft for WiraBersih (${label}) has been prepared at ${loc.name}. Cost: Rp ${priceEstimate.toLocaleString('id-ID')}. Confirm below to lock in the schedule!`
         : `Draf pesanan WiraBersih (${label}) untuk lokasi ${loc.name} telah disiapkan dengan tarif Rp ${priceEstimate.toLocaleString('id-ID')}. Silakan konfirmasi untuk menjadwalkan petugas!`;
       break;
     }
 
     case 'draftPoolBooking': {
-      const addr = args.address || 'Kuta Lombok';
-      const loc = resolveLombokLocation(addr);
+      const addr = args.address || dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Villa Kuta Lombok';
+      const loc = resolveLombokLocation(addr, dbContext) || { name: addr, lat: -8.8955, lng: 116.2780 };
       const priceEstimate = 150000;
 
       draft = {
@@ -740,23 +756,11 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
 
     case 'draftServiceBooking': {
       const isExcavator = args.serviceCategory === 'excavator' || /excavator|ekskavator|bego|alat berat/i.test(queryLower);
-      const isSpecific = isExcavator || /ac|cuci ac|listrik|pipa|kulkas|pompa/i.test(queryLower) ||
-        (args.serviceCategory && args.serviceCategory !== 'ac' && args.serviceCategory !== 'service') ||
-        (args.problemDescription && !/servis|perbaikan/i.test(args.problemDescription));
-
-      if (!isSpecific && /teknisi|tukang/i.test(queryLower) && !/ac|listrik|pipa|kulkas|pompa|excavator/i.test(queryLower)) {
-        return {
-          draft: null,
-          reply: isEn
-            ? 'What kind of repair or service do you need? We provide AC servicing, electrical, plumbing, and mini excavator rental (e.g. "Call AC technician tomorrow morning").'
-            : 'Butuh teknisi atau alat apa? Kami melayani servis AC, perbaikan pipa/listrik, hingga sewa excavator mini di Lombok (contoh: "panggil tukang AC besok pagi" atau "sewa excavator mini di Praya").',
-        };
-      }
-
-      const addr = args.address || (isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok');
-      const loc = resolveLombokLocation(addr);
+      const category = isExcavator ? 'excavator' : (args.serviceCategory || 'ac');
+      const addr = args.address || dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || (isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok');
+      const loc = resolveLombokLocation(addr, dbContext) || { name: addr, lat: isExcavator ? -8.7000 : -8.8955, lng: isExcavator ? 116.2800 : 116.2780 };
       const priceEstimate = isExcavator ? 250000 : 85000;
-      const title = isExcavator ? 'Sewa Excavator Mini PC-50 (WiraService)' : `Servis Teknisi ${args.serviceCategory?.toUpperCase() || 'AC'} (WiraService)`;
+      const title = isExcavator ? 'Sewa Excavator Mini PC-50 (WiraService)' : `Servis Teknisi ${category.toUpperCase()} (WiraService)`;
 
       draft = {
         type: 'booking_draft',
@@ -768,10 +772,10 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
           ? (isEn ? 'Heavy equipment with certified operator & fuel' : 'Alat berat lengkap operator & solar untuk proyek lahan Lombok')
           : (isEn ? 'Certified technician for AC, electrical, or plumbing' : 'Teknisi terverifikasi untuk perbaikan rumah dan villa'),
         details: {
-          serviceCategory: args.serviceCategory || 'ac',
-          problemDescription: args.problemDescription || (isExcavator ? 'Sewa Excavator Mini PC-50' : 'Servis & Perbaikan'),
+          serviceCategory: category,
+          problemDescription: args.problemDescription || (isExcavator ? 'Sewa Excavator Mini PC-50' : 'Servis & Cuci AC Villa'),
           address: loc.name,
-          date: args.date || (isEn ? 'Scheduled' : 'Sesuai jadwal'),
+          date: args.date || (isEn ? 'Scheduled' : 'Besok pagi'),
           notes: args.notes || 'Mitra teknisi profesional terverifikasi',
           destCoords: { lat: loc.lat, lng: loc.lng },
         },
@@ -787,8 +791,8 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
     }
 
     case 'draftAsuhBooking': {
-      const addr = args.address || 'Kuta Lombok';
-      const loc = resolveLombokLocation(addr);
+      const addr = args.address || dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
+      const loc = resolveLombokLocation(addr, dbContext) || { name: addr, lat: -8.8955, lng: 116.2780 };
       const hours = Number(args.durationHours) || 4;
       const priceEstimate = hours * 50000;
 
@@ -863,14 +867,14 @@ Wira provides hands-free ordering across all 8 active services:
 7. WiraService: technician repairs (AC repair, plumbing, electrical) and Excavator / Heavy Equipment rental in Lombok.
 8. WiraAsuh: trusted babysitter and nanny services for homes and villas.
 
-CRITICAL INSTRUCTIONS ON TOOL CALLING VS SLOT-FILLING:
-- When the user gives booking or ordering requests (e.g. "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang", "pesen Ayam Taliwang Bu Mirah 2 porsi", "sewa kamar di Villa Talas buat 2 malam", "angkut sampah villa", "kuras kolam villa", "sewa excavator mini di Praya", "cari baby sitter jagain balita", "kirim paket dari Kuta ke Mataram"), CALL THE CORRESPONDING TOOL immediately to output the structured booking draft!
-- For WiraAsuh requests (e.g. "cari baby sitter jagain balita", "pesan babysitter"), always call draftAsuhBooking immediately (default duration 4 hours, default address Kuta Lombok).
+CRITICAL INSTRUCTIONS ON INSTANT IN-CHAT DRAFTING:
+- The user requires that EVERYTHING is rendered directly in the chat as an interactive Booking Draft Card, so they only need to tap "Konfirmasi & Pesan Sekarang" without opening other app pages or filling forms manually.
+- Whenever the user asks to book, order, or expresses intent for ANY of the 8 services (even if broad like "mau makan", "pesen ojek", "mau ke kuta", "sewa villa", "kuras kolam", "angkut sampah", "panggil teknisi", "sewa excavator", "cari babysitter", "kirim paket"), ALWAYS CALL THE CORRESPONDING DRAFT TOOL!
+- Fill in sensible, top-rated defaults from Lombok and dbContext for any unspecified parameters (e.g. default food: Ayam Taliwang Bu Mirah, default villa: Villa Segara Kuta Lombok, default ride: pickup from user location/GPS to requested destination or Pantai Kuta, default clean: Sampun Bersih, default pool: Kuras & Perawatan Kolam, default service: Servis AC / Excavator, default nanny: 4 jam Kuta Lombok).
 - If the user says "dari tempat saya", "lokasi saya", "sini", "ke rumah saya":
-  * Check dbContext.userCurrentLocation or dbContext.savedAddresses. If available, use the real address string (e.g. "Jl. Pariwisata Pantai Kuta (Lokasi Anda)").
-  * If userCurrentLocation and savedAddresses are empty or unavailable, DO NOT invent a dummy address and NEVER output "tempat saya" as a literal address! Reply conversationally asking the user: "Bisa sebutkan lokasi atau titik jemput Anda di Lombok? (atau aktifkan GPS)".
-- If the user's intent is broad or essential booking parameters are completely missing (e.g. "mau kirim paket", "pesenin ojek motor dong", "pesen makan dong", "mau sewa villa", "mau panggil teknisi"), DO NOT call any tool and DO NOT invent dummy locations or dishes! Instead, reply conversationally asking the user for the missing details (conversational slot-filling).
-- Always be warm, friendly, concise, and knowledgeable about Lombok places.
+  * Check dbContext.userCurrentLocation or dbContext.savedAddresses. If available, use the real address string.
+- Never tell the user to open other app pages or fill manual forms. Always output the draft so they can confirm with 1 tap.
+- Always be warm, friendly, concise, and helpful.
 
 Database Context available right now:
 ${JSON.stringify(dbContext)}`;
@@ -926,10 +930,12 @@ ${JSON.stringify(dbContext)}`;
 
           // Otherwise return natural conversational response with contextual widgets
           if (textPart) {
+            const localResult = generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents);
+            const hasDraftWidget = localResult.widgets && localResult.widgets.some((w) => w.type === 'booking_draft');
             return res.json({
               success: true,
               reply: textPart,
-              widgets: buildWidgets(queryLower, dbContext, detectedIntents),
+              widgets: hasDraftWidget ? localResult.widgets : buildWidgets(queryLower, dbContext, detectedIntents),
             });
           }
         }
@@ -1265,156 +1271,53 @@ function buildWidgets(queryLower, dbContext, detectedIntents) {
 function generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents) {
   let reply;
   const isEn = lang === 'en';
-  const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim/i.test(queryLower);
+  const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim|mau|butuh|tolong|carikan|antar|jemput|makan|lapar|laper|nginep|inap|servis|service|bego|kolam|bersih|sampah|nanny|babysitter/i.test(queryLower);
+  const hasServiceIntent = Boolean(
+    detectedIntents.ride || detectedIntents.food || detectedIntents.send ||
+    detectedIntents.villa || detectedIntents.bersih || detectedIntents.pool ||
+    detectedIntents.service || detectedIntents.excavator || detectedIntents.asuh
+  );
 
-  // 1. Check if the query is a direct order instruction to synthesize a booking_draft widget locally
-  if (isBookingQuery) {
-    // 1a. WiraRide
-    if (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar/i.test(queryLower)) {
-      const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
-      const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
-      const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);
+  const sortedIntents = Object.entries(detectedIntents || {}).sort((a, b) => b[1] - a[1]);
+  const primaryIntent = sortedIntents[0]?.[0];
 
-      // Slot-filling: If no destination or origin mentioned at all
-      if (!keMatch && !dariMatch && !/kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika/i.test(queryLower)) {
-        reply = isEn
-          ? 'Where would you like to be picked up and where are you going? (e.g. "Order a motorbike ride to Kuta Beach pickup at Airport now")'
-          : 'Mau dijemput di mana dan tujuannya ke mana? Beri tahu lokasi jemput dan tujuan Anda (contoh: "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang").';
-        return { reply, widgets: buildWidgets(queryLower, dbContext, detectedIntents) };
-      }
+  // 1. Synthesize interactive in-chat booking_draft widget directly for all service inquiries
+  if (hasServiceIntent || isBookingQuery) {
+    // 1a. WiraPool
+    if (primaryIntent === 'pool' || (!primaryIntent && (detectedIntents.pool || /kolam|kuras/i.test(queryLower)))) {
+      const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Villa Kuta Lombok';
 
-      let origin = 'Bandara Internasional Lombok (LOP)';
-      let destination = 'Pantai Kuta Lombok';
-      if (keMatch && keMatch[1]?.trim()) destination = keMatch[1].trim();
-      if (dariMatch && dariMatch[1]?.trim()) origin = dariMatch[1].trim();
-
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftRideBooking', {
-        vehicleType: isCar ? 'car' : 'motor',
-        origin,
-        destination,
-        notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
-      }, dbContext, lang);
-
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
-    }
-
-    // 1b. WiraFood
-    if (detectedIntents.food || /makan|taliwang|puyung|ayam|porsi/i.test(queryLower)) {
-      // Slot-filling: If no food item or restaurant mentioned
-      if (!/taliwang|puyung|ayam|ikan|nasi|sate|plecing|porsi|resto|warung/i.test(queryLower)) {
-        reply = isEn
-          ? 'What would you like to eat today? You can tell me the dish or restaurant (e.g. "Order Ayam Taliwang Bu Mirah 2 portions").'
-          : 'Ingin memesan makanan apa? Beri tahu menu atau restoran yang Anda inginkan (contoh: "pesen Ayam Taliwang Bu Mirah 2 porsi").';
-        return { reply, widgets: buildWidgets(queryLower, dbContext, detectedIntents) };
-      }
-
-      let restoName = 'Ayam Taliwang Bu Mirah';
-      let items = '2 porsi Ayam Taliwang Bu Mirah';
-      if (/puyung|nasi balap/i.test(queryLower)) {
-        restoName = 'Nasi Balap Puyung Inaq Esun';
-        items = 'Nasi Balap Puyung Spesial';
-      } else if (/taliwang/i.test(queryLower)) {
-        const pMatch = queryLower.match(/(\d+)\s*porsi/i);
-        items = pMatch ? `${pMatch[1]} porsi Ayam Taliwang Bu Mirah` : '2 porsi Ayam Taliwang Bu Mirah';
-      }
-
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftFoodOrder', {
-        restaurantName: restoName,
-        items,
-        deliveryAddress: 'Kuta Lombok',
-      }, dbContext, lang);
-
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
-    }
-
-    // 1c. WiraSend
-    if (detectedIntents.send || /kirim|paket|dokumen|barang/i.test(queryLower)) {
-      const sendKe = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:dari|jemput|sekarang)|$)/i);
-      const sendDari = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
-
-      if (!sendKe && !sendDari && !/kuta|bandara|praya|mataram|senggigi/i.test(queryLower)) {
-        reply = isEn
-          ? 'What would you like to send and where should it go? (e.g. "Send package from Kuta to Mataram")'
-          : 'Mau kirim barang apa dan dari mana ke mana? Beri tahu lokasi jemput dan tujuan paket (contoh: "kirim paket dari Kuta ke Mataram").';
-        return { reply, widgets: buildWidgets(queryLower, dbContext, detectedIntents) };
-      }
-
-      const origin = sendDari ? sendDari[1].trim() : 'Kuta Lombok';
-      const destination = sendKe ? sendKe[1].trim() : 'Kota Mataram';
-
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftSendBooking', {
-        origin,
-        destination,
-        packageType: 'Dokumen / Paket Kilat',
-        packageSize: 'kecil',
-      }, dbContext, lang);
-
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
-    }
-
-    // 1d. WiraVilla
-    if (detectedIntents.villa || /kamar|villa|vila|nginep/i.test(queryLower)) {
-      if (!/talas|segara|kuta|malam|inap/i.test(queryLower) && !queryLower.match(/(?:villa|vila)\s+([a-zA-Z0-9\s]+)/i)) {
-        reply = isEn
-          ? 'Which villa would you like to book and for how many nights? (e.g. "Book a room at Villa Talas for 2 nights")'
-          : 'Mau sewa villa apa dan untuk berapa malam? Beri tahu nama villa dan durasi menginap Anda (contoh: "sewa kamar di Villa Talas buat 2 malam").';
-        return { reply, widgets: buildWidgets(queryLower, dbContext, detectedIntents) };
-      }
-
-      const nightsMatch = queryLower.match(/(\d+)\s*malam/i);
-      const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 2;
-
-      let vName = 'Villa Segara Kuta Lombok';
-      if (/talas/i.test(queryLower)) {
-        vName = 'Villa Talas';
-      } else if (dbContext.villas?.[0]?.name) {
-        vName = dbContext.villas[0].name;
-      }
-
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftVillaBooking', {
-        villaName: vName,
-        nights,
-        checkInDate: 'Besok',
-      }, dbContext, lang);
-
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
-    }
-
-    // 1e. WiraBersih
-    if (detectedIntents.bersih || /sampah|housekeeping|bersih/i.test(queryLower)) {
-      const isHk = /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftBersihBooking', {
-        subType: isHk ? 'housekeeping' : 'sampah',
-        address: 'Kuta Lombok',
-        date: 'Besok pagi',
-      }, dbContext, lang);
-
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
-    }
-
-    // 1f. WiraPool
-    if (detectedIntents.pool || /kolam|kuras/i.test(queryLower)) {
       const { draft, reply: draftReply } = buildDraftFromToolCall('draftPoolBooking', {
         serviceCategory: 'Kuras & Vacuum Kolam Renang',
-        address: 'Villa Kuta Lombok',
+        address,
         date: 'Hari ini',
-      }, dbContext, lang);
+      }, dbContext, lang, queryLower);
 
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
     }
 
-    // 1g. WiraService
-    if (detectedIntents.service || detectedIntents.excavator || /ac|teknisi|tukang|excavator|bego|pipa|listrik/i.test(queryLower)) {
-      const isExcavator = /excavator|ekskavator|bego|alat berat/i.test(queryLower);
+    // 1b. WiraBersih
+    if (primaryIntent === 'bersih' || (!primaryIntent && (detectedIntents.bersih || /sampah|housekeeping|bersih/i.test(queryLower)))) {
+      const isHk = /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
+      const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
 
-      if (!isExcavator && !/ac|listrik|pipa|kulkas|pompa|bego|alat berat/i.test(queryLower)) {
-        reply = isEn
-          ? 'What kind of repair or service do you need? We provide AC servicing, electrical, plumbing, and mini excavator rental (e.g. "Call AC technician tomorrow morning").'
-          : 'Butuh teknisi atau alat apa? Kami melayani servis AC, perbaikan pipa/listrik, hingga sewa excavator mini di Lombok (contoh: "panggil tukang AC besok pagi" atau "sewa excavator mini di Praya").';
-        return { reply, widgets: buildWidgets(queryLower, dbContext, detectedIntents) };
+      const { draft, reply: draftReply } = buildDraftFromToolCall('draftBersihBooking', {
+        subType: isHk ? 'housekeeping' : 'sampah',
+        address,
+        date: 'Besok pagi',
+      }, dbContext, lang, queryLower);
+
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
       }
+    }
 
-      let addr = isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok';
+    // 1c. WiraService / Excavator
+    if (primaryIntent === 'service' || primaryIntent === 'excavator' || (!primaryIntent && (detectedIntents.service || detectedIntents.excavator || /ac|teknisi|tukang|excavator|bego|pipa|listrik/i.test(queryLower)))) {
+      const isExcavator = primaryIntent === 'excavator' || /excavator|ekskavator|bego|alat berat/i.test(queryLower);
+      let addr = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || (isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok');
       if (/praya/i.test(queryLower)) addr = 'Praya, Lombok Tengah';
       else if (/kuta/i.test(queryLower)) addr = 'Kuta Lombok';
       else if (/mataram/i.test(queryLower)) addr = 'Kota Mataram';
@@ -1424,31 +1327,127 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         problemDescription: isExcavator ? 'Sewa Excavator Mini PC-50 di Praya' : 'Servis & Cuci AC Villa',
         address: addr,
         date: 'Besok pagi',
-      }, dbContext, lang);
+      }, dbContext, lang, queryLower);
 
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
     }
 
-    // 1h. WiraAsuh
-    if (detectedIntents.asuh || /baby\s*sitter|babysitter|asuh|balita|anak/i.test(queryLower)) {
+    // 1d. WiraAsuh
+    if (primaryIntent === 'asuh' || (!primaryIntent && (detectedIntents.asuh || /baby\s*sitter|babysitter|asuh|balita|anak/i.test(queryLower)))) {
       const hoursMatch = queryLower.match(/(\d+)\s*jam/i);
       const durationHours = hoursMatch ? parseInt(hoursMatch[1], 10) : 4;
+      const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
 
       const { draft, reply: draftReply } = buildDraftFromToolCall('draftAsuhBooking', {
         careType: 'Pengasuh Balita & Anak',
         durationHours,
-        address: 'Kuta Lombok',
+        address,
         date: 'Hari ini',
-      }, dbContext, lang);
+      }, dbContext, lang, queryLower);
 
-      return { reply: draftReply, widgets: draft ? [draft] : buildWidgets(queryLower, dbContext, detectedIntents) };
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
+    }
+
+    // 1e. WiraSend
+    if (primaryIntent === 'send' || (!primaryIntent && (detectedIntents.send || /kirim|paket|dokumen|barang|kurir/i.test(queryLower)))) {
+      const sendKe = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:dari|jemput|sekarang)|$)/i);
+      const sendDari = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
+
+      const origin = sendDari ? sendDari[1].trim() : (dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok');
+      const destination = sendKe ? sendKe[1].trim() : 'Kota Mataram';
+
+      const { draft, reply: draftReply } = buildDraftFromToolCall('draftSendBooking', {
+        origin,
+        destination,
+        packageType: 'Dokumen / Paket Kilat',
+        packageSize: 'kecil',
+      }, dbContext, lang, queryLower);
+
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
+    }
+
+    // 1f. WiraFood
+    if (primaryIntent === 'food' || (!primaryIntent && (detectedIntents.food || /makan|taliwang|puyung|ayam|porsi|lapar|laper|kuliner|resto|restoran|warung/i.test(queryLower)))) {
+      let restoName = dbContext.restaurants?.[0]?.name || 'Ayam Taliwang Bu Mirah';
+      let items = '2 porsi Ayam Taliwang Bu Mirah';
+      if (/puyung|nasi balap/i.test(queryLower)) {
+        restoName = 'Nasi Balap Puyung Inaq Esun';
+        items = 'Nasi Balap Puyung Spesial';
+      } else if (/taliwang/i.test(queryLower)) {
+        const pMatch = queryLower.match(/(\d+)\s*porsi/i);
+        items = pMatch ? `${pMatch[1]} porsi Ayam Taliwang Bu Mirah` : '2 porsi Ayam Taliwang Bu Mirah';
+      } else if (dbContext.restaurants?.[0]?.name) {
+        restoName = dbContext.restaurants[0].name;
+        items = `Menu Rekomendasi ${restoName}`;
+      }
+
+      const deliveryAddress = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
+
+      const { draft, reply: draftReply } = buildDraftFromToolCall('draftFoodOrder', {
+        restaurantName: restoName,
+        items,
+        deliveryAddress,
+      }, dbContext, lang, queryLower);
+
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
+    }
+
+    // 1g. WiraVilla
+    if (primaryIntent === 'villa' || (!primaryIntent && (detectedIntents.villa || /kamar|villa|vila|nginep|hotel|homestay/i.test(queryLower)))) {
+      const nightsMatch = queryLower.match(/(\d+)\s*malam/i);
+      const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 2;
+
+      let vName = dbContext.villas?.[0]?.name || 'Villa Segara Kuta Lombok';
+      if (/talas/i.test(queryLower)) {
+        vName = 'Villa Talas';
+      }
+
+      const { draft, reply: draftReply } = buildDraftFromToolCall('draftVillaBooking', {
+        villaName: vName,
+        nights,
+        checkInDate: 'Besok',
+      }, dbContext, lang, queryLower);
+
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
+    }
+
+    // 1h. WiraRide
+    if (primaryIntent === 'ride' || (!primaryIntent && (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport/i.test(queryLower)))) {
+      const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
+      const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
+      const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
+
+      let origin = dariMatch ? dariMatch[1].trim() : (dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Bandara Internasional Lombok (LOP)');
+      let destination = keMatch ? keMatch[1].trim() : 'Pantai Kuta Lombok';
+
+      if (origin.toLowerCase() === destination.toLowerCase() || (destination.toLowerCase().includes('kuta') && origin.toLowerCase().includes('kuta'))) {
+        destination = 'Bandara Internasional Lombok (LOP)';
+      }
+
+      const { draft, reply: draftReply } = buildDraftFromToolCall('draftRideBooking', {
+        vehicleType: isCar ? 'car' : 'motor',
+        origin,
+        destination,
+        notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
+      }, dbContext, lang, queryLower);
+
+      if (draft) {
+        return { reply: draftReply, widgets: [draft] };
+      }
     }
   }
 
   // Conversational Intent Matching (Info & Recommendations)
-  const sortedIntents = Object.entries(detectedIntents).sort((a, b) => b[1] - a[1]);
-  const primaryIntent = sortedIntents[0]?.[0];
-
   if (primaryIntent === 'villa') {
     reply = isEn
       ? 'I found great private villa options in Lombok with private pool amenities! Check out the recommendation below:'
