@@ -234,7 +234,7 @@ function BookingDraftCard({
   );
 }
 
-export default function AIAssistantSheet({ open, onClose }) {
+export default function AIAssistantSheet({ open, onClose, autoListen = false }) {
   const { t, lang } = useTranslation();
   const { user } = useAuth();
   const { orders = [], refreshOrders } = useOrders() || {};
@@ -724,6 +724,24 @@ export default function AIAssistantSheet({ open, onClose }) {
       );
     }
   };
+
+  // Triggered by OS Homescreen Widget (Microphone tap) or Deep-Link
+  const prevAutoListenRef = useRef(false);
+  useEffect(() => {
+    if (open && autoListen && !prevAutoListenRef.current) {
+      prevAutoListenRef.current = true;
+      const timer = setTimeout(() => {
+        if (!isListening) {
+          toggleListening();
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+    if (!open || !autoListen) {
+      prevAutoListenRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoListen, isListening]);
 
   // Clean, minimal text chips without emojis
   const quickChips = [

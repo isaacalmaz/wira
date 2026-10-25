@@ -4,4 +4,9 @@
     <string name="title_activity_main">Wira</string>
     <string name="package_name">com.wira.user</string>
     <string name="custom_url_scheme">com.wira.user</string>
+    <string name="widget_name">Wira AI Asisten</string>
+    <string name="widget_title">Wira AI</string>
+    <string name="widget_prompt_text">Mau ke mana atau pesan apa? Ketuk untuk pesan...</string>
+    <string name="widget_mic_desc">Bicara ke Wira AI</string>
+    <string name="widget_description">Widget Homescreen Wira AI untuk pesan transportasi dan layanan langsung dengan suara.</string>
 </resources>

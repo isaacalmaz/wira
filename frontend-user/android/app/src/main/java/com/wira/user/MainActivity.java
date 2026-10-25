@@ -1,6 +1,8 @@
 package com.wira.user;
 
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 
@@ -14,6 +16,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        normalizeWidgetIntent(getIntent());
+
         // Android 15+ draws apps edge-to-edge (no opt-out when targeting 36),
         // so pad the WebView clear of the status bar, navigation bar and keyboard.
         View content = findViewById(android.R.id.content);
@@ -28,5 +32,23 @@ public class MainActivity extends BridgeActivity {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return WindowInsetsCompat.CONSUMED;
         });
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        normalizeWidgetIntent(intent);
+        setIntent(intent);
+    }
+
+    private void normalizeWidgetIntent(Intent intent) {
+        if (intent == null) return;
+        boolean openAi = intent.getBooleanExtra("open_ai", false);
+        boolean autoListen = intent.getBooleanExtra("auto_listen", false);
+        if ((openAi || autoListen) && intent.getData() == null) {
+            String uriStr = "wira://ai?open_ai=" + openAi + "&auto_listen=" + autoListen;
+            intent.setData(Uri.parse(uriStr));
+            intent.setAction(Intent.ACTION_VIEW);
+        }
     }
 }

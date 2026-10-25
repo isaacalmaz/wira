@@ -36,11 +36,57 @@ export default function Layout() {
   // Home uses the screen width on desktop (two columns); other pages stay a reading column.
   const isHome = location.pathname === '/';
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [autoListen, setAutoListen] = useState(false);
+
+  const handleOpenAI = (opts = {}) => {
+    setAutoListen(!!opts.autoListen);
+    setIsAIOpen(true);
+  };
+
+  const handleCloseAI = () => {
+    setIsAIOpen(false);
+    setAutoListen(false);
+  };
 
   // Close AI Assistant Sheet upon page navigation so overlay never lingers
   useEffect(() => {
-    setIsAIOpen(false);
+    handleCloseAI();
   }, [location.pathname]);
+
+  // Handle Homescreen Widget & Deep Link triggers (wira://ai?open_ai=true&auto_listen=true)
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('open_ai') === 'true') {
+        handleOpenAI({ autoListen: searchParams.get('auto_listen') === 'true' });
+      }
+    } catch { /* ignore */ }
+
+    let removeSub = null;
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appUrlOpen', ({ url }) => {
+          if (!url) return;
+          try {
+            const isAiScheme = url.startsWith('wira://ai') || url.includes('/ai');
+            const hasOpenAi = url.includes('open_ai=true') || isAiScheme;
+            const hasAutoListen = url.includes('auto_listen=true');
+            if (hasOpenAi) {
+              handleOpenAI({ autoListen: hasAutoListen });
+            }
+          } catch (err) {
+            console.warn('Error handling deep link:', err);
+          }
+        }).then((sub) => {
+          removeSub = sub;
+        });
+      });
+    }
+
+    return () => {
+      removeSub?.remove?.();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -83,7 +129,7 @@ export default function Layout() {
       )}
       {/* Desktop sidebar */}
       <div className={`hidden md:block flex-shrink-0 transition-[width] duration-200 ${collapsed ? 'w-[76px]' : 'w-64'}`}>
-        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} onOpenAI={() => setIsAIOpen(true)} isAIOpen={isAIOpen} />
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} onOpenAI={() => handleOpenAI()} isAIOpen={isAIOpen} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -101,14 +147,14 @@ export default function Layout() {
         </main>
         {/* Mobile bottom nav */}
         <div className="md:hidden">
-          <BottomNav onOpenAI={() => setIsAIOpen(true)} isAIOpen={isAIOpen} />
+          <BottomNav onOpenAI={() => handleOpenAI()} isAIOpen={isAIOpen} />
         </div>
 
         {/* Wira AI Assistant Floating Action Button & Interactive Sheet */}
         {!isFullScreenPage && (
-          <AIAssistantFAB onClick={() => setIsAIOpen(true)} />
+          <AIAssistantFAB onClick={() => handleOpenAI()} />
         )}
-        <AIAssistantSheet open={isAIOpen} onClose={() => setIsAIOpen(false)} />
+        <AIAssistantSheet open={isAIOpen} autoListen={autoListen} onClose={handleCloseAI} />
       </div>
     </div>
   );
