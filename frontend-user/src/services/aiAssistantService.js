@@ -15,7 +15,7 @@ export async function sendAssistantMessage({ message, userId, lang = 'id', activ
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     const res = await fetch(`${API_BASE_URL}/assistant/chat`, {
       method: 'POST',
@@ -41,8 +41,128 @@ export async function sendAssistantMessage({ message, userId, lang = 'id', activ
     console.warn('Backend assistant endpoint unavailable, using client fallback:', err.message);
   }
 
-  // Client-side fallback with real Supabase data
+  // Client-side fallback with real Supabase data & local semantic parsing
   return await resolveClientAssistant({ query, queryLower, lang, activeOrders });
+}
+
+function resolveIsoDate(text, offsetDays = 1) {
+  if (text && /^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Confirm a booking draft created by Wira AI Assistant.
+ * Dispatches directly to backend /api/assistant/confirm-booking,
+ * with graceful client-side Supabase insertion fallback.
+ */
+export async function confirmAssistantBooking({ draft, userId, paymentMethod = 'cash' }) {
+  if (!draft || !draft.serviceType) {
+    throw new Error('Draf pesanan tidak valid.');
+  }
+
+  const selectedPaymentMethod = (paymentMethod || draft.paymentMethod || 'cash').toLowerCase();
+
+  // 1. Try backend confirmation endpoint
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(`${API_BASE_URL}/assistant/confirm-booking`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        draft,
+        userId,
+        paymentMethod: selectedPaymentMethod,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.orderId) {
+        return {
+          success: true,
+          orderId: data.orderId,
+          order: data.order,
+          trackingUrl: data.trackingUrl || `/active-order/${data.orderId}`,
+          message: data.message || 'Pesanan berhasil dikonfirmasi!',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Backend confirm-booking failed, falling back to direct client Supabase:', err.message);
+  }
+
+  // 2. Direct client Supabase fallback
+  const rawType = String(draft.serviceType || 'ride').toLowerCase();
+  const serviceType = rawType === 'asuh' ? 'babysit' : rawType;
+  const detailsObj = draft.details || {};
+  const orderRow = {
+    user_id: userId || null,
+    service_type: serviceType,
+    merchant_id: draft.merchantId || detailsObj.merchantId || null,
+    title: draft.title || `Pesanan ${draft.serviceName || serviceType}`,
+    details: typeof detailsObj === 'object' ? JSON.stringify(detailsObj) : String(detailsObj),
+    total_price: Number(draft.priceEstimate) || 0,
+    status: selectedPaymentMethod === 'qris' ? 'awaiting_payment' : 'pending',
+    payment_method: selectedPaymentMethod === 'qris' ? 'qris' : 'cash',
+    payment_status: 'unpaid',
+    pickup_lat: detailsObj.originCoords?.lat ?? -8.8955,
+    pickup_lng: detailsObj.originCoords?.lng ?? 116.2780,
+    dropoff_lat: detailsObj.destCoords?.lat ?? -8.8955,
+    dropoff_lng: detailsObj.destCoords?.lng ?? 116.2780,
+    delivery_fee: serviceType === 'food' ? 10000 : 0,
+    metadata: {
+      source: 'wira_ai_assistant',
+      draft_id: draft.draftId,
+      service_name: draft.serviceName,
+      booking_details: detailsObj,
+    },
+  };
+
+  if (serviceType === 'send') {
+    const validSizes = ['dokumen', 'kecil', 'sedang', 'besar', 'mobil'];
+    const rawSize = (detailsObj.packageSize || 'kecil').toLowerCase();
+    orderRow.package_size = validSizes.includes(rawSize) ? rawSize : 'kecil';
+  } else if (serviceType === 'villa') {
+    const nights = Number(detailsObj.nights) || 1;
+    orderRow.nights = Math.max(1, Math.min(30, nights));
+    const checkInIso = resolveIsoDate(detailsObj.checkInDate, 1);
+    const checkOutIso = resolveIsoDate(detailsObj.checkOutDate, 1 + orderRow.nights);
+    orderRow.check_in = checkInIso;
+    orderRow.check_out = checkOutIso;
+    orderRow.metadata.check_in = checkInIso;
+    orderRow.metadata.check_out = checkOutIso;
+  } else if (['service', 'pool', 'babysit', 'bersih'].includes(serviceType)) {
+    orderRow.scheduled_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .insert([orderRow])
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    success: true,
+    orderId: data.id,
+    order: data,
+    trackingUrl: `/active-order/${data.id}`,
+    message: 'Pesanan berhasil dikonfirmasi!',
+  };
 }
 
 const INTENT_PATTERNS = {
@@ -56,6 +176,9 @@ const INTENT_PATTERNS = {
     'nasi', 'sate', 'plecing', 'kangkung', 'resto', 'restoran', 'warung', 'cafe', 'kopi', 'nongkrong',
     'sarapan', 'maksi', 'dinner', 'ngemil', 'jajan', 'minum', 'kenyang', 'hangat', 'pedas', 'pedes',
     'pesen makan', 'pesan makan', 'keroncongan'
+  ],
+  send: [
+    'send', 'kirim', 'paket', 'dokumen', 'barang', 'titip', 'ekspedisi', 'antar paket', 'kurir'
   ],
   villa: [
     'villa', 'vilal', 'vila', 'nginep', 'inap', 'hotel', 'homestay', 'resort', 'tidur', 'staycation',
@@ -71,14 +194,14 @@ const INTENT_PATTERNS = {
   ],
   bersih: [
     'sampah', 'buang sampah', 'angkut sampah', 'bersih', 'bersihin', 'housekeeping', 'kotor',
-    'sampun bersih', 'sampun', 'pembuangan', 'kebersihan villa', 'sapu'
+    'sampun bersih', 'sampun', 'pembuangan', 'kebersihan villa', 'sapu', 'turnover'
   ],
   service: [
     'ac', 'cuci ac', 'ac panas', 'ac bocor', 'pipa', 'listrik', 'rusak', 'benerin', 'servis',
     'service', 'teknisi', 'tukang', 'kulkas', 'pompa air'
   ],
   asuh: [
-    'babysitter', 'asuh', 'jaga anak', 'titip anak', 'pengasuh', 'suster', 'balita', 'baby'
+    'babysitter', 'asuh', 'jaga anak', 'titip anak', 'pengasuh', 'suster', 'balita', 'baby', 'nanny'
   ],
   tracking: [
     'order', 'pesanan', 'status', 'lacak', 'posisi', 'driver', 'sudah sampai mana', 'kapan sampai',
@@ -116,6 +239,7 @@ function detectIntents(queryLower) {
   return scores;
 }
 
+// Client-side fallback handler
 async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   const isEn = lang === 'en';
   let reply;
@@ -124,12 +248,339 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   const sortedIntents = Object.entries(detectedIntents).sort((a, b) => b[1] - a[1]);
   const primaryIntent = sortedIntents[0]?.[0];
 
-  // 1. Villa Intent
+  const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim/i.test(queryLower);
+
+  // Direct Booking Draft synthesis in local client fallback
+  if (isBookingQuery) {
+    const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    // 1. WiraRide
+    if (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar/i.test(queryLower)) {
+      const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
+      const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
+      const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);
+
+      if (!keMatch && !dariMatch && !/kuta|bandara|lop|praya|mataram|senggigi|aan|belanak|mandalika/i.test(queryLower)) {
+        reply = isEn
+          ? 'Where would you like to be picked up and where are you going? (e.g. "Order a motorbike ride to Kuta Beach pickup at Airport now")'
+          : 'Mau dijemput di mana dan tujuannya ke mana? Beri tahu lokasi jemput dan tujuan Anda (contoh: "pesenin ojek motor ke Pantai Kuta jemput di Bandara sekarang").';
+        return { reply, widgets };
+      }
+
+      let origin = 'Bandara Internasional Lombok (LOP)';
+      let destination = 'Pantai Kuta Lombok';
+      if (keMatch && keMatch[1]?.trim()) destination = keMatch[1].trim();
+      if (dariMatch && dariMatch[1]?.trim()) origin = dariMatch[1].trim();
+
+      const price = isCar ? 85000 : 25000;
+      const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : 'WiraRide (Motor)';
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'ride',
+        serviceName: vName,
+        title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${origin} ➔ ${destination}`,
+        subtitle: isEn ? 'Verified local driver pickup in Lombok' : 'Mitra driver lokal terdekat siap menjemput di Lombok',
+        details: {
+          origin,
+          destination,
+          vehicleType: isCar ? 'car' : 'motor',
+          date: isEn ? 'Today' : 'Hari ini',
+          time: isEn ? 'Now' : 'Sekarang',
+          notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
+        },
+        priceEstimate: price,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `I have prepared your ${vName} booking from ${origin} to ${destination} with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
+        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${origin} menuju ${destination} dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah untuk memesan langsung!`;
+
+      return { reply, widgets };
+    }
+
+    // 2. WiraFood
+    if (detectedIntents.food || /makan|taliwang|puyung|ayam|porsi/i.test(queryLower)) {
+      if (!/taliwang|puyung|ayam|ikan|nasi|sate|plecing|porsi|resto|warung/i.test(queryLower)) {
+        reply = isEn
+          ? 'What would you like to order? You can tell me the dish or restaurant (e.g. "Order Ayam Taliwang Bu Mirah 2 portions").'
+          : 'Ingin memesan makanan apa? Beri tahu menu atau restoran yang Anda inginkan (contoh: "pesen Ayam Taliwang Bu Mirah 2 porsi").';
+        return { reply, widgets };
+      }
+
+      let restoName = 'Ayam Taliwang Bu Mirah';
+      let items = '2 porsi Ayam Taliwang Bu Mirah';
+      if (/puyung|nasi balap/i.test(queryLower)) {
+        restoName = 'Nasi Balap Puyung Inaq Esun';
+        items = 'Nasi Balap Puyung Spesial';
+      } else if (/taliwang/i.test(queryLower)) {
+        const pMatch = queryLower.match(/(\d+)\s*porsi/i);
+        items = pMatch ? `${pMatch[1]} porsi Ayam Taliwang Bu Mirah` : '2 porsi Ayam Taliwang Bu Mirah';
+      }
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'food',
+        serviceName: 'WiraFood',
+        title: `Pesan WiraFood: ${restoName}`,
+        subtitle: isEn ? 'Hot culinary delivery to your doorstep' : 'Pesanan makanan siap diantar driver terdekat ke lokasi Anda',
+        details: {
+          merchantName: restoName,
+          items,
+          destination: 'Kuta Lombok',
+          notes: 'Antar hangat',
+        },
+        priceEstimate: 55000,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `Your WiraFood draft from ${restoName} (${items}) is ready. Estimated cost is Rp 55.000. Tap below to confirm!`
+        : `Draf pesanan WiraFood dari ${restoName} (${items}) telah siap dengan estimasi total Rp 55.000. Silakan konfirmasi di bawah!`;
+
+      return { reply, widgets };
+    }
+
+    // 3. WiraSend
+    if (detectedIntents.send || /kirim|paket|dokumen|barang/i.test(queryLower)) {
+      const sendKe = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:dari|jemput|sekarang)|$)/i);
+      const sendDari = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
+
+      if (!sendKe && !sendDari && !/kuta|bandara|praya|mataram|senggigi/i.test(queryLower)) {
+        reply = isEn
+          ? 'What would you like to send and where should it go? (e.g. "Send package from Kuta to Mataram")'
+          : 'Mau kirim barang apa dan dari mana ke mana? Beri tahu lokasi jemput dan tujuan paket (contoh: "kirim paket dari Kuta ke Mataram").';
+        return { reply, widgets };
+      }
+
+      const origin = sendDari ? sendDari[1].trim() : 'Kuta Lombok';
+      const destination = sendKe ? sendKe[1].trim() : 'Kota Mataram';
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'send',
+        serviceName: 'WiraSend',
+        title: `Kirim Paket WiraSend: ${origin} ➔ ${destination}`,
+        subtitle: isEn ? 'Fast on-demand courier in Lombok' : 'Kurir instan kilat dan aman ke seluruh Lombok',
+        details: {
+          origin,
+          destination,
+          packageType: 'Dokumen / Paket Kilat',
+          packageSize: 'kecil',
+          recipientName: 'Penerima di lokasi',
+          notes: 'Hati-hati bawa paket',
+        },
+        priceEstimate: 25000,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? 'WiraSend courier draft created. Estimated fare is Rp 25.000. Confirm below to dispatch!'
+        : 'Draf pengiriman WiraSend sudah siap. Estimasi ongkir Rp 25.000. Silakan konfirmasi draf di bawah!';
+
+      return { reply, widgets };
+    }
+
+    // 4. WiraVilla
+    if (detectedIntents.villa || /kamar|villa|vila|nginep/i.test(queryLower)) {
+      if (!/talas|segara|kuta|malam|inap/i.test(queryLower) && !queryLower.match(/(?:villa|vila)\s+([a-zA-Z0-9\s]+)/i)) {
+        reply = isEn
+          ? 'Which villa would you like to book and for how many nights? (e.g. "Book a room at Villa Talas for 2 nights")'
+          : 'Mau sewa villa apa dan untuk berapa malam? Beri tahu nama villa dan durasi menginap Anda (contoh: "sewa kamar di Villa Talas buat 2 malam").';
+        return { reply, widgets };
+      }
+
+      const nightsMatch = queryLower.match(/(\d+)\s*malam/i);
+      const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : 2;
+
+      let vName = 'Villa Segara Kuta Lombok';
+      if (/talas/i.test(queryLower)) {
+        vName = 'Villa Talas';
+      }
+
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const checkOut = new Date(Date.now() + (nights + 1) * 86400000).toISOString().slice(0, 10);
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'villa',
+        serviceName: 'WiraVilla',
+        title: `Reservasi WiraVilla: ${vName}`,
+        subtitle: isEn ? 'Private villa with private pool & ocean view' : 'Villa privat eksklusif dengan fasilitas private pool di Lombok',
+        details: {
+          villaName: vName,
+          nights,
+          checkInDate: tomorrow,
+          checkOutDate: checkOut,
+          displayDate: 'Besok',
+          guests: 2,
+          notes: 'Reservasi kamar privat',
+        },
+        priceEstimate: nights * 850000,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `Reservation draft created for ${vName} (${nights} nights). Tap confirm below!`
+        : `Draf reservasi ${vName} untuk ${nights} malam telah siap. Silakan konfirmasi draf di bawah!`;
+
+      return { reply, widgets };
+    }
+
+    // 5. WiraBersih
+    if (detectedIntents.bersih || /sampah|housekeeping|bersih/i.test(queryLower)) {
+      const isHk = /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
+      const price = isHk ? 150000 : 45000;
+      const label = isHk ? 'Housekeeping Villa' : 'Pengangkutan Sampah (Sampun Bersih)';
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'bersih',
+        serviceName: 'WiraBersih (Sampun Bersih)',
+        title: `Layanan WiraBersih: ${label}`,
+        subtitle: isEn ? 'Eco-friendly waste management & villa cleaning' : 'Pengangkutan sampah rutin & kebersihan villa ramah lingkungan Kuta Lombok',
+        details: {
+          subType: isHk ? 'housekeeping' : 'sampah',
+          address: 'Kuta Lombok',
+          date: 'Besok pagi',
+          time: 'Pagi / Jam kerja',
+          notes: 'Sampun Bersih Kuta Lombok',
+        },
+        priceEstimate: price,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `WiraBersih (${label}) booking draft created. Price: Rp ${price.toLocaleString('id-ID')}. Tap confirm below!`
+        : `Draf pesanan WiraBersih (${label}) telah disiapkan dengan tarif Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah!`;
+
+      return { reply, widgets };
+    }
+
+    // 6. WiraPool
+    if (detectedIntents.pool || /kolam|kuras/i.test(queryLower)) {
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'pool',
+        serviceName: 'WiraPool',
+        title: 'Perawatan & Kuras Kolam Renang (WiraPool)',
+        subtitle: isEn ? 'Water testing, tile vacuum, & chemical balancing' : 'Pembersihan lumut, vacuum, dan penyeimbangan kadar air & kaporit/pH',
+        details: {
+          serviceCategory: 'Perawatan Kolam Villa Rutin & Kuras',
+          address: 'Villa Kuta Lombok',
+          date: 'Hari ini',
+          notes: 'Pengecekan kualitas air dan vacuum kolam',
+        },
+        priceEstimate: 150000,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? 'WiraPool maintenance draft ready at Rp 150.000. Confirm below to schedule your technician!'
+        : 'Draf perawatan kolam renang WiraPool telah siap dengan estimasi biaya Rp 150.000. Silakan konfirmasi di bawah!';
+
+      return { reply, widgets };
+    }
+
+    // 7. WiraService
+    if (detectedIntents.service || detectedIntents.excavator || /ac|teknisi|tukang|excavator|bego|pipa|listrik/i.test(queryLower)) {
+      const isExcavator = /excavator|ekskavator|bego|alat berat/i.test(queryLower);
+
+      if (!isExcavator && !/ac|listrik|pipa|kulkas|pompa|bego|alat berat/i.test(queryLower)) {
+        reply = isEn
+          ? 'What kind of repair or service do you need? We provide AC servicing, electrical, plumbing, and mini excavator rental (e.g. "Call AC technician tomorrow morning").'
+          : 'Butuh teknisi atau alat apa? Kami melayani servis AC, perbaikan pipa/listrik, hingga sewa excavator mini di Lombok (contoh: "panggil tukang AC besok pagi" atau "sewa excavator mini di Praya").';
+        return { reply, widgets };
+      }
+
+      let addr = isExcavator ? 'Praya, Lombok Tengah' : 'Kuta Lombok';
+      if (/praya/i.test(queryLower)) addr = 'Praya, Lombok Tengah';
+      else if (/kuta/i.test(queryLower)) addr = 'Kuta Lombok';
+      else if (/mataram/i.test(queryLower)) addr = 'Kota Mataram';
+
+      const price = isExcavator ? 250000 : 85000;
+      const title = isExcavator ? 'Sewa Excavator Mini PC-50 (WiraService)' : 'Servis Teknisi AC (WiraService)';
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'service',
+        serviceName: 'WiraService',
+        title,
+        subtitle: isExcavator
+          ? (isEn ? 'Heavy equipment with certified operator & fuel' : 'Alat berat lengkap operator & solar untuk proyek lahan Lombok')
+          : (isEn ? 'Certified technician for AC, electrical, or plumbing' : 'Teknisi terverifikasi untuk perbaikan rumah dan villa'),
+        details: {
+          serviceCategory: isExcavator ? 'excavator' : 'ac',
+          problemDescription: isExcavator ? 'Sewa Excavator Mini PC-50' : 'Cuci & Servis AC Villa',
+          address: addr,
+          date: 'Besok pagi',
+          notes: 'Mitra teknisi profesional',
+        },
+        priceEstimate: price,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `WiraService booking draft created (${title}). Estimated rate: Rp ${price.toLocaleString('id-ID')}. Tap confirm below!`
+        : `Draf pemesanan WiraService (${title}) telah disiapkan dengan estimasi biaya Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah!`;
+
+      return { reply, widgets };
+    }
+
+    // 8. WiraAsuh
+    if (detectedIntents.asuh || /baby\s*sitter|babysitter|asuh|balita|anak/i.test(queryLower)) {
+      const hoursMatch = queryLower.match(/(\d+)\s*jam/i);
+      const durationHours = hoursMatch ? parseInt(hoursMatch[1], 10) : 4;
+      const price = durationHours * 50000;
+
+      widgets.push({
+        type: 'booking_draft',
+        draftId,
+        serviceType: 'babysit',
+        serviceName: 'WiraAsuh',
+        title: `Pesan WiraAsuh: Babysitter & Pengasuh Anak (${durationHours} Jam)`,
+        subtitle: isEn ? 'Verified caring nanny directly to your villa or home' : 'Pengasuh anak terpercaya dan tersertifikasi datang langsung ke villa/rumah',
+        details: {
+          careType: 'Pengasuh Balita / Babysitter Harian',
+          durationHours,
+          childrenCount: 1,
+          address: 'Kuta Lombok',
+          date: 'Hari ini',
+          notes: 'Pengasuh ramah dan berpengalaman',
+        },
+        priceEstimate: price,
+        paymentMethod: 'cash',
+        status: 'draft',
+      });
+
+      reply = isEn
+        ? `WiraAsuh childcare draft ready for ${durationHours} hours. Estimated fee: Rp ${price.toLocaleString('id-ID')}. Confirm below to book!`
+        : `Draf pemesanan WiraAsuh untuk ${durationHours} jam telah siap dengan tarif Rp ${price.toLocaleString('id-ID')}. Silakan konfirmasi di bawah!`;
+
+      return { reply, widgets };
+    }
+  }
+
+  // 1. Villa Intent (Catalog browse)
   if (primaryIntent === 'villa') {
     try {
-      // Check if specific name mentioned
       const stopWords = new Set(['villa', 'vila', 'cari', 'yang', 'dengan', 'pantai', 'inap', 'nginep', 'sewa', 'booking', 'rekomendasi', 'lombok', 'kuta']);
-      const words = queryLower.split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
+      const words = queryLower.split(/\s+/).filter((w) => w.length > 3 && !stopWords.has(w));
       let specificFound = false;
 
       for (const w of words) {
@@ -204,11 +655,11 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
       : 'Tentu! Berikut rekomendasi villa privat terbaik di Lombok dengan fasilitas private pool yang bisa Anda pesan langsung:';
   }
 
-  // 2. Food Intent
+  // 2. Food Intent (Catalog browse)
   else if (primaryIntent === 'food') {
     try {
       const foodStopWords = new Set(['makan', 'food', 'kuliner', 'lapar', 'laper', 'ayam', 'ikan', 'nasi', 'resto', 'restoran', 'warung', 'kuta', 'lombok']);
-      const foodWords = queryLower.split(/\s+/).filter(w => w.length > 3 && !foodStopWords.has(w));
+      const foodWords = queryLower.split(/\s+/).filter((w) => w.length > 3 && !foodStopWords.has(w));
       let specificFound = false;
 
       for (const w of foodWords) {

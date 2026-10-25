@@ -32,6 +32,7 @@ export const OrderProvider = ({ children }) => {
     else if (o.service_type === 'service') uiService = 'WiraService';
     else if (o.service_type === 'pool') uiService = 'WiraPool';
     else if (o.service_type === 'babysit') uiService = 'WiraAsuh';
+    else if (o.service_type === 'bersih') uiService = 'WiraBersih';
 
     return {
       ...o,

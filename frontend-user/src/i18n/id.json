@@ -875,7 +875,8 @@
       "service": "WiraService",
       "pool": "WiraPool",
       "pulsa": "WiraPulsa",
-      "babysit": "WiraAsuh"
+      "babysit": "WiraAsuh",
+      "bersih": "WiraBersih"
     },
     "qris_pay_title": "Bayar dengan QRIS",
     "qris_loading_amount": "Menyiapkan nominal...",

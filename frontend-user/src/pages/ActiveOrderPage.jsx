@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { pickupIcon, dropoffIcon, driverIcon } from '../components/common/WiraMap';
 import { fetchRoute } from '../utils/osmHelpers';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, MessageCircle, Share2, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby } from 'lucide-react';
+import { ChevronLeft, Send, Image as ImageIcon, Phone, MessageSquare, MessageCircle, Share2, ShieldCheck, AlertCircle, Route, Bike, Package, UtensilsCrossed, Wrench, Waves, Star, Baby, Sparkles } from 'lucide-react';
 import { Badge, Button, Card, IconTile, Money, Notice, Sheet, Spinner, cx } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useOrderDispatch } from '../hooks/useOrderDispatch';
@@ -38,7 +38,7 @@ const statusTone = (status) => {
   return 'brand';
 };
 
-const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, babysit: Baby };
+const SERVICE_ICONS = { ride: Bike, send: Package, food: UtensilsCrossed, service: Wrench, pool: Waves, babysit: Baby, bersih: Sparkles };
 
 function haversineMeters(a, b) {
   if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
