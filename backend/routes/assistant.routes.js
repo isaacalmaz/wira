@@ -246,7 +246,7 @@ ${JSON.stringify(dbContext)}
 
 Return a concise response. If relevant, mention that interactive cards are provided below for 1-tap booking or tracking.`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
         const response = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -258,7 +258,7 @@ Return a concise response. If relevant, mention that interactive cards are provi
               },
             ],
             generationConfig: {
-              maxOutputTokens: 500,
+              maxOutputTokens: 600,
               temperature: 0.7,
             },
           }),
@@ -266,11 +266,12 @@ Return a concise response. If relevant, mention that interactive cards are provi
 
         if (response.ok) {
           const geminiData = await response.json();
-          const replyText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (replyText) {
+          const parts = geminiData.candidates?.[0]?.content?.parts || [];
+          const textPart = parts.find((p) => p.text)?.text;
+          if (textPart) {
             return res.json({
               success: true,
-              reply: replyText,
+              reply: textPart,
               widgets: buildWidgets(queryLower, dbContext, detectedIntents),
             });
           }
