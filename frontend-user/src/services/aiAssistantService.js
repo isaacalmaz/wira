@@ -45,35 +45,143 @@ export async function sendAssistantMessage({ message, userId, lang = 'id', activ
   return await resolveClientAssistant({ query, queryLower, lang, activeOrders });
 }
 
+const INTENT_PATTERNS = {
+  ride: [
+    'ride', 'ojek', 'taksi', 'taxi', 'motor', 'mobil', 'jemput', 'antar', 'anterin', 'tumpangan',
+    'bonceng', 'jalan-jalan', 'keliling', 'bandara', 'airport', 'lop', 'senggigi',
+    'praya', 'pantai', 'selong belanak', 'tanjung aan', 'mandalika', 'transport', 'transportasi', 'go'
+  ],
+  food: [
+    'makan', 'food', 'kuliner', 'lapar', 'laper', 'taliwang', 'puyung', 'ayam', 'ikan', 'seafood',
+    'nasi', 'sate', 'plecing', 'kangkung', 'resto', 'restoran', 'warung', 'cafe', 'kopi', 'nongkrong',
+    'sarapan', 'maksi', 'dinner', 'ngemil', 'jajan', 'minum', 'kenyang', 'hangat', 'pedas', 'pedes',
+    'pesen makan', 'pesan makan', 'keroncongan'
+  ],
+  villa: [
+    'villa', 'vilal', 'vila', 'nginep', 'inap', 'hotel', 'homestay', 'resort', 'tidur', 'staycation',
+    'stay', 'kamar', 'private pool', 'ocean view', 'sewa villa', 'booking villa', 'penginapan'
+  ],
+  excavator: [
+    'excavator', 'ekskavator', 'bego', 'alat berat', 'ratain tanah', 'timbun', 'urug', 'proyek',
+    'pondasi', 'pengerukan', 'gali'
+  ],
+  pool: [
+    'kolam', 'pool', 'kuras', 'air keruh', 'air hijau', 'lumut', 'kaporit', 'chlorine', 'vacuum',
+    'perawatan kolam', 'maintenance kolam', 'kuras kolam', 'bersihin kolam'
+  ],
+  bersih: [
+    'sampah', 'buang sampah', 'angkut sampah', 'bersih', 'bersihin', 'housekeeping', 'kotor',
+    'sampun bersih', 'sampun', 'pembuangan', 'kebersihan villa', 'sapu'
+  ],
+  service: [
+    'ac', 'cuci ac', 'ac panas', 'ac bocor', 'pipa', 'listrik', 'rusak', 'benerin', 'servis',
+    'service', 'teknisi', 'tukang', 'kulkas', 'pompa air'
+  ],
+  asuh: [
+    'babysitter', 'asuh', 'jaga anak', 'titip anak', 'pengasuh', 'suster', 'balita', 'baby'
+  ],
+  tracking: [
+    'order', 'pesanan', 'status', 'lacak', 'posisi', 'driver', 'sudah sampai mana', 'kapan sampai',
+    'cek order', 'cek pesanan'
+  ],
+  payment: [
+    'bayar', 'pembayaran', 'qris', 'tunai', 'cash', 'cara bayar', 'batal', 'cancel', 'bantuan', 'cs', 'wirapay', 'saldo'
+  ]
+};
+
+function detectIntents(queryLower) {
+  const scores = {};
+  for (const [domain, keywords] of Object.entries(INTENT_PATTERNS)) {
+    let score = 0;
+    for (const kw of keywords) {
+      if (queryLower.includes(kw)) {
+        score += (kw.length > 5 ? 3 : 1);
+      }
+    }
+    if (score > 0) scores[domain] = score;
+  }
+
+  // Disambiguation
+  if (scores.pool && scores.villa) {
+    if (queryLower.match(/kuras|keruh|hijau|lumut|kaporit|chlorine|vacuum|perawatan kolam/i)) {
+      scores.pool += 5;
+    }
+  }
+  if (scores.bersih && scores.villa) {
+    if (queryLower.match(/sampah|buang|angkut|kotor|bersih|housekeeping/i)) {
+      scores.bersih += 5;
+    }
+  }
+
+  return scores;
+}
+
 async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   const isEn = lang === 'en';
   let reply;
   const widgets = [];
+  const detectedIntents = detectIntents(queryLower);
+  const sortedIntents = Object.entries(detectedIntents).sort((a, b) => b[1] - a[1]);
+  const primaryIntent = sortedIntents[0]?.[0];
 
   // 1. Villa Intent
-  if (queryLower.match(/villa|inap|stay|kamar|hotel|kolam/i)) {
+  if (primaryIntent === 'villa') {
     try {
-      const { data: villas } = await supabase
-        .from('merchants')
-        .select('id, name, address, rating, price_per_night, photos')
-        .eq('service_type', 'villa')
-        .eq('listing_status', 'approved')
-        .limit(2);
+      // Check if specific name mentioned
+      const stopWords = new Set(['villa', 'vila', 'cari', 'yang', 'dengan', 'pantai', 'inap', 'nginep', 'sewa', 'booking', 'rekomendasi', 'lombok', 'kuta']);
+      const words = queryLower.split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
+      let specificFound = false;
 
-      if (villas && villas.length > 0) {
-        villas.forEach((v) => {
-          widgets.push({
-            type: 'villa',
-            id: v.id,
-            title: v.name,
-            address: v.address || 'Kuta Lombok',
-            price: v.price_per_night || 750000,
-            rating: v.rating || 4.9,
-            image: v.photos?.[0] || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=600&q=80',
-            ctaText: isEn ? 'Book on WiraVilla →' : 'Pesan di WiraVilla →',
-            ctaPath: '/villa',
+      for (const w of words) {
+        const { data: specific } = await supabase
+          .from('merchants')
+          .select('id, name, address, rating, price_per_night, photos')
+          .eq('service_type', 'villa')
+          .ilike('name', `%${w}%`)
+          .limit(2);
+
+        if (specific && specific.length > 0) {
+          specific.forEach((v) => {
+            widgets.push({
+              type: 'villa',
+              id: v.id,
+              title: v.name,
+              address: v.address || 'Kuta Lombok',
+              price: v.price_per_night || 850000,
+              rating: v.rating || 4.9,
+              image: v.photos?.[0] || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=600&q=80',
+              ctaText: isEn ? 'Book on WiraVilla →' : 'Pesan di WiraVilla →',
+              ctaPath: '/villa',
+            });
           });
-        });
+          specificFound = true;
+          break;
+        }
+      }
+
+      if (!specificFound) {
+        const { data: villas } = await supabase
+          .from('merchants')
+          .select('id, name, address, rating, price_per_night, photos')
+          .eq('service_type', 'villa')
+          .eq('listing_status', 'approved')
+          .limit(2);
+
+        if (villas && villas.length > 0) {
+          villas.forEach((v) => {
+            widgets.push({
+              type: 'villa',
+              id: v.id,
+              title: v.name,
+              address: v.address || 'Kuta Lombok',
+              price: v.price_per_night || 750000,
+              rating: v.rating || 4.9,
+              image: v.photos?.[0] || 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=600&q=80',
+              ctaText: isEn ? 'Book on WiraVilla →' : 'Pesan di WiraVilla →',
+              ctaPath: '/villa',
+            });
+          });
+        }
       }
     } catch { /* ignore fallback error */ }
 
@@ -97,29 +205,62 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   }
 
   // 2. Food Intent
-  else if (queryLower.match(/makan|food|kuliner|taliwang|puyung|resto|lapar|ayam/i)) {
+  else if (primaryIntent === 'food') {
     try {
-      const { data: foods } = await supabase
-        .from('merchants')
-        .select('id, name, address, rating, image, photos, category')
-        .eq('service_type', 'food')
-        .eq('listing_status', 'approved')
-        .limit(2);
+      const foodStopWords = new Set(['makan', 'food', 'kuliner', 'lapar', 'laper', 'ayam', 'ikan', 'nasi', 'resto', 'restoran', 'warung', 'kuta', 'lombok']);
+      const foodWords = queryLower.split(/\s+/).filter(w => w.length > 3 && !foodStopWords.has(w));
+      let specificFound = false;
 
-      if (foods && foods.length > 0) {
-        foods.forEach((f) => {
-          widgets.push({
-            type: 'food',
-            id: f.id,
-            title: f.name,
-            address: f.address || 'Kuta Lombok',
-            category: f.category || 'Kuliner Lombok',
-            rating: f.rating || 4.8,
-            image: f.image || f.photos?.[0] || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-            ctaText: isEn ? 'View Menu →' : 'Buka Menu Restoran →',
-            ctaPath: `/restaurant/${f.id}`,
+      for (const w of foodWords) {
+        const { data: specificFood } = await supabase
+          .from('merchants')
+          .select('id, name, address, rating, image, photos, category')
+          .eq('service_type', 'food')
+          .ilike('name', `%${w}%`)
+          .limit(2);
+
+        if (specificFood && specificFood.length > 0) {
+          specificFood.forEach((f) => {
+            widgets.push({
+              type: 'food',
+              id: f.id,
+              title: f.name,
+              address: f.address || 'Kuta Lombok',
+              category: f.category || 'Kuliner Khas Lombok',
+              rating: f.rating || 4.8,
+              image: f.image || f.photos?.[0] || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+              ctaText: isEn ? 'View Menu →' : 'Buka Menu Restoran →',
+              ctaPath: `/restaurant/${f.id}`,
+            });
           });
-        });
+          specificFound = true;
+          break;
+        }
+      }
+
+      if (!specificFound) {
+        const { data: foods } = await supabase
+          .from('merchants')
+          .select('id, name, address, rating, image, photos, category')
+          .eq('service_type', 'food')
+          .eq('listing_status', 'approved')
+          .limit(2);
+
+        if (foods && foods.length > 0) {
+          foods.forEach((f) => {
+            widgets.push({
+              type: 'food',
+              id: f.id,
+              title: f.name,
+              address: f.address || 'Kuta Lombok',
+              category: f.category || 'Kuliner Lombok',
+              rating: f.rating || 4.8,
+              image: f.image || f.photos?.[0] || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+              ctaText: isEn ? 'View Menu →' : 'Buka Menu Restoran →',
+              ctaPath: `/restaurant/${f.id}`,
+            });
+          });
+        }
       }
     } catch { /* ignore */ }
 
@@ -144,7 +285,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   }
 
   // 3. Active Order Tracking Intent
-  else if (queryLower.match(/order|pesanan|status|lacak|driver/i)) {
+  else if (primaryIntent === 'tracking') {
     const active = (activeOrders || []).find((o) => {
       const s = String(o.rawStatus || '').toLowerCase();
       return s && !['completed', 'cancelled', 'canceled', 'rejected'].includes(s);
@@ -170,7 +311,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   }
 
   // 4. Heavy Equipment / Excavator Intent
-  else if (queryLower.match(/excavator|alat berat|bego|proyek|urug/i)) {
+  else if (primaryIntent === 'excavator') {
     widgets.push({
       type: 'service',
       serviceKey: 'service',
@@ -187,7 +328,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   }
 
   // 5. Pool Intent
-  else if (queryLower.match(/kolam|pool|chlorine|kaporit|lumut/i)) {
+  else if (primaryIntent === 'pool') {
     widgets.push({
       type: 'service',
       serviceKey: 'pool',
@@ -204,7 +345,7 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
   }
 
   // 6. Housekeeping / Sampun Bersih Intent
-  else if (queryLower.match(/sampah|bersih|housekeeping|sampun/i)) {
+  else if (primaryIntent === 'bersih') {
     widgets.push({
       type: 'service',
       serviceKey: 'bersih',
@@ -218,8 +359,38 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
       : 'Sampun Bersih (WiraBersih) melayani kebersihan villa dan pengangkutan sampah rutin terjadwal di wilayah Kuta Lombok.';
   }
 
-  // 7. Ride Intent
-  else if (queryLower.match(/ride|ojek|taksi|motor|mobil|bandara|antar/i)) {
+  // 7. Service / Technician Intent
+  else if (primaryIntent === 'service') {
+    widgets.push({
+      type: 'service',
+      serviceKey: 'service',
+      title: 'Teknisi & Servis AC / Perbaikan',
+      subtitle: 'Servis AC, Pompa Air & Perbaikan Listrik Terverifikasi',
+      ctaText: isEn ? 'Book Technician →' : 'Panggil Teknisi →',
+      ctaPath: '/service',
+    });
+    reply = isEn
+      ? 'Need an AC repair, electrical, or plumbing technician? Verified technicians from WiraService are ready to visit.'
+      : 'Butuh teknisi servis AC, perbaikan pipa, atau instalasi listrik? Teknisi terverifikasi di WiraService siap datang ke rumah atau villa Anda.';
+  }
+
+  // 8. Babysitter / Child Care Intent
+  else if (primaryIntent === 'asuh') {
+    widgets.push({
+      type: 'service',
+      serviceKey: 'asuh',
+      title: 'Pengasuh Anak (WiraAsuh)',
+      subtitle: 'Babysitter & Nanny Terpercaya di Lombok',
+      ctaText: isEn ? 'Book Babysitter →' : 'Pesan Pengasuh Anak →',
+      ctaPath: '/asuh',
+    });
+    reply = isEn
+      ? 'Looking for a trusted babysitter or nanny in Lombok? WiraAsuh provides experienced caregivers directly to your location.'
+      : 'Mencari pengasuh anak atau babysitter terpercaya di Lombok? WiraAsuh menyediakan perawat anak berpengalaman yang siap datang ke lokasi Anda.';
+  }
+
+  // 9. Ride Intent
+  else if (primaryIntent === 'ride') {
     widgets.push({
       type: 'ride',
       title: isEn ? 'Book WiraRide' : 'Pesan WiraRide Sekarang',
@@ -230,6 +401,13 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [] }) {
     reply = isEn
       ? 'Need a motorcycle or car ride? WiraRide connects you to trusted local drivers with transparent pricing.'
       : 'Butuh tumpangan motor atau mobil? WiraRide menghubungkan Anda dengan mitra driver lokal terpercaya di Lombok.';
+  }
+
+  // 10. Payment Info Intent
+  else if (primaryIntent === 'payment') {
+    reply = isEn
+      ? 'Wira supports Cash payments and instant QRIS for every order. WiraPay digital wallet is currently deactivated for regulatory compliance.'
+      : 'Wira mendukung pembayaran Tunai langsung dan QRIS di setiap pemesanan. Saldo WiraPay saat ini sedang dinonaktifkan sesuai regulasi.';
   }
 
   // Default Fallback
