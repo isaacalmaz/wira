@@ -7,9 +7,8 @@ import {
   Clock,
   Check,
   ChevronRight,
-  ArrowLeft,
   QrCode,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../config/supabase';
@@ -24,7 +23,10 @@ import {
   Segmented,
   Money,
   Spinner,
-  Field
+  Field,
+  PageHeader,
+  IconTile,
+  Notice,
 } from '../components/ui';
 import AddressMapPicker from '../components/common/AddressMapPicker';
 
@@ -235,160 +237,165 @@ export default function BersihPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg min-h-screen pb-24 text-ink">
-      {/* Top Header */}
-      <div className="sticky top-0 z-20 bg-ground/90 backdrop-blur-md border-b border-line px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => (activeForm !== 'none' ? setActiveForm('none') : navigate('/'))}
-            className="flex h-10 w-10 items-center justify-center rounded-control bg-card text-ink border border-line hover:bg-sunken transition"
-            aria-label={t('bersih.back')}
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-[17px] font-bold text-ink leading-none">{t('bersih.title')}</h1>
-              <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-ink">
-                {t('bersih.by_partner')}
+    <div className="mx-auto flex max-w-2xl flex-col gap-5 pb-32">
+      {/* HEADER NAVIGASI */}
+      <PageHeader
+        back={activeForm !== 'none' ? '#' : '/'}
+        onBack={activeForm !== 'none' ? () => setActiveForm('none') : undefined}
+        backLabel={t('common.back')}
+        eyebrow="WiraBersih"
+        title={
+          activeForm === 'subscribe'
+            ? t('bersih.form_sub_title')
+            : activeForm === 'housekeeping'
+            ? t('bersih.form_hk_title')
+            : activeForm === 'quote'
+            ? t('bersih.form_bulk_title')
+            : (
+              <span className="flex flex-wrap items-center gap-2">
+                <span>{t('bersih.title')}</span>
+                <span className="inline-flex items-center rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand-ink">
+                  {t('bersih.by_partner')}
+                </span>
               </span>
+            )
+        }
+        subtitle={
+          activeForm === 'none'
+            ? t('bersih.subtitle')
+            : undefined
+        }
+        className="mb-0"
+      />
+
+      {/* Navigation Tabs (Only in services root) */}
+      {activeForm === 'none' && (
+        <Segmented
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: 'services', label: t('bersih.tab_services') },
+            { value: 'history', label: t('bersih.tab_history') },
+          ]}
+        />
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 1: KATALOG LAYANAN                                         */}
+      {/* ============================================================== */}
+      {activeTab === 'services' && activeForm === 'none' && (
+        <div className="flex flex-col gap-3.5">
+          {/* Service 1: Sampah Rutin Villa */}
+          <Card
+            interactive
+            className="p-4 sm:p-5 transition hover:border-brand-line hover:shadow-sm"
+            onClick={() => setActiveForm('subscribe')}
+          >
+            <div className="flex items-start gap-3.5">
+              <IconTile tone="brand" size="md">
+                <Home size={22} />
+              </IconTile>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <h3 className="text-[15.5px] font-bold text-ink leading-snug">
+                    {t('bersih.svc_waste_title')}
+                  </h3>
+                  <Badge tone="brand" className="text-[10.5px] font-bold shrink-0">
+                    {t('bersih.svc_waste_badge')}
+                  </Badge>
+                </div>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                  {t('bersih.svc_waste_desc')}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-brand-ink">
+                  <Clock size={13} className="shrink-0" />
+                  <span>{t('bersih.svc_waste_route')}</span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
             </div>
-            <p className="text-[11.5px] text-ink-muted">{t('bersih.subtitle')}</p>
-          </div>
+          </Card>
+
+          {/* Service 2: Housekeeping Villa */}
+          <Card
+            interactive
+            className="p-4 sm:p-5 transition hover:border-brand-line hover:shadow-sm"
+            onClick={() => setActiveForm('housekeeping')}
+          >
+            <div className="flex items-start gap-3.5">
+              <IconTile tone="pay" size="md">
+                <Sparkles size={22} />
+              </IconTile>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <h3 className="text-[15.5px] font-bold text-ink leading-snug">
+                    {t('bersih.svc_hk_title')}
+                  </h3>
+                  <Badge tone="success" className="text-[10.5px] font-bold shrink-0">
+                    {t('bersih.svc_hk_badge')}
+                  </Badge>
+                </div>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                  {t('bersih.svc_hk_desc')}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-success-ink">
+                  <CheckCircle2 size={13} className="shrink-0 text-success" />
+                  <span>{t('bersih.svc_hk_std')}</span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
+            </div>
+          </Card>
+
+          {/* Service 3: Angkut Borongan */}
+          <Card
+            interactive
+            className="p-4 sm:p-5 transition hover:border-brand-line hover:shadow-sm"
+            onClick={() => setActiveForm('quote')}
+          >
+            <div className="flex items-start gap-3.5">
+              <IconTile tone="neutral" size="md">
+                <Truck size={22} />
+              </IconTile>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <h3 className="text-[15.5px] font-bold text-ink leading-snug">
+                    {t('bersih.svc_bulk_title')}
+                  </h3>
+                  <Badge tone="neutral" className="text-[10.5px] font-bold shrink-0">
+                    {t('bersih.svc_bulk_badge')}
+                  </Badge>
+                </div>
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                  {t('bersih.svc_bulk_desc')}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-ink-muted">
+                  <Truck size={13} className="shrink-0" />
+                  <span>{t('bersih.svc_bulk_fleet')}</span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
+            </div>
+          </Card>
         </div>
-      </div>
+      )}
 
-      <div className="p-4 space-y-4">
-        {/* Navigation Tabs */}
-        {activeForm === 'none' && (
-          <Segmented
-            value={activeTab}
-            onChange={setActiveTab}
-            options={[
-              { value: 'services', label: t('bersih.tab_services') },
-              { value: 'history', label: t('bersih.tab_history') },
-            ]}
-          />
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 1: KATALOG LAYANAN                                         */}
-        {/* ============================================================== */}
-        {activeTab === 'services' && activeForm === 'none' && (
-          <div className="space-y-3">
-            {/* Service 1: Sampah Rutin Villa */}
-            <Card
-              className="cursor-pointer hover:border-brand transition"
-              onClick={() => setActiveForm('subscribe')}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-brand-soft text-brand-ink">
-                    <Home size={22} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_waste_title')}</h3>
-                      <Badge tone="brand">{t('bersih.svc_waste_badge')}</Badge>
-                    </div>
-                    <p className="text-[12px] text-ink-muted mt-1">
-                      {t('bersih.svc_waste_desc')}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-brand-ink">
-                      <Clock size={12} />
-                      <span>{t('bersih.svc_waste_route')}</span>
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
-              </div>
-            </Card>
-
-            {/* Service 2: Housekeeping Villa */}
-            <Card
-              className="cursor-pointer hover:border-brand transition"
-              onClick={() => setActiveForm('housekeeping')}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-pay-soft text-pay-ink">
-                    <Sparkles size={22} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_hk_title')}</h3>
-                      <Badge tone="warning">{t('bersih.svc_hk_badge')}</Badge>
-                    </div>
-                    <p className="text-[12px] text-ink-muted mt-1">
-                      {t('bersih.svc_hk_desc')}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-ink-muted">
-                      <CheckCircle2 size={12} className="text-success" />
-                      <span>{t('bersih.svc_hk_std')}</span>
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
-              </div>
-            </Card>
-
-            {/* Service 3: Angkut Borongan */}
-            <Card
-              className="cursor-pointer hover:border-brand transition"
-              onClick={() => setActiveForm('quote')}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-sunken text-ink">
-                    <Truck size={22} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-ink">{t('bersih.svc_bulk_title')}</h3>
-                      <Badge tone="neutral">{t('bersih.svc_bulk_badge')}</Badge>
-                    </div>
-                    <p className="text-[12px] text-ink-muted mt-1">
-                      {t('bersih.svc_bulk_desc')}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-ink-muted">
-                      <Truck size={12} />
-                      <span>{t('bersih.svc_bulk_fleet')}</span>
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-ink-muted shrink-0 mt-1" />
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* FORM 1: DAFTAR LANGGANAN SAMPAH VILLA                          */}
-        {/* ============================================================== */}
-        {activeForm === 'subscribe' && (
-          <form onSubmit={handleSubscribeSubmit} className="space-y-4">
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_sub_title')}</h2>
-              <button
-                type="button"
-                onClick={() => setActiveForm('none')}
-                className="text-[12px] font-semibold text-ink-muted hover:text-ink"
-              >
-                {t('bersih.close')}
-              </button>
-            </div>
-
+      {/* ============================================================== */}
+      {/* FORM 1: DAFTAR LANGGANAN SAMPAH VILLA                          */}
+      {/* ============================================================== */}
+      {activeForm === 'subscribe' && (
+        <Card className="p-4 sm:p-5">
+          <form onSubmit={handleSubscribeSubmit} className="flex flex-col gap-4">
             <Field label={t('bersih.form_sub_property')} required>
               <Input
                 placeholder={t('bersih.form_sub_property_ph')}
                 value={subProperty}
-                onChange={e => setSubProperty(e.target.value)}
+                onChange={(e) => setSubProperty(e.target.value)}
               />
             </Field>
 
-            {/* Titik Koordinat Peta (DI ATAS ALAMAT LENGKAP) */}
-            <div className="space-y-2">
+            {/* Titik Koordinat Peta */}
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_map_title')}</label>
                 <span className="text-[11px] font-semibold text-brand-ink">{t('bersih.form_sub_map_gate')}</span>
@@ -405,7 +412,7 @@ export default function BersihPage() {
             </div>
 
             {/* Tipe Properti */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_type')}</label>
               <div className="grid grid-cols-2 gap-2 text-[12px]">
                 {[
@@ -413,12 +420,16 @@ export default function BersihPage() {
                   { id: 'villa_complex', label: t('bersih.form_sub_type_complex') },
                   { id: 'homestay', label: t('bersih.form_sub_type_homestay') },
                   { id: 'restaurant', label: t('bersih.form_sub_type_restaurant') },
-                ].map(item => (
+                ].map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setSubType(item.id)}
-                    className={`min-h-11 p-2 rounded-control border text-center font-medium transition ${subType === item.id ? 'border-brand bg-brand-soft text-brand-ink font-bold' : 'border-line bg-card text-ink hover:border-brand'}`}
+                    className={`min-h-11 p-2 rounded-control border text-center font-medium transition ${
+                      subType === item.id
+                        ? 'border-brand bg-brand-soft text-brand-ink font-bold'
+                        : 'border-line bg-card text-ink hover:border-brand'
+                    }`}
                   >
                     {item.label}
                   </button>
@@ -427,9 +438,9 @@ export default function BersihPage() {
             </div>
 
             {/* Pilihan Frekuensi (1x, 2x, 3x) */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_sub_freq')}</label>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {[
                   {
                     id: '3x',
@@ -452,14 +463,18 @@ export default function BersihPage() {
                     daysArr: ['Friday'],
                     desc: t('bersih.form_sub_freq_1x_desc'),
                   },
-                ].map(f => (
+                ].map((f) => (
                   <div
                     key={f.id}
                     onClick={() => {
                       setSubFrequency(f.id);
                       setSubDays(f.daysArr);
                     }}
-                    className={`p-3 rounded-card border cursor-pointer transition flex items-center justify-between ${subFrequency === f.id ? 'border-2 border-brand bg-brand-soft/20' : 'border-line bg-card hover:border-brand'}`}
+                    className={`p-3 rounded-card border cursor-pointer transition flex items-center justify-between ${
+                      subFrequency === f.id
+                        ? 'border-2 border-brand bg-brand-soft/20 shadow-sm'
+                        : 'border-line bg-card hover:border-brand'
+                    }`}
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -468,15 +483,15 @@ export default function BersihPage() {
                       </div>
                       <span className="text-[11px] text-ink-muted block mt-0.5">{f.desc}</span>
                     </div>
-                    {subFrequency === f.id && <Check size={16} className="text-brand-ink" />}
+                    {subFrequency === f.id && <Check size={16} className="text-brand-ink shrink-0" />}
                   </div>
                 ))}
               </div>
             </div>
 
-            <p className="text-[11.5px] text-ink-muted text-center leading-snug">
+            <Notice tone="neutral" className="text-[11.5px] leading-relaxed">
               {t('bersih.form_sub_notice')}
-            </p>
+            </Notice>
 
             <Button
               type="submit"
@@ -487,34 +502,25 @@ export default function BersihPage() {
               {submitting ? t('bersih.form_sub_btn_submitting') : t('bersih.form_sub_btn')}
             </Button>
           </form>
-        )}
+        </Card>
+      )}
 
-        {/* ============================================================== */}
-        {/* FORM 2: HOUSEKEEPING VILLA                                     */}
-        {/* ============================================================== */}
-        {activeForm === 'housekeeping' && (
-          <form onSubmit={handleHousekeepingSubmit} className="space-y-4">
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_hk_title')}</h2>
-              <button
-                type="button"
-                onClick={() => setActiveForm('none')}
-                className="text-[12px] font-semibold text-ink-muted hover:text-ink"
-              >
-                {t('bersih.close')}
-              </button>
-            </div>
-
+      {/* ============================================================== */}
+      {/* FORM 2: HOUSEKEEPING VILLA                                     */}
+      {/* ============================================================== */}
+      {activeForm === 'housekeeping' && (
+        <Card className="p-4 sm:p-5">
+          <form onSubmit={handleHousekeepingSubmit} className="flex flex-col gap-4">
             <Field label={t('bersih.form_hk_property')} required>
               <Input
                 placeholder={t('bersih.form_hk_property_ph')}
                 value={hkProperty}
-                onChange={e => setHkProperty(e.target.value)}
+                onChange={(e) => setHkProperty(e.target.value)}
               />
             </Field>
 
             {/* Titik Peta & Alamat */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_map_title')}</label>
               <AddressMapPicker
                 id="hk-map"
@@ -528,20 +534,28 @@ export default function BersihPage() {
             </div>
 
             {/* Tipe Pembersihan */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_type')}</label>
               <div className="grid grid-cols-2 gap-2 text-[12px]">
                 <button
                   type="button"
                   onClick={() => setHkType('turnover')}
-                  className={`min-h-11 p-2 rounded-control border text-center transition ${hkType === 'turnover' ? 'border-brand bg-brand-soft text-brand-ink font-bold' : 'border-line bg-card text-ink'}`}
+                  className={`min-h-11 p-2 rounded-control border text-center font-medium transition ${
+                    hkType === 'turnover'
+                      ? 'border-brand bg-brand-soft text-brand-ink font-bold'
+                      : 'border-line bg-card text-ink hover:border-brand'
+                  }`}
                 >
                   {t('bersih.form_hk_type_turnover')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setHkType('deep_clean')}
-                  className={`min-h-11 p-2 rounded-control border text-center transition ${hkType === 'deep_clean' ? 'border-brand bg-brand-soft text-brand-ink font-bold' : 'border-line bg-card text-ink'}`}
+                  className={`min-h-11 p-2 rounded-control border text-center font-medium transition ${
+                    hkType === 'deep_clean'
+                      ? 'border-brand bg-brand-soft text-brand-ink font-bold'
+                      : 'border-line bg-card text-ink hover:border-brand'
+                  }`}
                 >
                   {t('bersih.form_hk_type_deep')}
                 </button>
@@ -549,15 +563,19 @@ export default function BersihPage() {
             </div>
 
             {/* Jumlah Kamar Tidur */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_hk_bedrooms')}</label>
               <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map(num => (
+                {[1, 2, 3, 4].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => setHkBedrooms(num)}
-                    className={`min-h-11 rounded-control border font-bold text-[13px] transition ${hkBedrooms === num ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line bg-card text-ink'}`}
+                    className={`min-h-11 rounded-control border font-bold text-[13px] transition ${
+                      hkBedrooms === num
+                        ? 'border-brand bg-brand text-white shadow-sm'
+                        : 'border-line bg-card text-ink hover:border-brand'
+                    }`}
                   >
                     {num === 4 ? t('bersih.form_hk_bedroom_4plus') : t('bersih.form_hk_bedroom_n', { count: num })}
                   </button>
@@ -571,16 +589,16 @@ export default function BersihPage() {
                 <input
                   type="date"
                   value={hkDate}
-                  onChange={e => setHkDate(e.target.value)}
-                  className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono"
+                  onChange={(e) => setHkDate(e.target.value)}
+                  className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono min-h-11"
                 />
               </Field>
               <Field label={t('bersih.form_hk_time')}>
                 <input
                   type="time"
                   value={hkTime}
-                  onChange={e => setHkTime(e.target.value)}
-                  className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono"
+                  onChange={(e) => setHkTime(e.target.value)}
+                  className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono min-h-11"
                 />
               </Field>
             </div>
@@ -589,7 +607,7 @@ export default function BersihPage() {
               <Input
                 placeholder={t('bersih.form_hk_notes_ph')}
                 value={hkNotes}
-                onChange={e => setHkNotes(e.target.value)}
+                onChange={(e) => setHkNotes(e.target.value)}
               />
             </Field>
 
@@ -602,26 +620,17 @@ export default function BersihPage() {
               {submitting ? t('bersih.processing') : t('bersih.form_hk_btn')}
             </Button>
           </form>
-        )}
+        </Card>
+      )}
 
-        {/* ============================================================== */}
-        {/* FORM 3: ANGKUT BORONGAN                                        */}
-        {/* ============================================================== */}
-        {activeForm === 'quote' && (
-          <form onSubmit={handleQuoteSubmit} className="space-y-4">
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="text-[15px] font-bold text-ink">{t('bersih.form_bulk_title')}</h2>
-              <button
-                type="button"
-                onClick={() => setActiveForm('none')}
-                className="text-[12px] font-semibold text-ink-muted hover:text-ink"
-              >
-                {t('bersih.close')}
-              </button>
-            </div>
-
+      {/* ============================================================== */}
+      {/* FORM 3: ANGKUT BORONGAN                                        */}
+      {/* ============================================================== */}
+      {activeForm === 'quote' && (
+        <Card className="p-4 sm:p-5">
+          <form onSubmit={handleQuoteSubmit} className="flex flex-col gap-4">
             {/* Titik Peta & Alamat */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-ink">{t('bersih.form_bulk_map_title')}</label>
               <AddressMapPicker
                 id="quote-map"
@@ -638,8 +647,8 @@ export default function BersihPage() {
               <input
                 type="date"
                 value={quoteDate}
-                onChange={e => setQuoteDate(e.target.value)}
-                className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono"
+                onChange={(e) => setQuoteDate(e.target.value)}
+                className="w-full text-[13px] px-3 py-2 rounded-control border border-line bg-card text-ink font-mono min-h-11"
               />
             </Field>
 
@@ -647,13 +656,13 @@ export default function BersihPage() {
               <Input
                 placeholder={t('bersih.form_bulk_notes_ph')}
                 value={quoteNotes}
-                onChange={e => setQuoteNotes(e.target.value)}
+                onChange={(e) => setQuoteNotes(e.target.value)}
               />
             </Field>
 
-            <p className="text-[11.5px] text-ink-muted text-center leading-snug">
+            <Notice tone="neutral" className="text-[11.5px] leading-relaxed">
               {t('bersih.form_bulk_notice')}
-            </p>
+            </Notice>
 
             <Button
               type="submit"
@@ -664,128 +673,128 @@ export default function BersihPage() {
               {submitting ? t('bersih.submitting') : t('bersih.form_bulk_btn')}
             </Button>
           </form>
-        )}
+        </Card>
+      )}
 
-        {/* ============================================================== */}
-        {/* TAB 2: TAGIHAN & RIWAYAT                                       */}
-        {/* ============================================================== */}
-        {activeTab === 'history' && (
-          <div className="space-y-4">
-            {loadingHistory ? (
-              <div className="py-12 flex justify-center"><Spinner size={28} /></div>
-            ) : (
-              <>
-                {/* Active Subscriptions Section */}
-                {mySubscriptions.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_subs_title')}</h3>
-                    {mySubscriptions.map(s => (
-                      <Card key={s.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-[14px] font-bold text-ink">{s.property_name}</h4>
-                          <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>
-                            {s.status === 'active' ? (lang === 'id' ? 'Aktif' : 'Active') : (lang === 'id' ? 'Menunggu' : 'Pending')}
-                          </Badge>
+      {/* ============================================================== */}
+      {/* TAB 2: TAGIHAN & RIWAYAT                                       */}
+      {/* ============================================================== */}
+      {activeTab === 'history' && (
+        <div className="flex flex-col gap-5">
+          {loadingHistory ? (
+            <div className="py-12 flex justify-center"><Spinner size={28} /></div>
+          ) : (
+            <>
+              {/* Active Subscriptions Section */}
+              {mySubscriptions.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_subs_title')}</h3>
+                  {mySubscriptions.map((s) => (
+                    <Card key={s.id} className="p-4 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[14px] font-bold text-ink">{s.property_name}</h4>
+                        <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>
+                          {s.status === 'active' ? (lang === 'id' ? 'Aktif' : 'Active') : (lang === 'id' ? 'Menunggu' : 'Pending')}
+                        </Badge>
+                      </div>
+                      <p className="text-[12px] text-ink-muted truncate">{s.address}</p>
+                      <div className="flex items-center justify-between text-[11.5px] pt-1.5 border-t border-line">
+                        <span className="font-semibold text-brand-ink">{t('bersih.my_subs_freq', { freq: s.frequency })}</span>
+                        {s.monthly_price > 0 && <Money amount={s.monthly_price} className="font-bold text-ink" />}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Active Invoices Section */}
+              <div className="flex flex-col gap-2.5">
+                <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_invoices_title')}</h3>
+                {myInvoices.length === 0 ? (
+                  <Card className="text-center py-8">
+                    <p className="text-[12.5px] text-ink-muted">{t('bersih.my_invoices_empty')}</p>
+                  </Card>
+                ) : (
+                  myInvoices.map((inv) => (
+                    <Card key={inv.id} className="p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[11px] font-mono text-ink-muted block">{inv.invoice_no}</span>
+                          <h4 className="text-[14px] font-bold text-ink">{inv.client_name}</h4>
                         </div>
-                        <p className="text-[12px] text-ink-muted truncate">{s.address}</p>
-                        <div className="flex items-center justify-between text-[11.5px] pt-1 border-t border-line">
-                          <span className="font-semibold text-brand-ink">{t('bersih.my_subs_freq', { freq: s.frequency })}</span>
-                          {s.monthly_price > 0 && <Money amount={s.monthly_price} className="font-bold text-ink" />}
+                        {inv.status === 'paid' && <Badge tone="success">{t('bersih.inv_paid')}</Badge>}
+                        {inv.status === 'collected_by_driver' && (
+                          <Badge tone="warning">{t('bersih.inv_driver')}</Badge>
+                        )}
+                        {inv.status === 'pending' && <Badge tone="neutral">{t('bersih.inv_pending')}</Badge>}
+                      </div>
+
+                      <div className="p-3 bg-sunken rounded-control flex items-center justify-between">
+                        <div>
+                          <span className="text-[11px] text-ink-muted block">{t('bersih.inv_month', { month: inv.month })}</span>
+                          <Money amount={inv.amount} className="text-[17px] font-mono font-extrabold text-ink" />
                         </div>
-                      </Card>
+                        {inv.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => setQrisModalInvoice(inv)}
+                              icon={<QrCode size={14} />}
+                            >
+                              {t('bersih.inv_pay_qris')}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {inv.status === 'collected_by_driver' && (
+                        <p className="text-[11.5px] text-warning-ink bg-warning-soft p-2.5 rounded-control">
+                          {t('bersih.inv_driver_notice')}
+                        </p>
+                      )}
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              {/* Pickup Logs Checklist Feed */}
+              <div className="flex flex-col gap-2.5 pt-1">
+                <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_pickups_title')}</h3>
+                {myPickups.length === 0 ? (
+                  <Card className="text-center py-8">
+                    <p className="text-[12.5px] text-ink-muted">{t('bersih.my_pickups_empty')}</p>
+                  </Card>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {myPickups.map((p) => (
+                      <div
+                        key={p.id}
+                        className="p-3 rounded-card bg-card border border-line flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${p.completed ? 'bg-success-soft text-success-ink' : 'bg-warning-soft text-warning-ink'}`}>
+                            <Check size={14} />
+                          </div>
+                          <div>
+                            <span className="text-[12.5px] font-bold text-ink block">
+                              {p.completed ? t('bersih.pickup_done') : t('bersih.pickup_today')}
+                            </span>
+                            <span className="text-[11px] text-ink-muted">
+                              {p.pickup_date} {p.completed_at ? `• ${new Date(p.completed_at).toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] text-ink-muted font-mono">{t('bersih.pickup_fleet')}</span>
+                      </div>
                     ))}
                   </div>
                 )}
-
-                {/* Active Invoices Section */}
-                <div className="space-y-2">
-                  <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_invoices_title')}</h3>
-                  {myInvoices.length === 0 ? (
-                    <Card className="text-center py-6">
-                      <p className="text-[12px] text-ink-muted">{t('bersih.my_invoices_empty')}</p>
-                    </Card>
-                  ) : (
-                    myInvoices.map(inv => (
-                      <Card key={inv.id} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-[11px] font-mono text-ink-muted block">{inv.invoice_no}</span>
-                            <h4 className="text-[14px] font-bold text-ink">{inv.client_name}</h4>
-                          </div>
-                          {inv.status === 'paid' && <Badge tone="success">{t('bersih.inv_paid')}</Badge>}
-                          {inv.status === 'collected_by_driver' && (
-                            <Badge tone="warning">{t('bersih.inv_driver')}</Badge>
-                          )}
-                          {inv.status === 'pending' && <Badge tone="neutral">{t('bersih.inv_pending')}</Badge>}
-                        </div>
-
-                        <div className="p-3 bg-sunken rounded-control flex items-center justify-between">
-                          <div>
-                            <span className="text-[11px] text-ink-muted block">{t('bersih.inv_month', { month: inv.month })}</span>
-                            <Money amount={inv.amount} className="text-[17px] font-mono font-extrabold text-ink" />
-                          </div>
-                          {inv.status === 'pending' && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => setQrisModalInvoice(inv)}
-                                icon={<QrCode size={14} />}
-                              >
-                                {t('bersih.inv_pay_qris')}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-
-                        {inv.status === 'collected_by_driver' && (
-                          <p className="text-[11.5px] text-warning-ink bg-warning-soft p-2 rounded-control">
-                            {t('bersih.inv_driver_notice')}
-                          </p>
-                        )}
-                      </Card>
-                    ))
-                  )}
-                </div>
-
-                {/* Pickup Logs Checklist Feed */}
-                <div className="space-y-2 pt-2">
-                  <h3 className="text-[13.5px] font-bold text-ink">{t('bersih.my_pickups_title')}</h3>
-                  {myPickups.length === 0 ? (
-                    <Card className="text-center py-6">
-                      <p className="text-[12px] text-ink-muted">{t('bersih.my_pickups_empty')}</p>
-                    </Card>
-                  ) : (
-                    <div className="space-y-2">
-                      {myPickups.map(p => (
-                        <div
-                          key={p.id}
-                          className="p-3 rounded-card bg-card border border-line flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className={`h-7 w-7 rounded-full flex items-center justify-center ${p.completed ? 'bg-success-soft text-success-ink' : 'bg-warning-soft text-warning-ink'}`}>
-                              <Check size={14} />
-                            </div>
-                            <div>
-                              <span className="text-[12.5px] font-bold text-ink block">
-                                {p.completed ? t('bersih.pickup_done') : t('bersih.pickup_today')}
-                              </span>
-                              <span className="text-[11px] text-ink-muted">
-                                {p.pickup_date} {p.completed_at ? `• ${new Date(p.completed_at).toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="text-[11px] text-ink-muted font-mono">{t('bersih.pickup_fleet')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* MODAL SHEET: QRIS Payment */}
       <Sheet
