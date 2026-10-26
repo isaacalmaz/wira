@@ -143,6 +143,40 @@ async function runTestSuite() {
         return notBandara;
       },
     },
+    {
+      name: 'WiraRide: Natural query without fleet keyword ("pesankan dari tempat saya ke kua pujut")',
+      query: 'pesankan dari tempat saya ke kua pujut',
+      userLocation: {
+        address: 'gang pengmbur Bencot, Dusun Batu Samban, Pengembur',
+        lat: -8.8212,
+        lng: 116.2594,
+      },
+      expectedService: 'ride',
+      checkDetails: (d) => {
+        const hasKua = d.destination.toLowerCase().includes('kua');
+        const hasPujut = d.destination.toLowerCase().includes('pujut');
+        const isPengembur = d.origin.toLowerCase().includes('pengmbur') || d.origin.toLowerCase().includes('pengembur');
+        const distanceOk = d.distanceKm >= 4 && d.distanceKm <= 8;
+        const hasPrice = d.motorPrice > 0 && d.carPrice > d.motorPrice;
+        return hasKua && hasPujut && isPengembur && distanceOk && hasPrice;
+      },
+    },
+    {
+      name: 'WiraRide: Natural car query ("pesankan mobil dari tempat saya ke kua pujut")',
+      query: 'pesankan mobil dari tempat saya ke kua pujut',
+      userLocation: {
+        address: 'gang pengmbur Bencot, Dusun Batu Samban, Pengembur',
+        lat: -8.8212,
+        lng: 116.2594,
+      },
+      expectedService: 'ride',
+      checkDetails: (d) => {
+        const isCar = d.vehicleType === 'car';
+        const hasKua = d.destination.toLowerCase().includes('kua');
+        const isPengembur = d.origin.toLowerCase().includes('pengmbur') || d.origin.toLowerCase().includes('pengembur');
+        return isCar && hasKua && isPengembur;
+      },
+    },
   ];
 
   try {

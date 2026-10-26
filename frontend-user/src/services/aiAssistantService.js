@@ -185,7 +185,8 @@ const INTENT_PATTERNS = {
   ride: [
     'ride', 'ojek', 'taksi', 'taxi', 'motor', 'mobil', 'jemput', 'antar', 'anterin', 'tumpangan',
     'bonceng', 'jalan-jalan', 'keliling', 'bandara', 'airport', 'lop', 'senggigi',
-    'praya', 'pantai', 'selong belanak', 'tanjung aan', 'mandalika', 'transport', 'transportasi', 'go'
+    'praya', 'pantai', 'selong belanak', 'tanjung aan', 'mandalika', 'transport', 'transportasi', 'go',
+    'pesankan', 'pesan ojek', 'pesan mobil', 'pesan motor', 'pesan kendaraan', 'pergi ke', 'berangkat ke'
   ],
   food: [
     'makan', 'food', 'kuliner', 'lapar', 'laper', 'taliwang', 'puyung', 'ayam', 'ikan', 'seafood',
@@ -252,6 +253,23 @@ function detectIntents(queryLower) {
     }
   }
 
+  // Natural ride patterns: moving between locations or booking transport
+  const hasTravelPattern = (
+    /(?:pesan(?:kan)?|order|carikan|cari)\s+(?:kendaraan|tumpangan|transport)?\s*(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower) ||
+    /(?:antar(?:kan)?|anterin|bawa|jemput|jemputin)\s+(?:saya|kami)?\s*(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower) ||
+    /(?:mau|ingin|butuh)\s+(?:pergi\s+ke|berangkat\s+ke|ke|menuju)\s+/i.test(queryLower) ||
+    /(?:dari\s+.+\s+(?:ke|menuju)\s+)/i.test(queryLower) ||
+    /^(?:ke|menuju)\s+[a-zA-Z0-9\s]+$/i.test(queryLower)
+  );
+
+  const hasConflictingService = Boolean(
+    scores.send || scores.food || scores.villa || scores.pool || scores.bersih || scores.service || scores.excavator || scores.asuh
+  );
+
+  if (hasTravelPattern && !hasConflictingService) {
+    scores.ride = (scores.ride || 0) + 15;
+  }
+
   return scores;
 }
 
@@ -270,6 +288,17 @@ const LOMBOK_LOCATIONS = {
   sade: { name: 'Desa Sade, Pujut, Lombok Tengah', lat: -8.8392, lng: 116.2922 },
   rembitan: { name: 'Rembitan, Pujut, Lombok Tengah', lat: -8.8390, lng: 116.2920 },
   sengkol: { name: 'Sengkol, Pujut, Lombok Tengah', lat: -8.8050, lng: 116.2900 },
+  'kua pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor kua pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor urusan agama pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor urusan agama kecamatan pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor camat pujut': { name: 'Kantor Camat Pujut, Sengkol, Lombok Tengah', lat: -8.8060, lng: 116.2910 },
+  'camat pujut': { name: 'Kantor Camat Pujut, Sengkol, Lombok Tengah', lat: -8.8060, lng: 116.2910 },
+  'puskesmas sengkol': { name: 'Puskesmas Sengkol, Pujut, Lombok Tengah', lat: -8.8052, lng: 116.2912 },
+  'puskesmas pujut': { name: 'Puskesmas Sengkol, Pujut, Lombok Tengah', lat: -8.8052, lng: 116.2912 },
+  'pasar sengkol': { name: 'Pasar Sengkol, Pujut, Lombok Tengah', lat: -8.8040, lng: 116.2920 },
+  'polsek pujut': { name: 'Polsek Pujut, Sengkol, Lombok Tengah', lat: -8.8065, lng: 116.2900 },
+  'koramil pujut': { name: 'Koramil Pujut, Sengkol, Lombok Tengah', lat: -8.8058, lng: 116.2898 },
   'tanak awu': { name: 'Tanak Awu, Pujut (Area Bandara LOP)', lat: -8.7615, lng: 116.2755 },
   penujak: { name: 'Penujak, Praya Barat, Lombok Tengah', lat: -8.7350, lng: 116.2350 },
   praya: { name: 'Praya, Lombok Tengah', lat: -8.7067, lng: 116.2800 },
@@ -488,7 +517,8 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. WiraRide
-    if (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport/i.test(queryLower)) {
+    const isRideHailing = detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport|pesankan/i.test(queryLower) || /(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower);
+    if (isRideHailing) {
       const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
       const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
       const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);

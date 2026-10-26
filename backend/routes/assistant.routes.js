@@ -18,7 +18,8 @@ const INTENT_PATTERNS = {
   ride: [
     'ride', 'ojek', 'taksi', 'taxi', 'motor', 'mobil', 'jemput', 'antar', 'anterin', 'tumpangan',
     'bonceng', 'jalan-jalan', 'keliling', 'bandara', 'airport', 'lop', 'senggigi',
-    'praya', 'pantai', 'selong belanak', 'tanjung aan', 'mandalika', 'transport', 'transportasi', 'go'
+    'praya', 'pantai', 'selong belanak', 'tanjung aan', 'mandalika', 'transport', 'transportasi', 'go',
+    'pesankan', 'pesan ojek', 'pesan mobil', 'pesan motor', 'pesan kendaraan', 'pergi ke', 'berangkat ke'
   ],
   food: [
     'makan', 'food', 'kuliner', 'lapar', 'laper', 'taliwang', 'puyung', 'ayam', 'ikan', 'seafood',
@@ -76,6 +77,17 @@ const LOMBOK_LOCATIONS = {
   sade: { name: 'Desa Sade, Pujut, Lombok Tengah', lat: -8.8392, lng: 116.2922 },
   rembitan: { name: 'Rembitan, Pujut, Lombok Tengah', lat: -8.8390, lng: 116.2920 },
   sengkol: { name: 'Sengkol, Pujut, Lombok Tengah', lat: -8.8050, lng: 116.2900 },
+  'kua pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor kua pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor urusan agama pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor urusan agama kecamatan pujut': { name: 'Kantor Urusan Agama (KUA) Pujut, Sengkol, Lombok Tengah', lat: -8.8055, lng: 116.2905 },
+  'kantor camat pujut': { name: 'Kantor Camat Pujut, Sengkol, Lombok Tengah', lat: -8.8060, lng: 116.2910 },
+  'camat pujut': { name: 'Kantor Camat Pujut, Sengkol, Lombok Tengah', lat: -8.8060, lng: 116.2910 },
+  'puskesmas sengkol': { name: 'Puskesmas Sengkol, Pujut, Lombok Tengah', lat: -8.8052, lng: 116.2912 },
+  'puskesmas pujut': { name: 'Puskesmas Sengkol, Pujut, Lombok Tengah', lat: -8.8052, lng: 116.2912 },
+  'pasar sengkol': { name: 'Pasar Sengkol, Pujut, Lombok Tengah', lat: -8.8040, lng: 116.2920 },
+  'polsek pujut': { name: 'Polsek Pujut, Sengkol, Lombok Tengah', lat: -8.8065, lng: 116.2900 },
+  'koramil pujut': { name: 'Koramil Pujut, Sengkol, Lombok Tengah', lat: -8.8058, lng: 116.2898 },
   'tanak awu': { name: 'Tanak Awu, Pujut (Area Bandara LOP)', lat: -8.7615, lng: 116.2755 },
   penujak: { name: 'Penujak, Praya Barat, Lombok Tengah', lat: -8.7350, lng: 116.2350 },
   praya: { name: 'Praya, Lombok Tengah', lat: -8.7067, lng: 116.2800 },
@@ -340,6 +352,23 @@ function detectIntents(queryLower) {
     scores.ride = (scores.ride || 0) + 10;
   }
 
+  // Natural ride patterns: moving between locations or booking transport
+  const hasTravelPattern = (
+    /(?:pesan(?:kan)?|order|carikan|cari)\s+(?:kendaraan|tumpangan|transport)?\s*(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower) ||
+    /(?:antar(?:kan)?|anterin|bawa|jemput|jemputin)\s+(?:saya|kami)?\s*(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower) ||
+    /(?:mau|ingin|butuh)\s+(?:pergi\s+ke|berangkat\s+ke|ke|menuju)\s+/i.test(queryLower) ||
+    /(?:dari\s+.+\s+(?:ke|menuju)\s+)/i.test(queryLower) ||
+    /^(?:ke|menuju)\s+[a-zA-Z0-9\s]+$/i.test(queryLower)
+  );
+
+  const hasConflictingService = Boolean(
+    scores.send || scores.food || scores.villa || scores.pool || scores.bersih || scores.service || scores.excavator || scores.asuh
+  );
+
+  if (hasTravelPattern && !hasConflictingService) {
+    scores.ride = (scores.ride || 0) + 15;
+  }
+
   return scores;
 }
 
@@ -529,7 +558,7 @@ const GEMINI_TOOLS = [
     functionDeclarations: [
       {
         name: 'draftRideBooking',
-        description: 'Draft a ride hailing booking for WiraRide (motorcycle or car ride hailing in Lombok)',
+        description: 'Draft a ride hailing booking for WiraRide (motorcycle or car ride hailing in Lombok). ALWAYS call this tool when the user asks for travel, transport, or natural phrases like "pesankan dari [A] ke [B]", "pesankan ke [B]", "antar saya ke [B]", "mau ke [B]".',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -1105,6 +1134,8 @@ Wira provides hands-free ordering across all 8 active services:
 CRITICAL INSTRUCTIONS ON INSTANT IN-CHAT DRAFTING:
 - The user requires that EVERYTHING is rendered directly in the chat as an interactive Booking Draft Card, so they only need to tap "Konfirmasi & Pesan Sekarang" without opening other app pages or filling forms manually.
 - Whenever the user asks to book, order, or expresses intent for ANY of the 8 services (even if broad like "mau makan", "pesen ojek", "mau ke kuta", "sewa villa", "kuras kolam", "angkut sampah", "panggil teknisi", "sewa excavator", "cari babysitter", "kirim paket"), ALWAYS CALL THE CORRESPONDING DRAFT TOOL!
+- Natural phrasing for travel like 'pesankan dari [A] ke [B]', 'pesankan ke [B]', 'antar ke [B]', 'bawa saya ke [B]', 'mau ke [B]' without mention of food/goods/villas MUST IMMEDIATELY trigger 'draftRideBooking'! For example: 'pesankan dari tempat saya ke kua pujut' -> call draftRideBooking with origin: 'tempat saya', destination: 'KUA Pujut'.
+- Local Lombok landmarks such as 'kua pujut' (Kantor Urusan Agama Kecamatan Pujut, Sengkol, Lombok Tengah), 'kantor camat pujut', 'pasar sengkol', 'puskesmas sengkol', 'pantai kuta', 'bukit merese' must be recognized and mapped accurately.
 - Fill in sensible, top-rated defaults from Lombok and dbContext for any unspecified parameters (e.g. default food: Ayam Taliwang Bu Mirah, default villa: Villa Segara Kuta Lombok, default ride: pickup from user location/GPS to requested destination or Pantai Kuta, default clean: Sampun Bersih, default pool: Kuras & Perawatan Kolam, default service: Servis AC / Excavator, default nanny: 4 jam Kuta Lombok).
 - If the user says "dari tempat saya", "lokasi saya", "sini", "ke rumah saya":
   * Set origin as "Current Location" or the real address in dbContext.userCurrentLocation / dbContext.userLastOrderLocation / dbContext.savedAddresses. NEVER substitute Bandara Internasional Lombok (LOP) unless the user explicitly requested airport!
@@ -1658,7 +1689,8 @@ async function generateLocalResponse(query, queryLower, lang, dbContext, detecte
     }
 
     // 1h. WiraRide
-    if (primaryIntent === 'ride' || (!primaryIntent && (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport/i.test(queryLower)))) {
+    const isRideHailing = primaryIntent === 'ride' || (!primaryIntent && (detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport|pesankan/i.test(queryLower) || /(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower)));
+    if (isRideHailing) {
       const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
       const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
       const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
