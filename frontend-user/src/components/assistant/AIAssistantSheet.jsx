@@ -15,7 +15,8 @@ import toast from 'react-hot-toast';
 import { useTranslation } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useOrders } from '../../context/OrderContext';
-import { sendAssistantMessage, confirmAssistantBooking } from '../../services/aiAssistantService';
+import { sendAssistantMessage, confirmAssistantBooking, isSelfLocationQuery } from '../../services/aiAssistantService';
+import { getDeviceLocationWithAddress } from '../../utils/deviceLocation';
 import { Sheet, Money, Badge } from '../ui';
 import {
   speakText,
@@ -420,41 +421,17 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
     });
   }, [user?.id]);
 
-  const refreshGps = useCallback(() => {
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-            const data = await res.json();
-            if (data && data.display_name) {
-              const parts = data.display_name.split(',');
-              const shortName = parts.slice(0, 3).join(',').trim();
-              const gpsObj = { lat, lng, address: shortName };
-              setCurrentGps(gpsObj);
-              try {
-                localStorage.setItem('wira_user_last_gps', JSON.stringify(gpsObj));
-              } catch (_) {}
-            } else {
-              const gpsObj = { lat, lng, address: 'Lokasi Anda Saat Ini' };
-              setCurrentGps(gpsObj);
-              try {
-                localStorage.setItem('wira_user_last_gps', JSON.stringify(gpsObj));
-              } catch (_) {}
-            }
-          } catch {
-            const fallbackGps = { lat, lng, address: 'Lokasi Anda Saat Ini' };
-            setCurrentGps((prev) => prev || fallbackGps);
-            try {
-              localStorage.setItem('wira_user_last_gps', JSON.stringify(fallbackGps));
-            } catch (_) {}
-          }
-        },
-        () => { /* silent fallback */ },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
-      );
+  const refreshGps = useCallback(async () => {
+    try {
+      const loc = await getDeviceLocationWithAddress({ timeout: 6000 });
+      if (loc?.lat && loc?.lng) {
+        setCurrentGps(loc);
+        try {
+          localStorage.setItem('wira_user_last_gps', JSON.stringify(loc));
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) {
+      // silent fallback
     }
   }, []);
 
@@ -633,58 +610,57 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
 
     try {
       let effectiveLocation = currentGps;
-      if (!effectiveLocation?.lat || !effectiveLocation?.lng) {
-        // 1. Check if user's order history has a recent pickup location with lat/lng
-        if (Array.isArray(orders) && orders.length > 0) {
-          const lastOrder = orders.find((o) => o.pickup_lat && o.pickup_lng);
-          if (lastOrder) {
-            let origName = 'Lokasi Riwayat Penjemputan';
+      const lowerText = textToSend.toLowerCase();
+      const mentionsSelf = isSelfLocationQuery(lowerText);
+      const isRideRequest = /ojek|taksi|motor|mobil|jemput|antar|transport|pesankan/i.test(lowerText) || /(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(lowerText);
+
+      // 1. If user refers to their own place ("tempat saya", "lokasi saya", "sini") or requests transport,
+      // FIRST THING: Actively acquire the live GPS coordinates from the device! Never guess or check order history.
+      if (mentionsSelf || (isRideRequest && (!effectiveLocation?.lat || !effectiveLocation?.lng))) {
+        try {
+          const fresh = await getDeviceLocationWithAddress({ enableHighAccuracy: true, timeout: 6000 });
+          if (fresh?.lat && fresh?.lng) {
+            effectiveLocation = fresh;
+            setCurrentGps(fresh);
             try {
-              const d = typeof lastOrder.details === 'object' ? lastOrder.details : JSON.parse(lastOrder.details || '{}');
-              if (d && d.origin) origName = d.origin;
-            } catch (_) {}
-            effectiveLocation = {
-              lat: Number(lastOrder.pickup_lat),
-              lng: Number(lastOrder.pickup_lng),
-              address: origName,
-            };
+              localStorage.setItem('wira_user_last_gps', JSON.stringify(fresh));
+            } catch (_) { /* ignore */ }
           }
-        }
+        } catch (_) { /* ignore */ }
+      }
 
-        // 2. Check localStorage cached GPS
-        if (!effectiveLocation) {
-          try {
-            const cached = localStorage.getItem('wira_user_last_gps');
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              if (parsed?.lat && parsed?.lng) effectiveLocation = parsed;
-            }
-          } catch (_) {}
-        }
+      // 2. If fresh GPS was not available, check localStorage cached GPS as a secondary fallback
+      if (!effectiveLocation?.lat || !effectiveLocation?.lng) {
+        try {
+          const cached = localStorage.getItem('wira_user_last_gps');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed?.lat && parsed?.lng) effectiveLocation = parsed;
+          }
+        } catch (_) { /* ignore */ }
+      }
 
-        // 3. Proactively attempt fast geolocation fix if available
-        if (!effectiveLocation && typeof navigator !== 'undefined' && navigator.geolocation) {
-          try {
-            const pos = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 1500,
-                maximumAge: 60000,
-              });
-            });
-            if (pos && pos.coords) {
-              effectiveLocation = {
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                address: 'Lokasi Anda Saat Ini',
-              };
-              setCurrentGps(effectiveLocation);
-              try {
-                localStorage.setItem('wira_user_last_gps', JSON.stringify(effectiveLocation));
-              } catch (_) {}
-            }
-          } catch (_) {}
+      // 3. ZERO ORDER HISTORY: We strictly do NOT check past orders!
+      // If user specifically requested pickup at "tempat saya" / "lokasi saya" and no device GPS could be found:
+      if (mentionsSelf && (!effectiveLocation?.lat || !effectiveLocation?.lng)) {
+        const promptClarification = isEn
+          ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark in Lombok so the route and fare can be calculated factually.'
+          : 'Wira AI membutuhkan titik koordinat lokasi Anda untuk penjemputan di tempat Anda saat ini. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan nama patokan/desa/jalan penjemputan Anda secara spesifik agar penjemputan dan tarif akurat tanpa menebak.';
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            sender: 'bot',
+            text: promptClarification,
+            widgets: [],
+          },
+        ]);
+        setIsLoading(false);
+        if (shouldSpeak && openRef.current) {
+          speakAssistantReply(promptClarification);
         }
+        return;
       }
 
       const res = await sendAssistantMessage({

@@ -45,11 +45,77 @@ export async function sendAssistantMessage({
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && data.reply) {
+        // 1. Guard against guessed drafts if user requested self-location without GPS coordinates
+        const isSelfOrigin = isSelfLocationQuery(queryLower);
+        if (isSelfOrigin && (!userLocation || !userLocation.lat)) {
+          return {
+            reply: lang === 'en'
+              ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark in Lombok so the route and fare can be calculated factually.'
+              : 'Wira AI membutuhkan titik koordinat lokasi Anda untuk penjemputan di tempat Anda saat ini. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan nama patokan/desa/jalan penjemputan Anda secara spesifik agar penjemputan dan tarif akurat tanpa menebak.',
+            widgets: [],
+          };
+        }
+
+        let correctedReply = data.reply;
+        const safeWidgets = (Array.isArray(data.widgets) ? data.widgets : [])
+          .filter((w) => Boolean(w && typeof w === 'object' && w.type))
+          .map((w) => {
+            if (w.type === 'booking_draft' && w.serviceType === 'ride') {
+              const distKm = Number(w.details?.distanceKm) || 5;
+              const isCar = w.details?.vehicleType === 'car' || w.details?.vehicleType === 'mobil';
+              const motorPrice = calculateRideFare(distKm, false);
+              const carPrice = calculateRideFare(distKm, true);
+              const factualPrice = isCar ? carPrice : motorPrice;
+
+              const originCoords = w.details?.originCoords || {
+                lat: w.details?.pickup?.lat ?? userLocation?.lat ?? null,
+                lng: w.details?.pickup?.lng ?? userLocation?.lng ?? null,
+              };
+              const destCoords = w.details?.destCoords || {
+                lat: w.details?.dropoff?.lat ?? null,
+                lng: w.details?.dropoff?.lng ?? null,
+              };
+
+              const pickupObj = {
+                name: w.details?.origin || w.details?.pickup?.name || 'Titik Jemput',
+                lat: originCoords.lat,
+                lng: originCoords.lng,
+              };
+              const dropoffObj = {
+                name: w.details?.destination || w.details?.dropoff?.name || 'Tujuan',
+                lat: destCoords.lat,
+                lng: destCoords.lng,
+              };
+
+              // Re-align reply text if it had backend outdated fare
+              if (w.priceEstimate && w.priceEstimate !== factualPrice) {
+                const oldFormatted = `Rp ${Number(w.priceEstimate).toLocaleString('id-ID')}`;
+                const newFormatted = `Rp ${factualPrice.toLocaleString('id-ID')}`;
+                correctedReply = correctedReply.replace(oldFormatted, newFormatted);
+              }
+
+              return {
+                ...w,
+                priceEstimate: factualPrice,
+                details: {
+                  ...w.details,
+                  motorPrice,
+                  carPrice,
+                  originCoords,
+                  destCoords,
+                  pickup: pickupObj,
+                  dropoff: dropoffObj,
+                  rate_code: isCar ? 'mobil' : 'motor',
+                  distance_meters: Math.round(distKm * 1000),
+                },
+              };
+            }
+            return w;
+          });
+
         return {
-          reply: data.reply,
-          widgets: Array.isArray(data.widgets)
-            ? data.widgets.filter((w) => Boolean(w && typeof w === 'object' && w.type))
-            : [],
+          reply: correctedReply,
+          widgets: safeWidgets,
         };
       }
     }
@@ -122,18 +188,23 @@ export async function confirmAssistantBooking({ draft, userId, paymentMethod = '
   const rawType = String(draft.serviceType || 'ride').toLowerCase();
   const serviceType = rawType === 'asuh' ? 'babysit' : rawType;
   const detailsObj = draft.details || {};
+  const pLat = detailsObj.originCoords?.lat ?? detailsObj.pickup?.lat ?? null;
+  const pLng = detailsObj.originCoords?.lng ?? detailsObj.pickup?.lng ?? null;
+  const dLat = detailsObj.destCoords?.lat ?? detailsObj.dropoff?.lat ?? null;
+  const dLng = detailsObj.destCoords?.lng ?? detailsObj.dropoff?.lng ?? null;
+
   const enrichedDetails = typeof detailsObj === 'object' && detailsObj !== null
     ? {
         ...detailsObj,
         pickup: {
           name: detailsObj.origin || detailsObj.pickup?.name || detailsObj.pickup || detailsObj.address || 'Lokasi Jemput',
-          lat: detailsObj.originCoords?.lat ?? -8.8955,
-          lng: detailsObj.originCoords?.lng ?? 116.2780,
+          lat: pLat,
+          lng: pLng,
         },
         dropoff: {
           name: detailsObj.destination || detailsObj.dropoff?.name || detailsObj.dropoff || detailsObj.address || 'Tujuan',
-          lat: detailsObj.destCoords?.lat ?? -8.8955,
-          lng: detailsObj.destCoords?.lng ?? 116.2780,
+          lat: dLat,
+          lng: dLng,
         },
       }
     : detailsObj;
@@ -149,10 +220,10 @@ export async function confirmAssistantBooking({ draft, userId, paymentMethod = '
     payment_method: selectedPaymentMethod === 'qris' ? 'qris' : 'cash',
     payment_status: 'unpaid',
     rate_code: serviceType === 'ride' ? ((detailsObj.vehicleType === 'car' || detailsObj.vehicleType === 'mobil') ? 'mobil' : 'motor') : null,
-    pickup_lat: detailsObj.originCoords?.lat ?? -8.8955,
-    pickup_lng: detailsObj.originCoords?.lng ?? 116.2780,
-    dropoff_lat: detailsObj.destCoords?.lat ?? -8.8955,
-    dropoff_lng: detailsObj.destCoords?.lng ?? 116.2780,
+    pickup_lat: pLat,
+    pickup_lng: pLng,
+    dropoff_lat: dLat,
+    dropoff_lng: dLng,
     pickup_address: detailsObj.origin || detailsObj.pickup?.name || detailsObj.address || null,
     dropoff_address: detailsObj.destination || detailsObj.dropoff?.name || detailsObj.address || null,
     distance_meters: detailsObj.distanceKm ? Math.round(Number(detailsObj.distanceKm) * 1000) : null,
@@ -378,7 +449,7 @@ const LOMBOK_LOCATIONS = {
   default: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
 };
 
-function isSelfLocationQuery(text) {
+export function isSelfLocationQuery(text) {
   if (!text || typeof text !== 'string') return false;
   const t = text.trim().toLowerCase();
   return /tempat saya|lokasi saya|posisi saya|titik saya|posisi saat ini|lokasi saat ini|lokasi sekarang|posisi sekarang|lokasi terkini|titik jemput|rumah saya|^rumah$|kost saya|^kost$|villa saya|jemput saya|di sini|dari sini|^sini$|my location|current location|my place|^here$|from here|pickup here/i.test(t);
@@ -396,7 +467,7 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.max(1, R * c);
 }
 
-function calculateRideFare(distKm, isCar = false) {
+export function calculateRideFare(distKm, isCar = false) {
   const basePrice = isCar ? 15000 : 8000;
   const perKmRate = isCar ? 4000 : 2000;
   const extraKm = Math.max(0, distKm - 2);
@@ -437,21 +508,8 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
         isUserLocation: true,
       };
     }
-    if (savedAddrs.length > 0) {
-      const primary = savedAddrs.find((a) => a.is_primary) || savedAddrs[0];
-      return {
-        name: primary.address,
-        lat: Number(primary.lat || -8.8955),
-        lng: Number(primary.lng || 116.2780),
-        isUserLocation: true,
-      };
-    }
-    return {
-      name: 'Lokasi Anda Saat Ini',
-      lat: -8.8955,
-      lng: 116.2780,
-      isUserLocation: true,
-    };
+    // Never guess coordinates if user device GPS is unavailable
+    return null;
   }
 
   // 2. Check if text matches current GPS location address
@@ -475,8 +533,8 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
         (sLabel && (lower === sLabel || lower.includes(sLabel)))) {
       return {
         name: s.address,
-        lat: Number(s.lat || -8.8955),
-        lng: Number(s.lng || 116.2780),
+        lat: Number(s.lat),
+        lng: Number(s.lng),
         isSavedAddress: true,
       };
     }
@@ -503,17 +561,9 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
     }
   }
 
-  // 5. Fallback near user if available, otherwise default landmark
-  const formattedCustom = text.trim()
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-
-  if (userLoc && userLoc.lat && userLoc.lng) {
-    return { name: formattedCustom, lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
-  }
-
-  return { name: formattedCustom, lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
+  // 5. If unknown landmark:
+  // Never guess Kuta or default coordinates! Return null so the assistant asks for clarification.
+  return null;
 }
 
 // Client-side fallback handler
@@ -555,64 +605,46 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
             isUserLocation: true,
           };
           rawOrigin = originLoc.name;
-        } else if (savedAddresses && savedAddresses.length > 0) {
-          const primary = savedAddresses.find((a) => a.is_primary) || savedAddresses[0];
-          originLoc = {
-            name: primary.address,
-            lat: Number(primary.lat || -8.8955),
-            lng: Number(primary.lng || 116.2780),
-            isUserLocation: true,
-          };
-          rawOrigin = originLoc.name;
         } else {
-          originLoc = {
-            name: 'Lokasi Anda Saat Ini (Kuta Lombok)',
-            lat: -8.8955,
-            lng: 116.2780,
-            isUserLocation: true,
-          };
-          rawOrigin = originLoc.name;
+          originLoc = null;
         }
       }
 
-      let rawDest = keMatch ? keMatch[1].trim() : 'Pantai Kuta Mandalika, Lombok';
+      let rawDest = keMatch ? keMatch[1].trim() : '';
+      if (!rawDest) {
+        return {
+          reply: isEn
+            ? 'Where would you like to go? Please specify your destination in Lombok (e.g. Bandara Lombok, Praya, Kuta).'
+            : 'Ke mana lokasi tujuan perjalanan Anda di Lombok? Mohon sebutkan lokasi tujuan Anda (misalnya: Bandara Lombok, Praya, Kuta) agar rute dan ongkos dapat dihitung secara faktual.',
+          widgets: [],
+        };
+      }
 
-      if (rawOrigin.toLowerCase() === rawDest.toLowerCase()) {
+      if (rawOrigin && rawDest && rawOrigin.toLowerCase() === rawDest.toLowerCase()) {
         rawDest = rawOrigin.toLowerCase().includes('pantai kuta')
           ? 'Bandara Internasional Lombok (LOP)'
           : 'Pantai Kuta Mandalika, Lombok';
       }
 
-      if (!originLoc) {
+      if (!originLoc && rawOrigin) {
         originLoc = resolveLombokLocation(rawOrigin, { userLocation, savedAddresses });
       }
-      let destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses });
 
       if (!originLoc) {
-        if (userLocation?.lat && userLocation?.lng) {
-          originLoc = {
-            name: rawOrigin || userLocation.address || 'Lokasi Anda Saat Ini',
-            lat: Number(userLocation.lat),
-            lng: Number(userLocation.lng),
-            isUserLocation: true,
-          };
-        }
+        return {
+          reply: isEn
+            ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark so the route and fare can be calculated factually.'
+            : 'Wira AI membutuhkan titik koordinat lokasi penjemputan Anda. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan alamat/patokan penjemputan Anda secara spesifik agar titik jemput dan ongkos faktual tanpa menebak.',
+          widgets: [],
+        };
       }
 
+      let destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses });
       if (!destLoc) {
         return {
           reply: isEn
             ? `Could you please clarify your destination "${rawDest}" in Lombok? (e.g., mention the village, subdistrict, or nearest landmark like Sengkol, Kuta, Praya) so I can calculate the factual route and fare.`
             : `Mohon klarifikasi lokasi tujuan "${rawDest}" di Lombok lebih spesifik (misalnya: nama desa, kecamatan, atau patokan terdekat seperti Sengkol, Kuta, Praya) agar rute dan tarif dapat dihitung secara faktual tanpa menebak.`,
-          widgets: [],
-        };
-      }
-
-      if (!originLoc) {
-        return {
-          reply: isEn
-            ? 'I cannot detect your pickup location. Please enable GPS permissions or provide your pickup landmark in Lombok.'
-            : 'Saya belum dapat mendeteksi titik penjemputan Anda. Mohon aktifkan izin GPS atau sebutkan alamat/patokan penjemputan Anda di Lombok.',
           widgets: [],
         };
       }
@@ -635,6 +667,9 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
 
       const routeUrl = `/ride?pickup=${encodeURIComponent(originLoc.name)}&pickupLat=${originLoc.lat}&pickupLng=${originLoc.lng}&dropoff=${encodeURIComponent(destLoc.name)}&dropoffLat=${destLoc.lat}&dropoffLng=${destLoc.lng}&vehicle=${isCar ? 'mobil' : 'motor'}`;
 
+      const pickupObj = { name: originLoc.name, lat: originLoc.lat, lng: originLoc.lng };
+      const dropoffObj = { name: destLoc.name, lat: destLoc.lat, lng: destLoc.lng };
+
       widgets.push({
         type: 'booking_draft',
         draftId,
@@ -656,6 +691,10 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
           notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
           originCoords: { lat: originLoc.lat, lng: originLoc.lng },
           destCoords: { lat: destLoc.lat, lng: destLoc.lng },
+          pickup: pickupObj,
+          dropoff: dropoffObj,
+          rate_code: isCar ? 'mobil' : 'motor',
+          distance_meters: Math.round(distKm * 1000),
         },
         priceEstimate: price,
         paymentMethod: 'cash',
