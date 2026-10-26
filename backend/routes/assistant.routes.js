@@ -143,7 +143,22 @@ const LOMBOK_LOCATIONS = {
   'gili meno': { name: 'Gili Meno, Lombok Utara', lat: -8.3520, lng: 116.0580 },
   rektorat: { name: 'Rektorat Universitas Mataram, Jl. Majapahit, Mataram', lat: -8.5901, lng: 116.0964 },
   unram: { name: 'Universitas Mataram, Mataram', lat: -8.5901, lng: 116.0964 },
+  'temu coffeeshop': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu coffee & space': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu coffee': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'lombok epicentrum mall': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'mall epicentrum': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'epicentrum mall': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
   epicentrum: { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'mataram mall': { name: 'Mataram Mall, Cakranegara', lat: -8.5905, lng: 116.1265 },
+  'transmart': { name: 'Transmart Mataram', lat: -8.5925, lng: 116.1360 },
+  'transmart mataram': { name: 'Transmart Mataram', lat: -8.5925, lng: 116.1360 },
+  'islamic center': { name: 'Islamic Center Hubbul Wathan NTB, Mataram', lat: -8.5778, lng: 116.1105 },
+  'islamic center lombok': { name: 'Islamic Center Hubbul Wathan NTB, Mataram', lat: -8.5778, lng: 116.1105 },
+  'rsud kota mataram': { name: 'RSUD Kota Mataram', lat: -8.6005, lng: 116.1110 },
+  'rsud provinsi ntb': { name: 'RSUD Provinsi NTB, Dasan Cermen', lat: -8.6075, lng: 116.1470 },
+  'rsud praya': { name: 'RSUD Praya, Lombok Tengah', lat: -8.7050, lng: 116.2750 },
   default: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
 };
 
@@ -1260,6 +1275,7 @@ router.post('/confirm-booking', assistantLimiter, async (req, res) => {
       }
     }
 
+    const isCar = detailsObj.vehicleType === 'car' || detailsObj.vehicleType === 'mobil' || detailsObj.rate_code === 'mobil';
     const orderRow = {
       user_id: userId || null,
       service_type: serviceType,
@@ -1270,18 +1286,28 @@ router.post('/confirm-booking', assistantLimiter, async (req, res) => {
       status: finalPaymentMethod === 'qris' ? 'awaiting_payment' : 'pending',
       payment_method: finalPaymentMethod === 'qris' ? 'qris' : 'cash',
       payment_status: 'unpaid',
+      rate_code: serviceType === 'ride' ? (isCar ? 'mobil' : 'motor') : null,
       pickup_lat: pickupCoords.lat ?? -8.8955,
       pickup_lng: pickupCoords.lng ?? 116.2780,
       dropoff_lat: dropoffCoords.lat ?? -8.8955,
       dropoff_lng: dropoffCoords.lng ?? 116.2780,
+      pickup_address: detailsObj.origin || detailsObj.pickup?.name || detailsObj.address || null,
+      dropoff_address: detailsObj.destination || detailsObj.dropoff?.name || detailsObj.address || null,
+      distance_meters: detailsObj.distanceKm ? Math.round(Number(detailsObj.distanceKm) * 1000) : null,
       delivery_fee: serviceType === 'food' ? 10000 : 0,
       metadata: {
         source: 'wira_ai_assistant',
         draft_id: draft.draftId,
         service_name: draft.serviceName,
         booking_details: detailsObj,
+        ...(detailsObj.hourly ? { hourly: detailsObj.hourly } : {}),
+        ...(detailsObj.scheduledAt ? { scheduled_at: detailsObj.scheduledAt } : {}),
       },
     };
+
+    if (detailsObj.scheduledAt) {
+      orderRow.scheduled_at = detailsObj.scheduledAt;
+    }
 
     if (serviceType === 'send') {
       const validSizes = ['dokumen', 'kecil', 'sedang', 'besar', 'mobil'];
@@ -1775,5 +1801,8 @@ async function generateLocalResponse(query, queryLower, lang, dbContext, detecte
     widgets: buildWidgets(queryLower, dbContext, detectedIntents),
   };
 }
+
+// POST /api/assistant/understand - structured intent extraction only (see assistantUnderstand.js)
+router.post('/understand', assistantLimiter, require('./assistantUnderstand'));
 
 module.exports = router;

@@ -209,6 +209,19 @@ export default function RidePage() {
     const dLat = parseFloat(searchParams.get('dropoffLat') || searchParams.get('dLat'));
     const dLng = parseFloat(searchParams.get('dropoffLng') || searchParams.get('dLng'));
     const qVehicle = searchParams.get('vehicle');
+    const qNote = searchParams.get('note') || searchParams.get('pickupNote');
+    const qHours = parseInt(searchParams.get('hours'), 10);
+    const qMode = searchParams.get('mode');
+
+    if (qNote) {
+      setPickupNote(qNote);
+    }
+    if (qHours && !isNaN(qHours)) {
+      setHours(qHours);
+    }
+    if (qMode === 'hourly' || qMode === 'later' || qMode === 'now') {
+      setMode(qMode);
+    }
 
     if (qPickup && qDropoff && !isNaN(pLat) && !isNaN(pLng) && !isNaN(dLat) && !isNaN(dLng)) {
       setPickup(qPickup);
@@ -217,6 +230,18 @@ export default function RidePage() {
         ...m,
         center: { lat: pLat, lng: pLng },
         markers: [{ lat: pLat, lng: pLng }, { lat: dLat, lng: dLng }],
+      }));
+      if (qVehicle && sourceVehicles.length > 0) {
+        const found = sourceVehicles.find((v) => v.id === qVehicle);
+        if (found) setSelectedVehicle(found);
+      }
+    } else if (qMode === 'hourly' && qPickup && !isNaN(pLat) && !isNaN(pLng)) {
+      setPickup(qPickup);
+      if (qDropoff) setDropoff(qDropoff);
+      setMapState((m) => ({
+        ...m,
+        center: { lat: pLat, lng: pLng },
+        markers: [{ lat: pLat, lng: pLng }],
       }));
       if (qVehicle && sourceVehicles.length > 0) {
         const found = sourceVehicles.find((v) => v.id === qVehicle);

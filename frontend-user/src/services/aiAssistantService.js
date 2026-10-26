@@ -1,12 +1,14 @@
 import API_BASE_URL from '../config/api';
 import { supabase } from '../config/supabase';
 import { fetchRoute } from '../utils/osmHelpers';
+import { withAddressNote } from '../utils/addressNote';
 
 /**
  * Send a message to Wira AI Assistant.
- * Tries the backend proxy first (which connects to Gemini / tool calling),
- * and falls back gracefully to direct client-side Supabase contextual resolution
- * if the backend is unreachable.
+ * Uses structured intent understanding (/api/assistant/understand) to extract
+ * user parameters (vehicle, places, notes, scheduled time, hourly mode) without guessing.
+ * All route calculation, geocoding, and fare estimation are performed factually
+ * on the client side with 100% portal rate parity.
  */
 export async function sendAssistantMessage({
   message,
@@ -21,109 +23,44 @@ export async function sendAssistantMessage({
   const query = message.trim();
   const queryLower = query.toLowerCase();
 
+  // 1. Try structured intent understanding endpoint (/api/assistant/understand)
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const timeoutId = setTimeout(() => controller.abort(), 6500);
 
-    const res = await fetch(`${API_BASE_URL}/assistant/chat`, {
+    const uRes = await fetch(`${API_BASE_URL}/assistant/understand`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: query,
-        userId,
         lang,
-        userLocation,
-        savedAddresses,
       }),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && data.reply) {
-        // 1. Guard against guessed drafts if user requested self-location without GPS coordinates
-        const isSelfOrigin = isSelfLocationQuery(queryLower);
-        if (isSelfOrigin && (!userLocation || !userLocation.lat)) {
-          return {
-            reply: lang === 'en'
-              ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark in Lombok so the route and fare can be calculated factually.'
-              : 'Wira AI membutuhkan titik koordinat lokasi Anda untuk penjemputan di tempat Anda saat ini. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan nama patokan/desa/jalan penjemputan Anda secara spesifik agar penjemputan dan tarif akurat tanpa menebak.',
-            widgets: [],
-          };
-        }
-
-        let correctedReply = data.reply;
-        const safeWidgets = (Array.isArray(data.widgets) ? data.widgets : [])
-          .filter((w) => Boolean(w && typeof w === 'object' && w.type))
-          .map((w) => {
-            if (w.type === 'booking_draft' && w.serviceType === 'ride') {
-              const distKm = Number(w.details?.distanceKm) || 5;
-              const isCar = w.details?.vehicleType === 'car' || w.details?.vehicleType === 'mobil';
-              const motorPrice = calculateRideFare(distKm, false);
-              const carPrice = calculateRideFare(distKm, true);
-              const factualPrice = isCar ? carPrice : motorPrice;
-
-              const originCoords = w.details?.originCoords || {
-                lat: w.details?.pickup?.lat ?? userLocation?.lat ?? null,
-                lng: w.details?.pickup?.lng ?? userLocation?.lng ?? null,
-              };
-              const destCoords = w.details?.destCoords || {
-                lat: w.details?.dropoff?.lat ?? null,
-                lng: w.details?.dropoff?.lng ?? null,
-              };
-
-              const pickupObj = {
-                name: w.details?.origin || w.details?.pickup?.name || 'Titik Jemput',
-                lat: originCoords.lat,
-                lng: originCoords.lng,
-              };
-              const dropoffObj = {
-                name: w.details?.destination || w.details?.dropoff?.name || 'Tujuan',
-                lat: destCoords.lat,
-                lng: destCoords.lng,
-              };
-
-              // Re-align reply text if it had backend outdated fare
-              if (w.priceEstimate && w.priceEstimate !== factualPrice) {
-                const oldFormatted = `Rp ${Number(w.priceEstimate).toLocaleString('id-ID')}`;
-                const newFormatted = `Rp ${factualPrice.toLocaleString('id-ID')}`;
-                correctedReply = correctedReply.replace(oldFormatted, newFormatted);
-              }
-
-              return {
-                ...w,
-                priceEstimate: factualPrice,
-                details: {
-                  ...w.details,
-                  motorPrice,
-                  carPrice,
-                  originCoords,
-                  destCoords,
-                  pickup: pickupObj,
-                  dropoff: dropoffObj,
-                  rate_code: isCar ? 'mobil' : 'motor',
-                  distance_meters: Math.round(distKm * 1000),
-                },
-              };
-            }
-            return w;
+    if (uRes.ok) {
+      const uData = await uRes.json();
+      if (uData?.success && uData?.intent) {
+        const intent = uData.intent;
+        if (intent.service === 'ride' && intent.ride) {
+          return await synthesizeRideDraftFromIntent({
+            intent: intent.ride,
+            lang,
+            userLocation,
+            savedAddresses,
           });
-
-        return {
-          reply: correctedReply,
-          widgets: safeWidgets,
-        };
+        }
       }
     }
-  } catch (err) {
-    console.warn('Backend assistant endpoint unavailable, using client fallback:', err.message);
+  } catch (uErr) {
+    console.warn('Backend understand endpoint unavailable, using client fallback:', uErr.message);
   }
 
-  // Client-side fallback with real Supabase data & local semantic parsing
+  // 2. Client-side fallback with real Supabase data & local semantic parsing
   return await resolveClientAssistant({ query, queryLower, lang, activeOrders, userLocation, savedAddresses });
 }
 
@@ -233,8 +170,17 @@ export async function confirmAssistantBooking({ draft, userId, paymentMethod = '
       draft_id: draft.draftId,
       service_name: draft.serviceName,
       booking_details: detailsObj,
+      ...(detailsObj.hourly ? { hourly: detailsObj.hourly } : {}),
+      ...(detailsObj.scheduledAt ? { scheduled_at: detailsObj.scheduledAt } : {}),
     },
   };
+
+  if (detailsObj.scheduledAt) {
+    orderRow.scheduled_at = detailsObj.scheduledAt;
+  }
+  if (detailsObj.pickupLandmarkNote) {
+    orderRow.pickup_note = detailsObj.pickupLandmarkNote;
+  }
 
   if (serviceType === 'send') {
     const validSizes = ['dokumen', 'kecil', 'sedang', 'besar', 'mobil'];
@@ -445,7 +391,22 @@ const LOMBOK_LOCATIONS = {
   'gili meno': { name: 'Gili Meno, Lombok Utara', lat: -8.3520, lng: 116.0580 },
   rektorat: { name: 'Rektorat Universitas Mataram, Jl. Majapahit, Mataram', lat: -8.5901, lng: 116.0964 },
   unram: { name: 'Universitas Mataram, Mataram', lat: -8.5901, lng: 116.0964 },
+  'temu coffeeshop': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu coffee & space': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu coffee': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'temu': { name: 'TEMU Coffee & Space, Jl. Bung Karno, Mataram', lat: -8.6021, lng: 116.1137 },
+  'lombok epicentrum mall': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'mall epicentrum': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'epicentrum mall': { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
   epicentrum: { name: 'Lombok Epicentrum Mall, Mataram', lat: -8.5912, lng: 116.1045 },
+  'mataram mall': { name: 'Mataram Mall, Cakranegara', lat: -8.5905, lng: 116.1265 },
+  'transmart': { name: 'Transmart Mataram', lat: -8.5925, lng: 116.1360 },
+  'transmart mataram': { name: 'Transmart Mataram', lat: -8.5925, lng: 116.1360 },
+  'islamic center': { name: 'Islamic Center Hubbul Wathan NTB, Mataram', lat: -8.5778, lng: 116.1105 },
+  'islamic center lombok': { name: 'Islamic Center Hubbul Wathan NTB, Mataram', lat: -8.5778, lng: 116.1105 },
+  'rsud kota mataram': { name: 'RSUD Kota Mataram', lat: -8.6005, lng: 116.1110 },
+  'rsud provinsi ntb': { name: 'RSUD Provinsi NTB, Dasan Cermen', lat: -8.6075, lng: 116.1470 },
+  'rsud praya': { name: 'RSUD Praya, Lombok Tengah', lat: -8.7050, lng: 116.2750 },
   default: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
 };
 
@@ -566,8 +527,364 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
   return null;
 }
 
+const dynamicGeocodeCache = new Map();
+
+export async function resolvePlaceCoordinates(text, { userLocation, savedAddresses } = {}) {
+  const local = resolveLombokLocation(text, { userLocation, savedAddresses });
+  if (local) return local;
+
+  if (!text || typeof text !== 'string' || text.trim().length < 3) return null;
+  const cleanText = text.trim();
+  const cacheKey = cleanText.toLowerCase();
+  if (dynamicGeocodeCache.has(cacheKey)) {
+    return dynamicGeocodeCache.get(cacheKey);
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanText)}&format=json&limit=1&bounded=1&viewbox=115.8,-8.1,116.8,-9.1`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept-Language': 'id,en' },
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+
+        if (lat <= -8.1 && lat >= -9.2 && lng >= 115.8 && lng <= 116.9) {
+          const parts = (data[0].display_name || cleanText).split(',');
+          const shortName = parts.slice(0, 2).join(',').trim();
+          const resolved = {
+            name: shortName || cleanText,
+            lat,
+            lng,
+            isGeocoded: true,
+          };
+          dynamicGeocodeCache.set(cacheKey, resolved);
+          return resolved;
+        }
+      }
+    }
+  } catch (_) {
+    // proceed to return null
+  }
+
+  return null;
+}
+
+export async function synthesizeRideDraftFromIntent({
+  intent,
+  lang = 'id',
+  userLocation = null,
+  savedAddresses = [],
+}) {
+  const isEn = lang === 'en';
+  const timingMode = ['now', 'later', 'hourly'].includes(intent.timingMode) ? intent.timingMode : 'now';
+  const isHourly = timingMode === 'hourly';
+  const isLater = timingMode === 'later';
+  const hourlyHours = Number(intent.timingHours) > 0 ? Math.min(24, Math.max(1, Math.round(Number(intent.timingHours)))) : 4;
+  const isCar = intent.vehicle === 'mobil' || (isHourly && intent.vehicle !== 'motor');
+
+  // 1. Resolve Pickup
+  let pickup = null;
+  const isSelfPickup = Boolean(intent.pickupIsCurrentLocation) || (!intent.pickupText && !isHourly);
+
+  if (isSelfPickup || isSelfLocationQuery(intent.pickupText)) {
+    if (userLocation?.lat && userLocation?.lng) {
+      pickup = {
+        name: userLocation.address || (isEn ? 'Your Current Location' : 'Lokasi Anda Saat Ini'),
+        lat: Number(userLocation.lat),
+        lng: Number(userLocation.lng),
+        isUserLocation: true,
+      };
+    } else {
+      return {
+        reply: isEn
+          ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark in Lombok so the route and fare can be calculated factually.'
+          : 'Wira AI membutuhkan titik koordinat lokasi Anda untuk penjemputan di tempat Anda saat ini. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan nama patokan/desa/jalan penjemputan Anda secara spesifik agar penjemputan dan tarif akurat tanpa menebak.',
+        widgets: [],
+      };
+    }
+  } else if (intent.pickupText) {
+    pickup = await resolvePlaceCoordinates(intent.pickupText, { userLocation, savedAddresses });
+    if (!pickup) {
+      return {
+        reply: isEn
+          ? `Could you please clarify your pickup location "${intent.pickupText}" in Lombok? (e.g. mention the village, subdistrict, or nearest landmark)`
+          : `Mohon klarifikasi titik penjemputan "${intent.pickupText}" di Lombok lebih spesifik (misalnya: nama jalan, desa, kecamatan, atau patokan terdekat) agar lokasi jemput dan ongkos faktual tanpa menebak.`,
+        widgets: [],
+      };
+    }
+  } else {
+    if (userLocation?.lat && userLocation?.lng) {
+      pickup = {
+        name: userLocation.address || (isEn ? 'Your Current Location' : 'Lokasi Anda Saat Ini'),
+        lat: Number(userLocation.lat),
+        lng: Number(userLocation.lng),
+        isUserLocation: true,
+      };
+    } else {
+      return {
+        reply: isEn
+          ? 'Where should the driver pick you up? Please specify your pickup point in Lombok (or enable GPS).'
+          : 'Di mana lokasi penjemputan Anda? Mohon sebutkan lokasi titik jemput di Lombok atau aktifkan GPS Anda.',
+        widgets: [],
+      };
+    }
+  }
+
+  const pickupLandmark = (intent.pickupLandmarkNote || '').trim();
+  const pickupDisplayName = pickupLandmark ? withAddressNote(pickup.name, pickupLandmark) : pickup.name;
+
+  // 2. Resolve Dropoff
+  let dropoff = null;
+  let dropoffDisplayName = null;
+
+  if (isHourly) {
+    dropoff = {
+      name: isEn ? `Hourly Tour (${hourlyHours}h)` : `Sewa Keliling Lombok (${hourlyHours} Jam)`,
+      lat: pickup.lat,
+      lng: pickup.lng,
+    };
+    dropoffDisplayName = dropoff.name;
+  } else {
+    if (!intent.dropoffText) {
+      return {
+        reply: isEn
+          ? 'Where would you like to go? Please specify your destination in Lombok (e.g. Bandara Lombok, Praya, Kuta) so the route and fare can be calculated factually.'
+          : 'Ke mana lokasi tujuan perjalanan Anda di Lombok? Mohon sebutkan lokasi tujuan Anda (misalnya: Bandara Lombok, Praya, Kuta) agar rute dan ongkos dapat dihitung secara faktual tanpa menebak.',
+        widgets: [],
+      };
+    }
+
+    dropoff = await resolvePlaceCoordinates(intent.dropoffText, { userLocation, savedAddresses });
+    if (!dropoff) {
+      return {
+        reply: isEn
+          ? `Could you please clarify your destination "${intent.dropoffText}" in Lombok? (e.g. mention the village, subdistrict, or nearest landmark like Sengkol, Kuta, Praya) so I can calculate the factual route and fare.`
+          : `Mohon klarifikasi lokasi tujuan "${intent.dropoffText}" di Lombok lebih spesifik (misalnya: nama desa, kecamatan, atau patokan terdekat seperti Sengkol, Kuta, Praya) agar rute dan tarif dapat dihitung secara faktual tanpa menebak.`,
+        widgets: [],
+      };
+    }
+
+    const dropoffLandmark = (intent.dropoffLandmarkNote || '').trim();
+    dropoffDisplayName = dropoffLandmark ? withAddressNote(dropoff.name, dropoffLandmark) : dropoff.name;
+  }
+
+  // 3. Distance & Pricing calculation
+  let distKm = null;
+  let durationMins = null;
+  let motorPrice = 8000;
+  let carPrice = 15000;
+
+  if (isHourly) {
+    motorPrice = hourlyHours * 25000;
+    carPrice = hourlyHours * 60000;
+    durationMins = hourlyHours * 60;
+  } else {
+    const routeInfo = await getOsmRouteDistance(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
+    distKm = routeInfo.distKm;
+    durationMins = routeInfo.durationMins;
+    motorPrice = calculateRideFare(distKm, false);
+    carPrice = calculateRideFare(distKm, true);
+  }
+
+  const price = isCar ? carPrice : motorPrice;
+  const vehicleName = isCar
+    ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)')
+    : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)');
+
+  // 4. Schedule & Time label
+  let scheduledAtIso = null;
+  let timeLabel = isEn ? 'Now' : 'Sekarang';
+
+  if (isLater) {
+    const relMin = Number(intent.timingRelativeMinutes);
+    if (Number.isFinite(relMin) && relMin > 0) {
+      const schedDate = new Date(Date.now() + relMin * 60000);
+      scheduledAtIso = schedDate.toISOString();
+      const pad = (n) => String(n).padStart(2, '0');
+      const timeStr = `${pad(schedDate.getHours())}:${pad(schedDate.getMinutes())}`;
+      const relHrs = Math.round(relMin / 60);
+      const relText = relMin >= 60
+        ? (isEn ? `in ${relHrs} hours` : `dalam ${relHrs} jam`)
+        : (isEn ? `in ${relMin} mins` : `dalam ${relMin} menit`);
+      timeLabel = isEn ? `Today at ${timeStr} (${relText})` : `Hari ini pk ${timeStr} (${relText})`;
+    } else if (intent.timingLocalDateTime) {
+      scheduledAtIso = new Date(intent.timingLocalDateTime).toISOString();
+      timeLabel = intent.timingLocalDateTime.replace('T', ' pk ');
+    } else {
+      timeLabel = isEn ? 'Later (Scheduled)' : 'Nanti (Terjadwal)';
+    }
+  } else if (isHourly) {
+    timeLabel = isEn ? `Rental: ${hourlyHours} Hours` : `Sewa ${hourlyHours} Jam`;
+  }
+
+  // 5. Construct routeUrl for 1-click channeling
+  const routeParams = new URLSearchParams();
+  routeParams.set('pickup', pickupDisplayName);
+  routeParams.set('pickupLat', String(pickup.lat));
+  routeParams.set('pickupLng', String(pickup.lng));
+  if (dropoff && !isHourly) {
+    routeParams.set('dropoff', dropoffDisplayName);
+    routeParams.set('dropoffLat', String(dropoff.lat));
+    routeParams.set('dropoffLng', String(dropoff.lng));
+  }
+  routeParams.set('vehicle', isCar ? 'mobil' : 'motor');
+  routeParams.set('mode', timingMode);
+  if (isHourly) {
+    routeParams.set('hours', String(hourlyHours));
+  }
+  if (scheduledAtIso) {
+    routeParams.set('scheduled', scheduledAtIso);
+  }
+  if (pickupLandmark) {
+    routeParams.set('note', pickupLandmark);
+  }
+  const routeUrl = `/ride?${routeParams.toString()}`;
+
+  // 6. Build Draft Card
+  const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const draft = {
+    type: 'booking_draft',
+    draftId,
+    serviceType: 'ride',
+    serviceName: vehicleName,
+    title: isHourly
+      ? (isEn ? `Hourly Rental (${hourlyHours}h): ${pickup.name}` : `Sewa Kendaraan ${hourlyHours} Jam: ${pickup.name}`)
+      : `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${pickup.name} ➔ ${dropoff.name}`,
+    subtitle: isHourly
+      ? (isEn ? `Private driver on standby for ${hourlyHours} hours` : `Driver privat siap mendampingi selama ${hourlyHours} jam`)
+      : (isEn ? `Verified local driver pickup (${distKm} km • ~${durationMins} mins)` : `Mitra driver lokal terdekat siap menjemput (${distKm} km • ~${durationMins} mnt)`),
+    details: {
+      origin: pickupDisplayName,
+      destination: dropoffDisplayName,
+      vehicleType: isCar ? 'car' : 'motor',
+      distanceKm: distKm,
+      durationMins,
+      motorPrice,
+      carPrice,
+      routeUrl,
+      date: isEn ? 'Today' : 'Hari ini',
+      time: timeLabel,
+      notes: pickupLandmark
+        ? `Patokan: ${pickupLandmark}`
+        : (isHourly ? `Sewa ${hourlyHours} Jam` : (isLater ? timeLabel : (isEn ? 'Immediate pickup' : 'Jemput sekarang'))),
+      pickupLandmarkNote: pickupLandmark || null,
+      originCoords: { lat: pickup.lat, lng: pickup.lng },
+      destCoords: { lat: dropoff.lat, lng: dropoff.lng },
+      pickup: { name: pickupDisplayName, lat: pickup.lat, lng: pickup.lng },
+      dropoff: { name: dropoffDisplayName, lat: dropoff.lat, lng: dropoff.lng },
+      rate_code: isCar ? 'mobil' : 'motor',
+      distance_meters: distKm ? Math.round(distKm * 1000) : null,
+      timingMode,
+      scheduledAt: scheduledAtIso,
+      hourly: isHourly ? { hours: hourlyHours } : null,
+    },
+    priceEstimate: price,
+    paymentMethod: 'cash',
+    status: 'draft',
+  };
+
+  // 7. Natural polite Indonesian reply
+  let reply = '';
+  if (isHourly) {
+    reply = isEn
+      ? `I have prepared a ${vehicleName} rental draft for ${hourlyHours} hours from ${pickupDisplayName}. Total rental fare is Rp ${price.toLocaleString('id-ID')}. Confirm below to book directly or view on map!`
+      : `Saya sudah menyiapkan draf sewa ${vehicleName} selama ${hourlyHours} jam dari ${pickupDisplayName}. Total tarif sewa Rp ${price.toLocaleString('id-ID')} (lengkap driver & operasional). Silakan konfirmasi di bawah atau klik tombol untuk melihat rute di peta!`;
+  } else if (isLater) {
+    reply = isEn
+      ? `I have scheduled your ${vehicleName} booking from ${pickupDisplayName} to ${dropoffDisplayName} for ${timeLabel} (${distKm} km • ~${durationMins} mins). Fare is Rp ${price.toLocaleString('id-ID')}. Confirm below to lock your booking!`
+      : `Saya sudah menyiapkan pesanan terjadwal ${vehicleName} dari ${pickupDisplayName} menuju ${dropoffDisplayName} untuk ${timeLabel} (${distKm} km • ~${durationMins} mnt) dengan tarif Rp ${price.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi!`;
+  } else {
+    reply = isEn
+      ? `I have prepared your ${vehicleName} booking from ${pickupDisplayName} to ${dropoffDisplayName} (${distKm} km • ~${durationMins} mins) with estimated fare of Rp ${price.toLocaleString('id-ID')}. Driver is ready for pickup!`
+      : `Saya sudah menyiapkan draf pesanan ${vehicleName} dari ${pickupDisplayName} menuju ${dropoffDisplayName} (${distKm} km • ~${durationMins} mnt) dengan tarif Rp ${price.toLocaleString('id-ID')}. Mitra driver lokal terdekat siap menjemput sekarang. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
+  }
+
+  return { reply, widgets: [draft] };
+}
+
+export function parseRideFallbackClient(message) {
+  const q = (message || '').trim().toLowerCase();
+  const isCar = /mobil|car|taksi|taxi/i.test(q);
+  const isMotor = /motor|ojek|bike/i.test(q);
+  const vehicle = isCar ? 'mobil' : (isMotor ? 'motor' : null);
+
+  let timingMode = 'now';
+  let timingRelativeMinutes = null;
+  let timingHours = null;
+
+  const hourlyMatch = q.match(/sewa(?:\s+mobil|\s+motor)?\s+(\d+)\s*jam/i);
+  if (hourlyMatch) {
+    timingMode = 'hourly';
+    timingHours = parseInt(hourlyMatch[1], 10);
+  } else {
+    const relMatch = q.match(/(?:dalam|lagi)\s+(\d+)\s*(jam|menit)/i) || q.match(/(\d+)\s*(jam|menit)\s*(?:ke\s+depan|lagi)/i);
+    if (relMatch) {
+      timingMode = 'later';
+      const num = parseInt(relMatch[1], 10);
+      const unit = relMatch[2].toLowerCase();
+      timingRelativeMinutes = unit.startsWith('jam') ? num * 60 : num;
+    }
+  }
+
+  const isSelf = isSelfLocationQuery(q);
+
+  let pickupText = null;
+  let pickupLandmarkNote = null;
+  let dropoffText = null;
+  let dropoffLandmarkNote = null;
+
+  const dariMatch = q.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s()_-]+?)(?:\s+(?:\bke\b|mnuju|menuju|tujuan)|$)/i);
+  if (dariMatch) {
+    let raw = dariMatch[1].trim();
+    const noteMatch = raw.match(/\(([^)]+)\)/);
+    if (noteMatch) {
+      pickupLandmarkNote = noteMatch[1].trim();
+      raw = raw.replace(/\([^)]+\)/, '').trim();
+    }
+    if (isSelfLocationQuery(raw)) {
+      pickupText = null;
+    } else {
+      pickupText = raw;
+    }
+  }
+
+  const keMatch = q.match(/(?:\bke\b|mnuju|menuju|tujuan)\s+([a-zA-Z0-9\s()_-]+?)(?:\s+(?:sekarang|nanti|besok|pagi|siang|sore|malam)|$)/i);
+  if (keMatch) {
+    let raw = keMatch[1].trim();
+    const noteMatch = raw.match(/\(([^)]+)\)/);
+    if (noteMatch) {
+      dropoffLandmarkNote = noteMatch[1].trim();
+      raw = raw.replace(/\([^)]+\)/, '').trim();
+    }
+    dropoffText = raw;
+  }
+
+  return {
+    vehicle,
+    pickupText,
+    pickupIsCurrentLocation: isSelf || (!pickupText && timingMode !== 'hourly'),
+    pickupLandmarkNote,
+    dropoffText,
+    dropoffLandmarkNote,
+    timingMode,
+    timingRelativeMinutes,
+    timingLocalDateTime: null,
+    timingHours,
+    notes: null,
+  };
+}
+
 // Client-side fallback handler
-async function resolveClientAssistant({ queryLower, lang, activeOrders = [], userLocation = null, savedAddresses = [] }) {
+async function resolveClientAssistant({ query = '', queryLower, lang, activeOrders = [], userLocation = null, savedAddresses = [] }) {
   const isEn = lang === 'en';
   let reply;
   const widgets = [];
@@ -587,125 +904,15 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
     const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. WiraRide
-    const isRideHailing = detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|transport|pesankan/i.test(queryLower) || /(?:dari\s+.+\s+ke\s+|ke\s+)/i.test(queryLower);
+    const isRideHailing = detectedIntents.ride || /ojek|taksi|motor|mobil|jemput|antar|sewa mobil|transport|pesankan/i.test(queryLower) || /(?:dari\s+.+\s+(?:ke|mnuju|menuju)\s+|(?:ke|mnuju|menuju)\s+)/i.test(queryLower);
     if (isRideHailing) {
-      const isCar = /mobil|car|taksi|taxi/i.test(queryLower);
-      const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
-      const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju|sekarang|pagi|siang)|$)/i);
-
-      let originLoc = null;
-      let rawOrigin = dariMatch ? dariMatch[1].trim() : '';
-
-      if (!rawOrigin || isSelfLocationQuery(rawOrigin)) {
-        if (userLocation && userLocation.lat && userLocation.lng) {
-          originLoc = {
-            name: userLocation.address || 'Lokasi Anda Saat Ini',
-            lat: Number(userLocation.lat),
-            lng: Number(userLocation.lng),
-            isUserLocation: true,
-          };
-          rawOrigin = originLoc.name;
-        } else {
-          originLoc = null;
-        }
-      }
-
-      let rawDest = keMatch ? keMatch[1].trim() : '';
-      if (!rawDest) {
-        return {
-          reply: isEn
-            ? 'Where would you like to go? Please specify your destination in Lombok (e.g. Bandara Lombok, Praya, Kuta).'
-            : 'Ke mana lokasi tujuan perjalanan Anda di Lombok? Mohon sebutkan lokasi tujuan Anda (misalnya: Bandara Lombok, Praya, Kuta) agar rute dan ongkos dapat dihitung secara faktual.',
-          widgets: [],
-        };
-      }
-
-      if (rawOrigin && rawDest && rawOrigin.toLowerCase() === rawDest.toLowerCase()) {
-        rawDest = rawOrigin.toLowerCase().includes('pantai kuta')
-          ? 'Bandara Internasional Lombok (LOP)'
-          : 'Pantai Kuta Mandalika, Lombok';
-      }
-
-      if (!originLoc && rawOrigin) {
-        originLoc = resolveLombokLocation(rawOrigin, { userLocation, savedAddresses });
-      }
-
-      if (!originLoc) {
-        return {
-          reply: isEn
-            ? 'Wira AI requires your device coordinates for pickup at your current location. Please enable GPS permissions on your device, or specify your exact pickup location/landmark so the route and fare can be calculated factually.'
-            : 'Wira AI membutuhkan titik koordinat lokasi penjemputan Anda. Mohon aktifkan GPS atau izinkan akses lokasi pada perangkat Anda, atau sebutkan alamat/patokan penjemputan Anda secara spesifik agar titik jemput dan ongkos faktual tanpa menebak.',
-          widgets: [],
-        };
-      }
-
-      let destLoc = resolveLombokLocation(rawDest, { userLocation, savedAddresses });
-      if (!destLoc) {
-        return {
-          reply: isEn
-            ? `Could you please clarify your destination "${rawDest}" in Lombok? (e.g., mention the village, subdistrict, or nearest landmark like Sengkol, Kuta, Praya) so I can calculate the factual route and fare.`
-            : `Mohon klarifikasi lokasi tujuan "${rawDest}" di Lombok lebih spesifik (misalnya: nama desa, kecamatan, atau patokan terdekat seperti Sengkol, Kuta, Praya) agar rute dan tarif dapat dihitung secara faktual tanpa menebak.`,
-          widgets: [],
-        };
-      }
-
-      if (originLoc.name === destLoc.name || (Math.abs(originLoc.lat - destLoc.lat) < 0.0005 && Math.abs(originLoc.lng - destLoc.lng) < 0.0005)) {
-        if (destLoc.name.toLowerCase().includes('kuta') || originLoc.name.toLowerCase().includes('kuta')) {
-          destLoc = { name: 'Bukit Merese, Pujut, Lombok Tengah', lat: -8.9120, lng: 116.3190 };
-        } else {
-          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8975, lng: 116.2785 };
-        }
-      }
-
-      const routeInfo = await getOsmRouteDistance(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
-      const distKm = routeInfo.distKm;
-      const durationMins = routeInfo.durationMins;
-      const motorPrice = calculateRideFare(distKm, false);
-      const carPrice = calculateRideFare(distKm, true);
-      const price = isCar ? carPrice : motorPrice;
-      const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)');
-
-      const routeUrl = `/ride?pickup=${encodeURIComponent(originLoc.name)}&pickupLat=${originLoc.lat}&pickupLng=${originLoc.lng}&dropoff=${encodeURIComponent(destLoc.name)}&dropoffLat=${destLoc.lat}&dropoffLng=${destLoc.lng}&vehicle=${isCar ? 'mobil' : 'motor'}`;
-
-      const pickupObj = { name: originLoc.name, lat: originLoc.lat, lng: originLoc.lng };
-      const dropoffObj = { name: destLoc.name, lat: destLoc.lat, lng: destLoc.lng };
-
-      widgets.push({
-        type: 'booking_draft',
-        draftId,
-        serviceType: 'ride',
-        serviceName: vName,
-        title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${originLoc.name} ➔ ${destLoc.name}`,
-        subtitle: isEn ? `Verified local driver pickup (${distKm} km • ~${durationMins} mins)` : `Mitra driver lokal terdekat siap menjemput (${distKm} km • ~${durationMins} mnt)`,
-        details: {
-          origin: originLoc.name,
-          destination: destLoc.name,
-          vehicleType: isCar ? 'car' : 'motor',
-          distanceKm: distKm,
-          durationMins,
-          motorPrice,
-          carPrice,
-          routeUrl,
-          date: isEn ? 'Today' : 'Hari ini',
-          time: isEn ? 'Now' : 'Sekarang',
-          notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
-          originCoords: { lat: originLoc.lat, lng: originLoc.lng },
-          destCoords: { lat: destLoc.lat, lng: destLoc.lng },
-          pickup: pickupObj,
-          dropoff: dropoffObj,
-          rate_code: isCar ? 'mobil' : 'motor',
-          distance_meters: Math.round(distKm * 1000),
-        },
-        priceEstimate: price,
-        paymentMethod: 'cash',
-        status: 'draft',
+      const fallbackParsed = parseRideFallbackClient(query);
+      return await synthesizeRideDraftFromIntent({
+        intent: fallbackParsed,
+        lang,
+        userLocation,
+        savedAddresses,
       });
-
-      reply = isEn
-        ? `I have prepared your ${vName} booking from ${originLoc.name} to ${destLoc.name} (${distKm} km • ~${durationMins} mins) with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
-        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm} km • ~${durationMins} mnt) dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
-
-      return { reply, widgets };
     }
 
     // 2. WiraFood
