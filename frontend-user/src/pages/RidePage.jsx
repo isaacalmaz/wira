@@ -189,6 +189,31 @@ export default function RidePage() {
     setAgainDriverId(prev.driver_id || '');
   }, [againId, orders, againDriverId]);
 
+  // Prefill the route directly from URL search params (e.g. from Assistant draft or deep link)
+  useEffect(() => {
+    const qPickup = searchParams.get('pickup');
+    const qDropoff = searchParams.get('dropoff');
+    const pLat = parseFloat(searchParams.get('pickupLat') || searchParams.get('pLat'));
+    const pLng = parseFloat(searchParams.get('pickupLng') || searchParams.get('pLng'));
+    const dLat = parseFloat(searchParams.get('dropoffLat') || searchParams.get('dLat'));
+    const dLng = parseFloat(searchParams.get('dropoffLng') || searchParams.get('dLng'));
+    const qVehicle = searchParams.get('vehicle');
+
+    if (qPickup && qDropoff && !isNaN(pLat) && !isNaN(pLng) && !isNaN(dLat) && !isNaN(dLng)) {
+      setPickup(qPickup);
+      setDropoff(qDropoff);
+      setMapState((m) => ({
+        ...m,
+        center: { lat: pLat, lng: pLng },
+        markers: [{ lat: pLat, lng: pLng }, { lat: dLat, lng: dLng }],
+      }));
+      if (qVehicle && sourceVehicles.length > 0) {
+        const found = sourceVehicles.find((v) => v.id === qVehicle);
+        if (found) setSelectedVehicle(found);
+      }
+    }
+  }, [searchParams, sourceVehicles]);
+
   // Otomatis mencari rute jika marker 0 dan 1 sudah ada (pickup & dropoff valid)
   useEffect(() => {
     if (mode !== 'hourly' && mapState.markers.length === 2 && pickup && dropoff && step === 'input') {

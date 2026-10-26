@@ -141,12 +141,36 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function calculateRideFare(distKm, isCar = false) {
-  if (isCar) {
-    const fare = distKm <= 3 ? 35000 : 35000 + Math.ceil(distKm - 3) * 6000;
-    return Math.ceil(fare / 5000) * 5000;
+  const basePrice = isCar ? 25000 : 12000;
+  const perKmRate = isCar ? 5000 : 3000;
+  const extraKm = Math.max(0, distKm - 2);
+  return Math.ceil((basePrice + Math.ceil(extraKm * perKmRate)) / 500) * 500;
+}
+
+async function getOsmRouteDistance(lat1, lon1, lat2, lon2) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routes && data.routes[0]) {
+        const distKm = parseFloat((data.routes[0].distance / 1000).toFixed(1));
+        const durationMins = Math.ceil(data.routes[0].duration / 60);
+        return { distKm, durationMins, source: 'osrm' };
+      }
+    }
+  } catch (_) {
+    // network timeout fallback
   }
-  const fare = distKm <= 2 ? 12000 : 12000 + Math.ceil(distKm - 2) * 2500;
-  return Math.ceil(fare / 1000) * 1000;
+
+  // Calibrated road winding factor for Lombok terrain (road is ~1.15x straight line)
+  const crowKm = calculateDistanceKm(lat1, lon1, lat2, lon2);
+  const distKm = parseFloat((crowKm * 1.15).toFixed(1));
+  const durationMins = Math.max(3, Math.ceil(distKm * 1.5));
+  return { distKm, durationMins, source: 'calibrated' };
 }
 
 function resolveLombokLocation(text, dbContext = {}) {
@@ -537,7 +561,7 @@ const GEMINI_TOOLS = [
 ];
 
 // Helper to construct structured draft widget from tool call
-function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLower = '') {
+async function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLower = '') {
   const isEn = lang === 'en';
   const draftId = `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   let draft = null;
@@ -609,9 +633,15 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         }
       }
 
-      const distKm = calculateDistanceKm(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
-      const priceEstimate = calculateRideFare(distKm, isCar);
+      const routeInfo = await getOsmRouteDistance(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
+      const distKm = routeInfo.distKm;
+      const durationMins = routeInfo.durationMins;
+      const motorPrice = calculateRideFare(distKm, false);
+      const carPrice = calculateRideFare(distKm, true);
+      const priceEstimate = isCar ? carPrice : motorPrice;
       const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)');
+
+      const routeUrl = `/ride?pickup=${encodeURIComponent(originLoc.name)}&pickupLat=${originLoc.lat}&pickupLng=${originLoc.lng}&dropoff=${encodeURIComponent(destLoc.name)}&dropoffLat=${destLoc.lat}&dropoffLng=${destLoc.lng}&vehicle=${isCar ? 'mobil' : 'motor'}`;
 
       draft = {
         type: 'booking_draft',
@@ -619,12 +649,16 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
         serviceType: 'ride',
         serviceName: vName,
         title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${originLoc.name} ➔ ${destLoc.name}`,
-        subtitle: isEn ? `Verified local driver pickup (${distKm.toFixed(1)} km)` : `Mitra driver lokal terdekat siap menjemput (${distKm.toFixed(1)} km)`,
+        subtitle: isEn ? `Verified local driver pickup (${distKm} km • ~${durationMins} mins)` : `Mitra driver lokal terdekat siap menjemput (${distKm} km • ~${durationMins} mnt)`,
         details: {
           origin: originLoc.name,
           destination: destLoc.name,
           vehicleType: isCar ? 'car' : 'motor',
-          distanceKm: parseFloat(distKm.toFixed(1)),
+          distanceKm: distKm,
+          durationMins,
+          motorPrice,
+          carPrice,
+          routeUrl,
           date: isEn ? 'Today' : 'Hari ini',
           time: isEn ? 'Now' : 'Sekarang',
           notes: args.notes || (isEn ? 'Immediate pickup' : 'Jemput sekarang'),
@@ -637,8 +671,8 @@ function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', queryLow
       };
 
       reply = isEn
-        ? `I have drafted your ${vName} ride from ${originLoc.name} to ${destLoc.name} (${distKm.toFixed(1)} km). Estimated fare is Rp ${priceEstimate.toLocaleString('id-ID')}. Please check details below and tap confirm to order!`
-        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm.toFixed(1)} km) dengan estimasi tarif Rp ${priceEstimate.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
+        ? `I have drafted your ${vName} ride from ${originLoc.name} to ${destLoc.name} (${distKm} km, ~${durationMins} mins). Fare: Rp ${priceEstimate.toLocaleString('id-ID')} (matches Ride Portal). Confirm below or open on map!`
+        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm} km, ~${durationMins} mnt) dengan tarif Rp ${priceEstimate.toLocaleString('id-ID')} (sesuai tarif resmi portal WiraRide). Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
       break;
     }
 
@@ -1001,7 +1035,7 @@ ${JSON.stringify(dbContext)}`;
 
           // If Gemini generated a Tool Call, convert it into an interactive Booking Draft Widget
           if (functionCallPart && functionCallPart.name) {
-            const { draft, reply } = buildDraftFromToolCall(
+            const { draft, reply } = await buildDraftFromToolCall(
               functionCallPart.name,
               functionCallPart.args || {},
               dbContext,
@@ -1025,7 +1059,7 @@ ${JSON.stringify(dbContext)}`;
 
           // Otherwise return natural conversational response with contextual widgets
           if (textPart) {
-            const localResult = generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents);
+            const localResult = await generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents);
             const hasDraftWidget = localResult.widgets && localResult.widgets.some((w) => w.type === 'booking_draft');
             return res.json({
               success: true,
@@ -1040,7 +1074,7 @@ ${JSON.stringify(dbContext)}`;
     }
 
     // Local Intelligent Engine (Enhanced Semantic Matcher + Local Tool Drafting Fallback)
-    const { reply, widgets } = generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents);
+    const { reply, widgets } = await generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents);
     return res.json({
       success: true,
       reply,
@@ -1363,7 +1397,7 @@ function buildWidgets(queryLower, dbContext, detectedIntents) {
 }
 
 // Local smart generator for fallback when Gemini is unavailable
-function generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents) {
+async function generateLocalResponse(query, queryLower, lang, dbContext, detectedIntents) {
   let reply;
   const isEn = lang === 'en';
   const isBookingQuery = /pesen|pesan|sewa|booking|order|panggil|kuras|angkut|cari baby|titip|kirim|mau|butuh|tolong|carikan|antar|jemput|makan|lapar|laper|nginep|inap|servis|service|bego|kolam|bersih|sampah|nanny|babysitter/i.test(queryLower);
@@ -1382,7 +1416,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
     if (primaryIntent === 'pool' || (!primaryIntent && (detectedIntents.pool || /kolam|kuras/i.test(queryLower)))) {
       const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Villa Kuta Lombok';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftPoolBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftPoolBooking', {
         serviceCategory: 'Kuras & Vacuum Kolam Renang',
         address,
         date: 'Hari ini',
@@ -1398,7 +1432,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
       const isHk = /housekeeping|turnover|kamar|bersih villa/i.test(queryLower);
       const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftBersihBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftBersihBooking', {
         subType: isHk ? 'housekeeping' : 'sampah',
         address,
         date: 'Besok pagi',
@@ -1417,7 +1451,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
       else if (/kuta/i.test(queryLower)) addr = 'Kuta Lombok';
       else if (/mataram/i.test(queryLower)) addr = 'Kota Mataram';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftServiceBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftServiceBooking', {
         serviceCategory: isExcavator ? 'excavator' : 'ac',
         problemDescription: isExcavator ? 'Sewa Excavator Mini PC-50 di Praya' : 'Servis & Cuci AC Villa',
         address: addr,
@@ -1435,7 +1469,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
       const durationHours = hoursMatch ? parseInt(hoursMatch[1], 10) : 4;
       const address = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftAsuhBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftAsuhBooking', {
         careType: 'Pengasuh Balita & Anak',
         durationHours,
         address,
@@ -1455,7 +1489,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
       const origin = sendDari ? sendDari[1].trim() : (dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok');
       const destination = sendKe ? sendKe[1].trim() : 'Kota Mataram';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftSendBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftSendBooking', {
         origin,
         destination,
         packageType: 'Dokumen / Paket Kilat',
@@ -1484,7 +1518,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
 
       const deliveryAddress = dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Kuta Lombok';
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftFoodOrder', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftFoodOrder', {
         restaurantName: restoName,
         items,
         deliveryAddress,
@@ -1505,7 +1539,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         vName = 'Villa Talas';
       }
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftVillaBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftVillaBooking', {
         villaName: vName,
         nights,
         checkInDate: 'Besok',
@@ -1529,7 +1563,7 @@ function generateLocalResponse(query, queryLower, lang, dbContext, detectedInten
         destination = 'Bandara Internasional Lombok (LOP)';
       }
 
-      const { draft, reply: draftReply } = buildDraftFromToolCall('draftRideBooking', {
+      const { draft, reply: draftReply } = await buildDraftFromToolCall('draftRideBooking', {
         vehicleType: isCar ? 'car' : 'motor',
         origin,
         destination,

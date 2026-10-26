@@ -1,5 +1,6 @@
 import API_BASE_URL from '../config/api';
 import { supabase } from '../config/supabase';
+import { fetchRoute } from '../utils/osmHelpers';
 
 /**
  * Send a message to Wira AI Assistant.
@@ -334,12 +335,28 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function calculateRideFare(distKm, isCar = false) {
-  if (isCar) {
-    const fare = distKm <= 3 ? 35000 : 35000 + Math.ceil(distKm - 3) * 6000;
-    return Math.ceil(fare / 5000) * 5000;
+  const basePrice = isCar ? 25000 : 12000;
+  const perKmRate = isCar ? 5000 : 3000;
+  const extraKm = Math.max(0, distKm - 2);
+  return Math.ceil((basePrice + Math.ceil(extraKm * perKmRate)) / 500) * 500;
+}
+
+async function getOsmRouteDistance(lat1, lon1, lat2, lon2) {
+  try {
+    const route = await fetchRoute({ lat: lat1, lng: lon1 }, { lat: lat2, lng: lon2 });
+    if (route && route.distance) {
+      const distKm = parseFloat((route.distance / 1000).toFixed(1));
+      const durationMins = Math.ceil(route.duration / 60);
+      return { distKm, durationMins, source: 'osrm' };
+    }
+  } catch (_) {
+    // fallback to calibrated distance
   }
-  const fare = distKm <= 2 ? 12000 : 12000 + Math.ceil(distKm - 2) * 2500;
-  return Math.ceil(fare / 1000) * 1000;
+
+  const crowKm = calculateDistanceKm(lat1, lon1, lat2, lon2);
+  const distKm = parseFloat((crowKm * 1.15).toFixed(1));
+  const durationMins = Math.max(3, Math.ceil(distKm * 1.5));
+  return { distKm, durationMins, source: 'calibrated' };
 }
 
 function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
@@ -501,9 +518,15 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         }
       }
 
-      const distKm = calculateDistanceKm(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
-      const price = calculateRideFare(distKm, isCar);
+      const routeInfo = await getOsmRouteDistance(originLoc.lat, originLoc.lng, destLoc.lat, destLoc.lng);
+      const distKm = routeInfo.distKm;
+      const durationMins = routeInfo.durationMins;
+      const motorPrice = calculateRideFare(distKm, false);
+      const carPrice = calculateRideFare(distKm, true);
+      const price = isCar ? carPrice : motorPrice;
       const vName = isCar ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)');
+
+      const routeUrl = `/ride?pickup=${encodeURIComponent(originLoc.name)}&pickupLat=${originLoc.lat}&pickupLng=${originLoc.lng}&dropoff=${encodeURIComponent(destLoc.name)}&dropoffLat=${destLoc.lat}&dropoffLng=${destLoc.lng}&vehicle=${isCar ? 'mobil' : 'motor'}`;
 
       widgets.push({
         type: 'booking_draft',
@@ -511,12 +534,16 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         serviceType: 'ride',
         serviceName: vName,
         title: `${isEn ? 'Ride Booking' : 'Pesan Ojek/Mobil'}: ${originLoc.name} ➔ ${destLoc.name}`,
-        subtitle: isEn ? `Verified local driver pickup (${distKm.toFixed(1)} km)` : `Mitra driver lokal terdekat siap menjemput (${distKm.toFixed(1)} km)`,
+        subtitle: isEn ? `Verified local driver pickup (${distKm} km • ~${durationMins} mins)` : `Mitra driver lokal terdekat siap menjemput (${distKm} km • ~${durationMins} mnt)`,
         details: {
           origin: originLoc.name,
           destination: destLoc.name,
           vehicleType: isCar ? 'car' : 'motor',
-          distanceKm: parseFloat(distKm.toFixed(1)),
+          distanceKm: distKm,
+          durationMins,
+          motorPrice,
+          carPrice,
+          routeUrl,
           date: isEn ? 'Today' : 'Hari ini',
           time: isEn ? 'Now' : 'Sekarang',
           notes: isEn ? 'Immediate pickup' : 'Jemput sekarang',
@@ -529,8 +556,8 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
       });
 
       reply = isEn
-        ? `I have prepared your ${vName} booking from ${originLoc.name} to ${destLoc.name} (${distKm.toFixed(1)} km) with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
-        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm.toFixed(1)} km) dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
+        ? `I have prepared your ${vName} booking from ${originLoc.name} to ${destLoc.name} (${distKm} km • ~${durationMins} mins) with estimated fare of Rp ${price.toLocaleString('id-ID')}. Confirm below to order hands-free!`
+        : `Saya sudah menyiapkan draf pesanan ${vName} dari ${originLoc.name} menuju ${destLoc.name} (${distKm} km • ~${durationMins} mnt) dengan estimasi tarif Rp ${price.toLocaleString('id-ID')}. Silakan periksa rincian di bawah dan tekan konfirmasi untuk memesan langsung!`;
 
       return { reply, widgets };
     }

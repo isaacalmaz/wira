@@ -113,7 +113,9 @@ async function runTestSuite() {
         const isNearAirport = d.distanceKm >= 5 && d.distanceKm <= 9;
         const hasBandaraDest = d.destination.toLowerCase().includes('bandara') || d.destination.toLowerCase().includes('lop');
         const hasUserOrigin = d.origin.toLowerCase().includes('pengmbur') || d.origin.toLowerCase().includes('pengembur') || d.origin.toLowerCase().includes('lokasi anda');
-        return isNearAirport && hasBandaraDest && hasUserOrigin;
+        const hasRouteUrl = typeof d.routeUrl === 'string' && d.routeUrl.includes('/ride');
+        const hasRoadPricing = d.motorPrice === 30000 && d.carPrice === 54500;
+        return isNearAirport && hasBandaraDest && hasUserOrigin && hasRouteUrl && hasRoadPricing;
       },
     },
   ];

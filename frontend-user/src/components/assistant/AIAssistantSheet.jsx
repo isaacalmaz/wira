@@ -31,6 +31,7 @@ function BookingDraftCard({
   onConfirm,
   onCancel,
   onTrack,
+  onOpenRoute,
   isEn,
 }) {
   const currentStatus = state.status || 'draft';
@@ -40,6 +41,16 @@ function BookingDraftCard({
   const isConfirmed = currentStatus === 'confirmed';
   const isCancelled = currentStatus === 'cancelled';
   const details = draft.details || {};
+
+  const isRide = draft.serviceType === 'ride';
+  const [selectedVehicle, setSelectedVehicle] = useState(details.vehicleType || 'motor');
+
+  // Compute live price based on selected vehicle if ride
+  const motorPrice = details.motorPrice || (details.vehicleType === 'motor' ? draft.priceEstimate : 12000);
+  const carPrice = details.carPrice || (details.vehicleType === 'car' ? draft.priceEstimate : 25000);
+  const currentPrice = isRide
+    ? (selectedVehicle === 'car' ? carPrice : motorPrice)
+    : draft.priceEstimate;
 
   return (
     <div className="flex flex-col gap-3 rounded-card border border-line bg-card p-3.5 sm:p-4 text-ink shadow-sm transition">
@@ -75,6 +86,16 @@ function BookingDraftCard({
               {details.origin ? (isEn ? 'Destination' : 'Tujuan') : (isEn ? 'Location' : 'Lokasi')}
             </span>
             <span className="font-semibold text-ink text-right break-words">{details.destination || details.address}</span>
+          </div>
+        )}
+
+        {/* Distance & ETA */}
+        {details.distanceKm && (
+          <div className="flex items-baseline justify-between gap-2 border-b border-line/40 pb-1.5">
+            <span className="text-[11px] text-ink-muted shrink-0">{isEn ? 'Distance & ETA' : 'Jarak & Estimasi'}</span>
+            <span className="font-semibold text-ink text-right">
+              {details.distanceKm} km {details.durationMins ? `• ~${details.durationMins} ${isEn ? 'mins' : 'mnt'}` : ''}
+            </span>
           </div>
         )}
 
@@ -120,6 +141,18 @@ function BookingDraftCard({
             &ldquo;{details.notes}&rdquo;
           </div>
         )}
+
+        {/* Deep Link to Ride Portal Route */}
+        {details.routeUrl && onOpenRoute && (
+          <button
+            type="button"
+            onClick={() => onOpenRoute(details.routeUrl)}
+            className="mt-1 flex items-center justify-center gap-1.5 rounded-control border border-line bg-card py-2 px-3 text-[11px] font-bold text-brand transition hover:bg-brand-soft"
+          >
+            <span>{isEn ? 'View Route on Ride Portal Map' : 'Lihat Rute di Peta Portal Ride'}</span>
+            <ExternalLink size={13} />
+          </button>
+        )}
       </div>
 
       {/* Estimasi Tarif */}
@@ -128,9 +161,55 @@ function BookingDraftCard({
           {isEn ? 'Estimated Total:' : 'Estimasi Total:'}
         </span>
         <div className="text-right">
-          <Money value={draft.priceEstimate} className="text-[15px] font-mono font-extrabold text-brand-ink" />
+          <Money value={currentPrice} className="text-[15px] font-mono font-extrabold text-brand-ink" />
         </div>
       </div>
+
+      {/* Vehicle Type Selector (Only in draft mode for Ride) */}
+      {isRide && !isConfirmed && !isCancelled && (
+        <div className="flex flex-col gap-1.5 border-t border-line pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+              {isEn ? 'VEHICLE TYPE' : 'PILIHAN KENDARAAN'}
+            </span>
+            <span className="text-[10.5px] text-ink-muted">
+              {selectedVehicle === 'car' ? (isEn ? 'WiraRide Car' : 'WiraRide Mobil') : (isEn ? 'WiraRide Motor' : 'WiraRide Motor')}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isConfirming}
+              onClick={() => setSelectedVehicle('motor')}
+              className={`min-h-10 flex flex-col items-center justify-center rounded-control border p-1.5 text-xs transition ${
+                selectedVehicle === 'motor'
+                  ? 'border-brand bg-brand text-white shadow-sm'
+                  : 'border-line bg-card text-ink hover:bg-sunken'
+              }`}
+            >
+              <span className="font-bold">{isEn ? 'Motorbike' : 'Motor'}</span>
+              <span className={`text-[10.5px] ${selectedVehicle === 'motor' ? 'text-white/90' : 'text-ink-muted'}`}>
+                Rp {motorPrice.toLocaleString('id-ID')}
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={isConfirming}
+              onClick={() => setSelectedVehicle('car')}
+              className={`min-h-10 flex flex-col items-center justify-center rounded-control border p-1.5 text-xs transition ${
+                selectedVehicle === 'car'
+                  ? 'border-brand bg-brand text-white shadow-sm'
+                  : 'border-line bg-card text-ink hover:bg-sunken'
+              }`}
+            >
+              <span className="font-bold">{isEn ? 'Car' : 'Mobil'}</span>
+              <span className={`text-[10.5px] ${selectedVehicle === 'car' ? 'text-white/90' : 'text-ink-muted'}`}>
+                Rp {carPrice.toLocaleString('id-ID')}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payment Method Selector (Only in draft mode) - Clean Minimal Pills */}
       {!isConfirmed && !isCancelled && (
@@ -178,7 +257,22 @@ function BookingDraftCard({
           <button
             type="button"
             disabled={isConfirming}
-            onClick={() => onConfirm(draft, paymentMethod)}
+            onClick={() =>
+              onConfirm(
+                {
+                  ...draft,
+                  priceEstimate: currentPrice,
+                  serviceName: isRide
+                    ? (selectedVehicle === 'car' ? (isEn ? 'WiraRide (Car)' : 'WiraRide (Mobil)') : (isEn ? 'WiraRide (Motor)' : 'WiraRide (Motor)'))
+                    : draft.serviceName,
+                  details: {
+                    ...details,
+                    vehicleType: selectedVehicle,
+                  },
+                },
+                paymentMethod
+              )
+            }
             className="min-h-11 flex w-full items-center justify-center gap-2 rounded-control bg-brand px-4 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
           >
             {isConfirming ? (
@@ -668,6 +762,11 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
     navigate(`/active-order/${orderId}`);
   };
 
+  const handleOpenRoute = (routeUrl) => {
+    onClose();
+    navigate(routeUrl);
+  };
+
   const handleReset = () => {
     stopAllVoice();
     try {
@@ -1002,6 +1101,7 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
                               onConfirm={handleConfirmDraft}
                               onCancel={handleCancelDraft}
                               onTrack={handleTrackOrder}
+                              onOpenRoute={handleOpenRoute}
                               isEn={isEn}
                             />
                           );
