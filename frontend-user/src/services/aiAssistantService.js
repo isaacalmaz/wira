@@ -297,9 +297,22 @@ const LOMBOK_LOCATIONS = {
   tawun: { name: 'Pelabuhan Tawun, Sekotong', lat: -8.7450, lng: 115.9950 },
   'selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
   mawun: { name: 'Pantai Mawun, Lombok Tengah', lat: -8.9030, lng: 116.2280 },
+  'pantai mawun': { name: 'Pantai Mawun, Lombok Tengah', lat: -8.9030, lng: 116.2280 },
+  'soma house kuta': { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  'soma house': { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  soma: { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  'the social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
   'social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
-  kuta: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
-  'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 },
+  'mana yoga': { name: 'Mana Yoga & Eco Retreat, Kuta Lombok', lat: -8.8910, lng: 116.2820 },
+  mana: { name: 'Mana Yoga & Eco Retreat, Kuta Lombok', lat: -8.8910, lng: 116.2820 },
+  'el bazar': { name: 'El Bazar Cafe & Restaurant, Kuta Lombok', lat: -8.8928, lng: 116.2801 },
+  'bush radio': { name: 'Bush Radio, Kuta Lombok', lat: -8.8935, lng: 116.2795 },
+  nalua: { name: 'Nalua Surf & Coffee, Kuta Lombok', lat: -8.8930, lng: 116.2805 },
+  'pantai tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9100, lng: 116.3210 },
+  'tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9100, lng: 116.3210 },
+  'pantai selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
+  kuta: { name: 'Pusat Kuta Lombok', lat: -8.8905, lng: 116.2805 },
+  'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8975, lng: 116.2785 },
   mandalika: { name: 'Pertamina Mandalika International Circuit', lat: -8.8920, lng: 116.3050 },
   'villa talas': { name: 'Villa Talas, Kuta Lombok', lat: -8.8970, lng: 116.2840 },
   ashtari: { name: 'Ashtari Lounge, Kuta Lombok', lat: -8.9012, lng: 116.2731 },
@@ -384,7 +397,12 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
         isUserLocation: true,
       };
     }
-    return null;
+    return {
+      name: 'Lokasi Anda Saat Ini',
+      lat: -8.8955,
+      lng: 116.2780,
+      isUserLocation: true,
+    };
   }
 
   // 2. Check if text matches current GPS location address
@@ -416,19 +434,37 @@ function resolveLombokLocation(text, { userLocation, savedAddresses } = {}) {
   }
 
   // 4. Check known Lombok landmarks & subdistricts (longest match first)
+  const GENERIC_AREAS = new Set(['kuta', 'mataram', 'praya', 'senggigi', 'lombok', 'selong', 'tanjung', 'ampenan', 'cakranegara']);
   const sortedEntries = Object.entries(LOMBOK_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
   for (const [key, loc] of sortedEntries) {
     if (key !== 'default' && lower.includes(key)) {
+      if (GENERIC_AREAS.has(key)) {
+        // If the user provided a more specific venue name along with the generic area
+        // (e.g. "Soma House Kuta", "Villa Senang Kuta"), preserve the specific venue title!
+        const remaining = lower.replace(key, '').replace(/di|ke|dari|jalan|jl\.?|daerah|area/g, '').trim();
+        if (remaining.length > 2) {
+          const formattedVenue = text.trim()
+            .split(/\s+/)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+          return { name: formattedVenue, lat: loc.lat, lng: loc.lng };
+        }
+      }
       return { name: loc.name, lat: loc.lat, lng: loc.lng };
     }
   }
 
   // 5. Fallback near user if available, otherwise default landmark
+  const formattedCustom = text.trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+
   if (userLoc && userLoc.lat && userLoc.lng) {
-    return { name: text.trim(), lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
+    return { name: formattedCustom, lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
   }
 
-  return { name: text.trim(), lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
+  return { name: formattedCustom, lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
 }
 
 // Client-side fallback handler
@@ -479,14 +515,22 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
           };
           rawOrigin = originLoc.name;
         } else {
-          rawOrigin = 'Bandara Internasional Lombok (LOP)';
+          originLoc = {
+            name: 'Lokasi Anda Saat Ini (Kuta Lombok)',
+            lat: -8.8955,
+            lng: 116.2780,
+            isUserLocation: true,
+          };
+          rawOrigin = originLoc.name;
         }
       }
 
-      let rawDest = keMatch ? keMatch[1].trim() : 'Pantai Kuta Lombok';
+      let rawDest = keMatch ? keMatch[1].trim() : 'Pantai Kuta Mandalika, Lombok';
 
-      if (rawOrigin.toLowerCase() === rawDest.toLowerCase() || (rawDest.toLowerCase().includes('kuta') && rawOrigin.toLowerCase().includes('kuta'))) {
-        rawDest = 'Bandara Internasional Lombok (LOP)';
+      if (rawOrigin.toLowerCase() === rawDest.toLowerCase()) {
+        rawDest = rawOrigin.toLowerCase().includes('pantai kuta')
+          ? 'Bandara Internasional Lombok (LOP)'
+          : 'Pantai Kuta Mandalika, Lombok';
       }
 
       if (!originLoc) {
@@ -510,11 +554,11 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
         destLoc = { name: rawDest, lat: -8.7615, lng: 116.2755 };
       }
 
-      if (originLoc.name === destLoc.name || (originLoc.lat === destLoc.lat && originLoc.lng === destLoc.lng)) {
-        if (destLoc.name.toLowerCase().includes('bandara') || destLoc.name.toLowerCase().includes('lop')) {
-          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 };
+      if (originLoc.name === destLoc.name || (Math.abs(originLoc.lat - destLoc.lat) < 0.0005 && Math.abs(originLoc.lng - destLoc.lng) < 0.0005)) {
+        if (destLoc.name.toLowerCase().includes('kuta') || originLoc.name.toLowerCase().includes('kuta')) {
+          destLoc = { name: 'Bukit Merese, Pujut, Lombok Tengah', lat: -8.9120, lng: 116.3190 };
         } else {
-          destLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
+          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8975, lng: 116.2785 };
         }
       }
 

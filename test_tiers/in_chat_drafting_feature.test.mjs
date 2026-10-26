@@ -118,6 +118,31 @@ async function runTestSuite() {
         return isNearAirport && hasBandaraDest && hasUserOrigin && hasRouteUrl && hasRoadPricing;
       },
     },
+    {
+      name: 'WiraRide: User in Pengembur to Soma House Kuta drafts faithful ~11-12 km (NOT Bandara)',
+      query: 'pesankan ride dari tempat saya ke soma house kuta',
+      userLocation: {
+        address: 'gang pengmbur Bencot, Dusun Batu Samban, Pengembur',
+        lat: -8.8212,
+        lng: 116.2594,
+      },
+      expectedService: 'ride',
+      checkDetails: (d) => {
+        const hasSoma = d.destination.toLowerCase().includes('soma');
+        const notBandara = !d.origin.toLowerCase().includes('bandara') && !d.destination.toLowerCase().includes('bandara');
+        const distanceOk = d.distanceKm >= 10 && d.distanceKm <= 14;
+        return hasSoma && notBandara && distanceOk;
+      },
+    },
+    {
+      name: 'WiraRide: Intra-Kuta ride preserves destination and does not force Bandara',
+      query: 'pesan ojek dari kuta ke pantai kuta',
+      expectedService: 'ride',
+      checkDetails: (d) => {
+        const notBandara = !d.destination.toLowerCase().includes('bandara');
+        return notBandara;
+      },
+    },
   ];
 
   try {

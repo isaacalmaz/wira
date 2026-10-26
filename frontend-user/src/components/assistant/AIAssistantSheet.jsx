@@ -632,12 +632,67 @@ export default function AIAssistantSheet({ open, onClose, autoListen = false }) 
     setIsLoading(true);
 
     try {
+      let effectiveLocation = currentGps;
+      if (!effectiveLocation?.lat || !effectiveLocation?.lng) {
+        // 1. Check if user's order history has a recent pickup location with lat/lng
+        if (Array.isArray(orders) && orders.length > 0) {
+          const lastOrder = orders.find((o) => o.pickup_lat && o.pickup_lng);
+          if (lastOrder) {
+            let origName = 'Lokasi Riwayat Penjemputan';
+            try {
+              const d = typeof lastOrder.details === 'object' ? lastOrder.details : JSON.parse(lastOrder.details || '{}');
+              if (d && d.origin) origName = d.origin;
+            } catch (_) {}
+            effectiveLocation = {
+              lat: Number(lastOrder.pickup_lat),
+              lng: Number(lastOrder.pickup_lng),
+              address: origName,
+            };
+          }
+        }
+
+        // 2. Check localStorage cached GPS
+        if (!effectiveLocation) {
+          try {
+            const cached = localStorage.getItem('wira_user_last_gps');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (parsed?.lat && parsed?.lng) effectiveLocation = parsed;
+            }
+          } catch (_) {}
+        }
+
+        // 3. Proactively attempt fast geolocation fix if available
+        if (!effectiveLocation && typeof navigator !== 'undefined' && navigator.geolocation) {
+          try {
+            const pos = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 1500,
+                maximumAge: 60000,
+              });
+            });
+            if (pos && pos.coords) {
+              effectiveLocation = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                address: 'Lokasi Anda Saat Ini',
+              };
+              setCurrentGps(effectiveLocation);
+              try {
+                localStorage.setItem('wira_user_last_gps', JSON.stringify(effectiveLocation));
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
+      }
+
       const res = await sendAssistantMessage({
         message: textToSend,
         userId: user?.id,
         lang,
         activeOrders: orders,
-        userLocation: currentGps,
+        userLocation: effectiveLocation,
         savedAddresses,
       });
 

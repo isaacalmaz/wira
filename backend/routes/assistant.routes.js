@@ -103,9 +103,22 @@ const LOMBOK_LOCATIONS = {
   tawun: { name: 'Pelabuhan Tawun, Sekotong', lat: -8.7450, lng: 115.9950 },
   'selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
   mawun: { name: 'Pantai Mawun, Lombok Tengah', lat: -8.9030, lng: 116.2280 },
+  'pantai mawun': { name: 'Pantai Mawun, Lombok Tengah', lat: -8.9030, lng: 116.2280 },
+  'soma house kuta': { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  'soma house': { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  soma: { name: 'Soma House, Jl. Mawun, Kuta Lombok', lat: -8.8890, lng: 116.2690 },
+  'the social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
   'social yard': { name: 'The Social Yard, Jl. Pariwisata Kuta, Lombok', lat: -8.8912, lng: 116.2818 },
-  kuta: { name: 'Kuta Lombok', lat: -8.8955, lng: 116.2780 },
-  'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 },
+  'mana yoga': { name: 'Mana Yoga & Eco Retreat, Kuta Lombok', lat: -8.8910, lng: 116.2820 },
+  mana: { name: 'Mana Yoga & Eco Retreat, Kuta Lombok', lat: -8.8910, lng: 116.2820 },
+  'el bazar': { name: 'El Bazar Cafe & Restaurant, Kuta Lombok', lat: -8.8928, lng: 116.2801 },
+  'bush radio': { name: 'Bush Radio, Kuta Lombok', lat: -8.8935, lng: 116.2795 },
+  nalua: { name: 'Nalua Surf & Coffee, Kuta Lombok', lat: -8.8930, lng: 116.2805 },
+  'pantai tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9100, lng: 116.3210 },
+  'tanjung aan': { name: 'Pantai Tanjung Aan, Lombok Tengah', lat: -8.9100, lng: 116.3210 },
+  'pantai selong belanak': { name: 'Pantai Selong Belanak, Lombok Barat', lat: -8.8683, lng: 116.1600 },
+  kuta: { name: 'Pusat Kuta Lombok', lat: -8.8905, lng: 116.2805 },
+  'pantai kuta': { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8975, lng: 116.2785 },
   mandalika: { name: 'Pertamina Mandalika International Circuit', lat: -8.8920, lng: 116.3050 },
   'villa talas': { name: 'Villa Talas, Kuta Lombok', lat: -8.8970, lng: 116.2840 },
   ashtari: { name: 'Ashtari Lounge, Kuta Lombok', lat: -8.9012, lng: 116.2731 },
@@ -198,7 +211,20 @@ function resolveLombokLocation(text, dbContext = {}) {
         isUserLocation: true,
       };
     }
-    return null;
+    if (dbContext.userLastOrderLocation && dbContext.userLastOrderLocation.lat && dbContext.userLastOrderLocation.lng) {
+      return {
+        name: dbContext.userLastOrderLocation.name || dbContext.userLastOrderLocation.address || 'Lokasi Terakhir Anda',
+        lat: Number(dbContext.userLastOrderLocation.lat),
+        lng: Number(dbContext.userLastOrderLocation.lng),
+        isUserLocation: true,
+      };
+    }
+    return {
+      name: 'Lokasi Anda Saat Ini',
+      lat: -8.8955,
+      lng: 116.2780,
+      isUserLocation: true,
+    };
   }
 
   // 2. Check if text matches current GPS location address
@@ -230,19 +256,37 @@ function resolveLombokLocation(text, dbContext = {}) {
   }
 
   // 4. Check known Lombok landmarks & subdistricts (longest match first)
+  const GENERIC_AREAS = new Set(['kuta', 'mataram', 'praya', 'senggigi', 'lombok', 'selong', 'tanjung', 'ampenan', 'cakranegara']);
   const sortedEntries = Object.entries(LOMBOK_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
   for (const [key, loc] of sortedEntries) {
     if (key !== 'default' && lower.includes(key)) {
+      if (GENERIC_AREAS.has(key)) {
+        // If the user provided a more specific venue name along with the generic area
+        // (e.g. "Soma House Kuta", "Villa Senang Kuta"), preserve the specific venue title!
+        const remaining = lower.replace(key, '').replace(/di|ke|dari|jalan|jl\.?|daerah|area/g, '').trim();
+        if (remaining.length > 2) {
+          const formattedVenue = text.trim()
+            .split(/\s+/)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+          return { name: formattedVenue, lat: loc.lat, lng: loc.lng };
+        }
+      }
       return { name: loc.name, lat: loc.lat, lng: loc.lng };
     }
   }
 
-  // 5. If unknown, but user location is present, baseline coordinates near user
+  // 5. If unknown, preserve the user's provided place name cleanly
+  const formattedCustom = text.trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+
   if (userLoc && userLoc.lat && userLoc.lng) {
-    return { name: text.trim(), lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
+    return { name: formattedCustom, lat: Number(userLoc.lat), lng: Number(userLoc.lng) };
   }
 
-  return { name: text.trim(), lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
+  return { name: formattedCustom, lat: LOMBOK_LOCATIONS.default.lat, lng: LOMBOK_LOCATIONS.default.lng };
 }
 
 function resolveIsoDate(text, offsetDays = 1) {
@@ -427,6 +471,51 @@ async function fetchDbContext(queryLower, userId, detectedIntents) {
         context.savedAddresses = addresses;
       }
     }
+
+    // 5. Fetch User's Last Known Order Location (for reliable self-location if GPS is off)
+    if (userId) {
+      const { data: recentOrders } = await supabase
+        .from('orders')
+        .select('title, details, pickup_lat, pickup_lng')
+        .eq('user_id', userId)
+        .not('pickup_lat', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (recentOrders && recentOrders.length > 0) {
+        // Look for a non-airport/transit pickup address first (e.g. home/villa/neighborhood)
+        const bestOrder = recentOrders.find((ord) => {
+          let orig = '';
+          try {
+            const d = typeof ord.details === 'object' ? ord.details : JSON.parse(ord.details || '{}');
+            orig = (d && d.origin) || ord.title || '';
+          } catch (_) {}
+          return !/bandara|airport|pelabuhan|terminal/i.test(orig);
+        }) || recentOrders[0];
+
+        if (bestOrder && bestOrder.pickup_lat && bestOrder.pickup_lng) {
+          let addrName = 'Lokasi Riwayat Penjemputan';
+          try {
+            const d = typeof bestOrder.details === 'object' ? bestOrder.details : JSON.parse(bestOrder.details || '{}');
+            if (d && d.origin) addrName = d.origin;
+          } catch (_) {}
+
+          const resolvedCoords = resolveLombokLocation(addrName);
+          const lat = resolvedCoords?.lat || Number(bestOrder.pickup_lat);
+          const lng = resolvedCoords?.lng || Number(bestOrder.pickup_lng);
+
+          context.userLastOrderLocation = {
+            name: addrName,
+            address: addrName,
+            lat,
+            lng,
+          };
+          if (!context.userCurrentLocation) {
+            context.userCurrentLocation = context.userLastOrderLocation;
+          }
+        }
+      }
+    }
   } catch (err) {
     console.error('Error fetching AI context from DB:', err.message);
   }
@@ -574,8 +663,12 @@ async function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', qu
       let destRaw = (args.destination || '').trim();
       const isPlaceholder = /belum|unknown|tbd|tidak tahu|tidak ada/i.test(originRaw + ' ' + destRaw);
 
+      // Check if user asked for pickup at their own location in their query
+      const userAskedSelfLocation = queryLower && isSelfLocationQuery(queryLower) && !/(?:dari|jemput di)\s+(?!tempat|lokasi|sini|rumah|kost|villa)[a-zA-Z0-9\s]+/i.test(queryLower);
+      const isSelfOrigin = !originRaw || isPlaceholder || isSelfLocationQuery(originRaw) || userAskedSelfLocation;
+
       let originLoc = null;
-      if (!originRaw || isPlaceholder || isSelfLocationQuery(originRaw)) {
+      if (isSelfOrigin) {
         if (dbContext.userCurrentLocation && dbContext.userCurrentLocation.lat && dbContext.userCurrentLocation.lng) {
           originLoc = {
             name: dbContext.userCurrentLocation.address || 'Lokasi Anda Saat Ini',
@@ -593,15 +686,29 @@ async function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', qu
             isUserLocation: true,
           };
           originRaw = originLoc.name;
+        } else if (dbContext.userLastOrderLocation && dbContext.userLastOrderLocation.lat && dbContext.userLastOrderLocation.lng) {
+          originLoc = {
+            name: dbContext.userLastOrderLocation.name || dbContext.userLastOrderLocation.address || 'Lokasi Terakhir Anda',
+            lat: Number(dbContext.userLastOrderLocation.lat),
+            lng: Number(dbContext.userLastOrderLocation.lng),
+            isUserLocation: true,
+          };
+          originRaw = originLoc.name;
         } else {
-          originRaw = 'Bandara Internasional Lombok (LOP)';
+          originLoc = {
+            name: 'Lokasi Anda Saat Ini (Kuta Lombok)',
+            lat: -8.8955,
+            lng: 116.2780,
+            isUserLocation: true,
+          };
+          originRaw = originLoc.name;
         }
       }
 
       if (!destRaw || isPlaceholder || destRaw.toLowerCase() === originRaw.toLowerCase()) {
-        destRaw = originRaw.toLowerCase().includes('kuta')
+        destRaw = originRaw.toLowerCase().includes('pantai kuta')
           ? 'Bandara Internasional Lombok (LOP)'
-          : 'Pantai Kuta Lombok';
+          : 'Pantai Kuta Mandalika, Lombok';
       }
 
       if (!originLoc) {
@@ -625,11 +732,11 @@ async function buildDraftFromToolCall(toolName, args, dbContext, lang = 'id', qu
         destLoc = { name: destRaw, lat: -8.7615, lng: 116.2755 };
       }
 
-      if (originLoc.name === destLoc.name || (originLoc.lat === destLoc.lat && originLoc.lng === destLoc.lng)) {
-        if (destLoc.name.toLowerCase().includes('bandara') || destLoc.name.toLowerCase().includes('lop')) {
-          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8955, lng: 116.2780 };
+      if (originLoc.name === destLoc.name || (Math.abs(originLoc.lat - destLoc.lat) < 0.0005 && Math.abs(originLoc.lng - destLoc.lng) < 0.0005)) {
+        if (destLoc.name.toLowerCase().includes('kuta') || originLoc.name.toLowerCase().includes('kuta')) {
+          destLoc = { name: 'Bukit Merese, Pujut, Lombok Tengah', lat: -8.9120, lng: 116.3190 };
         } else {
-          destLoc = { name: 'Bandara Internasional Lombok (LOP)', lat: -8.7615, lng: 116.2755 };
+          destLoc = { name: 'Pantai Kuta Mandalika, Lombok', lat: -8.8975, lng: 116.2785 };
         }
       }
 
@@ -1000,7 +1107,7 @@ CRITICAL INSTRUCTIONS ON INSTANT IN-CHAT DRAFTING:
 - Whenever the user asks to book, order, or expresses intent for ANY of the 8 services (even if broad like "mau makan", "pesen ojek", "mau ke kuta", "sewa villa", "kuras kolam", "angkut sampah", "panggil teknisi", "sewa excavator", "cari babysitter", "kirim paket"), ALWAYS CALL THE CORRESPONDING DRAFT TOOL!
 - Fill in sensible, top-rated defaults from Lombok and dbContext for any unspecified parameters (e.g. default food: Ayam Taliwang Bu Mirah, default villa: Villa Segara Kuta Lombok, default ride: pickup from user location/GPS to requested destination or Pantai Kuta, default clean: Sampun Bersih, default pool: Kuras & Perawatan Kolam, default service: Servis AC / Excavator, default nanny: 4 jam Kuta Lombok).
 - If the user says "dari tempat saya", "lokasi saya", "sini", "ke rumah saya":
-  * Check dbContext.userCurrentLocation or dbContext.savedAddresses. If available, use the real address string.
+  * Set origin as "Current Location" or the real address in dbContext.userCurrentLocation / dbContext.userLastOrderLocation / dbContext.savedAddresses. NEVER substitute Bandara Internasional Lombok (LOP) unless the user explicitly requested airport!
   * Note geographic reality: user location coordinates in dbContext determine exact geodesic and road distance. For instance, Pengembur / Pujut / Praya is only ~7 km from Bandara Internasional Lombok (LOP), NOT 15 km. Keep origin and destination faithful to user GPS and saved addresses.
 - Never tell the user to open other app pages or fill manual forms. Always output the draft so they can confirm with 1 tap.
 - Always be warm, friendly, concise, and helpful.
@@ -1556,11 +1663,13 @@ async function generateLocalResponse(query, queryLower, lang, dbContext, detecte
       const keMatch = queryLower.match(/(?:ke|tujuan|menuju)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:jemput|dari|sekarang|pagi|siang)|$)/i);
       const dariMatch = queryLower.match(/(?:dari|jemput(?:\s+di)?)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:ke|tujuan|menuju)|$)/i);
 
-      let origin = dariMatch ? dariMatch[1].trim() : (dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || 'Bandara Internasional Lombok (LOP)');
+      let origin = dariMatch ? dariMatch[1].trim() : (dbContext.userCurrentLocation?.address || dbContext.savedAddresses?.[0]?.address || dbContext.userLastOrderLocation?.address || 'Lokasi Anda Saat Ini');
       let destination = keMatch ? keMatch[1].trim() : 'Pantai Kuta Lombok';
 
-      if (origin.toLowerCase() === destination.toLowerCase() || (destination.toLowerCase().includes('kuta') && origin.toLowerCase().includes('kuta'))) {
-        destination = 'Bandara Internasional Lombok (LOP)';
+      if (origin.toLowerCase() === destination.toLowerCase()) {
+        destination = origin.toLowerCase().includes('pantai kuta')
+          ? 'Bandara Internasional Lombok (LOP)'
+          : 'Pantai Kuta Mandalika, Lombok';
       }
 
       const { draft, reply: draftReply } = await buildDraftFromToolCall('draftRideBooking', {
