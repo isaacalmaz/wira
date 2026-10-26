@@ -54,6 +54,10 @@ export function parseOrderAddresses(order) {
       pickup = parsedDetails.pickup;
     } else if (parsedDetails.pickup && typeof parsedDetails.pickup === 'object') {
       pickup = parsedDetails.pickup.name || parsedDetails.pickup.address || '';
+    } else if (typeof parsedDetails.origin === 'string') {
+      pickup = parsedDetails.origin;
+    } else if (parsedDetails.origin && typeof parsedDetails.origin === 'object') {
+      pickup = parsedDetails.origin.name || parsedDetails.origin.address || '';
     }
 
     // Dropoff
@@ -61,6 +65,10 @@ export function parseOrderAddresses(order) {
       dropoff = parsedDetails.dropoff;
     } else if (parsedDetails.dropoff && typeof parsedDetails.dropoff === 'object') {
       dropoff = parsedDetails.dropoff.name || parsedDetails.dropoff.address || '';
+    } else if (typeof parsedDetails.destination === 'string') {
+      dropoff = parsedDetails.destination;
+    } else if (parsedDetails.destination && typeof parsedDetails.destination === 'object') {
+      dropoff = parsedDetails.destination.name || parsedDetails.destination.address || '';
     }
 
     // Single address property

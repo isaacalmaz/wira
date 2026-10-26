@@ -122,20 +122,40 @@ export async function confirmAssistantBooking({ draft, userId, paymentMethod = '
   const rawType = String(draft.serviceType || 'ride').toLowerCase();
   const serviceType = rawType === 'asuh' ? 'babysit' : rawType;
   const detailsObj = draft.details || {};
+  const enrichedDetails = typeof detailsObj === 'object' && detailsObj !== null
+    ? {
+        ...detailsObj,
+        pickup: {
+          name: detailsObj.origin || detailsObj.pickup?.name || detailsObj.pickup || detailsObj.address || 'Lokasi Jemput',
+          lat: detailsObj.originCoords?.lat ?? -8.8955,
+          lng: detailsObj.originCoords?.lng ?? 116.2780,
+        },
+        dropoff: {
+          name: detailsObj.destination || detailsObj.dropoff?.name || detailsObj.dropoff || detailsObj.address || 'Tujuan',
+          lat: detailsObj.destCoords?.lat ?? -8.8955,
+          lng: detailsObj.destCoords?.lng ?? 116.2780,
+        },
+      }
+    : detailsObj;
+
   const orderRow = {
     user_id: userId || null,
     service_type: serviceType,
     merchant_id: draft.merchantId || detailsObj.merchantId || null,
     title: draft.title || `Pesanan ${draft.serviceName || serviceType}`,
-    details: typeof detailsObj === 'object' ? JSON.stringify(detailsObj) : String(detailsObj),
+    details: typeof enrichedDetails === 'object' ? JSON.stringify(enrichedDetails) : String(enrichedDetails),
     total_price: Number(draft.priceEstimate) || 0,
     status: selectedPaymentMethod === 'qris' ? 'awaiting_payment' : 'pending',
     payment_method: selectedPaymentMethod === 'qris' ? 'qris' : 'cash',
     payment_status: 'unpaid',
+    rate_code: serviceType === 'ride' ? ((detailsObj.vehicleType === 'car' || detailsObj.vehicleType === 'mobil') ? 'mobil' : 'motor') : null,
     pickup_lat: detailsObj.originCoords?.lat ?? -8.8955,
     pickup_lng: detailsObj.originCoords?.lng ?? 116.2780,
     dropoff_lat: detailsObj.destCoords?.lat ?? -8.8955,
     dropoff_lng: detailsObj.destCoords?.lng ?? 116.2780,
+    pickup_address: detailsObj.origin || detailsObj.pickup?.name || detailsObj.address || null,
+    dropoff_address: detailsObj.destination || detailsObj.dropoff?.name || detailsObj.address || null,
+    distance_meters: detailsObj.distanceKm ? Math.round(Number(detailsObj.distanceKm) * 1000) : null,
     delivery_fee: serviceType === 'food' ? 10000 : 0,
     metadata: {
       source: 'wira_ai_assistant',
@@ -377,8 +397,8 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function calculateRideFare(distKm, isCar = false) {
-  const basePrice = isCar ? 25000 : 12000;
-  const perKmRate = isCar ? 5000 : 3000;
+  const basePrice = isCar ? 15000 : 8000;
+  const perKmRate = isCar ? 4000 : 2000;
   const extraKm = Math.max(0, distKm - 2);
   return Math.ceil((basePrice + Math.ceil(extraKm * perKmRate)) / 500) * 500;
 }
@@ -576,12 +596,25 @@ async function resolveClientAssistant({ queryLower, lang, activeOrders = [], use
             lng: Number(userLocation.lng),
             isUserLocation: true,
           };
-        } else {
-          originLoc = { name: rawOrigin || 'Kuta Lombok', lat: -8.8955, lng: 116.2780 };
         }
       }
+
       if (!destLoc) {
-        destLoc = { name: rawDest, lat: -8.7615, lng: 116.2755 };
+        return {
+          reply: isEn
+            ? `Could you please clarify your destination "${rawDest}" in Lombok? (e.g., mention the village, subdistrict, or nearest landmark like Sengkol, Kuta, Praya) so I can calculate the factual route and fare.`
+            : `Mohon klarifikasi lokasi tujuan "${rawDest}" di Lombok lebih spesifik (misalnya: nama desa, kecamatan, atau patokan terdekat seperti Sengkol, Kuta, Praya) agar rute dan tarif dapat dihitung secara faktual tanpa menebak.`,
+          widgets: [],
+        };
+      }
+
+      if (!originLoc) {
+        return {
+          reply: isEn
+            ? 'I cannot detect your pickup location. Please enable GPS permissions or provide your pickup landmark in Lombok.'
+            : 'Saya belum dapat mendeteksi titik penjemputan Anda. Mohon aktifkan izin GPS atau sebutkan alamat/patokan penjemputan Anda di Lombok.',
+          widgets: [],
+        };
       }
 
       if (originLoc.name === destLoc.name || (Math.abs(originLoc.lat - destLoc.lat) < 0.0005 && Math.abs(originLoc.lng - destLoc.lng) < 0.0005)) {

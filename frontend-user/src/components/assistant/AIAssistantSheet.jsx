@@ -46,8 +46,8 @@ function BookingDraftCard({
   const [selectedVehicle, setSelectedVehicle] = useState(details.vehicleType || 'motor');
 
   // Compute live price based on selected vehicle if ride
-  const motorPrice = details.motorPrice || (details.vehicleType === 'motor' ? draft.priceEstimate : 12000);
-  const carPrice = details.carPrice || (details.vehicleType === 'car' ? draft.priceEstimate : 25000);
+  const motorPrice = details.motorPrice || (details.vehicleType === 'motor' ? draft.priceEstimate : 8000);
+  const carPrice = details.carPrice || (details.vehicleType === 'car' ? draft.priceEstimate : 15000);
   const currentPrice = isRide
     ? (selectedVehicle === 'car' ? carPrice : motorPrice)
     : draft.priceEstimate;

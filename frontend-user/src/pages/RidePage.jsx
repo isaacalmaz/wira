@@ -61,8 +61,8 @@ export default function RidePage() {
   // Fallback fleet, used only until the `vehicles` table loads. Names match
   // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
   const defaultVehicles = useMemo(() => [
-    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, desc: t('ride.capacity_motor') },
-    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, desc: t('ride.capacity_car') }
+    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 8000, price: 8000, perKmRate: 2000, desc: t('ride.capacity_motor') },
+    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 15000, price: 15000, perKmRate: 4000, desc: t('ride.capacity_car') }
   ], [t]);
 
   const sourceVehicles = useMemo(() => {

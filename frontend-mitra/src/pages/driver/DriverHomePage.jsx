@@ -534,54 +534,76 @@ const DriverHomePage = () => {
     }
   };
 
+  const orderDetails = activeOrder ? tryParseJson(activeOrder.details) : null;
+  const activeAddresses = activeOrder ? parseOrderAddresses(activeOrder) : null;
+  const isFoodDelivery = !!activeOrder?.merchant_id;
+
+  // Resolve pickup and dropoff coordinates safely from first-class columns OR nested details
+  const pickupLat = activeOrder?.pickup_lat != null
+    ? Number(activeOrder.pickup_lat)
+    : (orderDetails?.pickup?.lat != null
+        ? Number(orderDetails.pickup.lat)
+        : (orderDetails?.originCoords?.lat != null ? Number(orderDetails.originCoords.lat) : null));
+
+  const pickupLng = activeOrder?.pickup_lng != null
+    ? Number(activeOrder.pickup_lng)
+    : (orderDetails?.pickup?.lng != null
+        ? Number(orderDetails.pickup.lng)
+        : (orderDetails?.originCoords?.lng != null ? Number(orderDetails.originCoords.lng) : null));
+
+  const dropoffLat = activeOrder?.dropoff_lat != null
+    ? Number(activeOrder.dropoff_lat)
+    : (orderDetails?.dropoff?.lat != null
+        ? Number(orderDetails.dropoff.lat)
+        : (orderDetails?.destCoords?.lat != null ? Number(orderDetails.destCoords.lat) : null));
+
+  const dropoffLng = activeOrder?.dropoff_lng != null
+    ? Number(activeOrder.dropoff_lng)
+    : (orderDetails?.dropoff?.lng != null
+        ? Number(orderDetails.dropoff.lng)
+        : (orderDetails?.destCoords?.lng != null ? Number(orderDetails.destCoords.lng) : null));
+
   // Target GPS saat ini tergantung tahap: menuju jemputan (ACCEPTED), sudah
   // di jemputan (PICKING_UP, tidak butuh jarak), atau menuju tujuan (IN_TRIP).
   const getCurrentLegTarget = () => {
     if (!activeOrder) return null;
-    const pickup = activeOrder.pickup_lat != null && activeOrder.pickup_lng != null
-      ? { lat: activeOrder.pickup_lat, lng: activeOrder.pickup_lng, label: 'lokasi jemputan' }
-      : (orderDetails?.pickup?.lat != null ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng, label: 'lokasi jemputan' } : null);
-    const dropoff = activeOrder.dropoff_lat != null && activeOrder.dropoff_lng != null
-      ? { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng, label: 'tujuan' }
-      : (orderDetails?.dropoff?.lat != null ? { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng, label: 'tujuan' } : null);
+    const pickup = (pickupLat != null && pickupLng != null)
+      ? { lat: pickupLat, lng: pickupLng, label: 'lokasi jemputan' }
+      : null;
+    const dropoff = (dropoffLat != null && dropoffLng != null)
+      ? { lat: dropoffLat, lng: dropoffLng, label: 'tujuan' }
+      : null;
 
     if (activeOrder.status === OrderStatus.ACCEPTED) return pickup;
     if (activeOrder.status === OrderStatus.IN_TRIP) return dropoff;
     return null;
   };
 
-  const orderDetails = activeOrder ? tryParseJson(activeOrder.details) : null;
-  const activeAddresses = activeOrder ? parseOrderAddresses(activeOrder) : null;
-  const isFoodDelivery = !!activeOrder?.merchant_id;
+  const mapCenter = (pickupLat != null && pickupLng != null)
+    ? { lat: pickupLat, lng: pickupLng }
+    : ((dropoffLat != null && dropoffLng != null)
+        ? { lat: dropoffLat, lng: dropoffLng }
+        : (driverPos && driverPos.lat != null && driverPos.lng != null
+            ? { lat: driverPos.lat, lng: driverPos.lng }
+            : { lat: mataramPos[0], lng: mataramPos[1] }));
 
-  // Food orders' `details` is a plain string, not JSON (see tryParseJson's
-  // doc comment above), so orderDetails is always null for food - but
-  // activeOrder.dropoff_lat/lng ARE real coordinates for food orders
-  // (unlike pickup, since a restaurant has no GPS data at all). Fall back to
-  // those instead of collapsing straight to the generic Mataram pin, so the
-  // in-app map is just as map-driven for the food delivery-to-customer leg
-  // as it already is for ride/send - matching the "Navigasi" button below,
-  // which already uses these same coordinates.
-  const mapCenter = orderDetails?.pickup
-    ? { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng }
-    : (activeOrder?.dropoff_lat != null
-        ? { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng }
-        : { lat: mataramPos[0], lng: mataramPos[1] });
-  const mapMarkers = orderDetails
-    ? [
-        { lat: orderDetails.pickup.lat, lng: orderDetails.pickup.lng, type: 'pickup', label: 'Jemputan' },
-        { lat: orderDetails.dropoff.lat, lng: orderDetails.dropoff.lng, type: 'dropoff', label: 'Tujuan' },
-        ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }] : []),
-      ]
-    : (activeOrder?.dropoff_lat != null
-        ? [
-            { lat: activeOrder.dropoff_lat, lng: activeOrder.dropoff_lng, type: 'dropoff', label: 'Tujuan Pelanggan' },
-            ...(driverPos ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }] : []),
-          ]
-        : [{ lat: mataramPos[0], lng: mataramPos[1] }]);
+  const mapMarkers = [
+    ...(pickupLat != null && pickupLng != null
+      ? [{ lat: pickupLat, lng: pickupLng, type: 'pickup', label: activeAddresses?.pickup || 'Jemputan' }]
+      : []),
+    ...(dropoffLat != null && dropoffLng != null
+      ? [{ lat: dropoffLat, lng: dropoffLng, type: 'dropoff', label: activeAddresses?.dropoff || 'Tujuan' }]
+      : []),
+    ...(driverPos && driverPos.lat != null && driverPos.lng != null
+      ? [{ lat: driverPos.lat, lng: driverPos.lng, type: 'driver', label: 'Posisi Anda' }]
+      : []),
+  ];
+  if (mapMarkers.length === 0) {
+    mapMarkers.push({ lat: mataramPos[0], lng: mataramPos[1], type: 'default', label: 'Lombok' });
+  }
 
   const legTarget = getCurrentLegTarget();
-  const legDistance = legTarget && driverPos
+  const legDistance = legTarget && driverPos && legTarget.lat != null && legTarget.lng != null && driverPos.lat != null && driverPos.lng != null
     ? distanceMeters(driverPos.lat, driverPos.lng, legTarget.lat, legTarget.lng)
     : null;
   const hasArrived = legDistance != null && legDistance <= ARRIVAL_RADIUS_METERS;
@@ -595,7 +617,9 @@ const DriverHomePage = () => {
   // Same road distance the customer saw (orders.distance_meters); a straight
   // line only when the order has none.
   const incomingTripMeters = Number(incomingOrder?.distance_meters) > 0 ? Number(incomingOrder.distance_meters)
-    : incomingDetails?.pickup?.lat != null && incomingDetails?.dropoff?.lat != null
+    : (incomingOrder?.pickup_lat != null && incomingOrder?.dropoff_lat != null)
+    ? distanceMeters(incomingOrder.pickup_lat, incomingOrder.pickup_lng, incomingOrder.dropoff_lat, incomingOrder.dropoff_lng)
+    : (incomingDetails?.pickup?.lat != null && incomingDetails?.dropoff?.lat != null)
     ? distanceMeters(incomingDetails.pickup.lat, incomingDetails.pickup.lng, incomingDetails.dropoff.lat, incomingDetails.dropoff.lng)
     : null;
 
@@ -813,12 +837,12 @@ const DriverHomePage = () => {
               )}
 
               <div className={cx('grid gap-2', legTarget ? 'grid-cols-2' : 'grid-cols-1')}>
-                {legTarget && (
+                {legTarget && legTarget.lat != null && legTarget.lng != null && (
                   <Button
                     variant="secondary"
                     leftIcon={<Navigation2 size={17} />}
                     onClick={() => {
-                      const origin = driverPos ? `${driverPos.lat},${driverPos.lng}` : '';
+                      const origin = (driverPos && driverPos.lat != null && driverPos.lng != null) ? `${driverPos.lat},${driverPos.lng}` : '';
                       window.open(`https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ''}&destination=${legTarget.lat},${legTarget.lng}`, '_blank');
                     }}
                   >

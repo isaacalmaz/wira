@@ -94,7 +94,9 @@ const MapAutoFitter = ({ markers, route }) => {
 // above a bottom sheet); defaults to the bottom-right corner.
 export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd, locateClassName = 'bottom-3 right-3' }) {
   const { t } = useTranslation();
-  const mapCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
+  const mapCenter = (center && center.lat != null && center.lng != null && !isNaN(center.lat) && !isNaN(center.lng))
+    ? [Number(center.lat), Number(center.lng)]
+    : [-8.5833, 116.1167];
   const [mapInstance, setMapInstance] = useState(null);
 
   const locateUser = () => {
@@ -133,7 +135,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         />
         
         {markers.map((m, idx) => {
-          if (!m) return null;
+          if (!m || m.lat == null || m.lng == null || isNaN(m.lat) || isNaN(m.lng)) return null;
           let icon = pickupIcon;
           if (m.type === 'dropoff') icon = dropoffIcon;
           else if (m.type === 'driver') icon = driverIcon;

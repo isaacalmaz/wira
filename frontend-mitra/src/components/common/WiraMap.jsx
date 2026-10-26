@@ -87,7 +87,9 @@ const MapAutoFitter = ({ markers, route }) => {
 
 // Main Map Component
 export default function WiraMap({ center, zoom = 14, markers = [], route = null, onMarkerDragEnd }) {
-  const mapCenter = center ? [center.lat, center.lng] : [-8.5833, 116.1167];
+  const mapCenter = (center && center.lat != null && center.lng != null && !isNaN(center.lat) && !isNaN(center.lng))
+    ? [Number(center.lat), Number(center.lng)]
+    : [-8.5833, 116.1167];
   const [mapInstance, setMapInstance] = useState(null);
 
   // @capacitor/geolocation: native permission prompt in the app, browser
@@ -120,7 +122,7 @@ export default function WiraMap({ center, zoom = 14, markers = [], route = null,
         />
         
         {markers.map((m, idx) => {
-          if (!m) return null;
+          if (!m || m.lat == null || m.lng == null || isNaN(m.lat) || isNaN(m.lng)) return null;
           let icon = pickupIcon;
           if (m.type === 'dropoff') icon = dropoffIcon;
           else if (m.type === 'driver') icon = driverIcon;
