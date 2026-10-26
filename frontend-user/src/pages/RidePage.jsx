@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import WiraMap from '../components/common/WiraMap';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
@@ -57,6 +57,17 @@ export default function RidePage() {
   const [paymentMethod, setPaymentMethod] = useState('Tunai'); // 'WiraPay' or 'Tunai'
 
   const [vehicles, setVehicles] = useState([]);
+
+  // Fallback fleet, used only until the `vehicles` table loads. Names match
+  // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
+  const defaultVehicles = useMemo(() => [
+    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, desc: t('ride.capacity_motor') },
+    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, desc: t('ride.capacity_car') }
+  ], [t]);
+
+  const sourceVehicles = useMemo(() => {
+    return vehicles.length > 0 ? vehicles : defaultVehicles;
+  }, [vehicles, defaultVehicles]);
   // Stage 4 (migrations/0132): "Nanti" books a pickup time, "Per jam" rents
   // a driver for some hours. The limits come from admin settings.
   const [mode, setMode] = useState(searchParams.get('mode') === 'hourly' ? 'hourly' : searchParams.get('mode') === 'later' ? 'later' : 'now');
@@ -236,14 +247,6 @@ export default function RidePage() {
     }
   }, [mapState.markers, pickup, dropoff, step, mode]);
 
-  // Fallback fleet, used only until the `vehicles` table loads. Names match
-  // what the live app actually offers: WiraRide Motor and WiraRide Mobil.
-  const defaultVehicles = [
-    { id: 'motor', name: t('ride.vehicle_motor'), basePrice: 12000, price: 12000, desc: t('ride.capacity_motor') },
-    { id: 'mobil', name: t('ride.vehicle_car'), basePrice: 25000, price: 25000, desc: t('ride.capacity_car') }
-  ];
-
-  const sourceVehicles = vehicles.length > 0 ? vehicles : defaultVehicles;
 
   const dynamicVehicles = sourceVehicles.map(v => {
     if (!routeInfo) return v;
